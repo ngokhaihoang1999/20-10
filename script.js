@@ -61,7 +61,7 @@ const framesConfig = [];
 for (let i = 1; i <= 10; i++) {
     framesConfig.push({
         id: i - 1,
-        path: `khung/khung ${i}.png`,
+        path: `khung/khung ${i}.png?v=3.0`,
         label: `Khung ${i}`
     });
 }
