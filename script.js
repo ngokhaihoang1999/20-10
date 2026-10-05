@@ -28,7 +28,7 @@ class Particle {
         this.size = Math.random() * 14 + 6; this.vx = (Math.random() - 0.5) * 1.5;
         this.vy = Math.random() * 2 + 1.5; this.rotation = Math.random() * 360;
         this.rotationSpeed = Math.random() * 4 - 2;
-        this.color = ['#a8e6cf', '#7fd1ae', '#ffffff', '#56c596'][Math.floor(Math.random() * 4)];
+        this.color = ['#ffc0cb', '#ffb6c1', '#ffffff', '#ff99a8'][Math.floor(Math.random() * 4)];
         this.opacity = Math.random() * 0.6 + 0.4;
     }
     draw() {
@@ -69,33 +69,7 @@ for (let i = 1; i <= 10; i++) {
 const uploadWrapper = document.getElementById('upload-wrapper');
 uploadWrapper.classList.add('ready');
 
-
-const wishes2010 = [
-    "Chúc bạn một ngày 20/10 thật trọn vẹn và nhiều niềm vui. Luôn giữ nụ cười tươi tắn trên môi nhé, vì bạn lúc mỉm cười là đẹp nhất đấy.",
-    "Gửi đến bạn thân mến lời chúc 20/10 chân thành nhất. Mong bạn luôn tự tin, vững bước trên con đường mình chọn và mãi rạng rỡ như bây giờ.",
-    "Nhân ngày Phụ nữ Việt Nam 20/10, tôi muốn chúc bạn luôn hạnh phúc và tràn đầy năng lượng. Làm bạn với bạn là một điều rất tuyệt vời trong cuộc sống của tôi.",
-    "20/10 vui vẻ nhé. Cứ tiếp tục là một cô gái mạnh mẽ, thông minh và đầy khí chất như thế. Mọi điều tốt đẹp nhất sẽ đến với bạn thôi.",
-    "Chúc bạn ngày Phụ nữ Việt Nam thật ấm áp bên những người thân yêu. Đừng quên dành chút thời gian chiều chuộng bản thân mình hơn nhé.",
-    "Bạn luôn mang đến nguồn năng lượng rất tích cực. Nhân dịp 20/10, chúc bạn luôn giữ được sự lạc quan và yêu đời ấy trong mọi hoàn cảnh.",
-    "Chúc bạn của tôi ngày lễ 20/10 nhận được thật nhiều điều tốt đẹp. Hãy luôn kiêu hãnh và tự hào về chính mình nha.",
-    "Nhân ngày 20/10, chúc bạn gặt hái thêm nhiều thành công mới. Tôi tin với sự thông minh và nỗ lực của bạn, mọi mục tiêu đều sẽ nằm trong tầm tay.",
-    "Dù cuộc sống bận rộn thế nào, ngày 20/10 này hãy bước chậm lại một chút để cảm nhận niềm vui. Chúc bạn luôn xinh đẹp và bình an.",
-    "Chúc bạn một ngày 20/10 ngập tràn tiếng cười. Rất may mắn khi có một người bạn hiểu chuyện và duyên dáng như bạn để chia sẻ mọi điều.",
-    "Tháng 10 thật dịu dàng, và bạn cũng vậy. Chúc bạn một ngày 20/10 ngập tràn yêu thương, sống trọn vẹn với đam mê và những gì mình yêu thích.",
-    "Chúc mừng ngày Phụ nữ Việt Nam. Tôi luôn trân trọng sự quan tâm và tình bạn chân thành của bạn. Chúc bạn luôn hạnh phúc, vô lo và an nhiên nhé.",
-    "20/10 chúc bạn rạng rỡ ngời ngời. Cứ lúc nào cũng vui vẻ thế này thì chẳng có muộn phiền nào dám làm khó cô gái mạnh mẽ như bạn đâu.",
-    "Chúc ngày 20/10 của bạn thật rực rỡ và lấp lánh nụ cười. Mọi sự nỗ lực của bạn xứng đáng được đền đáp bằng những điều tuyệt vời nhất.",
-    "Nhân ngày 20/10, chúc bạn của tôi mãi luôn xinh đẹp và tươi trẻ. Hãy cứ là chính mình – một phiên bản độc nhất và cực kỳ cuốn hút.",
-    "Hôm nay là ngày của phái đẹp, và bạn xứng đáng là vì sao sáng nhất. Chúc bạn luôn giữ được nét đáng yêu và tấm lòng nhân hậu vốn có.",
-    "20/10 vui nhé bạn. Mong rằng mỗi ngày của bạn đều yên bình, công việc hanh thông và con đường phía trước luôn trải đầy hoa thơm.",
-    "Chúc bạn một ngày Phụ nữ Việt Nam thật rộn ràng. Tôi luôn khâm phục sự tinh tế và chu toàn của bạn trong vai trò một người đồng hành tuyệt vời.",
-    "Gửi triệu điều tốt lành tới bạn nhân ngày 20/10. Đừng để bất cứ áp lực nào làm tắt đi nụ cười tỏa nắng trên khuôn mặt bạn nhé.",
-    "Chúc bạn 20/10 hạnh phúc viên mãn. Những nét duyên dáng, thông minh và sự tốt bụng của bạn là điều khiến mọi người luôn quý mến.",
-    "Nhân ngày 20/10, chúc bạn có một ngày đầy ắp hạnh phúc và niềm vui. Cảm ơn bạn vì đã luôn chia sẻ và lắng nghe mọi chuyện với mọi người.",
-    "Chào ngày 20/10. Chúc bạn lúc nào cũng được tỏa sáng rạng rỡ. Cứ bước đi tự tin, vì bạn rất rạng rỡ.",
-    "Phụ nữ quyến rũ nhất khi họ tự tin, và bạn chính là minh chứng cho điều đó. Chúc ngày 20/10 của bạn thật lộng lẫy và đáng trân trọng.",
-    "Gửi bạn lời chúc 20/10 đầy mến thương. Bạn là một mảnh ghép rất ý nghĩa trong cuộc sống của những người xung quanh, mãi nở nụ cười nhé."
-];
+// Danh sách 200 lời chúc nằm trong wishes.js (biến wishes2010)
 
 function getRandomQuote() {
     return wishes2010[Math.floor(Math.random() * wishes2010.length)];
@@ -263,7 +237,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = "🌿 Đang tạo thiệp...";
+    btn.innerHTML = "🌸 Đang tạo thiệp...";
     btn.disabled = true;
 
     // === BẮN CÁNH HOA BAY TỨ PHÍA ===
@@ -271,7 +245,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
     // Xóa cánh hoa cũ nếu còn sót
     overlay.querySelectorAll('.fly-petal').forEach(el => el.remove());
 
-    const petals = ['🍃', '🌿', '🌷', '🌹', '💮', '✿', '🌼', '💐'];
+    const petals = ['🌸', '🌺', '🌷', '🌹', '💮', '✿', '🌼', '💐'];
     const count = 14;
     for (let i = 0; i < count; i++) {
         const el = document.createElement('div');
@@ -473,8 +447,8 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         ctx.font = `${decoSize}px serif`;
         // Gradient màu cho dấu trang trí
         const decoGrad = ctx.createLinearGradient(0, decoY - decoSize, 0, decoY + decoSize);
-        decoGrad.addColorStop(0, '#1f9a78');
-        decoGrad.addColorStop(1, '#0a5c47');
+        decoGrad.addColorStop(0, '#f48fb1');
+        decoGrad.addColorStop(1, '#d81b60');
         ctx.fillStyle = decoGrad;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';

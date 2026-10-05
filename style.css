@@ -209,7 +209,7 @@ body {
     font-size: 6rem;
     z-index: 2;
     opacity: 0;
-    filter: drop-shadow(0 0 20px rgba(15, 123, 95, 0.8));
+    filter: drop-shadow(0 0 20px rgba(240, 98, 146, 0.8));
 }
 
 #transition-overlay.playing .transition-heart {
