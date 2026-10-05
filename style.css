@@ -6,7 +6,7 @@
 }
 
 body {
-    background: linear-gradient(135deg, #fff0f5 0%, #ffd1dc 100%);
+    background: linear-gradient(135deg, #effaf5 0%, #b9e4d0 100%);
     min-height: 100vh;
     font-family: 'Montserrat', sans-serif;
     overflow: hidden;
@@ -45,7 +45,7 @@ body {
     width: 100%;
     text-align: center;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
-    border: 2px solid #ffb6c1;
+    border: 2px solid #8fd1ba;
     animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -68,7 +68,7 @@ body {
 }
 
 .warning-box h3 {
-    color: #a4508b;
+    color: #0f7b5f;
     margin-bottom: 15px;
     font-size: 1.4rem;
 }
@@ -81,14 +81,14 @@ body {
 }
 
 .warning-step {
-    background: #fff0f5;
+    background: #effaf5;
     border-radius: 12px;
     padding: 12px;
     margin-bottom: 10px;
     font-size: 0.9rem;
-    color: #8b3a62;
+    color: #0a5c47;
     text-align: left;
-    border-left: 4px solid #ffb6c1;
+    border-left: 4px solid #8fd1ba;
 }
 
 /* ====== ROMANTIC TRANSITION OVERLAY ====== */
@@ -110,13 +110,13 @@ body {
     animation: overlayFade 2.2s ease-in-out forwards;
 }
 
-/* Nền gợn sóng hồng lan rộng */
+/* Nền gợn sóng xanh lan rộng */
 #transition-overlay::before {
     content: '';
     position: absolute;
     inset: -20%;
     border-radius: 50%;
-    background: radial-gradient(circle at center, rgba(255, 160, 200, 0.9) 0%, rgba(255, 220, 235, 0.6) 45%, transparent 70%);
+    background: radial-gradient(circle at center, rgba(90, 200, 160, 0.9) 0%, rgba(200, 240, 224, 0.6) 45%, transparent 70%);
     transform: scale(0);
     opacity: 0;
 }
@@ -131,7 +131,7 @@ body {
     position: absolute;
     width: 60vmin;
     height: 60vmin;
-    background: radial-gradient(circle, rgba(255, 200, 220, 0.7) 0%, rgba(255, 230, 240, 0.3) 55%, transparent 75%);
+    background: radial-gradient(circle, rgba(150, 225, 195, 0.7) 0%, rgba(215, 245, 232, 0.3) 55%, transparent 75%);
     border-radius: 50%;
     transform: scale(0);
     opacity: 0;
@@ -209,7 +209,7 @@ body {
     font-size: 6rem;
     z-index: 2;
     opacity: 0;
-    filter: drop-shadow(0 0 20px rgba(220, 80, 150, 0.8));
+    filter: drop-shadow(0 0 20px rgba(15, 123, 95, 0.8));
 }
 
 #transition-overlay.playing .transition-heart {
@@ -347,7 +347,7 @@ input[type="file"] {
     max-width: 440px;
     max-height: 96vh;
     text-align: center;
-    box-shadow: 0 15px 35px rgba(164, 80, 139, 0.15);
+    box-shadow: 0 15px 35px rgba(15, 123, 95, 0.15);
     display: flex;
     flex-direction: column;
     transform: translateY(0);
@@ -357,7 +357,7 @@ input[type="file"] {
 
 .glass-container:hover {
     transform: translateY(-5px);
-    box-shadow: 0 20px 45px rgba(164, 80, 139, 0.2);
+    box-shadow: 0 20px 45px rgba(15, 123, 95, 0.2);
 }
 
 @keyframes fadeInPop {
@@ -417,10 +417,10 @@ input[type="file"] {
     padding: 12px 20px;
     border-radius: 30px;
     text-align: center;
-    color: #a4508b;
+    color: #0f7b5f;
     font-size: 0.9rem;
     font-weight: 600;
-    box-shadow: 0 4px 15px rgba(164, 80, 139, 0.2);
+    box-shadow: 0 4px 15px rgba(15, 123, 95, 0.2);
     opacity: 1;
     transition: opacity 0.5s ease;
     animation: floatHint 2.5s infinite ease-in-out;
@@ -509,7 +509,7 @@ input[type="file"] {
 .result-title {
     font-size: 1.1rem;
     font-weight: 700;
-    color: #a4508b;
+    color: #0f7b5f;
     text-transform: uppercase;
     letter-spacing: 1.5px;
 }
@@ -531,7 +531,7 @@ input[type="file"] {
     height: auto;
     object-fit: contain;
     border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(164, 80, 139, 0.2);
+    box-shadow: 0 8px 24px rgba(15, 123, 95, 0.2);
     display: block;
 }
 
@@ -546,7 +546,7 @@ input[type="file"] {
 .carousel-title {
     font-size: 0.9rem;
     font-weight: 600;
-    color: #a4508b;
+    color: #0f7b5f;
     margin-bottom: 6px;
     margin-top: 5px;
     /* Tránh lẹm padding trên */
@@ -572,7 +572,7 @@ input[type="file"] {
     right: 0;
     width: 52px;
     height: 100%;
-    background: linear-gradient(to right, transparent, rgba(255, 245, 250, 0.97));
+    background: linear-gradient(to right, transparent, rgba(240, 252, 247, 0.97));
     pointer-events: none;
     border-radius: 0 8px 8px 0;
     z-index: 5;
@@ -592,11 +592,11 @@ input[type="file"] {
     transform: translateY(-50%);
     z-index: 6;
     font-size: 1.3rem;
-    color: #c06090;
+    color: #1f9a78;
     font-weight: bold;
     pointer-events: none;
     animation: arrowBounce 1.4s ease-in-out infinite;
-    text-shadow: 0 0 6px rgba(192, 96, 144, 0.5);
+    text-shadow: 0 0 6px rgba(31, 154, 120, 0.5);
     transition: opacity 0.4s ease;
 }
 
@@ -666,9 +666,9 @@ input[type="file"] {
 
 .filter-btn {
     padding: 8px 14px;
-    border: 1px solid #d4a5c9;
+    border: 1px solid #8fcdb7;
     background: transparent;
-    color: #a4508b;
+    color: #0f7b5f;
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: 500;
@@ -679,7 +679,7 @@ input[type="file"] {
 
 .filter-btn.active,
 .filter-btn:hover {
-    background: #a4508b;
+    background: #0f7b5f;
     color: #fff;
 }
 
@@ -702,18 +702,18 @@ input[type="file"] {
 }
 
 .frame-item.active {
-    border-color: #a4508b;
+    border-color: #0f7b5f;
     transform: scale(1.05);
-    box-shadow: 0 4px 10px rgba(164, 80, 139, 0.2);
+    box-shadow: 0 4px 10px rgba(15, 123, 95, 0.2);
     z-index: 10;
     font-weight: 600;
-    color: #a4508b;
+    color: #0f7b5f;
 }
 
 .main-title {
     font-family: 'Cormorant Garamond', serif;
     font-size: 3rem;
-    background: linear-gradient(to right, #a4508b, #5f0a87);
+    background: linear-gradient(to right, #0f7b5f, #095241);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     margin-bottom: 5px;
@@ -767,10 +767,10 @@ input[type="file"] {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #a4508b 0%, #5f0a87 100%);
+    background: linear-gradient(135deg, #0f7b5f 0%, #095241 100%);
     border: none;
     color: #fff;
-    box-shadow: 0 4px 15px rgba(164, 80, 139, 0.3);
+    box-shadow: 0 4px 15px rgba(15, 123, 95, 0.3);
 }
 
 .btn-primary:active {
@@ -779,13 +779,13 @@ input[type="file"] {
 
 .btn-secondary {
     background: transparent;
-    border: 1.5px solid #a4508b;
-    color: #a4508b;
+    border: 1.5px solid #0f7b5f;
+    color: #0f7b5f;
 }
 
 .btn-secondary:active {
     transform: scale(0.97);
-    background: rgba(164, 80, 139, 0.05);
+    background: rgba(15, 123, 95, 0.05);
 }
 
 .note {
@@ -801,7 +801,7 @@ input[type="file"] {
 }
 
 .loader-box p {
-    color: #5f0a87;
+    color: #095241;
     font-weight: 500;
     font-size: 0.95rem;
     line-height: 1.5;
@@ -826,7 +826,7 @@ input[type="file"] {
 .ai-quote-title {
     font-size: 0.8rem;
     font-weight: 600;
-    color: #a4508b;
+    color: #0f7b5f;
     margin-bottom: 8px;
 }
 

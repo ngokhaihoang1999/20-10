@@ -1,4 +1,4 @@
-﻿const bgCanvas = document.getElementById('bg-canvas');
+const bgCanvas = document.getElementById('bg-canvas');
 const bgCtx = bgCanvas.getContext('2d');
 
 // --- PHÁT HIỆN TRÌNH DUYỆT NỘI BỘ (IN-APP BROWSER) ---
@@ -28,7 +28,7 @@ class Particle {
         this.size = Math.random() * 14 + 6; this.vx = (Math.random() - 0.5) * 1.5;
         this.vy = Math.random() * 2 + 1.5; this.rotation = Math.random() * 360;
         this.rotationSpeed = Math.random() * 4 - 2;
-        this.color = ['#ffc0cb', '#ffb6c1', '#ffffff', '#ff99a8'][Math.floor(Math.random() * 4)];
+        this.color = ['#a8e6cf', '#7fd1ae', '#ffffff', '#56c596'][Math.floor(Math.random() * 4)];
         this.opacity = Math.random() * 0.6 + 0.4;
     }
     draw() {
@@ -70,35 +70,35 @@ const uploadWrapper = document.getElementById('upload-wrapper');
 uploadWrapper.classList.add('ready');
 
 
-const wishes83 = [
-    "Chúc bạn một ngày 8/3 thật trọn vẹn và nhiều niềm vui. Luôn giữ nụ cười tươi tắn trên môi nhé, vì bạn lúc mỉm cười là đẹp nhất đấy.",
-    "Gửi đến bạn thân mến lời chúc 8/3 chân thành nhất. Mong bạn luôn tự tin, vững bước trên con đường mình chọn và mãi rạng rỡ như bây giờ.",
-    "Nhân ngày 8/3, tôi muốn chúc bạn luôn hạnh phúc và tràn đầy năng lượng. Làm bạn với bạn là một điều rất tuyệt vời trong cuộc sống của tôi.",
-    "Mùng 8/3 vui vẻ nhé. Cứ tiếp tục là một cô gái mạnh mẽ, thông minh và đầy khí chất như thế. Mọi điều tốt đẹp nhất sẽ đến với bạn thôi.",
-    "Chúc bạn ngày Quốc tế Phụ nữ thật ấm áp bên những người thân yêu. Đừng quên dành chút thời gian chiều chuộng bản thân mình hơn nhé.",
-    "Bạn luôn mang đến nguồn năng lượng rất tích cực. Nhân dịp 8/3, chúc bạn luôn giữ được sự lạc quan và yêu đời ấy trong mọi hoàn cảnh.",
-    "Chúc bạn của tôi ngày lễ 8/3 nhận được thật nhiều điều tốt đẹp. Hãy luôn kiêu hãnh và tự hào về chính mình nha.",
-    "Mùng 8/3, chúc bạn gặt hái thêm nhiều thành công mới. Tôi tin với sự thông minh và nỗ lực của bạn, mọi mục tiêu đều sẽ nằm trong tầm tay.",
-    "Dù cuộc sống bận rộn thế nào, ngày 8/3 này hãy bước chậm lại một chút để cảm nhận niềm vui. Chúc bạn luôn xinh đẹp và bình an.",
-    "Chúc bạn một ngày 8/3 ngập tràn tiếng cười. Rất may mắn khi có một người bạn hiểu chuyện và duyên dáng như bạn để chia sẻ mọi điều.",
-    "Tháng 3 thật dịu dàng, và bạn cũng vậy. Chúc bạn một ngày 8/3 ngập tràn yêu thương, sống trọn vẹn với đam mê và những gì mình yêu thích.",
-    "Happy Women's Day. Tôi luôn trân trọng sự quan tâm và tình bạn chân thành của bạn. Chúc bạn luôn hạnh phúc, vô lo và an nhiên nhé.",
-    "Mùng 8/3 chúc bạn rạng rỡ ngời ngời. Cứ lúc nào cũng vui vẻ thế này thì chẳng có muộn phiền nào dám làm khó cô gái mạnh mẽ như bạn đâu.",
-    "Chúc ngày 8/3 của bạn thật rực rỡ và lấp lánh nụ cười. Mọi sự nỗ lực của bạn xứng đáng được đền đáp bằng những điều tuyệt vời nhất.",
-    "Nhân ngày 8/3, chúc bạn của tôi mãi luôn xinh đẹp và tươi trẻ. Hãy cứ là chính mình – một phiên bản độc nhất và cực kỳ cuốn hút.",
+const wishes2010 = [
+    "Chúc bạn một ngày 20/10 thật trọn vẹn và nhiều niềm vui. Luôn giữ nụ cười tươi tắn trên môi nhé, vì bạn lúc mỉm cười là đẹp nhất đấy.",
+    "Gửi đến bạn thân mến lời chúc 20/10 chân thành nhất. Mong bạn luôn tự tin, vững bước trên con đường mình chọn và mãi rạng rỡ như bây giờ.",
+    "Nhân ngày Phụ nữ Việt Nam 20/10, tôi muốn chúc bạn luôn hạnh phúc và tràn đầy năng lượng. Làm bạn với bạn là một điều rất tuyệt vời trong cuộc sống của tôi.",
+    "20/10 vui vẻ nhé. Cứ tiếp tục là một cô gái mạnh mẽ, thông minh và đầy khí chất như thế. Mọi điều tốt đẹp nhất sẽ đến với bạn thôi.",
+    "Chúc bạn ngày Phụ nữ Việt Nam thật ấm áp bên những người thân yêu. Đừng quên dành chút thời gian chiều chuộng bản thân mình hơn nhé.",
+    "Bạn luôn mang đến nguồn năng lượng rất tích cực. Nhân dịp 20/10, chúc bạn luôn giữ được sự lạc quan và yêu đời ấy trong mọi hoàn cảnh.",
+    "Chúc bạn của tôi ngày lễ 20/10 nhận được thật nhiều điều tốt đẹp. Hãy luôn kiêu hãnh và tự hào về chính mình nha.",
+    "Nhân ngày 20/10, chúc bạn gặt hái thêm nhiều thành công mới. Tôi tin với sự thông minh và nỗ lực của bạn, mọi mục tiêu đều sẽ nằm trong tầm tay.",
+    "Dù cuộc sống bận rộn thế nào, ngày 20/10 này hãy bước chậm lại một chút để cảm nhận niềm vui. Chúc bạn luôn xinh đẹp và bình an.",
+    "Chúc bạn một ngày 20/10 ngập tràn tiếng cười. Rất may mắn khi có một người bạn hiểu chuyện và duyên dáng như bạn để chia sẻ mọi điều.",
+    "Tháng 10 thật dịu dàng, và bạn cũng vậy. Chúc bạn một ngày 20/10 ngập tràn yêu thương, sống trọn vẹn với đam mê và những gì mình yêu thích.",
+    "Chúc mừng ngày Phụ nữ Việt Nam. Tôi luôn trân trọng sự quan tâm và tình bạn chân thành của bạn. Chúc bạn luôn hạnh phúc, vô lo và an nhiên nhé.",
+    "20/10 chúc bạn rạng rỡ ngời ngời. Cứ lúc nào cũng vui vẻ thế này thì chẳng có muộn phiền nào dám làm khó cô gái mạnh mẽ như bạn đâu.",
+    "Chúc ngày 20/10 của bạn thật rực rỡ và lấp lánh nụ cười. Mọi sự nỗ lực của bạn xứng đáng được đền đáp bằng những điều tuyệt vời nhất.",
+    "Nhân ngày 20/10, chúc bạn của tôi mãi luôn xinh đẹp và tươi trẻ. Hãy cứ là chính mình – một phiên bản độc nhất và cực kỳ cuốn hút.",
     "Hôm nay là ngày của phái đẹp, và bạn xứng đáng là vì sao sáng nhất. Chúc bạn luôn giữ được nét đáng yêu và tấm lòng nhân hậu vốn có.",
-    "Mùng 8/3 vui nhé bạn. Mong rằng mỗi ngày của bạn đều yên bình, công việc hanh thông và con đường phía trước luôn trải đầy hoa hồng.",
-    "Chúc bạn một ngày Quốc tế Phụ nữ thật rộn ràng. Tôi luôn khâm phục sự tinh tế và chu toàn của bạn trong vai trò một người đồng hành tuyệt vời.",
-    "Gửi triệu điều tốt lành tới bạn nhân ngày 8/3. Đừng để bất cứ áp lực nào làm tắt đi nụ cười tỏa nắng trên khuôn mặt bạn nhé.",
-    "Chúc bạn 8/3 hạnh phúc viên mãn. Những nét duyên dáng, thông minh và sự tốt bụng của bạn là điều khiến mọi người luôn quý mến.",
-    "Mùng 8/3, chúc bạn có một ngày đầy ắp hạnh phúc và niềm vui. Cảm ơn bạn vì đã luôn chia sẻ và lắng nghe mọi chuyện với mọi người.",
-    "Chào ngày 8/3. Chúc bạn lúc nào cũng được tỏa sáng rạng rỡ. Cứ bước đi tự tin, vì bạn rất rạng rỡ.",
-    "Phụ nữ quyến rũ nhất khi họ tự tin, và bạn chính là minh chứng cho điều đó. Chúc ngày 8/3 của bạn thật lộng lẫy và đáng trân trọng.",
-    "Gửi bạn lời chúc 8/3 đầy mến thương. Bạn là một mảnh ghép rất ý nghĩa trong cuộc sống của những người xung quanh, mãi nở nụ cười nhé."
+    "20/10 vui nhé bạn. Mong rằng mỗi ngày của bạn đều yên bình, công việc hanh thông và con đường phía trước luôn trải đầy hoa thơm.",
+    "Chúc bạn một ngày Phụ nữ Việt Nam thật rộn ràng. Tôi luôn khâm phục sự tinh tế và chu toàn của bạn trong vai trò một người đồng hành tuyệt vời.",
+    "Gửi triệu điều tốt lành tới bạn nhân ngày 20/10. Đừng để bất cứ áp lực nào làm tắt đi nụ cười tỏa nắng trên khuôn mặt bạn nhé.",
+    "Chúc bạn 20/10 hạnh phúc viên mãn. Những nét duyên dáng, thông minh và sự tốt bụng của bạn là điều khiến mọi người luôn quý mến.",
+    "Nhân ngày 20/10, chúc bạn có một ngày đầy ắp hạnh phúc và niềm vui. Cảm ơn bạn vì đã luôn chia sẻ và lắng nghe mọi chuyện với mọi người.",
+    "Chào ngày 20/10. Chúc bạn lúc nào cũng được tỏa sáng rạng rỡ. Cứ bước đi tự tin, vì bạn rất rạng rỡ.",
+    "Phụ nữ quyến rũ nhất khi họ tự tin, và bạn chính là minh chứng cho điều đó. Chúc ngày 20/10 của bạn thật lộng lẫy và đáng trân trọng.",
+    "Gửi bạn lời chúc 20/10 đầy mến thương. Bạn là một mảnh ghép rất ý nghĩa trong cuộc sống của những người xung quanh, mãi nở nụ cười nhé."
 ];
 
 function getRandomQuote() {
-    return wishes83[Math.floor(Math.random() * wishes83.length)];
+    return wishes2010[Math.floor(Math.random() * wishes2010.length)];
 }
 
 let currentUserImage = null;
@@ -263,7 +263,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = "🌸 Đang tạo thiệp...";
+    btn.innerHTML = "🌿 Đang tạo thiệp...";
     btn.disabled = true;
 
     // === BẮN CÁNH HOA BAY TỨ PHÍA ===
@@ -271,7 +271,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
     // Xóa cánh hoa cũ nếu còn sót
     overlay.querySelectorAll('.fly-petal').forEach(el => el.remove());
 
-    const petals = ['🌸', '🌺', '🌷', '🌹', '💮', '✿', '🌼', '💐'];
+    const petals = ['🍃', '🌿', '🌷', '🌹', '💮', '✿', '🌼', '💐'];
     const count = 14;
     for (let i = 0; i < count; i++) {
         const el = document.createElement('div');
@@ -337,7 +337,7 @@ document.getElementById('download-btn').addEventListener('click', () => {
     try {
         const dataImage = finalResultCanvas.toDataURL('image/jpeg', 0.95);
         const link = document.createElement('a');
-        link.download = `Thiep_8_3.jpg`;
+        link.download = `Thiep_20_10.jpg`;
         link.href = dataImage;
         link.click();
     } catch (e) {
@@ -373,7 +373,7 @@ function drawCanvasImageText(targetCanvas, isFinal) {
     targetCanvas.height = targetH;
 
     // Vẽ nền 
-    ctx.fillStyle = isFinal ? '#fff0f5' : '#fff';
+    ctx.fillStyle = isFinal ? '#effaf5' : '#fff';
     ctx.fillRect(0, 0, targetW, targetH);
 
     // --- BƯỚC 1: VẼ ẢNH ĐO ĐÃ CẮT (LỚP DƯỚI KÈM HIỆU ỨNG MÀU) ---
@@ -413,9 +413,9 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         // Màu hộp chữ: TRẮNG SỮA TRONG SUỐT NHẸ
         ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
         ctx.fill();
-        // Cạnh viền: HỒNG PASTEL
+        // Cạnh viền: XANH NGỌC PASTEL
         ctx.lineWidth = 3;
-        ctx.strokeStyle = '#e6a8dd';
+        ctx.strokeStyle = '#8fd1ba';
         ctx.stroke();
 
         // === THUẬT TOÁN AUTO SHRINK-TO-FIT FONT ===
@@ -452,17 +452,17 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         ctx.lineTo(boxX, boxY + radius);
         ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
         ctx.closePath();
-        // Gradient nền: trắng ngà phía trên → hồng phấn nhẹ phía dưới
+        // Gradient nền: trắng ngà phía trên → xanh bạc hà nhẹ phía dưới
         const bgGrad = ctx.createLinearGradient(0, boxY, 0, boxY + boxH);
         bgGrad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-        bgGrad.addColorStop(1, 'rgba(255, 225, 235, 0.9)');
+        bgGrad.addColorStop(1, 'rgba(213, 241, 228, 0.9)');
         ctx.fillStyle = bgGrad;
         ctx.fill();
-        // Viền nội dung hộp: gradient vàng hồng
+        // Viền nội dung hộp: gradient xanh ngọc
         const borderGrad = ctx.createLinearGradient(boxX, boxY, boxX + boxW, boxY + boxH);
-        borderGrad.addColorStop(0, '#d4a0c0');
-        borderGrad.addColorStop(0.5, '#f7c6e0');
-        borderGrad.addColorStop(1, '#b07090');
+        borderGrad.addColorStop(0, '#6fbfa3');
+        borderGrad.addColorStop(0.5, '#b7e4d3');
+        borderGrad.addColorStop(1, '#2f8f73');
         ctx.lineWidth = Math.floor(targetW * 0.004);
         ctx.strokeStyle = borderGrad;
         ctx.stroke();
@@ -473,8 +473,8 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         ctx.font = `${decoSize}px serif`;
         // Gradient màu cho dấu trang trí
         const decoGrad = ctx.createLinearGradient(0, decoY - decoSize, 0, decoY + decoSize);
-        decoGrad.addColorStop(0, '#c06090');
-        decoGrad.addColorStop(1, '#803060');
+        decoGrad.addColorStop(0, '#1f9a78');
+        decoGrad.addColorStop(1, '#0a5c47');
         ctx.fillStyle = decoGrad;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -485,17 +485,17 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         ctx.fillText('✿', decoRX, decoY);
         ctx.globalAlpha = 1.0;
 
-        // 3. Gradient màu chữ dọc: hồng thẫm trên → tím nhạt dưới
+        // 3. Gradient màu chữ dọc: xanh lục thẫm trên → xanh ngọc dưới
         const lineHeight = Math.floor(fontSize * 1.55);
         const numLines = countWrapLines(ctx, currentAIQuote, textMaxWidth);
         const textBlockH = numLines * lineHeight;
         const textGrad = ctx.createLinearGradient(0, decoY - textBlockH / 2, 0, decoY + textBlockH / 2);
-        textGrad.addColorStop(0, '#8b2252');
-        textGrad.addColorStop(0.5, '#b4508b');
-        textGrad.addColorStop(1, '#7b3070');
+        textGrad.addColorStop(0, '#095241');
+        textGrad.addColorStop(0.5, '#0f7b5f');
+        textGrad.addColorStop(1, '#0a4f4a');
 
         // 4. Bóng chữ mờ nhẹ (shadow glow)
-        ctx.shadowColor = 'rgba(160, 80, 120, 0.25)';
+        ctx.shadowColor = 'rgba(15, 100, 80, 0.25)';
         ctx.shadowBlur = Math.floor(fontSize * 0.4);
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = Math.floor(fontSize * 0.08);
