@@ -286,7 +286,8 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
         img.onload = function () {
             currentUserImage = img;
             currentAIQuote = getRandomQuote();
-            drawCanvasImageText(finalResultCanvas, true);
+            // Đợi font lời chúc tải xong rồi mới đo & vẽ, tránh lệch kích thước chữ
+            ensureQuoteFont().then(() => drawCanvasImageText(finalResultCanvas, true));
 
             // Chuyển màn hình vào giữa animation (lúc overlay đang che khuất hoàn toàn)
             setTimeout(() => {
@@ -392,25 +393,10 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         ctx.strokeStyle = '#8fd1ba';
         ctx.stroke();
 
-        // === THUẬT TOÁN AUTO SHRINK-TO-FIT FONT ===
-        // Padding bên trong hộp để chữ không chạm viền
-        const padX = Math.floor(boxW * 0.06);
-        const padY = Math.floor(boxH * 0.1);
-        const textMaxWidth = boxW - padX * 2;
-        const textMaxH = boxH - padY * 2;
-
-        // Thử từ size lớn (60px tương ứng 1024px rộng) rồi giảm dần cho đến khi vừa khít
-        let fontSize = Math.floor(60 * (targetW / 1024));
-        const minFontSize = Math.floor(24 * (targetW / 1024));
-
-        while (fontSize >= minFontSize) {
-            ctx.font = `500 ${fontSize}px "Playfair Display", serif`;
-            const lineH = Math.floor(fontSize * 1.55);
-            const numLines = countWrapLines(ctx, currentAIQuote, textMaxWidth);
-            const totalTextH = numLines * lineH;
-            if (totalTextH <= textMaxH) break; // Vừa khít!
-            fontSize -= 2; // Thu nhỏ dần
-        }
+        // === THUẬT TOÁN AUTO SHRINK-TO-FIT ===
+        // Đo bằng đúng font nghiêng sẽ dùng để vẽ, giảm dần cỡ chữ đến khi vừa cả ngang lẫn dọc
+        const layout = fitQuoteInBox(ctx, currentAIQuote, boxW, boxH, targetW / 1024);
+        const fontSize = layout.fontSize;
 
         // === GHI CHỮ VỚI HIỆU ỨNG CAO CẤP ===
 
@@ -441,8 +427,8 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         ctx.strokeStyle = borderGrad;
         ctx.stroke();
 
-        // 2. Dấu trang trí nhỏ (hoa thị ✦) đầu / cuối câu
-        const decoSize = Math.floor(fontSize * 0.9);
+        // 2. Dấu trang trí nhỏ (hoa ✿) hai bên — nằm trong vùng padding nên không đè lên chữ
+        const decoSize = layout.decoSize;
         const decoY = boxY + Math.floor(boxH / 2);
         ctx.font = `${decoSize}px serif`;
         // Gradient màu cho dấu trang trí
@@ -452,17 +438,16 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         ctx.fillStyle = decoGrad;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        const decoLX = boxX + Math.floor(decoSize * 0.6);
-        const decoRX = boxX + boxW - Math.floor(decoSize * 0.6);
+        const decoLX = boxX + Math.floor(layout.padX / 2);
+        const decoRX = boxX + boxW - Math.floor(layout.padX / 2);
         ctx.globalAlpha = 0.35;
         ctx.fillText('✿', decoLX, decoY);
         ctx.fillText('✿', decoRX, decoY);
         ctx.globalAlpha = 1.0;
 
         // 3. Gradient màu chữ dọc: xanh lục thẫm trên → xanh ngọc dưới
-        const lineHeight = Math.floor(fontSize * 1.55);
-        const numLines = countWrapLines(ctx, currentAIQuote, textMaxWidth);
-        const textBlockH = numLines * lineHeight;
+        const lineHeight = layout.lineHeight;
+        const textBlockH = layout.lines.length * lineHeight;
         const textGrad = ctx.createLinearGradient(0, decoY - textBlockH / 2, 0, decoY + textBlockH / 2);
         textGrad.addColorStop(0, '#095241');
         textGrad.addColorStop(0.5, '#0f7b5f');
@@ -474,13 +459,13 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         ctx.shadowOffsetX = 0;
         ctx.shadowOffsetY = Math.floor(fontSize * 0.08);
 
-        // 5. Kiểu chữ: italic + đậm vừa
-        ctx.font = `italic 500 ${fontSize}px "Playfair Display", serif`;
+        // 5. Kiểu chữ: italic + đậm vừa (phải trùng font đã dùng để đo)
+        ctx.font = quoteFont(fontSize);
         ctx.fillStyle = textGrad;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         const centerY = boxY + (boxH / 2);
-        wrapText(ctx, currentAIQuote, targetW / 2, centerY, textMaxWidth, lineHeight);
+        drawLines(ctx, layout.lines, boxX + boxW / 2, centerY, lineHeight, layout.maxWidth);
 
         // Reset shadow
         ctx.shadowColor = 'transparent';
@@ -490,45 +475,86 @@ function drawCanvasImageText(targetCanvas, isFinal) {
     }
 }
 
-function countWrapLines(context, text, maxWidth) {
-    const words = text.split(' ');
-    let line = '';
-    let count = 0;
-    for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        if (context.measureText(testLine).width > maxWidth && n > 0) {
-            count++;
-            line = words[n] + ' ';
-        } else {
-            line = testLine;
-        }
-    }
-    return count + 1; // +1 cho dòng cuối cùng
+// ====== XỬ LÝ CHỮ LỜI CHÚC (đảm bảo không bao giờ tràn hộp) ======
+const QUOTE_LINE_HEIGHT = 1.55;
+
+function quoteFont(size) {
+    return `italic 500 ${size}px "Playfair Display", serif`;
 }
 
-function wrapText(context, text, x, y, maxWidth, lineHeight) {
-    const words = text.split(' ');
-    let line = '';
+// Tải trước font Playfair Display (nghiêng) — tối đa chờ 2s rồi vẫn vẽ bằng font dự phòng
+function ensureQuoteFont() {
+    if (!document.fonts || !document.fonts.load) return Promise.resolve();
+    return Promise.race([
+        document.fonts.load(quoteFont(60), 'Chúc mừng 20/10'),
+        new Promise(resolve => setTimeout(resolve, 2000))
+    ]).catch(() => { });
+}
+ensureQuoteFont();
+
+// Độ rộng thực của nét chữ (tính cả phần nghiêng nhô ra ngoài)
+function inkWidth(ctx, s) {
+    const m = ctx.measureText(s);
+    const ink = (m.actualBoundingBoxLeft || 0) + (m.actualBoundingBoxRight || 0);
+    return Math.max(m.width, ink);
+}
+
+// Ngắt dòng theo từ; từ nào dài hơn cả dòng thì cắt theo ký tự
+function wrapLines(ctx, text, maxWidth) {
+    const words = text.split(/\s+/).filter(Boolean);
     const lines = [];
-    for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = context.measureText(testLine);
-        const testWidth = metrics.width;
-        if (testWidth > maxWidth && n > 0) {
-            lines.push(line);
-            line = words[n] + ' ';
+    let line = '';
+    for (const word of words) {
+        const test = line ? line + ' ' + word : word;
+        if (inkWidth(ctx, test) <= maxWidth) {
+            line = test;
+            continue;
+        }
+        if (line) lines.push(line);
+        if (inkWidth(ctx, word) > maxWidth) {
+            let chunk = '';
+            for (const ch of word) {
+                if (chunk && inkWidth(ctx, chunk + ch) > maxWidth) {
+                    lines.push(chunk);
+                    chunk = ch;
+                } else {
+                    chunk += ch;
+                }
+            }
+            line = chunk;
         } else {
-            line = testLine;
+            line = word;
         }
     }
-    // Trims whitespace before push
-    lines.push(line.trim());
+    if (line) lines.push(line);
+    return lines;
+}
 
-    // Auto center vertically within the Y position (giữa hộp box y)
-    let startY = y - ((lines.length - 1) * lineHeight) / 2;
-    for (let i = 0; i < lines.length; i++) {
-        context.fillText(lines[i], x, startY + (i * lineHeight));
+// Tìm cỡ chữ lớn nhất sao cho toàn bộ lời chúc nằm gọn trong hộp (cả ngang lẫn dọc)
+function fitQuoteInBox(ctx, text, boxW, boxH, scale) {
+    const padY = Math.floor(boxH * 0.1);
+    const maxH = boxH - padY * 2;
+    const minSize = Math.max(8, Math.floor(12 * scale));
+    let layout = null;
+    for (let fontSize = Math.floor(60 * scale); fontSize >= minSize; fontSize--) {
+        const decoSize = Math.floor(fontSize * 0.9);
+        // Padding ngang đủ rộng để chứa hoa ✿ hai bên
+        const padX = Math.max(Math.floor(boxW * 0.06), Math.ceil(decoSize * 1.3));
+        const maxWidth = boxW - padX * 2;
+        ctx.font = quoteFont(fontSize);
+        const lines = wrapLines(ctx, text, maxWidth);
+        const lineHeight = Math.floor(fontSize * QUOTE_LINE_HEIGHT);
+        const widest = Math.max(...lines.map(l => inkWidth(ctx, l)));
+        layout = { fontSize, lines, lineHeight, padX, decoSize, maxWidth, maxH, widest };
+        if (lines.length * lineHeight <= maxH && widest <= maxWidth) break;
     }
+    return layout;
+}
+
+// Vẽ các dòng căn giữa theo chiều dọc; maxWidth là chốt chặn cuối để chữ không vượt hộp
+function drawLines(ctx, lines, x, centerY, lineHeight, maxWidth) {
+    const startY = centerY - ((lines.length - 1) * lineHeight) / 2;
+    lines.forEach((l, i) => ctx.fillText(l, x, startY + i * lineHeight, maxWidth));
 }
 
 function drawFinalImage(canvasEl, isFinal) {
