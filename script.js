@@ -2163,22 +2163,91 @@ function preloadFrames() {
 }
 preloadFrames();
 
-function selectFrameById(frameId, shouldRedrawStep3 = false) {
-    currentSelectedFrameId = frameId;
+// Bản đồ phối hợp tự động giữa 20 mẫu khung ảnh và 5 kiểu viền hộp lời chúc đồng điệu
+const CONCEPT_BORDER_MAP = {
+    arch: 'hearts',            // 01. Vòm Khải Hoàn -> Pha Lê & Sao
+    oval: 'ribbon',            // 02. Gương Hoàng Gia -> Ngọc Trai & Nơ
+    cathedral: 'sakura',       // 03. Vòm Hoa Trà -> Hoa Đào & Trà
+    magazine: 'vintage',       // 04. Tạp Chí Vogue -> Hồng Pháp
+    hourglass: 'daisy',        // 05. Vườn Nguyệt Quế -> Nguyệt Quế & Cúc
+    runway: 'hearts',          // 06. Kim Cương Vát -> Pha Lê & Sao
+    atelier: 'vintage',        // 07. Góc Khuyết Cổ Điển -> Hồng Pháp
+    scallop: 'ribbon',         // 08. Viền Sò Quý Tộc -> Ngọc Trai & Nơ
+    dior: 'vintage',           // 09. Nhãn Nước Hoa -> Hồng Pháp
+    pearl_lace: 'ribbon',      // 10. Chuỗi Ngọc Trai -> Ngọc Trai & Nơ
+    film_kodak: 'sakura',      // 11. Mành Anh Đào -> Hoa Đào & Trà
+    polaroid: 'ribbon',        // 12. Khung Polaroid -> Ngọc Trai & Nơ
+    scrapbook: 'daisy',        // 13. Cúc Họa Mi -> Nguyệt Quế & Cúc
+    aura: 'hearts',            // 14. Kính Mờ Aura -> Pha Lê & Sao
+    aura_arch: 'hearts',       // 15. Vòm Kính Aura -> Pha Lê & Sao
+    prism: 'hearts',           // 16. Pha Lê Đa Diện -> Pha Lê & Sao
+    floating_shadow: 'daisy',  // 17. Khung Nổi 3D -> Nguyệt Quế & Cúc
+    postcard: 'sakura',        // 18. Vườn Hồng Pháp -> Hoa Đào & Trà
+    celestial: 'hearts',       // 19. Tinh Tú Hoàng Kim -> Pha Lê & Sao
+    elle_minimal: 'daisy'      // 20. Tạp Chí Elle -> Nguyệt Quế & Cúc
+};
+
+let floatingBadgeTimer = null;
+
+function showCardFloatingBadge(text) {
+    const badge = document.getElementById('card-floating-badge');
+    if (!badge) return;
+    badge.textContent = text;
+    badge.classList.add('visible');
+    if (floatingBadgeTimer) clearTimeout(floatingBadgeTimer);
+    floatingBadgeTimer = setTimeout(() => {
+        badge.classList.remove('visible');
+    }, 1350);
+}
+
+function syncBorderChipsUI(borderStyle) {
+    document.querySelectorAll('#border-style-chips .style-chip').forEach(c => {
+        c.classList.toggle('active', c.getAttribute('data-border') === borderStyle);
+    });
+}
+
+function selectFrameById(frameId, shouldRedrawStep3 = false, slideDir = 0) {
+    const total = framesConfig.length;
+    currentSelectedFrameId = ((frameId % total) + total) % total;
+    const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
+
+    // Tự động phối kiểu viền hộp lời chúc ăn khớp với mẫu khung vừa chọn
+    if (cfg && CONCEPT_BORDER_MAP[cfg.concept]) {
+        currentBorderStyle = CONCEPT_BORDER_MAP[cfg.concept];
+        syncBorderChipsUI(currentBorderStyle);
+    }
 
     document.querySelectorAll('#frame-list .frame-item').forEach((el, idx) => {
-        el.classList.toggle('active', idx === frameId);
+        const isActive = idx === currentSelectedFrameId;
+        el.classList.toggle('active', isActive);
+        if (isActive) {
+            el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
     });
+
     document.querySelectorAll('#step3-concept-chips .concept-chip, #step3-classic-frame-chips .concept-chip').forEach(btn => {
         const id = Number(btn.getAttribute('data-frame-id'));
-        btn.classList.toggle('active', id === frameId);
+        const isActive = id === currentSelectedFrameId;
+        btn.classList.toggle('active', isActive);
+        if (isActive && shouldRedrawStep3) {
+            btn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
     });
 
     updateFrameOverlay();
 
     if (shouldRedrawStep3 && currentUserImage) {
         drawCanvasImageText(finalResultCanvas, true);
-        triggerCardPulse();
+        if (slideDir !== 0 && cardShowcase) {
+            cardShowcase.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev');
+            void cardShowcase.offsetWidth;
+            cardShowcase.classList.add(slideDir > 0 ? 'slide-next' : 'slide-prev');
+        } else {
+            triggerCardPulse();
+        }
+        if (cfg) {
+            showCardFloatingBadge(`✨ ${cfg.fullLabel}`);
+        }
     }
 }
 
@@ -2208,7 +2277,10 @@ function renderFrameList() {
             btn.className = `concept-chip ${i === currentSelectedFrameId ? 'active' : ''}`;
             btn.setAttribute('data-frame-id', String(i));
             btn.textContent = f.fullLabel;
-            btn.onclick = () => selectFrameById(i, true);
+            btn.onclick = () => {
+                const dir = i > currentSelectedFrameId ? 1 : (i < currentSelectedFrameId ? -1 : 0);
+                selectFrameById(i, true, dir);
+            };
             targetRow.appendChild(btn);
         }
     });
@@ -2327,45 +2399,65 @@ document.getElementById('cancel-btn').addEventListener('click', () => {
     document.getElementById('selfie-btn').value = '';
 });
 
-// ====== BƯỚC 2 -> BƯỚC 3: HOÀN THIỆN THIỆP ======
+// ====== BƯỚC 2 -> BƯỚC 3: HOÀN THIỆN THIỆP (HIỆU ỨNG HOA TRÀ COUTURE 3D BUNG NỞ) ======
+function populateCoutureBloomVortex() {
+    const vortexLayer = document.getElementById('bloom-vortex-layer');
+    if (!vortexLayer) return;
+    vortexLayer.innerHTML = '';
+
+    const count = 18;
+    for (let i = 0; i < count; i++) {
+        const el = document.createElement('div');
+        el.className = 'couture-vortex-item';
+        const isStar = i % 3 === 0;
+        const size = isStar ? (18 + (i % 3) * 6) : (26 + (i % 4) * 7);
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
+
+        if (isStar) {
+            el.innerHTML = `<svg viewBox="-20 -20 40 40"><path d="M0,-18 Q2,-2 18,0 Q2,2 0,18 Q-2,2 -18,0 Q-2,-2 0,-18 Z" fill="#fffdf7" stroke="#e5c158" stroke-width="1.2"/></svg>`;
+        } else {
+            const gid = `vp-${i}`;
+            el.innerHTML = `<svg viewBox="-24 -36 48 44"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fff8fa"/><stop offset="55%" stop-color="#f8bbd0"/><stop offset="100%" stop-color="#d85a7f"/></linearGradient></defs><path d="M0,4 C-16,-6 -22,-22 -7,-33 L0,-27 L7,-33 C22,-22 16,-6 0,4 Z" fill="url(#${gid})" stroke="#f3d27a" stroke-width="1"/></svg>`;
+        }
+
+        const baseAngle = (i / count) * Math.PI * 2;
+        const spiralA1 = baseAngle + 0.35;
+        const spiralA2 = baseAngle + 0.85;
+        const spiralA3 = baseAngle + 1.35;
+        const d1 = 68 + (i % 4) * 18;
+        const d2 = 135 + (i % 5) * 26;
+        const d3 = 215 + (i % 4) * 38;
+
+        el.style.setProperty('--tx1', `${Math.cos(spiralA1) * d1}px`);
+        el.style.setProperty('--ty1', `${Math.sin(spiralA1) * d1}px`);
+        el.style.setProperty('--tx2', `${Math.cos(spiralA2) * d2}px`);
+        el.style.setProperty('--ty2', `${Math.sin(spiralA2) * d2}px`);
+        el.style.setProperty('--tx3', `${Math.cos(spiralA3) * d3}px`);
+        el.style.setProperty('--ty3', `${Math.sin(spiralA3) * d3}px`);
+        el.style.setProperty('--r1', `${(i * 45) % 180 - 90}deg`);
+        el.style.setProperty('--r2', `${(i * 85) % 360 - 180}deg`);
+        el.style.setProperty('--r3', `${(i * 135) % 540 - 270}deg`);
+        el.style.animationDelay = `${(i % 6) * 0.045}s`;
+        vortexLayer.appendChild(el);
+    }
+}
+
 document.getElementById('generate-final-btn').addEventListener('click', () => {
     if (!cropperObj) return;
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = "🌸 Đang tạo...";
+    btn.innerHTML = "🌸 Đang nở hoa...";
     btn.disabled = true;
 
     const overlay = document.getElementById('transition-overlay');
-    overlay.querySelectorAll('.fly-petal').forEach(el => el.remove());
-
-    const petals = ['🌸', '🌺', '🌷', '🌹', '💮', '✿', '🌼', '💐'];
-    const count = 14;
-    for (let i = 0; i < count; i++) {
-        const el = document.createElement('div');
-        el.className = 'fly-petal';
-        el.textContent = petals[i % petals.length];
-        const angle = (i / count) * Math.PI * 2;
-        const d1 = 60 + Math.random() * 40;
-        const d2 = 110 + Math.random() * 60;
-        const d3 = 160 + Math.random() * 80;
-        el.style.setProperty('--tx1', `${Math.cos(angle) * d1}px`);
-        el.style.setProperty('--ty1', `${Math.sin(angle) * d1}px`);
-        el.style.setProperty('--tx2', `${Math.cos(angle) * d2}px`);
-        el.style.setProperty('--ty2', `${Math.sin(angle) * d2}px`);
-        el.style.setProperty('--tx3', `${Math.cos(angle) * d3}px`);
-        el.style.setProperty('--ty3', `${Math.sin(angle) * d3}px`);
-        el.style.setProperty('--r1', `${Math.random() * 120 - 60}deg`);
-        el.style.setProperty('--r2', `${Math.random() * 240 - 120}deg`);
-        el.style.setProperty('--r3', `${Math.random() * 360 - 180}deg`);
-        el.style.animationDelay = `${Math.random() * 0.25}s`;
-        overlay.appendChild(el);
-    }
+    populateCoutureBloomVortex();
 
     overlay.classList.remove('playing');
     void overlay.offsetWidth;
     overlay.classList.add('playing');
-    setTimeout(() => overlay.classList.remove('playing'), 2300);
+    setTimeout(() => overlay.classList.remove('playing'), 2450);
 
     setTimeout(() => {
         const targetW = 1024;
@@ -2381,6 +2473,13 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                 hasGeneratedQuoteOnce = true;
             }
 
+            // Đồng bộ kiểu viền hộp lời chúc theo mẫu khung đang chọn
+            const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
+            if (cfg && CONCEPT_BORDER_MAP[cfg.concept]) {
+                currentBorderStyle = CONCEPT_BORDER_MAP[cfg.concept];
+                syncBorderChipsUI(currentBorderStyle);
+            }
+
             ensureQuoteFont().then(() => {
                 drawCanvasImageText(finalResultCanvas, true);
             });
@@ -2394,24 +2493,98 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                 requestAnimationFrame(() => {
                     fitCardShowcaseToWrap();
                     if (cardShowcase) {
-                        cardShowcase.classList.remove('reveal-playing');
+                        cardShowcase.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev');
                         void cardShowcase.offsetWidth;
                         cardShowcase.classList.add('reveal-playing');
                     }
+                    // Cuộn chip mẫu đang chọn ra chính giữa thanh trượt ở Bước 3
+                    const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
+                    if (activeChip) {
+                        activeChip.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }
                 });
-                setTimeout(() => triggerCelebrationBurst(), 250);
-            }, 680);
+                setTimeout(() => triggerCelebrationBurst(), 260);
+            }, 720);
         };
         img.src = canvas.toDataURL('image/jpeg', 0.95);
     }, 140);
 });
 
-// ====== BẢNG ĐIỀU KHIỂN 2 TAB & MODAL TẠI BƯỚC 3 ======
+// ====== BẢNG ĐIỀU KHIỂN 3 TAB, VUỐT ĐỔI MẪU & CHẠM SỬA LỜI CHÚC TẠI BƯỚC 3 ======
 function triggerCardPulse() {
     if (!cardShowcase) return;
-    cardShowcase.classList.remove('reveal-playing', 'pulse-playing');
+    cardShowcase.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev');
     void cardShowcase.offsetWidth;
     cardShowcase.classList.add('pulse-playing');
+}
+
+// Nút mũi tên Trái / Phải cạnh tấm thiệp ở Bước 3
+const prevFrameBtn = document.getElementById('prev-frame-btn');
+const nextFrameBtn = document.getElementById('next-frame-btn');
+if (prevFrameBtn) {
+    prevFrameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectFrameById(currentSelectedFrameId - 1, true, -1);
+    });
+}
+if (nextFrameBtn) {
+    nextFrameBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectFrameById(currentSelectedFrameId + 1, true, 1);
+    });
+}
+
+// Vuốt ngang (Swipe Left / Right) trực tiếp trên tấm thiệp #card-showcase để lướt qua 20 mẫu khung
+if (cardShowcase) {
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isSwipingCard = false;
+
+    cardShowcase.addEventListener('touchstart', (e) => {
+        if (!e.touches || e.touches.length !== 1) return;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        isSwipingCard = true;
+    }, { passive: true });
+
+    cardShowcase.addEventListener('touchend', (e) => {
+        if (!isSwipingCard || !e.changedTouches || e.changedTouches.length === 0) return;
+        isSwipingCard = false;
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > 42 && Math.abs(dx) > Math.abs(dy) * 1.25) {
+            if (dx < 0) {
+                selectFrameById(currentSelectedFrameId + 1, true, 1);
+            } else {
+                selectFrameById(currentSelectedFrameId - 1, true, -1);
+            }
+        }
+    }, { passive: true });
+}
+
+// Chạm trực tiếp vào vùng hộp lời chúc trên thiệp (#card-quote-tap-zone) để mở ngay Modal chỉnh sửa
+function openTextEditModalWithSparkle(clientX, clientY) {
+    if (typeof clientX === 'number' && typeof clientY === 'number') {
+        spawnTouchSparkle(clientX, clientY, 6);
+    }
+    recipientInput.value = recipientName;
+    recipientCount.textContent = `${recipientName.length}/45`;
+    const activeText = getActiveQuoteText();
+    customWishInput.value = activeText;
+    wishCharCount.textContent = `${activeText.length}/160`;
+    textEditModal.style.display = 'flex';
+}
+
+const cardQuoteTapZone = document.getElementById('card-quote-tap-zone');
+if (cardQuoteTapZone) {
+    cardQuoteTapZone.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const rect = cardQuoteTapZone.getBoundingClientRect();
+        openTextEditModalWithSparkle(
+            e.clientX || (rect.left + rect.width / 2),
+            e.clientY || (rect.top + rect.height / 2)
+        );
+    });
 }
 
 // Chuyển đổi giữa 3 Tab tại Bước 3
@@ -2460,13 +2633,8 @@ const recipientCount = document.getElementById('recipient-count');
 const customWishInput = document.getElementById('custom-wish-input');
 const wishCharCount = document.getElementById('wish-char-count');
 
-document.getElementById('open-text-modal-btn').addEventListener('click', () => {
-    recipientInput.value = recipientName;
-    recipientCount.textContent = `${recipientName.length}/45`;
-    const activeText = getActiveQuoteText();
-    customWishInput.value = activeText;
-    wishCharCount.textContent = `${activeText.length}/160`;
-    textEditModal.style.display = 'flex';
+document.getElementById('open-text-modal-btn').addEventListener('click', (e) => {
+    openTextEditModalWithSparkle(e.clientX, e.clientY);
 });
 
 document.getElementById('close-text-modal').addEventListener('click', () => {
@@ -2511,12 +2679,13 @@ document.getElementById('apply-text-modal-btn').addEventListener('click', () => 
     triggerCardPulse();
 });
 
-// 4. Chọn Kiểu viền lãng mạn & Tông màu nữ tính
+// 4. Chọn Kiểu viền lãng mạn, Tông màu nữ tính & Nút "🪄 Tự phối hợp gu"
 document.querySelectorAll('#border-style-chips .style-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-        document.querySelectorAll('#border-style-chips .style-chip').forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        currentBorderStyle = chip.getAttribute('data-border');
+        const borderVal = chip.getAttribute('data-border');
+        if (!borderVal) return;
+        syncBorderChipsUI(borderVal);
+        currentBorderStyle = borderVal;
         drawCanvasImageText(finalResultCanvas, true);
         triggerCardPulse();
     });
@@ -2532,6 +2701,46 @@ document.querySelectorAll('.color-swatch-btn').forEach(btn => {
         triggerCardPulse();
     });
 });
+
+// Nút "🪄 Tự phối hợp gu": Tự động chọn bộ 3 (Mẫu khung + Tông màu + Viền lời chúc) chuẩn Haute Couture
+const CURATED_HARMONY_SETS = [
+    { frameId: 2,  theme: 'emerald', border: 'sakura',  label: '🌷 Vòm Hoa Trà • Ngọc Lục Bảo' },
+    { frameId: 17, theme: 'rose',    border: 'vintage', label: '🌹 Vườn Hồng Pháp • Hồng Phấn' },
+    { frameId: 4,  theme: 'gold',    border: 'daisy',   label: '🌿 Nguyệt Quế • Hoàng Kim' },
+    { frameId: 10, theme: 'rose',    border: 'sakura',  label: '🌸 Mành Anh Đào • Hồng Phấn' },
+    { frameId: 12, theme: 'cream',   border: 'daisy',   label: '🌼 Cúc Họa Mi • Kem Ngọc Trai' },
+    { frameId: 9,  theme: 'violet',  border: 'ribbon',  label: '🦪 Chuỗi Ngọc Trai • Tím Pastel' },
+    { frameId: 18, theme: 'emerald', border: 'hearts',  label: '✨ Tinh Tú Hoàng Kim • Ngọc Lục Bảo' },
+    { frameId: 3,  theme: 'gold',    border: 'vintage', label: '👑 Tạp Chí Vogue • Hoàng Kim' }
+];
+let harmonyIndex = 0;
+
+const magicHarmonyBtn = document.getElementById('magic-harmony-btn');
+if (magicHarmonyBtn) {
+    magicHarmonyBtn.addEventListener('click', (e) => {
+        const combo = CURATED_HARMONY_SETS[harmonyIndex % CURATED_HARMONY_SETS.length];
+        harmonyIndex++;
+
+        currentColorTheme = combo.theme;
+        document.querySelectorAll('.color-swatch-btn').forEach(b => {
+            b.classList.toggle('active', b.getAttribute('data-theme') === currentColorTheme);
+        });
+        refreshConceptFramesForTheme();
+
+        selectFrameById(combo.frameId, false);
+        currentBorderStyle = combo.border;
+        syncBorderChipsUI(currentBorderStyle);
+
+        drawCanvasImageText(finalResultCanvas, true);
+        triggerCardPulse();
+        showCardFloatingBadge(combo.label);
+
+        if (cardShowcase) {
+            const rect = cardShowcase.getBoundingClientRect();
+            spawnTouchSparkle(e.clientX || (rect.left + rect.width / 2), e.clientY || (rect.top + rect.height / 2), 8);
+        }
+    });
+}
 
 // 5. Nút "‹ Căn lại ảnh" (Quay về Bước 2 giữ nguyên ảnh & giữ nguyên câu chúc)
 document.getElementById('back-step2-btn').addEventListener('click', () => {
@@ -2722,7 +2931,7 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         }
     }
 
-    // 4. Vẽ hộp lời chúc nghệ thuật
+    // 4. Vẽ hộp lời chúc nghệ thuật đồng bộ với 20 mẫu khung phía trên
     const activeQuote = getActiveQuoteText();
     if (isFinal && activeQuote) {
         const marginX = Math.floor(targetW * 0.056);
@@ -2732,7 +2941,10 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         const boxH = Math.floor(textSpaceHeight * 0.82);
         const radius = Math.floor(targetW * 0.034);
 
-        drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme, currentBorderStyle);
+        // Cầu nối trang sức (Ornamental Bridge) kết nối khung ảnh phía trên với hộp lời chúc phía dưới
+        drawOrnamentalBridge(ctx, targetW / 2, originH, boxY, scale, theme, concept);
+
+        drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme, currentBorderStyle, concept);
 
         const recipientLine = formatRecipientLine(recipientName);
         const layout = fitQuoteInBox(ctx, activeQuote, recipientLine, boxW, boxH, scale, currentBorderStyle);
@@ -2780,20 +2992,49 @@ function drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, t
     ctx.restore();
 }
 
-// ====== 5 KIỂU VIỀN HỘP LỜI CHÚC THANH LỊCH & TINH TẾ ======
+// Cầu nối trang sức giữa khung ảnh trên và hộp lời chúc dưới
+function drawOrnamentalBridge(ctx, centerX, originH, boxY, scale, theme, concept) {
+    const midY = (originH + boxY) / 2;
+    ctx.save();
+    const lineGrad = ctx.createLinearGradient(centerX - 180 * scale, midY, centerX + 180 * scale, midY);
+    lineGrad.addColorStop(0, 'rgba(255,255,255,0)');
+    lineGrad.addColorStop(0.25, theme.borderSecondary);
+    lineGrad.addColorStop(0.5, theme.goldAccent);
+    lineGrad.addColorStop(0.75, theme.borderSecondary);
+    lineGrad.addColorStop(1, 'rgba(255,255,255,0)');
+
+    ctx.strokeStyle = lineGrad;
+    ctx.lineWidth = 1.4 * scale;
+    ctx.beginPath();
+    ctx.moveTo(centerX - 175 * scale, midY);
+    ctx.lineTo(centerX - 24 * scale, midY);
+    ctx.moveTo(centerX + 24 * scale, midY);
+    ctx.lineTo(centerX + 175 * scale, midY);
+    ctx.stroke();
+
+    // Ngọc trai nhỏ hai bên cầu nối
+    drawLustrousPearl(ctx, centerX - 30 * scale, midY, 3.6 * scale);
+    drawLustrousPearl(ctx, centerX + 30 * scale, midY, 3.6 * scale);
+
+    if (concept === 'aura' || concept === 'aura_arch' || concept === 'prism' || concept === 'celestial') {
+        drawStarburstFlare(ctx, centerX, midY, 15 * scale, theme.goldAccent);
+    } else {
+        ctx.fillStyle = theme.goldAccent;
+        drawFourPointStarPath(ctx, centerX, midY, 10 * scale);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+// ====== 5 KIỂU VIỀN HỘP LỜI CHÚC HAUTE COUTURE (ĐỒNG BỘ VỚI 20 KHUNG ẢNH NGHỆ THUẬT) ======
 function createBoxPath(ctx, x, y, w, h, r, style) {
     ctx.beginPath();
     if (style === 'vintage') {
-        const cr = r * 0.85;
-        ctx.moveTo(x + cr, y);
-        ctx.lineTo(x + w - cr, y);
-        ctx.arcTo(x + w - cr, y + cr, x + w, y + cr, cr);
-        ctx.lineTo(x + w, y + h - cr);
-        ctx.arcTo(x + w - cr, y + h - cr, x + w - cr, y + h, cr);
-        ctx.lineTo(x + cr, y + h);
-        ctx.arcTo(x + cr, y + h - cr, x, y + h - cr, cr);
-        ctx.lineTo(x, y + cr);
-        ctx.arcTo(x + cr, y + cr, x + cr, y, cr);
+        // Khung góc khuyết lõm quý tộc Pháp (ăn khớp với 04, 07, 09, 18)
+        traceConcaveWindowPath(ctx, x, y, w, h, r * 0.92);
+    } else if (style === 'hearts') {
+        // Khung bát giác vát kim cương pha lê (ăn khớp với 01, 06, 14, 15, 16, 19)
+        traceChamferWindowPath(ctx, x, y, w, h, r * 0.95);
     } else {
         ctx.moveTo(x + r, y);
         ctx.lineTo(x + w - r, y);
@@ -2804,22 +3045,29 @@ function createBoxPath(ctx, x, y, w, h, r, style) {
         ctx.quadraticCurveTo(x, y + h, x, y + h - r);
         ctx.lineTo(x, y + r);
         ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
     }
-    ctx.closePath();
 }
 
-function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme, style) {
+function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme, style, concept) {
     ctx.save();
 
+    const isGlassConcept = concept === 'aura' || concept === 'aura_arch' || concept === 'prism';
+
     ctx.shadowColor = theme.shadowRgba;
-    ctx.shadowBlur = 24 * scale;
+    ctx.shadowBlur = (isGlassConcept ? 30 : 24) * scale;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 8 * scale;
 
     createBoxPath(ctx, boxX, boxY, boxW, boxH, radius, style);
     const bgGrad = ctx.createLinearGradient(0, boxY, 0, boxY + boxH);
-    bgGrad.addColorStop(0, theme.boxFillStart);
-    bgGrad.addColorStop(1, theme.boxFillEnd);
+    if (isGlassConcept) {
+        bgGrad.addColorStop(0, 'rgba(255, 255, 255, 0.88)');
+        bgGrad.addColorStop(1, 'rgba(255, 252, 247, 0.82)');
+    } else {
+        bgGrad.addColorStop(0, theme.boxFillStart);
+        bgGrad.addColorStop(1, theme.boxFillEnd);
+    }
     ctx.fillStyle = bgGrad;
     ctx.fill();
 
@@ -2827,57 +3075,120 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
 
+    // Viền ngoài mạ vàng 3D sắc nét
     const borderGrad = ctx.createLinearGradient(boxX, boxY, boxX + boxW, boxY + boxH);
     borderGrad.addColorStop(0, theme.borderPrimary);
-    borderGrad.addColorStop(0.5, theme.borderSecondary);
+    borderGrad.addColorStop(0.35, theme.goldAccent);
+    borderGrad.addColorStop(0.65, theme.borderSecondary);
     borderGrad.addColorStop(1, theme.borderPrimary);
     ctx.lineWidth = Math.max(2, 3.2 * scale);
     ctx.strokeStyle = borderGrad;
     ctx.stroke();
 
+    // Đường chỉ vàng mảnh bên trong tạo chiều sâu Haute Couture
     const inset = Math.floor(11 * scale);
-    createBoxPath(ctx, boxX + inset, boxY + inset, boxW - inset * 2, boxH - inset * 2, Math.max(6, radius - inset * 0.6), style);
+    createBoxPath(ctx, boxX + inset, boxY + inset, boxW - inset * 2, boxH - inset * 2, Math.max(6, radius - inset * 0.55), style);
     ctx.lineWidth = Math.max(1, 1.3 * scale);
     ctx.strokeStyle = theme.borderSecondary;
     ctx.stroke();
 
+    // Dấu ngoặc kép chìm tinh tế
     ctx.save();
-    ctx.font = `italic 700 ${Math.floor(96 * scale)}px "Playfair Display", serif`;
+    ctx.font = `italic 700 ${Math.floor(92 * scale)}px "Playfair Display", serif`;
     ctx.fillStyle = theme.flowerSoft;
-    ctx.globalAlpha = style === 'vintage' ? 0.2 : 0.12;
+    ctx.globalAlpha = style === 'vintage' ? 0.18 : 0.11;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('“', boxX + 22 * scale, boxY + 8 * scale);
+    ctx.fillText('“', boxX + 26 * scale, boxY + 10 * scale);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('”', boxX + boxW - 22 * scale, boxY + boxH - 2 * scale);
+    ctx.fillText('”', boxX + boxW - 26 * scale, boxY + boxH - 4 * scale);
     ctx.restore();
 
     const midY = boxY + boxH / 2;
     const midX = boxX + boxW / 2;
 
     if (style === 'sakura') {
-        drawSakuraCluster(ctx, boxX + 26 * scale, midY, 17 * scale, theme);
-        drawSakuraCluster(ctx, boxX + boxW - 26 * scale, midY, 17 * scale, theme);
-        drawCornerPearls(ctx, boxX, boxY, boxW, boxH, scale, theme);
+        // 🌸 Hoa Đào & Trà: Hoa Trà My đa tầng & Anh Đào Watercolor đính góc đối xứng + nhành lá chỉ vàng
+        drawFineBotanicalSprig(ctx, boxX + 18 * scale, boxY + 34 * scale, 36 * scale, 0.35, 1, theme);
+        drawFineBotanicalSprig(ctx, boxX + boxW - 18 * scale, boxY + boxH - 34 * scale, 36 * scale, -2.75, -1, theme);
+
+        drawLayeredCamellia(ctx, boxX + 14 * scale, boxY + 14 * scale, 26 * scale, theme);
+        drawDetailedSakuraBloom(ctx, boxX + 46 * scale, boxY + 8 * scale, 15 * scale, theme, 0.3);
+        drawDetailedSakuraBloom(ctx, boxX + 8 * scale, boxY + 46 * scale, 14 * scale, theme, -0.4);
+
+        drawLayeredCamellia(ctx, boxX + boxW - 14 * scale, boxY + boxH - 14 * scale, 26 * scale, theme);
+        drawDetailedSakuraBloom(ctx, boxX + boxW - 46 * scale, boxY + boxH - 8 * scale, 15 * scale, theme, -0.3);
+        drawDetailedSakuraBloom(ctx, boxX + boxW - 8 * scale, boxY + boxH - 46 * scale, 14 * scale, theme, 0.4);
+
+        // Điểm ngọc trai ở 2 góc còn lại & hai bên hông
+        drawLustrousPearl(ctx, boxX + boxW - 18 * scale, boxY + 18 * scale, 5.5 * scale);
+        drawLustrousPearl(ctx, boxX + 18 * scale, boxY + boxH - 18 * scale, 5.5 * scale);
+        drawDetailedSakuraBloom(ctx, boxX + 18 * scale, midY, 13 * scale, theme, 0.15);
+        drawDetailedSakuraBloom(ctx, boxX + boxW - 18 * scale, midY, 13 * scale, theme, -0.15);
+
     } else if (style === 'ribbon') {
-        drawSilkRibbonBow(ctx, midX, boxY + 2 * scale, 34 * scale, theme);
-        drawCornerPearls(ctx, boxX, boxY, boxW, boxH, scale, theme);
-        drawSakuraFlower(ctx, boxX + 24 * scale, midY, 12 * scale, theme.flowerMain, theme.goldAccent);
-        drawSakuraFlower(ctx, boxX + boxW - 24 * scale, midY, 12 * scale, theme.flowerMain, theme.goldAccent);
+        // 🦪 Ngọc Trai & Nơ: Nơ lụa hoàng gia đính ngọc trai ở đỉnh + chuỗi ngọc trai 3D viền góc
+        drawSilkRibbonBow(ctx, midX, boxY + 2 * scale, 36 * scale, theme);
+        drawLustrousPearl(ctx, midX, boxY + 3 * scale, 6.5 * scale);
+
+        const pearlOffsets = [-28, -14, 0, 14, 28];
+        pearlOffsets.forEach((off, idx) => {
+            const pr = (idx === 2 ? 6.2 : (idx % 2 === 1 ? 4.8 : 3.6)) * scale;
+            drawLustrousPearl(ctx, boxX, midY + off * scale, pr);
+            drawLustrousPearl(ctx, boxX + boxW, midY + off * scale, pr);
+        });
+
+        // 4 cụm ngọc trai ở 4 góc
+        const cPts = [
+            [boxX + 20 * scale, boxY + 20 * scale],
+            [boxX + boxW - 20 * scale, boxY + 20 * scale],
+            [boxX + 20 * scale, boxY + boxH - 20 * scale],
+            [boxX + boxW - 20 * scale, boxY + boxH - 20 * scale]
+        ];
+        cPts.forEach(([px, py]) => drawLustrousPearl(ctx, px, py, 5.5 * scale));
+
     } else if (style === 'hearts') {
-        drawRomanticHeartsCluster(ctx, midX, boxY + 2 * scale, 18 * scale, theme);
-        drawCornerStars(ctx, boxX, boxY, boxW, boxH, scale, theme);
-        drawRomanticHeartsCluster(ctx, boxX + 25 * scale, midY, 14 * scale, theme);
-        drawRomanticHeartsCluster(ctx, boxX + boxW - 25 * scale, midY, 14 * scale, theme);
+        // ✨ Pha Lê & Sao: Khung bát giác vát kim cương + ánh sao 8 cánh lấp lánh
+        drawStarburstFlare(ctx, midX, boxY, 22 * scale, theme.goldAccent);
+        drawLustrousPearl(ctx, midX - 28 * scale, boxY, 4.2 * scale);
+        drawLustrousPearl(ctx, midX + 28 * scale, boxY, 4.2 * scale);
+
+        drawStarburstFlare(ctx, boxX + 24 * scale, boxY + 24 * scale, 16 * scale, theme.goldAccent);
+        drawStarburstFlare(ctx, boxX + boxW - 24 * scale, boxY + 24 * scale, 16 * scale, theme.goldAccent);
+        drawStarburstFlare(ctx, boxX + 24 * scale, boxY + boxH - 24 * scale, 16 * scale, theme.goldAccent);
+        drawStarburstFlare(ctx, boxX + boxW - 24 * scale, boxY + boxH - 24 * scale, 16 * scale, theme.goldAccent);
+
+        ctx.fillStyle = theme.goldAccent;
+        drawFourPointStarPath(ctx, boxX + 20 * scale, midY, 10 * scale);
+        ctx.fill();
+        drawFourPointStarPath(ctx, boxX + boxW - 20 * scale, midY, 10 * scale);
+        ctx.fill();
+
     } else if (style === 'daisy') {
-        drawDaisyVineSide(ctx, boxX + 25 * scale, midY, scale, -1, theme);
-        drawDaisyVineSide(ctx, boxX + boxW - 25 * scale, midY, scale, 1, theme);
-        drawCornerPearls(ctx, boxX, boxY, boxW, boxH, scale, theme);
+        // 🌿 Nguyệt Quế & Cúc: Nhành nguyệt quế vàng, lá bạch quả Ginkgo, oải hương & Cúc Họa Mi đa tầng
+        drawFineBotanicalSprig(ctx, boxX + 18 * scale, midY + 56 * scale, 72 * scale, -Math.PI * 0.48, 1, theme);
+        drawFineBotanicalSprig(ctx, boxX + boxW - 18 * scale, midY + 56 * scale, 72 * scale, -Math.PI * 0.52, -1, theme);
+
+        drawGinkgoLeaf(ctx, boxX + 16 * scale, boxY + 24 * scale, 22 * scale, 0.55, theme);
+        drawGinkgoLeaf(ctx, boxX + boxW - 16 * scale, boxY + 24 * scale, 22 * scale, -0.55, theme);
+
+        drawLavenderSpike(ctx, boxX + 16 * scale, boxY + boxH - 18 * scale, 48 * scale, -0.45, theme);
+        drawLavenderSpike(ctx, boxX + boxW - 16 * scale, boxY + boxH - 18 * scale, 48 * scale, 0.45, theme);
+
+        drawRichChamomileDaisy(ctx, boxX + 18 * scale, midY, 19 * scale, theme);
+        drawRichChamomileDaisy(ctx, boxX + boxW - 18 * scale, midY, 19 * scale, theme);
+
     } else if (style === 'vintage') {
-        drawVintageCornerFlourishes(ctx, boxX, boxY, boxW, boxH, scale, theme);
-        drawSakuraFlower(ctx, boxX + 24 * scale, midY, 13 * scale, theme.flowerMain, theme.goldAccent);
-        drawSakuraFlower(ctx, boxX + boxW - 24 * scale, midY, 13 * scale, theme.flowerMain, theme.goldAccent);
+        // 🌹 Hồng Pháp: Khung góc khuyết cổ điển + Hoa Hồng Pháp Watercolor nét cọ vàng 24K
+        drawFineLineRoseCorner(ctx, boxX + 18 * scale, boxY + 18 * scale, 28 * scale, 0.25, theme);
+        drawFineLineRoseCorner(ctx, boxX + boxW - 18 * scale, boxY + boxH - 18 * scale, 28 * scale, Math.PI + 0.25, theme);
+
+        drawFineBotanicalSprig(ctx, boxX + boxW - 22 * scale, boxY + 22 * scale, 34 * scale, 2.35, -1, theme);
+        drawFineBotanicalSprig(ctx, boxX + 22 * scale, boxY + boxH - 22 * scale, 34 * scale, -0.75, 1, theme);
+
+        drawLustrousPearl(ctx, boxX + 18 * scale, midY, 5.2 * scale);
+        drawLustrousPearl(ctx, boxX + boxW - 18 * scale, midY, 5.2 * scale);
     }
 
     ctx.restore();
