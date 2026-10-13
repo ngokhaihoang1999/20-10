@@ -1787,10 +1787,12 @@ input[type="file"] {
 }
 
 .frame-item {
-    min-width: 64px;
-    height: 70px;
-    padding: 3px 5px;
-    border-radius: 9px;
+    flex: 0 0 auto;
+    min-width: 78px;
+    width: auto;
+    height: 72px;
+    padding: 4px 8px;
+    border-radius: 10px;
     border: 1.8px solid transparent;
     cursor: pointer;
     color: #555;
@@ -1801,13 +1803,23 @@ input[type="file"] {
     justify-content: center;
     align-items: center;
     transition: all 0.18s;
-    font-size: 0.7rem;
-    font-weight: 500;
+    font-size: 0.68rem;
+    font-weight: 600;
     white-space: nowrap;
+    overflow: hidden;
+}
+
+.frame-item span {
+    display: block;
+    max-width: 100%;
+    text-align: center;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .frame-item.is-concept {
-    min-width: 78px;
     background: linear-gradient(180deg, #ffffff 0%, #fff6f9 100%);
     border-color: #f4c6d7;
     color: #9c2756;

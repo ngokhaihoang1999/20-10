@@ -341,23 +341,23 @@ window.addEventListener('pointerdown', (e) => {
 const FRAME_ASPECT_RATIO = 1024 / 1526;
 const CONCEPT_DEFS = [
     { concept: 'arch', label: '01. Vòm Lụa', fullLabel: '✨ 01. Vòm Lụa' },
-    { concept: 'oval', label: '02. Gương Oval', fullLabel: '🪞 02. Gương Hoàng Gia' },
-    { concept: 'cathedral', label: '03. Vòm Hoa Trà', fullLabel: '🌷 03. Vòm Hoa Trà' },
+    { concept: 'oval', label: '02. Gương Ngọc', fullLabel: '🪞 02. Gương Hoàng Gia' },
+    { concept: 'cathedral', label: '03. Hoa Trà', fullLabel: '🌷 03. Vòm Hoa Trà' },
     { concept: 'scallop', label: '04. Viền Sóng', fullLabel: '☁️ 04. Viền Sóng Mây' },
-    { concept: 'hourglass', label: '05. Vé Triển Lãm', fullLabel: '🏛️ 05. Vé Triển Lãm' },
+    { concept: 'hourglass', label: '05. Nguyệt Quế', fullLabel: '🌿 05. Vòng Nguyệt Quế' },
     { concept: 'magazine', label: '06. Tạp Chí', fullLabel: '📖 06. Tạp Chí Vogue' },
     { concept: 'elle_minimal', label: '07. Muse Paris', fullLabel: '🕊️ 07. Muse Paris' },
     { concept: 'runway', label: '08. Hào Quang', fullLabel: '👑 08. Ánh Hào Quang' },
-    { concept: 'atelier', label: '09. Nhãn Couture', fullLabel: '🏷️ 09. Nhãn Couture' },
-    { concept: 'polaroid', label: '10. Polaroid Hàn', fullLabel: '📸 10. Polaroid Hàn' },
-    { concept: 'film_kodak', label: '11. Phim Điện Ảnh', fullLabel: '🎞️ 11. Phim Điện Ảnh' },
+    { concept: 'atelier', label: '09. Couture', fullLabel: '🏷️ 09. Nhãn Couture' },
+    { concept: 'polaroid', label: '10. Polaroid', fullLabel: '📸 10. Polaroid Hàn' },
+    { concept: 'film_kodak', label: '11. Anh Đào', fullLabel: '🌸 11. Cành Anh Đào' },
     { concept: 'postcard', label: '12. Bưu Thiếp', fullLabel: '💌 12. Bưu Thiếp Paris' },
-    { concept: 'scrapbook', label: '13. Kẹp Giấy', fullLabel: '📎 13. Nhật Ký Kẹp Giấy' },
+    { concept: 'scrapbook', label: '13. Cúc Họa Mi', fullLabel: '🌼 13. Cúc Họa Mi' },
     { concept: 'aura', label: '14. Kính Aura', fullLabel: '💎 14. Kính Mờ Aura' },
     { concept: 'aura_arch', label: '15. Vòm Aura', fullLabel: '🌈 15. Vòm Cực Quang' },
-    { concept: 'prism', label: '16. Pha Lê Sao', fullLabel: '💠 16. Pha Lê Ánh Sao' },
+    { concept: 'prism', label: '16. Pha Lê', fullLabel: '💠 16. Pha Lê Ánh Sao' },
     { concept: 'floating_shadow', label: '17. Nắng Thu', fullLabel: '☀️ 17. Bóng Nắng Thu' },
-    { concept: 'dior', label: '18. Dior Gold', fullLabel: '✨ 18. Dior Line-Art' },
+    { concept: 'dior', label: '18. Hồng Pháp', fullLabel: '🌹 18. Vườn Hồng Pháp' },
     { concept: 'pearl_lace', label: '19. Ngọc Trai', fullLabel: '🦪 19. Chuỗi Ngọc Trai' },
     { concept: 'celestial', label: '20. Ánh Trăng', fullLabel: '🌙 20. Vũ Khúc Ánh Trăng' }
 ];
@@ -696,9 +696,9 @@ function traceConceptPhotoWindow(ctx, concept, targetW, originH, scale) {
         const winY = Math.floor(78 * scale);
         traceScallopWindowPath(ctx, winX, winY, targetW - winX * 2, originH - Math.floor(104 * scale), 8, 12, 16 * scale);
     } else if (concept === 'hourglass') {
-        const winX = Math.floor(66 * scale);
-        const winY = Math.floor(72 * scale);
-        traceConcaveWindowPath(ctx, winX, winY, targetW - winX * 2, originH - Math.floor(98 * scale), 66 * scale);
+        const winX = Math.floor(78 * scale);
+        const winY = Math.floor(76 * scale);
+        traceArchWindowPath(ctx, winX, winY, targetW - winX * 2, originH - Math.floor(104 * scale), 38 * scale);
     } else if (concept === 'elle_minimal') {
         const winX = Math.floor(90 * scale);
         const winY = Math.floor(166 * scale);
@@ -712,17 +712,17 @@ function traceConceptPhotoWindow(ctx, concept, targetW, originH, scale) {
         const winY = Math.floor(98 * scale);
         traceRoundedWindowPath(ctx, winX, winY, targetW - winX * 2, originH - Math.floor(245 * scale), 12 * scale);
     } else if (concept === 'film_kodak') {
-        const winX = Math.floor(104 * scale);
-        const winY = Math.floor(62 * scale);
-        traceRoundedWindowPath(ctx, winX, winY, targetW - winX * 2, originH - Math.floor(90 * scale), 12 * scale);
+        const winX = Math.floor(72 * scale);
+        const winY = Math.floor(72 * scale);
+        traceRoundedWindowPath(ctx, winX, winY, targetW - winX * 2, originH - Math.floor(100 * scale), 28 * scale);
     } else if (concept === 'postcard') {
         const winX = Math.floor(78 * scale);
         const winY = Math.floor(82 * scale);
         traceRoundedWindowPath(ctx, winX, winY, targetW - winX * 2, originH - Math.floor(110 * scale), 16 * scale);
     } else if (concept === 'scrapbook') {
-        const winX = Math.floor(82 * scale);
-        const winY = Math.floor(92 * scale);
-        traceRoundedWindowPath(ctx, winX, winY, targetW - winX * 2, originH - Math.floor(132 * scale), 14 * scale);
+        const winX = Math.floor(76 * scale);
+        const winY = Math.floor(84 * scale);
+        traceRoundedWindowPath(ctx, winX, winY, targetW - winX * 2, originH - Math.floor(118 * scale), 22 * scale);
     } else if (concept === 'aura') {
         const winX = Math.floor(66 * scale);
         const winY = Math.floor(66 * scale);
@@ -753,6 +753,322 @@ function traceConceptPhotoWindow(ctx, concept, targetW, originH, scale) {
     }
 }
 
+// ====== BỘ HÀM VẼ HOA LÁ NGHỆ THUẬT (WATERCOLOR + GOLD LINE-ART BOTANICALS) ======
+function drawWatercolorBotanicalLeaf(ctx, x, y, len, wid, angle, fillColor, veinColor, alpha = 0.65) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(len * 0.3, -wid, len * 0.75, -wid * 0.85, len, 0);
+    ctx.bezierCurveTo(len * 0.75, wid * 0.85, len * 0.3, wid, 0, 0);
+    ctx.closePath();
+
+    ctx.fillStyle = fillColor;
+    ctx.globalAlpha = alpha;
+    ctx.fill();
+
+    ctx.globalAlpha = Math.min(1, alpha + 0.25);
+    ctx.strokeStyle = veinColor;
+    ctx.lineWidth = Math.max(0.8, len * 0.032);
+    ctx.stroke();
+
+    // Sống lá ánh kim ở giữa
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(len * 0.5, -wid * 0.08, len * 0.86, 0);
+    ctx.stroke();
+    ctx.restore();
+}
+
+// Đóa Hoa Trà / Mẫu Đơn 3D nhiều lớp cánh màu nước viền vàng kim
+function drawLayeredCamellia(ctx, cx, cy, radius, theme) {
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    // 4 chiếc lá xanh ngọc viền vàng lấp ló phía sau đóa hoa
+    const leafAngles = [-0.65, 0.55, 2.35, -2.45];
+    leafAngles.forEach((la, idx) => {
+        const lLen = radius * (idx % 2 === 0 ? 1.45 : 1.25);
+        drawWatercolorBotanicalLeaf(ctx, 0, 0, lLen, lLen * 0.42, la, theme.leafColor, theme.goldAccent, 0.72);
+    });
+
+    // Hào quang phấn hồng dịu nhẹ dưới cánh hoa
+    const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 1.15);
+    glow.addColorStop(0, theme.flowerMain);
+    glow.addColorStop(0.6, theme.flowerSoft);
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glow;
+    ctx.globalAlpha = 0.32;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 1.15, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3 Tầng cánh hoa Trà xếp xoáy tròn
+    const layers = [
+        { count: 8, r: radius, w: radius * 0.56, fill: theme.flowerSoft, alpha: 0.88, rot: 0 },
+        { count: 7, r: radius * 0.74, w: radius * 0.46, fill: theme.flowerMain, alpha: 0.75, rot: 0.42 },
+        { count: 5, r: radius * 0.46, w: radius * 0.34, fill: '#fff7fa', alpha: 0.94, rot: 0.85 }
+    ];
+
+    layers.forEach(layer => {
+        for (let i = 0; i < layer.count; i++) {
+            ctx.save();
+            ctx.rotate(layer.rot + (i * Math.PI * 2) / layer.count);
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(-layer.w, -layer.r * 0.35, -layer.w * 0.85, -layer.r * 0.98, 0, -layer.r);
+            ctx.bezierCurveTo(layer.w * 0.85, -layer.r * 0.98, layer.w, -layer.r * 0.35, 0, 0);
+            ctx.closePath();
+
+            ctx.fillStyle = layer.fill;
+            ctx.globalAlpha = layer.alpha;
+            ctx.fill();
+
+            ctx.globalAlpha = 0.88;
+            ctx.strokeStyle = theme.goldAccent;
+            ctx.lineWidth = Math.max(0.9, radius * 0.032);
+            ctx.stroke();
+            ctx.restore();
+        }
+    });
+
+    // Nhụy hoa ánh kim hoàng gia
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = theme.goldAccent;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+
+    for (let i = 0; i < 8; i++) {
+        const a = (i * Math.PI * 2) / 8;
+        const sr = radius * 0.23;
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * sr, Math.sin(a) * sr, radius * 0.045, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+// Bông Hoa Anh Đào 5 cánh khuyết tim chi tiết cao cấp
+function drawDetailedSakuraBloom(ctx, cx, cy, radius, rot, theme) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+
+    for (let i = 0; i < 5; i++) {
+        ctx.save();
+        ctx.rotate((i * Math.PI * 2) / 5);
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.bezierCurveTo(-radius * 0.56, -radius * 0.34, -radius * 0.52, -radius * 0.96, -radius * 0.13, -radius);
+        ctx.lineTo(0, -radius * 0.81);
+        ctx.lineTo(radius * 0.13, -radius);
+        ctx.bezierCurveTo(radius * 0.52, -radius * 0.96, radius * 0.56, -radius * 0.34, 0, 0);
+        ctx.closePath();
+
+        const pGrad = ctx.createLinearGradient(0, 0, 0, -radius);
+        pGrad.addColorStop(0, theme.flowerMain);
+        pGrad.addColorStop(0.55, theme.flowerSoft);
+        pGrad.addColorStop(1, '#ffffff');
+        ctx.fillStyle = pGrad;
+        ctx.globalAlpha = 0.92;
+        ctx.fill();
+
+        ctx.strokeStyle = theme.goldAccent;
+        ctx.lineWidth = Math.max(0.8, radius * 0.03);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Nhụy tơ mảnh mai ở tâm hoa anh đào
+    ctx.strokeStyle = theme.goldAccent;
+    ctx.fillStyle = theme.goldAccent;
+    ctx.lineWidth = Math.max(0.8, radius * 0.03);
+    for (let i = 0; i < 7; i++) {
+        const a = (i * Math.PI * 2) / 7 + 0.2;
+        const rEnd = radius * 0.36;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(a) * rEnd, Math.sin(a) * rEnd);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * rEnd, Math.sin(a) * rEnd, radius * 0.055, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+// Cành Hoa Anh Đào vươn từ góc khung
+function drawSakuraBranchCorner(ctx, cx, cy, scale, flipX, flipY, theme) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(flipX, flipY);
+
+    // Thân cành đào uyển chuyển
+    ctx.strokeStyle = theme.goldAccent;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 4.2 * scale;
+    ctx.beginPath();
+    ctx.moveTo(0, 20 * scale);
+    ctx.bezierCurveTo(65 * scale, 28 * scale, 135 * scale, 65 * scale, 215 * scale, 125 * scale);
+    ctx.stroke();
+
+    ctx.lineWidth = 2.4 * scale;
+    ctx.beginPath();
+    ctx.moveTo(75 * scale, 36 * scale);
+    ctx.quadraticCurveTo(130 * scale, 12 * scale, 185 * scale, 28 * scale);
+    ctx.moveTo(95 * scale, 48 * scale);
+    ctx.quadraticCurveTo(65 * scale, 115 * scale, 88 * scale, 175 * scale);
+    ctx.stroke();
+
+    // Lá non xanh biếc
+    drawWatercolorBotanicalLeaf(ctx, 115 * scale, 52 * scale, 36 * scale, 15 * scale, 0.2, theme.leafColor, theme.goldAccent, 0.75);
+    drawWatercolorBotanicalLeaf(ctx, 64 * scale, 78 * scale, 34 * scale, 14 * scale, 1.35, theme.leafColor, theme.goldAccent, 0.75);
+    drawWatercolorBotanicalLeaf(ctx, 168 * scale, 92 * scale, 32 * scale, 13 * scale, 0.55, theme.leafColor, theme.goldAccent, 0.72);
+
+    // Các đóa hoa anh đào lớn nhỏ nở dọc theo cành
+    drawDetailedSakuraBloom(ctx, 68 * scale, 42 * scale, 42 * scale, 0.15, theme);
+    drawDetailedSakuraBloom(ctx, 145 * scale, 74 * scale, 32 * scale, -0.35, theme);
+    drawDetailedSakuraBloom(ctx, 162 * scale, 26 * scale, 24 * scale, 0.4, theme);
+    drawDetailedSakuraBloom(ctx, 82 * scale, 136 * scale, 26 * scale, 0.6, theme);
+    drawDetailedSakuraBloom(ctx, 208 * scale, 120 * scale, 21 * scale, -0.2, theme);
+
+    // Cánh hoa anh đào rơi lất phất trong gió
+    const petals = [
+        { x: 245, y: 72, r: 12, a: 0.6 },
+        { x: 195, y: 165, r: 14, a: -0.4 },
+        { x: 128, y: 195, r: 10, a: 1.1 }
+    ];
+    petals.forEach(p => {
+        ctx.save();
+        ctx.translate(p.x * scale, p.y * scale);
+        ctx.rotate(p.a);
+        ctx.fillStyle = theme.flowerSoft;
+        ctx.strokeStyle = theme.goldAccent;
+        ctx.lineWidth = 1 * scale;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, p.r * scale, p.r * 0.55 * scale, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.restore();
+    });
+
+    ctx.restore();
+}
+
+// Lá Ngân Hạnh (Ginkgo Biloba) mùa thu mạ vàng
+function drawGinkgoLeaf(ctx, x, y, size, angle, theme) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    // Cuống lá mảnh
+    ctx.strokeStyle = theme.goldAccent;
+    ctx.lineWidth = Math.max(1.2, size * 0.045);
+    ctx.beginPath();
+    ctx.moveTo(0, size * 0.35);
+    ctx.quadraticCurveTo(-size * 0.05, size * 0.1, 0, 0);
+    ctx.stroke();
+
+    // Tán lá hình quạt xẻ đôi ở giữa
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(-size * 0.65, -size * 0.25, -size * 0.85, -size * 0.82, -size * 0.22, -size * 0.95);
+    ctx.quadraticCurveTo(-size * 0.06, -size * 0.92, 0, -size * 0.68);
+    ctx.quadraticCurveTo(size * 0.06, -size * 0.92, size * 0.22, -size * 0.95);
+    ctx.bezierCurveTo(size * 0.85, -size * 0.82, size * 0.65, -size * 0.25, 0, 0);
+    ctx.closePath();
+
+    const gGrad = ctx.createLinearGradient(0, 0, 0, -size);
+    gGrad.addColorStop(0, theme.goldAccent);
+    gGrad.addColorStop(0.6, theme.flowerSoft);
+    gGrad.addColorStop(1, '#fffdf5');
+    ctx.fillStyle = gGrad;
+    ctx.globalAlpha = 0.85;
+    ctx.fill();
+
+    ctx.globalAlpha = 0.95;
+    ctx.strokeStyle = theme.goldAccent;
+    ctx.lineWidth = Math.max(1, size * 0.032);
+    ctx.stroke();
+
+    // Các đường gân quạt mảnh
+    ctx.globalAlpha = 0.45;
+    for (let i = -3; i <= 3; i++) {
+        if (i === 0) continue;
+        ctx.beginPath();
+        ctx.moveTo(0, -size * 0.05);
+        ctx.lineTo(i * size * 0.14, -size * 0.78);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+// Nhành Hoa Oải Hương (Lavender Spike)
+function drawLavenderSpike(ctx, x, y, len, angle, theme) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    ctx.strokeStyle = theme.leafColor;
+    ctx.lineWidth = Math.max(1.2, len * 0.018);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(len * 0.04, -len * 0.5, 0, -len);
+    ctx.stroke();
+
+    const tiers = 6;
+    for (let i = 1; i <= tiers; i++) {
+        const ty = -len * (0.28 + (i / tiers) * 0.68);
+        const budR = len * (0.068 - i * 0.005);
+        [-1, 1].forEach(side => {
+            ctx.save();
+            ctx.translate(side * budR * 0.85, ty);
+            ctx.rotate(side * 0.45);
+            ctx.fillStyle = i % 2 === 0 ? theme.flowerMain : theme.flowerSoft;
+            ctx.strokeStyle = theme.goldAccent;
+            ctx.lineWidth = Math.max(0.6, len * 0.008);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, budR * 0.62, budR * 1.25, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        });
+    }
+    ctx.restore();
+}
+
+// Đóa Cúc Họa Mi 12 cánh trắng kem nhụy vàng
+function drawRichChamomileDaisy(ctx, cx, cy, radius, theme) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    const petals = 12;
+    for (let i = 0; i < petals; i++) {
+        ctx.save();
+        ctx.rotate((i * Math.PI * 2) / petals);
+        ctx.beginPath();
+        ctx.ellipse(0, -radius * 0.64, radius * 0.21, radius * 0.46, 0, 0, Math.PI * 2);
+        ctx.fillStyle = '#fffdfa';
+        ctx.fill();
+        ctx.strokeStyle = theme.goldAccent;
+        ctx.lineWidth = Math.max(0.8, radius * 0.032);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    const cGrad = ctx.createRadialGradient(-radius * 0.08, -radius * 0.08, 0, 0, 0, radius * 0.32);
+    cGrad.addColorStop(0, '#ffe885');
+    cGrad.addColorStop(0.7, theme.goldAccent);
+    cGrad.addColorStop(1, theme.borderPrimary);
+    ctx.fillStyle = cGrad;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
 function drawFineBotanicalSprig(ctx, cx, cy, scale, angle, theme) {
     ctx.save();
     ctx.translate(cx, cy);
@@ -767,28 +1083,24 @@ function drawFineBotanicalSprig(ctx, cx, cy, scale, angle, theme) {
     ctx.stroke();
 
     const leafPairs = [
-        { t: 22, dy: -4, a: -0.65, len: 22 },
-        { t: 36, dy: -6, a: 0.55, len: 20 },
-        { t: 54, dy: -8, a: -0.58, len: 20 },
-        { t: 70, dy: -8, a: 0.48, len: 17 },
-        { t: 88, dy: -6, a: -0.35, len: 15 }
+        { t: 22, dy: -4, a: -0.65, len: 24 },
+        { t: 36, dy: -6, a: 0.55, len: 22 },
+        { t: 54, dy: -8, a: -0.58, len: 22 },
+        { t: 70, dy: -8, a: 0.48, len: 19 },
+        { t: 88, dy: -6, a: -0.35, len: 16 }
     ];
     leafPairs.forEach(lp => {
-        ctx.save();
-        ctx.translate(lp.t * scale, lp.dy * scale);
-        ctx.rotate(lp.a);
-        ctx.fillStyle = theme.flowerSoft;
-        ctx.globalAlpha = 0.32;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.quadraticCurveTo(lp.len * 0.5 * scale, -lp.len * 0.28 * scale, lp.len * scale, 0);
-        ctx.quadraticCurveTo(lp.len * 0.5 * scale, lp.len * 0.28 * scale, 0, 0);
-        ctx.fill();
-        ctx.globalAlpha = 0.85;
-        ctx.strokeStyle = theme.goldAccent;
-        ctx.lineWidth = 1.4 * scale;
-        ctx.stroke();
-        ctx.restore();
+        drawWatercolorBotanicalLeaf(
+            ctx,
+            lp.t * scale,
+            lp.dy * scale,
+            lp.len * scale,
+            lp.len * 0.34 * scale,
+            lp.a,
+            theme.leafColor,
+            theme.goldAccent,
+            0.62
+        );
     });
     ctx.restore();
 }
@@ -798,26 +1110,43 @@ function drawFineLineRoseCorner(ctx, cx, cy, scale, flipX, flipY, theme) {
     ctx.translate(cx, cy);
     ctx.scale(flipX, flipY);
 
-    drawFineBotanicalSprig(ctx, 10 * scale, 8 * scale, scale * 1.05, 0.18, theme);
-    drawFineBotanicalSprig(ctx, 8 * scale, 10 * scale, scale * 1.05, 1.38, theme);
+    drawFineBotanicalSprig(ctx, 12 * scale, 10 * scale, scale * 1.15, 0.16, theme);
+    drawFineBotanicalSprig(ctx, 10 * scale, 12 * scale, scale * 1.15, 1.4, theme);
 
-    ctx.translate(18 * scale, 18 * scale);
-    ctx.fillStyle = theme.flowerSoft;
-    ctx.globalAlpha = 0.28;
-    ctx.beginPath();
-    ctx.arc(0, 0, 28 * scale, 0, Math.PI * 2);
-    ctx.fill();
+    // Đóa hồng Anh Quốc (Watercolor + Gold Line-Art)
+    ctx.translate(22 * scale, 22 * scale);
 
-    ctx.globalAlpha = 0.92;
+    // Các lớp cánh màu nước mềm phía dưới
+    const petalWash = [
+        { r: 30, count: 6, col: theme.flowerSoft, alpha: 0.65, off: 0.2 },
+        { r: 21, count: 5, col: theme.flowerMain, alpha: 0.48, off: 0.8 },
+        { r: 12, count: 4, col: '#ffffff', alpha: 0.72, off: 0.4 }
+    ];
+    petalWash.forEach(pw => {
+        for (let i = 0; i < pw.count; i++) {
+            const ang = pw.off + (i * Math.PI * 2) / pw.count;
+            ctx.save();
+            ctx.rotate(ang);
+            ctx.fillStyle = pw.col;
+            ctx.globalAlpha = pw.alpha;
+            ctx.beginPath();
+            ctx.arc(0, -pw.r * 0.35 * scale, pw.r * 0.55 * scale, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    });
+
+    // Đường nét mảnh nhũ vàng xoáy tâm hoa hồng
+    ctx.globalAlpha = 0.95;
     ctx.strokeStyle = theme.goldAccent;
-    ctx.lineWidth = 1.8 * scale;
+    ctx.lineWidth = 1.9 * scale;
     ctx.lineCap = 'round';
 
     const rings = [
         { r: 7, petals: 3, offset: 0.2 },
         { r: 14, petals: 5, offset: 0.8 },
         { r: 22, petals: 6, offset: 0.4 },
-        { r: 29, petals: 7, offset: 1.1 }
+        { r: 30, petals: 7, offset: 1.1 }
     ];
     rings.forEach(ring => {
         for (let i = 0; i < ring.petals; i++) {
@@ -830,9 +1159,9 @@ function drawFineLineRoseCorner(ctx, cx, cy, scale, flipX, flipY, theme) {
         }
     });
 
-    ctx.fillStyle = theme.borderPrimary;
+    ctx.fillStyle = theme.goldAccent;
     ctx.beginPath();
-    ctx.arc(0, 0, 3 * scale, 0, Math.PI * 2);
+    ctx.arc(0, 0, 3.5 * scale, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 }
@@ -966,30 +1295,6 @@ function drawPostmarkStamp(ctx, cx, cy, radius, theme) {
     ctx.restore();
 }
 
-function drawPaperclip(ctx, cx, cy, scale, angle, theme) {
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(angle);
-    ctx.strokeStyle = theme.goldAccent;
-    ctx.lineWidth = 5.2 * scale;
-    ctx.lineCap = 'round';
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = 6 * scale;
-    ctx.shadowOffsetY = 3 * scale;
-
-    ctx.beginPath();
-    ctx.moveTo(-14 * scale, 35 * scale);
-    ctx.lineTo(-14 * scale, -38 * scale);
-    ctx.arc(0, -38 * scale, 14 * scale, Math.PI, 0, false);
-    ctx.lineTo(14 * scale, 42 * scale);
-    ctx.arc(2 * scale, 42 * scale, 12 * scale, 0, Math.PI, false);
-    ctx.lineTo(-10 * scale, -22 * scale);
-    ctx.arc(0, -22 * scale, 10 * scale, Math.PI, 0, false);
-    ctx.lineTo(10 * scale, 28 * scale);
-    ctx.stroke();
-    ctx.restore();
-}
-
 // Hàm tô nền lụa bên ngoài cửa sổ ảnh bằng quy tắc evenodd (giữ trong suốt 100% vùng ảnh)
 function fillMatteOutsideWindow(ctx, concept, targetW, originH, scale, colorTop, colorBottom) {
     ctx.beginPath();
@@ -1057,18 +1362,16 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
 
         fillMatteOutsideWindow(ctx, 'oval', targetW, originH, scale, '#fffdf9', theme.canvasBgEnd);
 
-        // Khung viền ngoài chữ nhật mảnh với 4 góc hoa hồng nét mảnh
         const m = 34 * scale;
         ctx.strokeStyle = theme.borderSecondary;
         ctx.lineWidth = 1.5 * scale;
         ctx.strokeRect(m, m, targetW - m * 2, originH - m * 2);
 
-        drawFineLineRoseCorner(ctx, m, m, scale * 0.95, 1, 1, theme);
-        drawFineLineRoseCorner(ctx, targetW - m, m, scale * 0.95, -1, 1, theme);
-        drawFineLineRoseCorner(ctx, m, originH - m, scale * 0.95, 1, -1, theme);
-        drawFineLineRoseCorner(ctx, targetW - m, originH - m, scale * 0.95, -1, -1, theme);
+        drawFineLineRoseCorner(ctx, m, m, scale * 0.92, 1, 1, theme);
+        drawFineLineRoseCorner(ctx, targetW - m, m, scale * 0.92, -1, 1, theme);
+        drawFineLineRoseCorner(ctx, m, originH - m, scale * 0.92, 1, -1, theme);
+        drawFineLineRoseCorner(ctx, targetW - m, originH - m, scale * 0.92, -1, -1, theme);
 
-        // Viền kép ánh kim quanh gương Oval
         ctx.beginPath();
         traceOvalWindowPath(ctx, cx, cy, rx, ry);
         ctx.strokeStyle = theme.goldAccent;
@@ -1081,7 +1384,6 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.lineWidth = 1.6 * scale;
         ctx.stroke();
 
-        // Chuỗi ngọc trai đính quanh vòng gương Oval
         const pearls = 44;
         for (let i = 0; i < pearls; i++) {
             const a = (i / pearls) * Math.PI * 2;
@@ -1090,11 +1392,10 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
             drawLustrousPearl(ctx, px, py, 4.5 * scale, theme);
         }
 
-        // Nơ lụa mảnh đỉnh gương
         drawSilkRibbonBow(ctx, cx, cy - ry - 12 * scale, 38 * scale, theme);
 
     } else if (concept === 'cathedral') {
-        // 03. VÒM HOA TRÀ (Lotus / Pointed Ogee Arch)
+        // 03. VÒM HOA TRÀ PHÁP (Chanel Camellia Blooms & Lotus Arch - MẪU HOA LÁ 1)
         const winX = Math.floor(70 * scale);
         const winY = Math.floor(60 * scale);
         const winW = targetW - winX * 2;
@@ -1117,13 +1418,21 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.beginPath();
         traceLotusArchWindowPath(ctx, winX - off, winY - off, winW + off * 2, winH + off * 2, br + 8 * scale);
         ctx.strokeStyle = theme.goldAccent;
-        ctx.lineWidth = 1.4 * scale;
+        ctx.lineWidth = 1.5 * scale;
         ctx.stroke();
 
-        drawFineLineRoseCorner(ctx, 42 * scale, 42 * scale, scale * 1.12, 1, 1, theme);
-        drawFineLineRoseCorner(ctx, targetW - 42 * scale, 42 * scale, scale * 1.12, -1, 1, theme);
+        // Đóa Hoa Trà đa tầng cánh + cành lá xanh ngọc ở 2 góc vòm trên và góc dưới
+        drawFineBotanicalSprig(ctx, 74 * scale, 88 * scale, scale * 1.35, 0.25, theme);
+        drawFineBotanicalSprig(ctx, targetW - 74 * scale, 88 * scale, scale * 1.35, Math.PI - 0.25, theme);
 
-        drawStarburstFlare(ctx, targetW / 2, winY, 18 * scale, theme);
+        drawLayeredCamellia(ctx, 88 * scale, 96 * scale, 52 * scale, theme);
+        drawLayeredCamellia(ctx, targetW - 88 * scale, 96 * scale, 52 * scale, theme);
+
+        // Khóm hoa trà nhỏ ở hai góc chân khung
+        drawLayeredCamellia(ctx, winX + 18 * scale, winY + winH - 18 * scale, 38 * scale, theme);
+        drawLayeredCamellia(ctx, winX + winW - 18 * scale, winY + winH - 18 * scale, 38 * scale, theme);
+
+        drawStarburstFlare(ctx, targetW / 2, winY, 20 * scale, theme);
 
     } else if (concept === 'scallop') {
         // 04. VIỀN SÓNG MÂY (Korean Scalloped Cloud Frame)
@@ -1149,7 +1458,6 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.stroke();
         ctx.restore();
 
-        // Nơ lụa nhỏ xinh ở đỉnh khung sóng mây + sao 4 góc
         drawSilkRibbonBow(ctx, targetW / 2, winY - 14 * scale, 32 * scale, theme);
         ctx.fillStyle = theme.goldAccent;
         drawFourPointStarPath(ctx, 44 * scale, 44 * scale, 10 * scale);
@@ -1158,49 +1466,56 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.fill();
 
     } else if (concept === 'hourglass') {
-        // 05. VÉ TRIỂN LÃM PARIS (Concave-Corner Gallery Ticket)
-        const winX = Math.floor(66 * scale);
-        const winY = Math.floor(72 * scale);
+        // 05. VÒNG NGUYỆT QUẾ & MẪU ĐƠN (Royal Eucalyptus & Peony Wreath - MẪU HOA LÁ 2)
+        const winX = Math.floor(78 * scale);
+        const winY = Math.floor(76 * scale);
         const winW = targetW - winX * 2;
-        const winH = originH - Math.floor(98 * scale);
-        const cr = 66 * scale;
+        const winH = originH - Math.floor(104 * scale);
+        const br = 38 * scale;
 
-        fillMatteOutsideWindow(ctx, 'hourglass', targetW, originH, scale, '#fdfbf7', theme.canvasBgEnd);
+        fillMatteOutsideWindow(ctx, 'hourglass', targetW, originH, scale, '#fffefb', theme.canvasBgEnd);
 
         ctx.beginPath();
-        traceConcaveWindowPath(ctx, winX, winY, winW, winH, cr);
-        ctx.strokeStyle = theme.borderPrimary;
+        traceArchWindowPath(ctx, winX, winY, winW, winH, br);
+        ctx.strokeStyle = theme.goldAccent;
         ctx.lineWidth = 3.6 * scale;
         ctx.stroke();
 
         ctx.beginPath();
-        traceConcaveWindowPath(ctx, winX - 10 * scale, winY - 10 * scale, winW + 20 * scale, winH + 20 * scale, cr + 8 * scale);
-        ctx.strokeStyle = theme.goldAccent;
+        traceArchWindowPath(ctx, winX - 12 * scale, winY - 12 * scale, winW + 24 * scale, winH + 24 * scale, br + 8 * scale);
+        ctx.strokeStyle = theme.borderSecondary;
         ctx.lineWidth = 1.5 * scale;
         ctx.stroke();
 
-        // Hoa văn kim cương ở 4 góc lõm
-        const cornerPts = [
-            [winX, winY],
-            [winX + winW, winY],
-            [winX, winY + winH],
-            [winX + winW, winY + winH]
-        ];
-        cornerPts.forEach(([px, py]) => {
-            ctx.strokeStyle = theme.goldAccent;
-            ctx.lineWidth = 1.5 * scale;
-            ctx.beginPath();
-            ctx.arc(px, py, 24 * scale, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.fillStyle = theme.goldAccent;
-            drawFourPointStarPath(ctx, px, py, 14 * scale);
-            ctx.fill();
-        });
+        // Hai nhánh lá Nguyệt Quế / Khuynh Diệp (Eucalyptus & Olive Garland) chạy dọc 2 sườn khung
+        const leafSteps = 12;
+        for (let i = 0; i < leafSteps; i++) {
+            const t = i / (leafSteps - 1);
+            const ly = winY + 260 * scale + t * (winH - 310 * scale);
+            const sway = Math.sin(t * Math.PI) * 8 * scale;
 
-        ctx.fillStyle = theme.textMid;
-        ctx.font = `600 ${Math.floor(15 * scale)}px "Montserrat", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText('G A L E R I E   D ’ O C T O B R E   •   N °   2 0 . 1 0', targetW / 2, 42 * scale);
+            // Nhánh bên trái
+            const lx = winX - 6 * scale - sway;
+            drawWatercolorBotanicalLeaf(ctx, lx, ly, 42 * scale, 16 * scale, -1.95, theme.leafColor, theme.goldAccent, 0.74);
+            drawWatercolorBotanicalLeaf(ctx, lx, ly, 36 * scale, 14 * scale, -1.15, theme.flowerSoft, theme.goldAccent, 0.62);
+            if (i % 2 === 1) drawLustrousPearl(ctx, lx - 14 * scale, ly - 10 * scale, 5 * scale, theme);
+
+            // Nhánh bên phải
+            const rx = winX + winW + 6 * scale + sway;
+            drawWatercolorBotanicalLeaf(ctx, rx, ly, 42 * scale, 16 * scale, -1.19, theme.leafColor, theme.goldAccent, 0.74);
+            drawWatercolorBotanicalLeaf(ctx, rx, ly, 36 * scale, 14 * scale, -1.99, theme.flowerSoft, theme.goldAccent, 0.62);
+            if (i % 2 === 1) drawLustrousPearl(ctx, rx + 14 * scale, ly - 10 * scale, 5 * scale, theme);
+        }
+
+        // Đóa Mẫu Đơn nở ở hai bên sườn dưới và chính giữa chân khung
+        drawLayeredCamellia(ctx, winX - 4 * scale, winY + winH - 95 * scale, 38 * scale, theme);
+        drawLayeredCamellia(ctx, winX + winW + 4 * scale, winY + winH - 95 * scale, 38 * scale, theme);
+
+        drawFineBotanicalSprig(ctx, targetW / 2 - 15 * scale, winY + winH, scale * 1.25, -0.12, theme);
+        drawFineBotanicalSprig(ctx, targetW / 2 + 15 * scale, winY + winH, scale * 1.25, Math.PI + 0.12, theme);
+        drawLayeredCamellia(ctx, targetW / 2, winY + winH - 4 * scale, 46 * scale, theme);
+
+        drawStarburstFlare(ctx, targetW / 2, winY, 18 * scale, theme);
 
     } else if (concept === 'magazine') {
         // 06. BÌA TẠP CHÍ THỜI TRANG (Vogue / La Beauté)
@@ -1275,7 +1590,6 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.lineWidth = 1.2 * scale;
         ctx.strokeRect(winX - 14 * scale, winY - 14 * scale, winW + 28 * scale, winH + 28 * scale);
 
-        // Header tạp chí nghệ thuật trên nền kem
         ctx.textAlign = 'center';
         ctx.fillStyle = theme.textTop;
         ctx.font = `italic 700 ${Math.floor(54 * scale)}px "Cormorant Garamond", serif`;
@@ -1285,7 +1599,6 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.font = `600 ${Math.floor(16 * scale)}px "Montserrat", sans-serif`;
         ctx.fillText('—   W O M E N   O F   B T L M V N   •   2 0 . 1 0   —', targetW / 2, 126 * scale);
 
-        // Chú thích chân ảnh kiểu triển lãm
         ctx.fillStyle = theme.textMid;
         ctx.font = `italic 500 ${Math.floor(22 * scale)}px "Playfair Display", serif`;
         ctx.textAlign = 'left';
@@ -1352,7 +1665,6 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.lineWidth = 1.6 * scale;
         ctx.strokeRect(winX - 12 * scale, winY - 12 * scale, winW + 24 * scale, winH + 24 * scale);
 
-        // Tem nhãn Couture vát góc đính trên đỉnh khung ảnh
         const tagW = 460 * scale;
         const tagH = 74 * scale;
         const tagX = (targetW - tagW) / 2;
@@ -1446,49 +1758,33 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         drawPostmarkStamp(ctx, winX + winW - 64 * scale, footerMidY - 8 * scale, 44 * scale, theme);
 
     } else if (concept === 'film_kodak') {
-        // 11. PHIM ĐIỆN ẢNH ANALOG (Cinema Film Strip & Light Leak)
-        const winX = Math.floor(104 * scale);
-        const winY = Math.floor(62 * scale);
+        // 11. CÀNH ĐÀO SAKURA MÙA XUÂN (Kyoto Sakura Blossoms & Falling Petals - MẪU HOA LÁ 3)
+        const winX = Math.floor(72 * scale);
+        const winY = Math.floor(72 * scale);
         const winW = targetW - winX * 2;
-        const winH = originH - Math.floor(90 * scale);
+        const winH = originH - Math.floor(100 * scale);
 
-        // Lọt sáng Analog (Light Leak) dịu nhẹ ở góc ảnh
-        const leak = ctx.createRadialGradient(winX + winW, winY + 180 * scale, 10 * scale, winX + winW, winY + 180 * scale, 420 * scale);
-        leak.addColorStop(0, 'rgba(255, 160, 120, 0.28)');
-        leak.addColorStop(0.5, 'rgba(255, 190, 150, 0.12)');
-        leak.addColorStop(1, 'rgba(255, 190, 150, 0)');
-        ctx.fillStyle = leak;
-        ctx.fillRect(winX, winY, winW, winH);
+        fillMatteOutsideWindow(ctx, 'film_kodak', targetW, originH, scale, '#fff9fb', theme.canvasBgEnd);
 
-        // Nền cuộn phim bên ngoài cửa sổ ảnh
-        fillMatteOutsideWindow(ctx, 'film_kodak', targetW, originH, scale, '#1c2421', '#141a18');
-
-        // Viền ánh kim quanh khung hình phim
+        // Viền kép vàng ánh kim & hồng phấn quanh cửa sổ
         ctx.beginPath();
-        traceRoundedWindowPath(ctx, winX, winY, winW, winH, 12 * scale);
+        traceRoundedWindowPath(ctx, winX, winY, winW, winH, 28 * scale);
         ctx.strokeStyle = theme.goldAccent;
-        ctx.lineWidth = 2.4 * scale;
+        ctx.lineWidth = 3.5 * scale;
         ctx.stroke();
 
-        // Hai hàng lỗ cuộn phim (Sprocket Holes) dọc 2 bên
-        const holes = 15;
-        const holeW = 34 * scale;
-        const holeH = 48 * scale;
-        const holeSpan = originH - 110 * scale;
-        ctx.fillStyle = theme.canvasBgMid;
-        for (let i = 0; i < holes; i++) {
-            const hy = 58 * scale + (i / (holes - 1)) * (holeSpan - holeH);
-            ctx.beginPath();
-            traceRoundedWindowPath(ctx, 26 * scale, hy, holeW, holeH, 8 * scale);
-            traceRoundedWindowPath(ctx, targetW - 26 * scale - holeW, hy, holeW, holeH, 8 * scale);
-            ctx.fill();
-        }
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, winX - 12 * scale, winY - 12 * scale, winW + 24 * scale, winH + 24 * scale, 34 * scale);
+        ctx.strokeStyle = theme.flowerSoft;
+        ctx.lineWidth = 1.8 * scale;
+        ctx.stroke();
 
-        // Chữ ký hiệu cuộn phim màu vàng hổ phách
-        ctx.fillStyle = theme.goldAccent;
-        ctx.font = `700 ${Math.floor(15 * scale)}px "Montserrat", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText('▶  K O D A K   P O R T R A   4 0 0   •   F R A M E   2 0 / 1 0   ◀', targetW / 2, 36 * scale);
+        // Cành Hoa Anh Đào nở rộ vươn từ góc trên-phải và góc dưới-trái
+        drawSakuraBranchCorner(ctx, targetW - 28 * scale, 28 * scale, scale * 1.08, -1, 1, theme);
+        drawSakuraBranchCorner(ctx, 28 * scale, originH - 42 * scale, scale * 1.05, 1, -1, theme);
+
+        // Điểm xuyết hoa đào nhỏ ở góc trên-trái
+        drawDetailedSakuraBloom(ctx, winX + 8 * scale, winY + 8 * scale, 26 * scale, 0.3, theme);
 
     } else if (concept === 'postcard') {
         // 12. BƯU THIẾP PARIS (Air-Mail Postcard & Vintage Stamp)
@@ -1499,7 +1795,6 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
 
         fillMatteOutsideWindow(ctx, 'postcard', targetW, originH, scale, '#fdfaf4', theme.canvasBgMid);
 
-        // Viền sọc chéo Air-Mail thanh lịch ở sát mép ngoài
         ctx.save();
         const stripeW = 16 * scale;
         ctx.beginPath();
@@ -1527,7 +1822,6 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.lineWidth = 3 * scale;
         ctx.stroke();
 
-        // Con tem bưu chính đính góc trên-phải của ảnh
         ctx.save();
         ctx.translate(winX + winW - 76 * scale, winY + 78 * scale);
         ctx.rotate(0.1);
@@ -1559,70 +1853,47 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         drawPostmarkStamp(ctx, winX + winW - 145 * scale, winY + 125 * scale, 42 * scale, theme);
 
     } else if (concept === 'scrapbook') {
-        // 13. NHẬT KÝ KẸP GIẤY (Grid Stationery & Rose-Gold Paperclip)
-        const winX = Math.floor(82 * scale);
-        const winY = Math.floor(92 * scale);
+        // 13. VƯỜN CÚC HỌA MI, OẢI HƯƠNG & LÁ NGÂN HẠNH (Botanical Herbarium - MẪU HOA LÁ 4)
+        const winX = Math.floor(76 * scale);
+        const winY = Math.floor(84 * scale);
         const winW = targetW - winX * 2;
-        const winH = originH - Math.floor(132 * scale);
+        const winH = originH - Math.floor(118 * scale);
 
-        fillMatteOutsideWindow(ctx, 'scrapbook', targetW, originH, scale, '#fcfaf5', theme.canvasBgMid);
+        fillMatteOutsideWindow(ctx, 'scrapbook', targetW, originH, scale, '#fdfbf6', theme.canvasBgEnd);
 
-        // Họa tiết kẻ caro mảnh trên nền giấy bên ngoài ảnh
-        ctx.save();
+        // Viền khung giấy thảo mộc đôi thanh nhã
         ctx.beginPath();
-        ctx.rect(0, 0, targetW, originH);
-        traceRoundedWindowPath(ctx, winX - 18 * scale, winY - 18 * scale, winW + 36 * scale, winH + 36 * scale, 18 * scale);
-        ctx.clip('evenodd');
-        ctx.strokeStyle = theme.borderSecondary;
-        ctx.globalAlpha = 0.35;
-        ctx.lineWidth = 1 * scale;
-        const gridStep = 32 * scale;
-        for (let gx = 0; gx < targetW; gx += gridStep) {
-            ctx.beginPath();
-            ctx.moveTo(gx, 0);
-            ctx.lineTo(gx, originH);
-            ctx.stroke();
-        }
-        for (let gy = 0; gy < originH; gy += gridStep) {
-            ctx.beginPath();
-            ctx.moveTo(0, gy);
-            ctx.lineTo(targetW, gy);
-            ctx.stroke();
-        }
-        ctx.restore();
-
-        // Viền trắng bo quanh ảnh như tấm ảnh in rời
-        ctx.save();
-        ctx.shadowColor = 'rgba(0,0,0,0.14)';
-        ctx.shadowBlur = 20 * scale;
-        ctx.shadowOffsetY = 8 * scale;
-        ctx.beginPath();
-        traceRoundedWindowPath(ctx, winX - 18 * scale, winY - 18 * scale, winW + 36 * scale, winH + 36 * scale, 18 * scale);
-        traceRoundedWindowPath(ctx, winX, winY, winW, winH, 14 * scale);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill('evenodd');
-        ctx.restore();
-
-        // Kẹp giấy Vàng Hồng kẹp ở mép trên-phải
-        drawPaperclip(ctx, winX + winW - 90 * scale, winY - 8 * scale, scale * 1.15, 0.15, theme);
-
-        // Nhãn dán Sweet October ở góc dưới-trái
-        ctx.save();
-        ctx.translate(winX + 130 * scale, winY + winH + 6 * scale);
-        ctx.rotate(-0.04);
-        ctx.fillStyle = theme.flowerSoft;
-        ctx.beginPath();
-        traceRoundedWindowPath(ctx, -135 * scale, -24 * scale, 270 * scale, 48 * scale, 24 * scale);
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.5 * scale;
+        traceRoundedWindowPath(ctx, winX, winY, winW, winH, 22 * scale);
+        ctx.strokeStyle = theme.borderPrimary;
+        ctx.lineWidth = 3.2 * scale;
         ctx.stroke();
-        ctx.fillStyle = theme.textTop;
-        ctx.font = `italic 700 ${Math.floor(24 * scale)}px "Cormorant Garamond", serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('✦ Sweet October 20.10 ✦', 0, 0);
-        ctx.restore();
+
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, winX - 12 * scale, winY - 12 * scale, winW + 24 * scale, winH + 24 * scale, 28 * scale);
+        ctx.strokeStyle = theme.goldAccent;
+        ctx.lineWidth = 1.4 * scale;
+        ctx.stroke();
+
+        // Cụm thảo mộc góc trên-trái: Lá Ngân Hạnh vàng + Nhành Oải Hương + Cúc Họa Mi
+        drawGinkgoLeaf(ctx, winX + 35 * scale, winY + 45 * scale, 78 * scale, 0.65, theme);
+        drawGinkgoLeaf(ctx, winX + 75 * scale, winY + 18 * scale, 62 * scale, 1.15, theme);
+        drawLavenderSpike(ctx, winX + 18 * scale, winY + 135 * scale, 130 * scale, 0.22, theme);
+        drawLavenderSpike(ctx, winX + 42 * scale, winY + 25 * scale, 125 * scale, 1.32, theme);
+        drawRichChamomileDaisy(ctx, winX + 16 * scale, winY + 18 * scale, 40 * scale, theme);
+        drawRichChamomileDaisy(ctx, winX + 72 * scale, winY + 52 * scale, 26 * scale, theme);
+
+        // Cụm thảo mộc góc dưới-phải: Lá Ngân Hạnh + Oải Hương + Cúc Họa Mi
+        const brX = winX + winW;
+        const brY = winY + winH;
+        drawGinkgoLeaf(ctx, brX - 35 * scale, brY - 45 * scale, 78 * scale, -2.45, theme);
+        drawGinkgoLeaf(ctx, brX - 75 * scale, brY - 18 * scale, 62 * scale, -1.95, theme);
+        drawLavenderSpike(ctx, brX - 18 * scale, brY - 135 * scale, 130 * scale, -2.92, theme);
+        drawLavenderSpike(ctx, brX - 42 * scale, brY - 25 * scale, 125 * scale, -1.82, theme);
+        drawRichChamomileDaisy(ctx, brX - 16 * scale, brY - 18 * scale, 40 * scale, theme);
+        drawRichChamomileDaisy(ctx, brX - 72 * scale, brY - 52 * scale, 26 * scale, theme);
+
+        // Dải Washi Tape thảo mộc ở góc trên-phải
+        drawWashiTape(ctx, brX - 46 * scale, winY + 10 * scale, 150 * scale, 38 * scale, 0.42, theme);
 
     } else if (concept === 'aura' || concept === 'aura_arch' || concept === 'prism') {
         // 14, 15, 16: NHÓM KÍNH MỜ AURA & PHA LÊ (Blurred Photo Aura + Glassmorphism)
@@ -1697,7 +1968,6 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         const winW = targetW - winX * 2;
         const winH = originH - Math.floor(98 * scale);
 
-        // Vệt nắng thu ấm áp chiếu xiên nhẹ qua ảnh
         ctx.save();
         const beam = ctx.createLinearGradient(0, 0, targetW, originH * 0.75);
         beam.addColorStop(0, 'rgba(255, 236, 185, 0.28)');
@@ -1725,7 +1995,7 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         drawFineBotanicalSprig(ctx, winX + 110 * scale, winY + winH + 10 * scale, scale * 1.15, Math.PI + 0.25, theme);
 
     } else if (concept === 'dior') {
-        // 18. DIOR / JO MALONE FINE-LINE BOTANICAL
+        // 18. VƯỜN HỒNG PHÁP DIOR (French Rose Garden & Gold Octagon - MẪU HOA LÁ 5)
         const winX = Math.floor(66 * scale);
         const winY = Math.floor(66 * scale);
         const winW = targetW - winX * 2;
@@ -1756,8 +2026,11 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.lineWidth = 1.1 * scale;
         ctx.strokeRect(winX - off2, winY - off2, winW + off2 * 2, winH + off2 * 2);
 
-        drawFineLineRoseCorner(ctx, winX - 6 * scale, winY - 6 * scale, scale * 1.18, 1, 1, theme);
-        drawFineLineRoseCorner(ctx, winX + winW + 6 * scale, winY + winH + 6 * scale, scale * 1.18, -1, -1, theme);
+        // Khóm Hoa Hồng Anh Quốc (Watercolor + Gold Line-Art) nở rộ ở cả 4 góc khung nước hoa Pháp
+        drawFineLineRoseCorner(ctx, winX - 8 * scale, winY - 8 * scale, scale * 1.32, 1, 1, theme);
+        drawFineLineRoseCorner(ctx, winX + winW + 8 * scale, winY + winH + 8 * scale, scale * 1.32, -1, -1, theme);
+        drawFineLineRoseCorner(ctx, winX + winW + 4 * scale, winY - 4 * scale, scale * 0.92, -1, 1, theme);
+        drawFineLineRoseCorner(ctx, winX - 4 * scale, winY + winH + 4 * scale, scale * 0.92, 1, -1, theme);
 
     } else if (concept === 'pearl_lace') {
         // 19. CHUỖI NGỌC TRAI (Tiffany Pearl Beaded Frame & Silk Bow)
