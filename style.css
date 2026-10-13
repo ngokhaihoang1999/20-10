@@ -2136,25 +2136,27 @@ input[type="file"] {
     font-family: 'Cormorant Garamond', serif;
     font-variant-numeric: lining-nums;
     font-feature-settings: "lnum" 1;
-    font-size: clamp(2.45rem, 11vw, 3.18rem);
+    font-size: clamp(2.42rem, 10.8vw, 3.15rem);
+    font-weight: 700;
+    -webkit-text-stroke: 1.15px rgba(7, 71, 56, 0.28);
     background: linear-gradient(
         110deg,
-        #074738 0%,
+        #064234 0%,
         #0f7b5f 25%,
         #d46a92 50%,
         #c59b27 68%,
         #0f7b5f 85%,
-        #074738 100%
+        #064234 100%
     );
     background-size: 240% auto;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 5px rgba(9, 82, 65, 0.12));
     margin-bottom: 2px;
     line-height: 1.12;
-    letter-spacing: -0.2px;
+    letter-spacing: -0.1px;
     padding-bottom: 3px;
-    font-weight: 700;
     animation: titleShimmer 6s ease-in-out infinite;
 }
 
@@ -2164,13 +2166,15 @@ input[type="file"] {
 }
 
 .sub-title {
-    font-size: clamp(0.92rem, 4.1vw, 1.08rem);
+    font-size: clamp(0.76rem, 3.6vw, 0.95rem);
     color: #195946;
     margin: 0 auto 4px;
-    line-height: 1.38;
+    line-height: 1.36;
     font-weight: 600;
+    letter-spacing: -0.15px;
     text-align: center;
-    text-wrap: balance;
+    white-space: nowrap;
+    width: 100%;
 }
 
 .btn-primary,
@@ -2272,7 +2276,7 @@ input[type="file"] {
         font-size: clamp(2.15rem, 9.6vw, 2.65rem);
     }
     .sub-title {
-        font-size: clamp(0.86rem, 3.8vw, 0.98rem);
+        font-size: clamp(0.75rem, 3.5vw, 0.92rem);
     }
     .fan-cards-stage {
         height: clamp(182px, 29.5dvh, 228px);
