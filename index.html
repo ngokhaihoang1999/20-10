@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css?v=8.1">
+    <link rel="stylesheet" href="style.css?v=9.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap"
         rel="stylesheet">
@@ -88,127 +88,460 @@
     <canvas id="bg-canvas"></canvas>
     <canvas id="fx-canvas"></canvas>
 
-    <!-- Hiệu ứng chuyển cảnh lãng mạn -->
-    <div id="transition-overlay">
-        <div class="transition-petals-ring">🌸</div>
-        <div class="transition-heart">✿</div>
+    <!-- Nghi thức Nở Hoa Trà & Hào Quang Vàng 24K Đa Tầng 3D khi tạo thiệp -->
+    <div id="transition-overlay" aria-hidden="true">
+        <div class="bloom-aura-veil"></div>
+
+        <!-- Hai vòng kim tuyến vàng 24K đồng tâm xoay ngược chiều -->
+        <svg class="bloom-astrolabe bloom-astrolabe-outer" viewBox="0 0 400 400">
+            <defs>
+                <linearGradient id="bloomGoldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#fff4b8" />
+                    <stop offset="35%" stop-color="#e5b242" />
+                    <stop offset="70%" stop-color="#fff0a8" />
+                    <stop offset="100%" stop-color="#c48a18" />
+                </linearGradient>
+            </defs>
+            <circle cx="200" cy="200" r="176" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1.4" stroke-dasharray="5 7" opacity="0.78" />
+            <circle cx="200" cy="200" r="162" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="0.9" opacity="0.5" />
+            <path d="M200,12 L204,24 L216,28 L204,32 L200,44 L196,32 L184,28 L196,24 Z" fill="url(#bloomGoldStroke)" />
+            <path d="M200,356 L204,368 L216,372 L204,376 L200,388 L196,376 L184,372 L196,368 Z" fill="url(#bloomGoldStroke)" />
+            <path d="M12,200 L24,196 L28,184 L32,196 L44,200 L32,204 L28,216 L24,204 Z" fill="url(#bloomGoldStroke)" />
+            <path d="M356,200 L368,196 L372,184 L376,196 L388,200 L376,204 L372,216 L368,204 Z" fill="url(#bloomGoldStroke)" />
+        </svg>
+
+        <!-- Lớp cánh hoa lụa & bụi sao vàng bay xoáy 3D (sinh động bởi JS) -->
+        <div id="bloom-vortex-layer" class="bloom-vortex-layer"></div>
+
+        <!-- Đóa Hoa Trà & Mẫu Đơn Hoàng Gia 4 Tầng Cánh Vector 3D -->
+        <div class="couture-bloom-wrap">
+            <svg class="couture-bloom-svg" viewBox="-160 -160 320 320">
+                <defs>
+                    <radialGradient id="petalOuterGrad" cx="50%" cy="85%" r="85%">
+                        <stop offset="0%" stop-color="#e85d8c" />
+                        <stop offset="52%" stop-color="#f9bfd2" />
+                        <stop offset="100%" stop-color="#fff7fa" />
+                    </radialGradient>
+                    <radialGradient id="petalMidGrad" cx="50%" cy="85%" r="85%">
+                        <stop offset="0%" stop-color="#d84376" />
+                        <stop offset="48%" stop-color="#f49ab8" />
+                        <stop offset="92%" stop-color="#ffeef4" />
+                        <stop offset="100%" stop-color="#ffffff" />
+                    </radialGradient>
+                    <radialGradient id="petalInnerGrad" cx="50%" cy="80%" r="80%">
+                        <stop offset="0%" stop-color="#f07ca5" />
+                        <stop offset="55%" stop-color="#fde2ec" />
+                        <stop offset="100%" stop-color="#ffffff" />
+                    </radialGradient>
+                    <linearGradient id="sepalEmeraldGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#0a5c46" />
+                        <stop offset="60%" stop-color="#289c7c" />
+                        <stop offset="100%" stop-color="#8fd9c0" />
+                    </linearGradient>
+                    <filter id="bloomSoftShadow" x="-25%" y="-25%" width="150%" height="150%">
+                        <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#5c1230" flood-opacity="0.24" />
+                    </filter>
+                    <!-- Hình mẫu 1 chiếc lá ngọc bích viền vàng -->
+                    <g id="coutureLeafDef">
+                        <path d="M 0,0 C -22,-38 -20,-92 0,-132 C 20,-92 22,-38 0,0 Z" fill="url(#sepalEmeraldGrad)" stroke="url(#bloomGoldStroke)" stroke-width="1.8" opacity="0.9" />
+                        <path d="M 0,-8 Q 2,-65 0,-122" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1.2" opacity="0.85" />
+                    </g>
+                    <!-- Hình mẫu cánh hoa lụa khuyết tim nhẹ -->
+                    <path id="coutureOuterPetalDef" d="M 0,0 C -38,-28 -44,-88 -12,-116 C -4,-122 0,-115 0,-115 C 0,-115 4,-122 12,-116 C 44,-88 38,-28 0,0 Z" />
+                    <path id="coutureMidPetalDef" d="M 0,0 C -32,-22 -36,-72 -9,-94 C -3,-99 0,-93 0,-93 C 0,-93 3,-99 9,-94 C 36,-72 32,-22 0,0 Z" />
+                    <path id="coutureInnerPetalDef" d="M 0,0 C -24,-16 -26,-52 -6,-68 C 0,-73 6,-68 6,-68 C 26,-52 24,-16 0,0 Z" />
+                </defs>
+
+                <!-- Tầng 1: 6 Đài Lá Ngọc Bích & Gân Vàng Kim -->
+                <g class="bloom-layer bloom-sepals">
+                    <use href="#coutureLeafDef" transform="rotate(0)" />
+                    <use href="#coutureLeafDef" transform="rotate(60)" />
+                    <use href="#coutureLeafDef" transform="rotate(120)" />
+                    <use href="#coutureLeafDef" transform="rotate(180)" />
+                    <use href="#coutureLeafDef" transform="rotate(240)" />
+                    <use href="#coutureLeafDef" transform="rotate(300)" />
+                </g>
+
+                <!-- Tầng 2: 10 Cánh Lụa Hồng Đào Ngoài -->
+                <g class="bloom-layer bloom-outer-petals" filter="url(#bloomSoftShadow)" fill="url(#petalOuterGrad)" stroke="url(#bloomGoldStroke)" stroke-width="1.6">
+                    <use href="#coutureOuterPetalDef" transform="rotate(0)" />
+                    <use href="#coutureOuterPetalDef" transform="rotate(36)" />
+                    <use href="#coutureOuterPetalDef" transform="rotate(72)" />
+                    <use href="#coutureOuterPetalDef" transform="rotate(108)" />
+                    <use href="#coutureOuterPetalDef" transform="rotate(144)" />
+                    <use href="#coutureOuterPetalDef" transform="rotate(180)" />
+                    <use href="#coutureOuterPetalDef" transform="rotate(216)" />
+                    <use href="#coutureOuterPetalDef" transform="rotate(252)" />
+                    <use href="#coutureOuterPetalDef" transform="rotate(288)" />
+                    <use href="#coutureOuterPetalDef" transform="rotate(324)" />
+                </g>
+
+                <!-- Tầng 3: 8 Cánh Nhung Hồng Trà Giữa (xoay lệch nhịp) -->
+                <g class="bloom-layer bloom-mid-petals" filter="url(#bloomSoftShadow)" fill="url(#petalMidGrad)" stroke="url(#bloomGoldStroke)" stroke-width="1.5">
+                    <use href="#coutureMidPetalDef" transform="rotate(18)" />
+                    <use href="#coutureMidPetalDef" transform="rotate(63)" />
+                    <use href="#coutureMidPetalDef" transform="rotate(108)" />
+                    <use href="#coutureMidPetalDef" transform="rotate(153)" />
+                    <use href="#coutureMidPetalDef" transform="rotate(198)" />
+                    <use href="#coutureMidPetalDef" transform="rotate(243)" />
+                    <use href="#coutureMidPetalDef" transform="rotate(288)" />
+                    <use href="#coutureMidPetalDef" transform="rotate(333)" />
+                </g>
+
+                <!-- Tầng 4: 6 Cánh Trắng Kem Ngọc Trai Trong -->
+                <g class="bloom-layer bloom-inner-petals" filter="url(#bloomSoftShadow)" fill="url(#petalInnerGrad)" stroke="url(#bloomGoldStroke)" stroke-width="1.4">
+                    <use href="#coutureInnerPetalDef" transform="rotate(0)" />
+                    <use href="#coutureInnerPetalDef" transform="rotate(60)" />
+                    <use href="#coutureInnerPetalDef" transform="rotate(120)" />
+                    <use href="#coutureInnerPetalDef" transform="rotate(180)" />
+                    <use href="#coutureInnerPetalDef" transform="rotate(240)" />
+                    <use href="#coutureInnerPetalDef" transform="rotate(300)" />
+                </g>
+
+                <!-- Tầng 5: Đài Nhụy Vàng 24K & Ánh Sao Bừng Sáng Ở Tâm -->
+                <g class="bloom-layer bloom-stamen-crown">
+                    <circle cx="0" cy="0" r="24" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1.5" stroke-dasharray="2 4" />
+                    <circle cx="0" cy="0" r="14" fill="url(#bloomGoldStroke)" />
+                    <path d="M0,-32 L4,-8 L32,0 L4,8 L0,32 L-4,8 L-32,0 L-4,-8 Z" fill="#ffffff" />
+                    <circle cx="0" cy="-24" r="3" fill="#fff7d6" />
+                    <circle cx="17" cy="-17" r="3" fill="#fff7d6" />
+                    <circle cx="24" cy="0" r="3" fill="#fff7d6" />
+                    <circle cx="17" cy="17" r="3" fill="#fff7d6" />
+                    <circle cx="0" cy="24" r="3" fill="#fff7d6" />
+                    <circle cx="-17" cy="17" r="3" fill="#fff7d6" />
+                    <circle cx="-24" cy="0" r="3" fill="#fff7d6" />
+                    <circle cx="-17" cy="-17" r="3" fill="#fff7d6" />
+                </g>
+            </svg>
+        </div>
     </div>
 
-    <!-- Bước 1: Nghi thức Mở Phong Bì Ngọc Bích 3D & Card Mở Đầu -->
+    <!-- Bước 1: Phong Bì Lụa Ngọc Bích Vật Lý 3D (chứa trực tiếp tấm Tháng 10 Rạng Rỡ bên trong) -->
     <div id="step-1" class="screen active">
-        <!-- Giai đoạn 1A: Phong bì Lụa Xanh Ngọc Bích & Con dấu sáp vàng 3D -->
-        <div id="envelope-stage" class="envelope-stage" role="button" tabindex="0" aria-label="Chạm để mở phong bì 20/10">
-            <div class="env-floating-badge">✦ MÓN QUÀ NHỎ TỪ BTLMVN • 20.10 ✦</div>
+        <div class="step1-physical-stage" id="step1-physical-stage">
 
-            <div class="emerald-envelope-wrap" id="emerald-envelope-wrap">
+            <!-- Hộp định vị không gian của Phong bì (gồm Lưng bao thư, Túi trước, Nắp trên và Dấu sáp 3D) -->
+            <div class="envelope-rig" id="envelope-rig" aria-hidden="false">
                 <div class="envelope-aura-glow" aria-hidden="true"></div>
 
-                <div class="emerald-envelope" id="emerald-envelope">
-                    <!-- Mặt lưng phong bì -->
-                    <div class="env-back"></div>
+                <!-- Lớp 1 (z-index: 2): Mặt lưng & Lót lụa bên trong phong bì -->
+                <div class="env-layer env-back-layer">
+                    <svg class="env-svg" viewBox="0 0 680 472" preserveAspectRatio="none" aria-hidden="true">
+                        <defs>
+                            <linearGradient id="envBackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#074334" />
+                                <stop offset="50%" stop-color="#0a5844" />
+                                <stop offset="100%" stop-color="#053328" />
+                            </linearGradient>
+                            <linearGradient id="envLiningGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" stop-color="#f7fdfb" />
+                                <stop offset="45%" stop-color="#e3f6ee" />
+                                <stop offset="100%" stop-color="#c6e9db" />
+                            </linearGradient>
+                            <linearGradient id="envGoldFoil" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#fff1b0" />
+                                <stop offset="28%" stop-color="#d89e2c" />
+                                <stop offset="55%" stop-color="#fdf0b8" />
+                                <stop offset="80%" stop-color="#b97d14" />
+                                <stop offset="100%" stop-color="#f6df8c" />
+                            </linearGradient>
+                        </defs>
+                        <!-- Khung lưng bo góc chuẩn rx=28 -->
+                        <rect x="2" y="2" width="676" height="468" rx="28" ry="28" fill="url(#envBackGrad)" stroke="url(#envGoldFoil)" stroke-width="3" />
+                        <!-- Lớp lót lụa kem ngọc bên trong miệng phong bì -->
+                        <rect x="16" y="16" width="648" height="440" rx="20" ry="20" fill="url(#envLiningGrad)" opacity="0.95" />
+                        <rect x="26" y="26" width="628" height="420" rx="14" ry="14" fill="none" stroke="url(#envGoldFoil)" stroke-width="1.5" stroke-dasharray="6 5" opacity="0.7" />
+                    </svg>
+                </div>
 
-                    <!-- Tấm thiệp ngọc bích hé lộ bên trong phong bì -->
-                    <div class="env-letter-peek">
-                        <div class="env-letter-inner">
-                            <span class="env-letter-crest">🌸 20 • 10 🌸</span>
-                            <h2 class="env-letter-title">Tháng 10 Rạng Rỡ</h2>
-                            <p class="env-letter-sub">Gửi trọn yêu thương đến phái đẹp BTLMVN</p>
-                        </div>
+                <!-- Lớp 3 (z-index: 6): Túi gấp lụa chữ V phía trước phong bì (che phần dưới lá thư khi đang rút) -->
+                <div class="env-layer env-front-pocket-layer">
+                    <svg class="env-svg" viewBox="0 0 680 472" preserveAspectRatio="none" aria-hidden="true">
+                        <defs>
+                            <clipPath id="envPocketClip">
+                                <rect x="2" y="2" width="676" height="468" rx="28" ry="28" />
+                            </clipPath>
+                            <linearGradient id="pocketLeftGrad" x1="0%" y1="0%" x2="100%" y2="80%">
+                                <stop offset="0%" stop-color="#118064" />
+                                <stop offset="60%" stop-color="#0b614b" />
+                                <stop offset="100%" stop-color="#074535" />
+                            </linearGradient>
+                            <linearGradient id="pocketRightGrad" x1="100%" y1="0%" x2="0%" y2="80%">
+                                <stop offset="0%" stop-color="#0f785d" />
+                                <stop offset="60%" stop-color="#0a5a46" />
+                                <stop offset="100%" stop-color="#063e30" />
+                            </linearGradient>
+                            <linearGradient id="pocketBottomGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+                                <stop offset="0%" stop-color="#169676" />
+                                <stop offset="48%" stop-color="#0d6d54" />
+                                <stop offset="100%" stop-color="#074837" />
+                            </linearGradient>
+                            <filter id="pocketFoldShadow" x="-10%" y="-10%" width="120%" height="120%">
+                                <feDropShadow dx="0" dy="-4" stdDeviation="6" flood-color="#032219" flood-opacity="0.42" />
+                            </filter>
+                        </defs>
+
+                        <g clip-path="url(#envPocketClip)">
+                            <!-- Cánh gấp bên trái -->
+                            <path d="M 0,18 L 356,262 L 0,472 Z" fill="url(#pocketLeftGrad)" filter="url(#pocketFoldShadow)" />
+                            <line x1="2" y1="22" x2="348" y2="258" stroke="url(#envGoldFoil)" stroke-width="2.2" opacity="0.72" />
+
+                            <!-- Cánh gấp bên phải -->
+                            <path d="M 680,18 L 324,262 L 680,472 Z" fill="url(#pocketRightGrad)" filter="url(#pocketFoldShadow)" />
+                            <line x1="678" y1="22" x2="332" y2="258" stroke="url(#envGoldFoil)" stroke-width="2.2" opacity="0.72" />
+
+                            <!-- Cánh gấp tam giác đáy phong bì -->
+                            <path d="M 0,472 L 308,216 Q 340,192 372,216 L 680,472 Z" fill="url(#pocketBottomGrad)" filter="url(#pocketFoldShadow)" />
+                            <path d="M 8,470 L 312,222 Q 340,200 368,222 L 672,470" fill="none" stroke="url(#envGoldFoil)" stroke-width="2.5" opacity="0.85" />
+
+                            <!-- Đường viền chỉ vàng mảnh chạy dọc mép trong túi phong bì -->
+                            <path d="M 18,36 L 18,444 Q 18,456 30,456 L 650,456 Q 662,456 662,444 L 662,36" fill="none" stroke="url(#envGoldFoil)" stroke-width="1.5" opacity="0.55" />
+                        </g>
+                        <!-- Viền vàng kim bao quanh mép dưới & 2 cạnh bên của túi -->
+                        <path d="M 2,28 L 2,442 A 28,28 0 0 0 30,470 L 650,470 A 28,28 0 0 0 678,442 L 678,28" fill="none" stroke="url(#envGoldFoil)" stroke-width="3" opacity="0.9" />
+                    </svg>
+                </div>
+
+                <!-- Lớp 4 (z-index: 8 khi đóng -> 3 khi mở): Nắp phong bì 2 mặt 3D (Mặt ngoài Lụa Ngọc Bích, Mặt trong Lót Kem Nhũ Vàng) -->
+                <div class="env-layer env-top-flap-layer">
+                    <!-- Mặt ngoài nắp phong bì (hiển thị khi đóng) -->
+                    <div class="flap-face flap-face-outer">
+                        <svg class="env-svg env-flap-svg" viewBox="0 0 680 288" preserveAspectRatio="none" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="topFlapGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+                                    <stop offset="0%" stop-color="#199e7c" />
+                                    <stop offset="55%" stop-color="#0f785d" />
+                                    <stop offset="100%" stop-color="#08503e" />
+                                </linearGradient>
+                                <filter id="topFlapDropShadow" x="-8%" y="-6%" width="116%" height="124%">
+                                    <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#032018" flood-opacity="0.48" />
+                                </filter>
+                            </defs>
+                            <!-- Đường bao nắp ôm khít cung tròn góc trên trái (28,2) và góc trên phải (652,2) -->
+                            <path d="M 2,30 A 28,28 0 0 1 30,2 L 650,2 A 28,28 0 0 1 678,30 L 372,262 Q 340,284 308,262 Z"
+                                  fill="url(#topFlapGrad)"
+                                  stroke="url(#envGoldFoil)"
+                                  stroke-width="3"
+                                  filter="url(#topFlapDropShadow)" />
+                            <!-- Đường chỉ vàng nghệ thuật song song bên trong nắp phong bì -->
+                            <path d="M 18,28 A 16,16 0 0 1 34,14 L 646,14 A 16,16 0 0 1 662,28 L 364,250 Q 340,268 316,250 Z"
+                                  fill="none"
+                                  stroke="url(#envGoldFoil)"
+                                  stroke-width="1.6"
+                                  opacity="0.78" />
+                            <circle cx="340" cy="232" r="3.5" fill="url(#envGoldFoil)" opacity="0.85" />
+                        </svg>
                     </div>
 
-                    <!-- Túi gấp lụa phía trước phong bì -->
-                    <div class="env-pocket">
-                        <div class="env-pocket-lines"></div>
+                    <!-- Mặt trong nắp phong bì (lộ ra khi nắp lật mở 180 độ) -->
+                    <div class="flap-face flap-face-inner">
+                        <svg class="env-svg env-flap-svg" viewBox="0 0 680 288" preserveAspectRatio="none" aria-hidden="true">
+                            <defs>
+                                <linearGradient id="innerFlapLining" x1="50%" y1="100%" x2="50%" y2="0%">
+                                    <stop offset="0%" stop-color="#0b5d48" />
+                                    <stop offset="12%" stop-color="#cdece0" />
+                                    <stop offset="65%" stop-color="#f2fbf7" />
+                                    <stop offset="100%" stop-color="#ffffff" />
+                                </linearGradient>
+                            </defs>
+                            <path d="M 2,30 A 28,28 0 0 1 30,2 L 650,2 A 28,28 0 0 1 678,30 L 372,262 Q 340,284 308,262 Z"
+                                  fill="url(#innerFlapLining)"
+                                  stroke="url(#envGoldFoil)"
+                                  stroke-width="3" />
+                            <path d="M 22,28 A 14,14 0 0 1 36,16 L 644,16 A 14,14 0 0 1 658,28 L 362,246 Q 340,263 318,246 Z"
+                                  fill="none"
+                                  stroke="url(#envGoldFoil)"
+                                  stroke-width="1.5"
+                                  stroke-dasharray="6 4"
+                                  opacity="0.82" />
+                        </svg>
                     </div>
+                </div>
 
-                    <!-- Nắp phong bì lật mở 3D -->
-                    <div class="env-flap">
-                        <div class="env-flap-gold-line"></div>
-                    </div>
+                <!-- Lớp 5 (z-index: 9): Con Dấu Sáp Vàng Chạm Nổi 3D Siêu Thực (CHỈ BẤM VÀO ĐÂY MỚI MỞ BÌ THƯ) -->
+                <div class="env-wax-seal-layer">
+                    <button type="button" class="env-wax-seal" id="env-wax-seal" aria-label="Bấm vào con dấu sáp để mở phong bì">
+                        <span class="wax-seal-Ambient-ring" aria-hidden="true"></span>
+                        <svg class="wax-seal-svg" viewBox="0 0 220 220" aria-hidden="true">
+                            <defs>
+                                <!-- Ánh sáng khối 3D của sáp vàng đồng cổ điển -->
+                                <radialGradient id="waxBodyGrad" cx="32%" cy="26%" r="72%">
+                                    <stop offset="0%" stop-color="#fff7d1" />
+                                    <stop offset="18%" stop-color="#f7d274" />
+                                    <stop offset="48%" stop-color="#d69622" />
+                                    <stop offset="78%" stop-color="#9b6007" />
+                                    <stop offset="94%" stop-color="#704202" />
+                                    <stop offset="100%" stop-color="#b67d18" />
+                                </radialGradient>
+                                <!-- Viền gờ sáp phồng 3D quanh mép -->
+                                <linearGradient id="waxRimHighlight" x1="15%" y1="10%" x2="85%" y2="90%">
+                                    <stop offset="0%" stop-color="#fff8dc" stop-opacity="0.9" />
+                                    <stop offset="45%" stop-color="#e3a42b" stop-opacity="0.2" />
+                                    <stop offset="100%" stop-color="#4d2b00" stop-opacity="0.85" />
+                                </linearGradient>
+                                <!-- Lòng sáp lõm xuống (đảo chiều sáng-tối để tạo độ sâu 3D thật) -->
+                                <radialGradient id="waxWellGrad" cx="68%" cy="72%" r="65%">
+                                    <stop offset="0%" stop-color="#f2c45a" />
+                                    <stop offset="45%" stop-color="#c58416" />
+                                    <stop offset="85%" stop-color="#7c4b03" />
+                                    <stop offset="100%" stop-color="#593300" />
+                                </radialGradient>
+                                <!-- Nhũ vàng chạm nổi 3D ở trung tâm -->
+                                <linearGradient id="waxReliefGrad" x1="20%" y1="15%" x2="80%" y2="85%">
+                                    <stop offset="0%" stop-color="#fff9df" />
+                                    <stop offset="38%" stop-color="#f8d472" />
+                                    <stop offset="75%" stop-color="#c98818" />
+                                    <stop offset="100%" stop-color="#8c5504" />
+                                </linearGradient>
+                                <filter id="waxOuterShadow" x="-18%" y="-14%" width="136%" height="136%">
+                                    <feDropShadow dx="0" dy="7" stdDeviation="6" flood-color="#021c14" flood-opacity="0.58" />
+                                    <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#3a2000" flood-opacity="0.45" />
+                                </filter>
+                                <filter id="waxEmbossShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feDropShadow dx="1.2" dy="2" stdDeviation="1.1" flood-color="#472700" flood-opacity="0.78" />
+                                </filter>
+                            </defs>
 
-                    <!-- Con dấu sáp vàng chạm nổi 20•10 ở tâm phong bì -->
-                    <div class="env-wax-seal" id="env-wax-seal">
-                        <div class="wax-seal-pulse" aria-hidden="true"></div>
-                        <div class="wax-seal-disc">
-                            <span class="wax-seal-flower">✿</span>
-                            <span class="wax-seal-date">20•10</span>
-                            <span class="wax-seal-org">BTLMVN</span>
-                        </div>
-                    </div>
+                            <!-- Vành sáp chảy tự nhiên bất đối xứng (Organic Melted Wax Rim) -->
+                            <path filter="url(#waxOuterShadow)"
+                                  fill="url(#waxBodyGrad)"
+                                  stroke="url(#waxRimHighlight)"
+                                  stroke-width="2.5"
+                                  d="M 110,12
+                                     C 129,10 144,18 159,25
+                                     C 175,32 190,43 197,60
+                                     C 204,77 209,94 206,113
+                                     C 203,131 198,149 187,164
+                                     C 176,179 160,192 142,199
+                                     C 124,206 105,209 86,204
+                                     C 67,199 50,191 36,177
+                                     C 22,163 14,144 12,124
+                                     C 10,104 12,84 20,66
+                                     C 28,48 41,33 58,24
+                                     C 75,15 91,14 110,12 Z" />
+
+                            <!-- Ánh phản quang bóng sáp ở gờ trên trái -->
+                            <path d="M 42,62 C 54,38 80,24 112,22 C 132,21 150,27 164,37"
+                                  fill="none"
+                                  stroke="#fff9de"
+                                  stroke-width="4.5"
+                                  stroke-linecap="round"
+                                  opacity="0.52" />
+
+                            <!-- Gờ bóng tối ở mép sáp dưới phải -->
+                            <path d="M 184,78 C 194,104 190,136 172,160 C 154,182 124,194 92,191"
+                                  fill="none"
+                                  stroke="#522f00"
+                                  stroke-width="4.5"
+                                  stroke-linecap="round"
+                                  opacity="0.48" />
+
+                            <!-- Lòng con dấu lõm xuống (Recessed Stamp Impression) -->
+                            <circle cx="110" cy="110" r="66" fill="url(#waxWellGrad)" stroke="#593300" stroke-width="2.5" />
+                            <circle cx="110" cy="110" r="64.5" fill="none" stroke="#ffeba8" stroke-width="1.4" opacity="0.55" />
+
+                            <!-- Vòng hạt cườm cổ điển chạy quanh lòng dấu sáp -->
+                            <circle cx="110" cy="110" r="58" fill="none" stroke="url(#waxReliefGrad)" stroke-width="2.2" stroke-dasharray="2.4 4.2" filter="url(#waxEmbossShadow)" />
+
+                            <!-- Họa tiết chạm nổi 3D: Cành nguyệt quế đối xứng + Hoa trà 5 cánh + 20•10 -->
+                            <g filter="url(#waxEmbossShadow)" fill="url(#waxReliefGrad)">
+                                <!-- Hoa đào / Hoa trà 5 cánh chạm nổi phía trên -->
+                                <g transform="translate(110, 68)">
+                                    <circle cx="0" cy="-7" r="5" />
+                                    <circle cx="6.6" cy="-2.1" r="5" />
+                                    <circle cx="4.1" cy="5.6" r="5" />
+                                    <circle cx="-4.1" cy="5.6" r="5" />
+                                    <circle cx="-6.6" cy="-2.1" r="5" />
+                                    <circle cx="0" cy="0" r="2.8" fill="#fff8dc" />
+                                    <!-- 2 chiếc lá nhỏ hai bên bông hoa -->
+                                    <path d="M -11,1 Q -22,-3 -26,4 Q -18,8 -11,1 Z" />
+                                    <path d="M 11,1 Q 22,-3 26,4 Q 18,8 11,1 Z" />
+                                </g>
+
+                                <!-- Chữ số 20 • 10 chạm nổi sắc nét ở chính giữa -->
+                                <text x="110" y="118"
+                                      text-anchor="middle"
+                                      font-family="'Cormorant Garamond', 'Playfair Display', serif"
+                                      font-size="34"
+                                      font-weight="700"
+                                      letter-spacing="1"
+                                      fill="url(#waxReliefGrad)">20•10</text>
+
+                                <!-- Đường hoa văn mảnh & dòng chữ BTLMVN phía dưới -->
+                                <path d="M 74,131 L 146,131" stroke="url(#waxReliefGrad)" stroke-width="1.6" stroke-linecap="round" />
+                                <circle cx="110" cy="131" r="2.6" />
+                                <text x="110" y="149"
+                                      text-anchor="middle"
+                                      font-family="'Montserrat', sans-serif"
+                                      font-size="11.5"
+                                      font-weight="700"
+                                      letter-spacing="3.2"
+                                      fill="url(#waxReliefGrad)">BTLMVN</text>
+                            </g>
+                        </svg>
+                        <span class="wax-seal-shine" aria-hidden="true"></span>
+                    </button>
                 </div>
             </div>
 
-            <div class="env-tap-prompt">
-                <span class="tap-sparkle">✨</span>
-                <span>Chạm mở phong bì nhận thiệp 20/10</span>
-                <span class="tap-sparkle">✨</span>
-            </div>
-        </div>
+            <!-- Lớp 2 (z-index: 4 khi nằm trong phong bì -> z-index: 14 khi rút ra):
+                 CHÍNH LÀ TẤM THIỆP "THÁNG 10 RẠNG RỠ" NẰM TRONG BÌ THƯ -->
+            <div class="step1-card-column" id="step1-card-column">
+                <div class="glass-container step1-card" id="step1-main-card">
+                    <div class="card-glow-orb orb-1" aria-hidden="true"></div>
+                    <div class="card-glow-orb orb-2" aria-hidden="true"></div>
+                    <div class="step1-deco-corner corner-tl" aria-hidden="true"></div>
+                    <div class="step1-deco-corner corner-tr" aria-hidden="true"></div>
+                    <div class="step1-deco-corner corner-bl" aria-hidden="true"></div>
+                    <div class="step1-deco-corner corner-br" aria-hidden="true"></div>
 
-        <!-- Giai đoạn 1B: Card Mở Đầu Chính (Hiện ra sau khi mở phong bì) -->
-        <div class="glass-container step1-card" id="step1-main-card">
-            <div class="card-glow-orb orb-1" aria-hidden="true"></div>
-            <div class="card-glow-orb orb-2" aria-hidden="true"></div>
-            <div class="step1-deco-corner corner-tl" aria-hidden="true"></div>
-            <div class="step1-deco-corner corner-tr" aria-hidden="true"></div>
-            <div class="step1-deco-corner corner-bl" aria-hidden="true"></div>
-            <div class="step1-deco-corner corner-br" aria-hidden="true"></div>
+                    <div class="title-wrapper">
+                        <h1 class="main-title">Tháng 10 Rạng Rỡ</h1>
+                        <p class="sub-title">BTLMVN thân gửi các chị em nhân ngày 20/10 🌸</p>
+                    </div>
 
-            <div class="step1-top-bar">
-                <div class="step1-crest-badge">✦ HAPPY WOMEN'S DAY • 20.10 ✦</div>
-                <button type="button" id="replay-envelope-btn" class="replay-env-btn" title="Xem lại hiệu ứng mở phong bì">
-                    💌 Phong bì
+                    <!-- Bộ 3 tấm thiệp mẫu 3D xếp xòe quạt độ phân giải cao (Tự động tuần tự 4 giây trượt đổi mẫu 3D) -->
+                    <div class="hero-fan-showcase" id="hero-fan-showcase">
+                        <div class="fan-Ambient-glow" aria-hidden="true"></div>
+                        <div class="fan-cards-stage" id="fan-cards-stage">
+                            <div class="fan-card fan-pos-left" id="fan-card-0">
+                                <canvas class="fan-card-canvas" width="400" height="756"></canvas>
+                                <div class="fan-card-shine" aria-hidden="true"></div>
+                            </div>
+                            <div class="fan-card fan-pos-center" id="fan-card-1">
+                                <canvas class="fan-card-canvas" width="400" height="756"></canvas>
+                                <div class="fan-card-shine" aria-hidden="true"></div>
+                            </div>
+                            <div class="fan-card fan-pos-right" id="fan-card-2">
+                                <canvas class="fan-card-canvas" width="400" height="756"></canvas>
+                                <div class="fan-card-shine" aria-hidden="true"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="upload-wrapper" id="upload-wrapper">
+                        <label for="selfie-btn" class="btn-primary btn-shimmer">
+                            <span class="icon">📸</span> Chụp ảnh trực tiếp
+                        </label>
+                        <input type="file" id="selfie-btn" accept="image/*" capture="user">
+
+                        <label for="upload-btn" class="btn-secondary" style="margin-top: 10px;">
+                            <span class="icon">🖼️</span> Chọn ảnh từ thư viện
+                        </label>
+                        <input type="file" id="upload-btn" accept="image/png, image/jpeg, image/jpg, image/webp">
+                    </div>
+                </div>
+
+                <!-- Nút Icon Phong Bì nằm ngay dưới tấm Tháng 10 Rạng Rỡ (bấm để đảo ngược hoạt ảnh cất thiệp vào phong bì) -->
+                <button type="button" id="replay-envelope-btn" class="replay-env-icon-btn" aria-label="Cất thiệp vào lại phong bì" title="Đóng lại vào phong bì">
+                    <svg class="replay-env-svg" viewBox="0 0 44 34" aria-hidden="true">
+                        <rect x="2" y="2" width="40" height="30" rx="5" fill="#0b614b" stroke="#e2b049" stroke-width="1.8" />
+                        <path d="M 3,4 L 22,19 L 41,4" fill="none" stroke="#f7df94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                        <circle cx="22" cy="18" r="4.2" fill="#e5ad3b" stroke="#fff3c4" stroke-width="1" />
+                    </svg>
                 </button>
             </div>
 
-            <div class="title-wrapper">
-                <h1 class="main-title">Tháng 10 Rạng Rỡ</h1>
-                <p class="sub-title">BTLMVN thân gửi các chị em nhân ngày 20/10 🌸</p>
-            </div>
-
-            <!-- Điểm nhấn 1: Bộ 3 tấm thiệp mẫu 3D xếp xòe quạt (chạm để đổi mẫu khung) -->
-            <div class="hero-fan-showcase" id="hero-fan-showcase" role="button" tabindex="0" aria-label="Chạm để xem các mẫu khung thiệp 20/10">
-                <div class="fan-Ambient-glow" aria-hidden="true"></div>
-                <div class="fan-cards-stage" id="fan-cards-stage">
-                    <div class="fan-card fan-card-left" data-slot="0">
-                        <canvas class="fan-card-canvas" id="fan-canvas-left" width="220" height="420"></canvas>
-                    </div>
-                    <div class="fan-card fan-card-center" data-slot="1">
-                        <canvas class="fan-card-canvas" id="fan-canvas-center" width="240" height="458"></canvas>
-                        <div class="fan-card-shine" aria-hidden="true"></div>
-                    </div>
-                    <div class="fan-card fan-card-right" data-slot="2">
-                        <canvas class="fan-card-canvas" id="fan-canvas-right" width="220" height="420"></canvas>
-                    </div>
-                </div>
-                <div class="fan-caption-pill" id="fan-caption-pill">
-                    <span id="fan-concept-name">✨ Khung 01. Vòm Lụa</span>
-                    <span class="fan-tap-hint">• Chạm đổi 20 mẫu ↻</span>
-                </div>
-            </div>
-
-            <!-- Điểm nhấn 2: Thanh trích dẫn lời chúc tự đổi mỗi 4s, chạm bung sao đổi câu -->
-            <div class="live-quote-pill" id="live-quote-pill" role="button" tabindex="0" aria-label="Chạm để đổi câu chúc 20/10">
-                <div class="live-quote-header">
-                    <span class="live-quote-badge">💌 Lời chúc 20/10 dành tặng bạn</span>
-                    <span class="live-quote-action">Chạm đổi câu ✨</span>
-                </div>
-                <p class="live-quote-text" id="step1-live-quote">
-                    “Chúc bạn một ngày 20/10 thật nhiều niềm vui, luôn rạng rỡ và ngập tràn hạnh phúc!”
-                </p>
-            </div>
-
-            <div class="upload-wrapper" id="upload-wrapper">
-                <label for="selfie-btn" class="btn-primary btn-shimmer">
-                    <span class="icon">📸</span> Chụp ảnh trực tiếp
-                </label>
-                <input type="file" id="selfie-btn" accept="image/*" capture="user">
-
-                <label for="upload-btn" class="btn-secondary" style="margin-top: 10px;">
-                    <span class="icon">🖼️</span> Chọn ảnh từ thư viện
-                </label>
-                <input type="file" id="upload-btn" accept="image/png, image/jpeg, image/jpg, image/webp">
-            </div>
         </div>
     </div>
 
@@ -282,13 +615,21 @@
                 </button>
             </div>
 
-            <!-- Vùng hiển thị trọn vẹn 100% tấm thiệp (co giãn tự động theo chiều cao màn hình) -->
-            <div class="result-canvas-wrap">
+            <!-- Vùng hiển thị trọn vẹn 100% tấm thiệp (Hỗ trợ vuốt ngang đổi khung & chạm hộp chữ để sửa) -->
+            <div class="result-canvas-wrap" id="result-canvas-wrap">
+                <button type="button" id="prev-frame-btn" class="card-nav-arrow card-nav-prev" aria-label="Mẫu khung trước" title="Mẫu trước">‹</button>
+
                 <div id="card-showcase" class="card-showcase">
                     <canvas id="final-result-canvas" style="display: none;"></canvas>
                     <img id="final-result-img" alt="Thiệp 20/10 của bạn">
                     <div class="card-glass-shine" aria-hidden="true"></div>
+                    <div id="card-floating-badge" class="card-floating-badge" aria-hidden="true">✨ 01/20 • Vòm Lụa</div>
+                    <div id="card-quote-tap-zone" class="card-quote-tap-zone" role="button" tabindex="0" aria-label="Chạm vào hộp chữ để sửa Tiêu đề và Lời chúc" title="Chạm để sửa Tiêu đề / Lời chúc">
+                        <span class="tap-edit-pill">✍️ Chạm sửa chữ</span>
+                    </div>
                 </div>
+
+                <button type="button" id="next-frame-btn" class="card-nav-arrow card-nav-next" aria-label="Mẫu khung tiếp theo" title="Mẫu tiếp theo">›</button>
             </div>
 
             <!-- Bảng điều khiển cố định 3 Tab ngay dưới thiệp (bấm đổi nhìn thấy ngay, không che thiệp) -->
@@ -301,7 +642,7 @@
                         💌 Tiêu đề & Chúc
                     </button>
                     <button type="button" class="deck-tab" data-tab="tab-style">
-                        🌸 Viền & Màu
+                        🌸 Khung Chữ & Màu
                     </button>
                 </div>
 
@@ -340,15 +681,16 @@
                     </div>
                 </div>
 
-                <!-- Tab 2: 5 Kiểu viền lãng mạn & 5 Tông màu nữ tính -->
+                <!-- Tab 2: 5 Thiết kế Khung Lời Chúc Cao Cấp & 5 Tông Màu Nữ Tính -->
                 <div id="tab-style" class="deck-pane">
                     <div class="deck-row">
                         <div class="style-chips" id="border-style-chips">
-                            <button type="button" class="style-chip active" data-border="sakura">🌸 Hoa Đào</button>
-                            <button type="button" class="style-chip" data-border="ribbon">🎀 Nơ Lụa</button>
-                            <button type="button" class="style-chip" data-border="hearts">💕 Trái Tim</button>
-                            <button type="button" class="style-chip" data-border="daisy">🌿 Cúc Họa Mi</button>
-                            <button type="button" class="style-chip" data-border="vintage">🌷 Ren Thơ</button>
+                            <button type="button" id="magic-harmony-btn" class="magic-harmony-chip">🪄 Tự phối hợp gu</button>
+                            <button type="button" class="style-chip active" data-border="sakura">🌸 Hoa Đào & Trà</button>
+                            <button type="button" class="style-chip" data-border="ribbon">🦪 Ngọc Trai & Nơ</button>
+                            <button type="button" class="style-chip" data-border="hearts">✨ Pha Lê & Sao</button>
+                            <button type="button" class="style-chip" data-border="daisy">🌿 Nguyệt Quế & Cúc</button>
+                            <button type="button" class="style-chip" data-border="vintage">🌹 Hồng Pháp</button>
                         </div>
                     </div>
                     <div class="deck-row">
@@ -387,9 +729,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=8.1"></script>
-    <script src="script.js?v=8.1"></script>
-    <script src="intro.js?v=8.1"></script>
+    <script src="wishes.js?v=9.0"></script>
+    <script src="script.js?v=9.0"></script>
+    <script src="intro.js?v=9.0"></script>
 </body>
 
 </html>
