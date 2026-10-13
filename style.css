@@ -800,7 +800,7 @@ input[type="file"] {
 
 .deck-tabs {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     margin-bottom: 6px;
     background: #e6f5ee;
     padding: 3px;
@@ -813,12 +813,13 @@ input[type="file"] {
     background: transparent;
     color: #095241;
     font-family: inherit;
-    font-size: 0.76rem;
+    font-size: clamp(0.66rem, 2.7vw, 0.74rem);
     font-weight: 600;
-    padding: 5px 8px;
+    padding: 5px 4px;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.18s ease;
+    white-space: nowrap;
 }
 
 .deck-tab.active {
@@ -877,6 +878,7 @@ input[type="file"] {
     color: #b53464;
 }
 
+.concept-chips,
 .topic-chips,
 .style-chips,
 .color-swatches {
@@ -887,10 +889,33 @@ input[type="file"] {
     padding: 1px 0;
 }
 
+.concept-chips::-webkit-scrollbar,
 .topic-chips::-webkit-scrollbar,
 .style-chips::-webkit-scrollbar,
 .color-swatches::-webkit-scrollbar {
     display: none;
+}
+
+.concept-chip {
+    padding: 6px 11px;
+    border-radius: 16px;
+    border: 1.2px solid #f0b8cc;
+    background: #fff8fa;
+    color: #9c2756;
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+}
+
+.concept-chip.active {
+    background: linear-gradient(135deg, #d84b7e 0%, #b53464 100%);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(216, 75, 126, 0.28);
 }
 
 .topic-chip,
@@ -1141,10 +1166,11 @@ input[type="file"] {
 }
 
 .frame-item {
-    min-width: 60px;
-    height: 68px;
-    border-radius: 8px;
-    border: 2px solid transparent;
+    min-width: 64px;
+    height: 70px;
+    padding: 3px 5px;
+    border-radius: 9px;
+    border: 1.8px solid transparent;
     cursor: pointer;
     color: #555;
     background: #fff;
@@ -1154,8 +1180,17 @@ input[type="file"] {
     justify-content: center;
     align-items: center;
     transition: all 0.18s;
-    font-size: 0.74rem;
+    font-size: 0.7rem;
     font-weight: 500;
+    white-space: nowrap;
+}
+
+.frame-item.is-concept {
+    min-width: 78px;
+    background: linear-gradient(180deg, #ffffff 0%, #fff6f9 100%);
+    border-color: #f4c6d7;
+    color: #9c2756;
+    font-weight: 600;
 }
 
 .frame-item.active {
@@ -1164,6 +1199,12 @@ input[type="file"] {
     box-shadow: 0 3px 8px rgba(15, 123, 95, 0.2);
     font-weight: 700;
     color: #0f7b5f;
+}
+
+.frame-item.is-concept.active {
+    border-color: #d84b7e;
+    box-shadow: 0 3px 10px rgba(216, 75, 126, 0.26);
+    color: #b53464;
 }
 
 /* ====== MAIN TITLE & BUTTONS ====== */

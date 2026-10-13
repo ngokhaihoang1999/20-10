@@ -337,14 +337,35 @@ window.addEventListener('pointerdown', (e) => {
     spawnTouchSparkle(e.clientX, e.clientY, 3);
 }, { passive: true });
 
-// ====== CẤU HÌNH 10 KHUNG ẢNH (TẤT CẢ ĐỀU CHUẨN TỶ LỆ 1024 x 1526) ======
+// ====== CẤU HÌNH 5 CONCEPT MỚI (SANG - XỊN - KHÔNG SẾN) + 10 KHUNG CŨ ======
 const FRAME_ASPECT_RATIO = 1024 / 1526;
+const CONCEPT_DEFS = [
+    { concept: 'arch', label: '✨ C1: Vòm Lụa', fullLabel: '✨ C1: Vòm Lụa (Arch)' },
+    { concept: 'magazine', label: '✨ C2: Tạp Chí', fullLabel: '✨ C2: Tạp Chí Vogue' },
+    { concept: 'polaroid', label: '✨ C3: Polaroid', fullLabel: '✨ C3: Polaroid Hàn' },
+    { concept: 'aura', label: '✨ C4: Kính Aura', fullLabel: '✨ C4: Kính Mờ Aura' },
+    { concept: 'dior', label: '✨ C5: Dior Gold', fullLabel: '✨ C5: Dior Line-Art' }
+];
+
 const framesConfig = [];
+CONCEPT_DEFS.forEach((c, idx) => {
+    framesConfig.push({
+        id: idx,
+        concept: c.concept,
+        path: '',
+        label: c.label,
+        fullLabel: c.fullLabel,
+        isConcept: true
+    });
+});
 for (let i = 1; i <= 10; i++) {
     framesConfig.push({
-        id: i - 1,
+        id: CONCEPT_DEFS.length + i - 1,
+        concept: null,
         path: `khung/khung ${i}.png?v=3.0`,
-        label: `Khung ${i}`
+        label: `Khung ${i}`,
+        fullLabel: `🖼️ Khung ${i}`,
+        isConcept: false
     });
 }
 
@@ -561,31 +582,587 @@ initCanvasSizes();
 initBgParticles();
 animateBg();
 
+// ====== BỘ VẼ 5 CONCEPT KHUNG HÌNH CAO CẤP (1024 x 1526) ======
+function traceArchWindowPath(ctx, x, y, w, h, bottomRadius) {
+    const rTop = w / 2;
+    const archCenterX = x + rTop;
+    const archCenterY = y + rTop;
+    const br = Math.min(bottomRadius, w * 0.15);
+    ctx.moveTo(x, archCenterY);
+    ctx.arc(archCenterX, archCenterY, rTop, Math.PI, 0, false);
+    ctx.lineTo(x + w, y + h - br);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - br, y + h);
+    ctx.lineTo(x + br, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - br);
+    ctx.closePath();
+}
+
+function traceRoundedWindowPath(ctx, x, y, w, h, r) {
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+function traceChamferWindowPath(ctx, x, y, w, h, c) {
+    ctx.moveTo(x + c, y);
+    ctx.lineTo(x + w - c, y);
+    ctx.lineTo(x + w, y + c);
+    ctx.lineTo(x + w, y + h - c);
+    ctx.lineTo(x + w - c, y + h);
+    ctx.lineTo(x + c, y + h);
+    ctx.lineTo(x, y + h - c);
+    ctx.lineTo(x, y + c);
+    ctx.closePath();
+}
+
+function drawFineBotanicalSprig(ctx, cx, cy, scale, angle, theme) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.strokeStyle = theme.goldAccent;
+    ctx.lineWidth = 2 * scale;
+    ctx.lineCap = 'round';
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(38 * scale, -18 * scale, 96 * scale, -6 * scale);
+    ctx.stroke();
+
+    const leafPairs = [
+        { t: 22, dy: -4, a: -0.65, len: 22 },
+        { t: 36, dy: -6, a: 0.55, len: 20 },
+        { t: 54, dy: -8, a: -0.58, len: 20 },
+        { t: 70, dy: -8, a: 0.48, len: 17 },
+        { t: 88, dy: -6, a: -0.35, len: 15 }
+    ];
+    leafPairs.forEach(lp => {
+        ctx.save();
+        ctx.translate(lp.t * scale, lp.dy * scale);
+        ctx.rotate(lp.a);
+        ctx.fillStyle = theme.flowerSoft;
+        ctx.globalAlpha = 0.32;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(lp.len * 0.5 * scale, -lp.len * 0.28 * scale, lp.len * scale, 0);
+        ctx.quadraticCurveTo(lp.len * 0.5 * scale, lp.len * 0.28 * scale, 0, 0);
+        ctx.fill();
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = theme.goldAccent;
+        ctx.lineWidth = 1.4 * scale;
+        ctx.stroke();
+        ctx.restore();
+    });
+    ctx.restore();
+}
+
+function drawFineLineRoseCorner(ctx, cx, cy, scale, flipX, flipY, theme) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(flipX, flipY);
+
+    // Nhánh lá mảnh nghệ thuật
+    drawFineBotanicalSprig(ctx, 10 * scale, 8 * scale, scale * 1.05, 0.18, theme);
+    drawFineBotanicalSprig(ctx, 8 * scale, 10 * scale, scale * 1.05, 1.38, theme);
+
+    // Bông hồng Anh Quốc vẽ nét mảnh (Fine-Line Botanical Ink)
+    ctx.translate(18 * scale, 18 * scale);
+    ctx.fillStyle = theme.flowerSoft;
+    ctx.globalAlpha = 0.28;
+    ctx.beginPath();
+    ctx.arc(0, 0, 28 * scale, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.92;
+    ctx.strokeStyle = theme.goldAccent;
+    ctx.lineWidth = 1.8 * scale;
+    ctx.lineCap = 'round';
+
+    const rings = [
+        { r: 7, petals: 3, offset: 0.2 },
+        { r: 14, petals: 5, offset: 0.8 },
+        { r: 22, petals: 6, offset: 0.4 },
+        { r: 29, petals: 7, offset: 1.1 }
+    ];
+    rings.forEach(ring => {
+        for (let i = 0; i < ring.petals; i++) {
+            const a1 = ring.offset + (i * Math.PI * 2) / ring.petals;
+            const a2 = a1 + (Math.PI * 2) / (ring.petals * 1.18);
+            const r = ring.r * scale;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, a1, a2);
+            ctx.stroke();
+        }
+    });
+
+    ctx.fillStyle = theme.borderPrimary;
+    ctx.beginPath();
+    ctx.arc(0, 0, 3 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+function drawWashiTape(ctx, cx, cy, w, h, angle, theme) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+
+    ctx.shadowColor = 'rgba(0,0,0,0.08)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetY = 2;
+
+    // Đường cắt răng cưa 2 đầu băng keo Washi
+    const hw = w / 2;
+    const hh = h / 2;
+    ctx.beginPath();
+    ctx.moveTo(-hw, -hh);
+    ctx.lineTo(hw, -hh);
+    const teeth = 6;
+    for (let i = 0; i <= teeth; i++) {
+        const ty = -hh + (i / teeth) * h;
+        const tx = hw + (i % 2 === 0 ? 0 : -5);
+        ctx.lineTo(tx, ty);
+    }
+    ctx.lineTo(-hw, hh);
+    for (let i = teeth; i >= 0; i--) {
+        const ty = -hh + (i / teeth) * h;
+        const tx = -hw + (i % 2 === 0 ? 0 : 5);
+        ctx.lineTo(tx, ty);
+    }
+    ctx.closePath();
+
+    ctx.fillStyle = theme.flowerSoft;
+    ctx.globalAlpha = 0.62;
+    ctx.fill();
+
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Họa tiết kẻ sọc chéo mảnh ánh kim trên băng keo Washi
+    ctx.clip();
+    ctx.strokeStyle = theme.goldAccent;
+    ctx.globalAlpha = 0.35;
+    ctx.lineWidth = 2;
+    for (let sx = -w; sx < w; sx += 16) {
+        ctx.beginPath();
+        ctx.moveTo(sx, -hh - 10);
+        ctx.lineTo(sx + 24, hh + 10);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+function drawPostmarkStamp(ctx, cx, cy, radius, theme) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-0.2);
+    ctx.globalAlpha = 0.82;
+    ctx.strokeStyle = theme.borderPrimary;
+    ctx.fillStyle = theme.borderPrimary;
+
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.84, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.font = `700 ${Math.floor(radius * 0.24)}px "Montserrat", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('WOMEN\'S DAY', 0, -radius * 0.42);
+    ctx.font = `italic 700 ${Math.floor(radius * 0.46)}px "Playfair Display", serif`;
+    ctx.fillText('20•10', 0, radius * 0.04);
+    ctx.font = `600 ${Math.floor(radius * 0.2)}px "Montserrat", sans-serif`;
+    ctx.fillText('★ BTLMVN ★', 0, radius * 0.46);
+    ctx.restore();
+}
+
+function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep2Overlay) {
+    const scale = targetW / 1024;
+    ctx.save();
+
+    if (concept === 'arch') {
+        // C1: VÒM LỤA NGHỆ THUẬT (Arch Gallery)
+        const winX = Math.floor(68 * scale);
+        const winY = Math.floor(68 * scale);
+        const winW = targetW - winX * 2;
+        const winH = originH - Math.floor(92 * scale);
+        const bottomR = Math.floor(34 * scale);
+
+        // Tô nền lụa bên ngoài cửa sổ vòm bằng quy tắc evenodd (bên trong vòm trong suốt 100%)
+        ctx.beginPath();
+        ctx.rect(0, 0, targetW, originH);
+        traceArchWindowPath(ctx, winX, winY, winW, winH, bottomR);
+        const matteGrad = ctx.createLinearGradient(0, 0, 0, originH);
+        matteGrad.addColorStop(0, theme.canvasBgMid);
+        matteGrad.addColorStop(0.65, theme.canvasBgEnd);
+        matteGrad.addColorStop(1, theme.canvasBgMid);
+        ctx.fillStyle = matteGrad;
+        ctx.fill('evenodd');
+
+        // Viền chỉ đôi ánh kim ôm quanh vòm
+        ctx.beginPath();
+        traceArchWindowPath(ctx, winX, winY, winW, winH, bottomR);
+        const archGrad = ctx.createLinearGradient(winX, winY, winX + winW, winY + winH);
+        archGrad.addColorStop(0, theme.goldAccent);
+        archGrad.addColorStop(0.5, theme.borderPrimary);
+        archGrad.addColorStop(1, theme.goldAccent);
+        ctx.strokeStyle = archGrad;
+        ctx.lineWidth = 3.6 * scale;
+        ctx.stroke();
+
+        const inOff = 12 * scale;
+        ctx.beginPath();
+        traceArchWindowPath(ctx, winX - inOff, winY - inOff, winW + inOff * 2, winH + inOff * 2, bottomR + 8 * scale);
+        ctx.strokeStyle = theme.borderSecondary;
+        ctx.lineWidth = 1.5 * scale;
+        ctx.stroke();
+
+        // Hoa lá nét mảnh ở 2 góc trên của vòm + Ngôi sao kim cương đỉnh vòm
+        drawFineBotanicalSprig(ctx, 42 * scale, 96 * scale, scale * 1.15, -0.35, theme);
+        ctx.save();
+        ctx.translate(targetW, 0);
+        ctx.scale(-1, 1);
+        drawFineBotanicalSprig(ctx, 42 * scale, 96 * scale, scale * 1.15, -0.35, theme);
+        ctx.restore();
+
+        ctx.fillStyle = theme.goldAccent;
+        drawFourPointStarPath(ctx, targetW / 2, winY - 12 * scale, 14 * scale);
+        ctx.fill();
+        drawFourPointStarPath(ctx, 88 * scale, 52 * scale, 9 * scale);
+        ctx.fill();
+        drawFourPointStarPath(ctx, targetW - 88 * scale, 52 * scale, 9 * scale);
+        ctx.fill();
+
+    } else if (concept === 'magazine') {
+        // C2: BÌA TẠP CHÍ THỜI TRANG (Vogue / Elle Editorial)
+        // Lớp phủ mờ nhẹ ở đỉnh ảnh để nổi bật chữ tạp chí và chuyển sắc mượt ở đáy ảnh
+        const topScrim = ctx.createLinearGradient(0, 0, 0, 290 * scale);
+        topScrim.addColorStop(0, 'rgba(12, 28, 24, 0.42)');
+        topScrim.addColorStop(0.65, 'rgba(12, 28, 24, 0.12)');
+        topScrim.addColorStop(1, 'rgba(12, 28, 24, 0)');
+        ctx.fillStyle = topScrim;
+        ctx.fillRect(0, 0, targetW, 290 * scale);
+
+        const botScrim = ctx.createLinearGradient(0, originH - 180 * scale, 0, originH);
+        botScrim.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        botScrim.addColorStop(0.75, 'rgba(255, 255, 255, 0.55)');
+        botScrim.addColorStop(1, theme.canvasBgStart);
+        ctx.fillStyle = botScrim;
+        ctx.fillRect(0, originH - 180 * scale, targetW, 180 * scale);
+
+        // Khung viền mảnh đôi Editorial chạy sát mép ảnh
+        const m = 34 * scale;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
+        ctx.lineWidth = 2.2 * scale;
+        ctx.strokeRect(m, m, targetW - m * 2, originH - m * 2);
+
+        const m2 = 44 * scale;
+        ctx.strokeStyle = theme.goldAccent;
+        ctx.globalAlpha = 0.75;
+        ctx.lineWidth = 1.1 * scale;
+        ctx.strokeRect(m2, m2, targetW - m2 * 2, originH - m2 * 2);
+        ctx.globalAlpha = 1;
+
+        // Typography bìa tạp chí sang trọng
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+        ctx.shadowBlur = 10 * scale;
+
+        ctx.font = `600 ${Math.floor(17 * scale)}px "Montserrat", sans-serif`;
+        ctx.fillText('B T L M V N   •   S P E C I A L   E D I T I O N   2 0 . 1 0', targetW / 2, 78 * scale);
+
+        ctx.font = `italic 700 ${Math.floor(74 * scale)}px "Cormorant Garamond", serif`;
+        ctx.fillText('L A   B E A U T É', targetW / 2, 146 * scale);
+
+        // Đường kẻ mảnh & ngôi sao dưới tiêu đề tạp chí
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = 1.4 * scale;
+        ctx.beginPath();
+        ctx.moveTo(targetW / 2 - 140 * scale, 174 * scale);
+        ctx.lineTo(targetW / 2 - 18 * scale, 174 * scale);
+        ctx.moveTo(targetW / 2 + 18 * scale, 174 * scale);
+        ctx.lineTo(targetW / 2 + 140 * scale, 174 * scale);
+        ctx.stroke();
+
+        ctx.fillStyle = theme.goldAccent;
+        drawFourPointStarPath(ctx, targetW / 2, 174 * scale, 8 * scale);
+        ctx.fill();
+        ctx.restore();
+
+    } else if (concept === 'polaroid') {
+        // C3: POLAROID HÀN QUỐC & BĂNG KEO WASHI (Life4Cuts / Analog Film)
+        const cardX = Math.floor(54 * scale);
+        const cardY = Math.floor(62 * scale);
+        const cardW = targetW - cardX * 2;
+        const cardH = originH - Math.floor(78 * scale);
+
+        const winX = Math.floor(88 * scale);
+        const winY = Math.floor(98 * scale);
+        const winW = targetW - winX * 2;
+        const winH = originH - Math.floor(245 * scale);
+        const winR = Math.floor(12 * scale);
+
+        // 1. Nền giấy mỹ thuật bên ngoài tấm Polaroid
+        ctx.beginPath();
+        ctx.rect(0, 0, targetW, originH);
+        traceRoundedWindowPath(ctx, cardX, cardY, cardW, cardH, 18 * scale);
+        const paperGrad = ctx.createLinearGradient(0, 0, 0, originH);
+        paperGrad.addColorStop(0, '#f9f6f0');
+        paperGrad.addColorStop(1, theme.canvasBgMid);
+        ctx.fillStyle = paperGrad;
+        ctx.fill('evenodd');
+
+        // 2. Phần khung trắng Polaroid (bên ngoài cửa sổ ảnh winX..winW)
+        ctx.save();
+        ctx.shadowColor = 'rgba(15, 35, 28, 0.15)';
+        ctx.shadowBlur = 24 * scale;
+        ctx.shadowOffsetY = 8 * scale;
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, cardX, cardY, cardW, cardH, 18 * scale);
+        traceRoundedWindowPath(ctx, winX, winY, winW, winH, winR);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill('evenodd');
+        ctx.restore();
+
+        // Viền mảnh quanh tấm Polaroid & quanh cửa sổ ảnh
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, cardX, cardY, cardW, cardH, 18 * scale);
+        ctx.strokeStyle = theme.borderSecondary;
+        ctx.lineWidth = 1.6 * scale;
+        ctx.stroke();
+
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, winX, winY, winW, winH, winR);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+        ctx.lineWidth = 1.5 * scale;
+        ctx.stroke();
+
+        // 3. Hai dải băng keo Washi dán ở góc trên Polaroid
+        drawWashiTape(ctx, cardX + 64 * scale, cardY + 12 * scale, 165 * scale, 42 * scale, -0.42, theme);
+        drawWashiTape(ctx, cardX + cardW - 64 * scale, cardY + 12 * scale, 165 * scale, 42 * scale, 0.42, theme);
+
+        // 4. Chữ ký tay & Dấu mộc bưu điện 20.10 ở lề dưới Polaroid
+        const footerMidY = winY + winH + (cardY + cardH - (winY + winH)) / 2;
+        ctx.fillStyle = theme.textMid;
+        ctx.font = `italic 600 ${Math.floor(32 * scale)}px "Cormorant Garamond", serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('October 20th  —  Radiant Memories ♥', winX + 12 * scale, footerMidY);
+
+        drawPostmarkStamp(ctx, winX + winW - 64 * scale, footerMidY - 8 * scale, 44 * scale, theme);
+
+    } else if (concept === 'aura') {
+        // C4: KÍNH MỜ AURA (Frosted Glassmorphism)
+        const winX = Math.floor(66 * scale);
+        const winY = Math.floor(66 * scale);
+        const winW = targetW - winX * 2;
+        const winH = originH - Math.floor(96 * scale);
+        const winR = Math.floor(32 * scale);
+
+        if (isStep2Overlay) {
+            // Ở Bước 2: phủ lớp kính mờ bán trong suốt ở viền ngoài để người dùng thấy rõ khung kính
+            ctx.beginPath();
+            ctx.rect(0, 0, targetW, originH);
+            traceRoundedWindowPath(ctx, winX, winY, winW, winH, winR);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.58)';
+            ctx.fill('evenodd');
+        }
+
+        // Khung kính ngoài (Outer Glass Slab)
+        const slabX = Math.floor(38 * scale);
+        const slabY = Math.floor(38 * scale);
+        const slabW = targetW - slabX * 2;
+        const slabH = originH - Math.floor(42 * scale);
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, slabX, slabY, slabW, slabH, 44 * scale);
+        traceRoundedWindowPath(ctx, winX, winY, winW, winH, winR);
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.34)';
+        ctx.fill('evenodd');
+
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, slabX, slabY, slabW, slabH, 44 * scale);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.92)';
+        ctx.lineWidth = 2.6 * scale;
+        ctx.stroke();
+
+        // Viền sáng Specular ôm sát cửa sổ ảnh
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, winX, winY, winW, winH, winR);
+        const glassGrad = ctx.createLinearGradient(winX, winY, winX + winW, winY + winH);
+        glassGrad.addColorStop(0, '#ffffff');
+        glassGrad.addColorStop(0.5, theme.borderSecondary);
+        glassGrad.addColorStop(1, '#ffffff');
+        ctx.strokeStyle = glassGrad;
+        ctx.lineWidth = 3.2 * scale;
+        ctx.stroke();
+
+        // Ánh sao lấp lánh trên viền kính
+        ctx.fillStyle = '#ffffff';
+        drawFourPointStarPath(ctx, winX + 18 * scale, winY + 18 * scale, 14 * scale);
+        ctx.fill();
+        drawFourPointStarPath(ctx, winX + winW - 18 * scale, winY + winH - 18 * scale, 14 * scale);
+        ctx.fill();
+
+    } else if (concept === 'dior') {
+        // C5: DIOR / JO MALONE FINE-LINE BOTANICAL (Khung vát kim cương & Hoa hồng nét mảnh ánh kim)
+        const winX = Math.floor(66 * scale);
+        const winY = Math.floor(66 * scale);
+        const winW = targetW - winX * 2;
+        const winH = originH - Math.floor(94 * scale);
+        const chamf = Math.floor(46 * scale);
+
+        ctx.beginPath();
+        ctx.rect(0, 0, targetW, originH);
+        traceChamferWindowPath(ctx, winX, winY, winW, winH, chamf);
+        const diorMatte = ctx.createLinearGradient(0, 0, 0, originH);
+        diorMatte.addColorStop(0, '#fffdf9');
+        diorMatte.addColorStop(1, theme.canvasBgMid);
+        ctx.fillStyle = diorMatte;
+        ctx.fill('evenodd');
+
+        // Hệ viền 3 lớp Art-Deco ánh kim
+        ctx.beginPath();
+        traceChamferWindowPath(ctx, winX, winY, winW, winH, chamf);
+        const goldGrad = ctx.createLinearGradient(winX, winY, winX + winW, winY + winH);
+        goldGrad.addColorStop(0, theme.goldAccent);
+        goldGrad.addColorStop(0.5, theme.borderPrimary);
+        goldGrad.addColorStop(1, theme.goldAccent);
+        ctx.strokeStyle = goldGrad;
+        ctx.lineWidth = 3.6 * scale;
+        ctx.stroke();
+
+        const off1 = 10 * scale;
+        ctx.beginPath();
+        traceChamferWindowPath(ctx, winX - off1, winY - off1, winW + off1 * 2, winH + off1 * 2, chamf + 6 * scale);
+        ctx.strokeStyle = theme.goldAccent;
+        ctx.lineWidth = 1.3 * scale;
+        ctx.stroke();
+
+        const off2 = 22 * scale;
+        ctx.strokeStyle = theme.borderSecondary;
+        ctx.lineWidth = 1.1 * scale;
+        ctx.strokeRect(winX - off2, winY - off2, winW + off2 * 2, winH + off2 * 2);
+
+        // Hoa hồng Anh Quốc nét mảnh ánh kim ở góc trên-trái và dưới-phải
+        drawFineLineRoseCorner(ctx, winX - 6 * scale, winY - 6 * scale, scale * 1.18, 1, 1, theme);
+        drawFineLineRoseCorner(ctx, winX + winW + 6 * scale, winY + winH + 6 * scale, scale * 1.18, -1, -1, theme);
+    }
+
+    ctx.restore();
+}
+
+function buildConceptOverlayDataUrl(conceptKey, theme) {
+    const offCanvas = document.createElement('canvas');
+    offCanvas.width = 1024;
+    offCanvas.height = 1526;
+    const offCtx = offCanvas.getContext('2d');
+    renderConceptOverlayToCtx(offCtx, conceptKey, 1024, 1526, theme, true);
+    return offCanvas.toDataURL('image/png');
+}
+
+function refreshConceptFramesForTheme() {
+    const theme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.emerald;
+    framesConfig.forEach(config => {
+        if (config.isConcept && config.concept) {
+            const dataUrl = buildConceptOverlayDataUrl(config.concept, theme);
+            config.path = dataUrl;
+            const img = new Image();
+            img.src = dataUrl;
+            loadedFrameImages[config.id] = img;
+            const thumb = document.querySelector(`.frame-thumb-box[data-frame-thumb="${config.id}"]`);
+            if (thumb) {
+                thumb.style.backgroundImage = `url('${dataUrl}')`;
+            }
+        }
+    });
+    updateFrameOverlay();
+}
+
 function preloadFrames() {
+    const theme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.emerald;
     framesConfig.forEach(config => {
         const img = new Image();
+        if (config.isConcept && config.concept) {
+            config.path = buildConceptOverlayDataUrl(config.concept, theme);
+        }
         img.src = config.path;
         loadedFrameImages[config.id] = img;
     });
 }
 preloadFrames();
 
+function selectFrameById(frameId, shouldRedrawStep3 = false) {
+    currentSelectedFrameId = frameId;
+
+    document.querySelectorAll('#frame-list .frame-item').forEach((el, idx) => {
+        el.classList.toggle('active', idx === frameId);
+    });
+    document.querySelectorAll('#step3-concept-chips .concept-chip, #step3-classic-frame-chips .style-chip').forEach(btn => {
+        const id = Number(btn.getAttribute('data-frame-id'));
+        btn.classList.toggle('active', id === frameId);
+    });
+
+    updateFrameOverlay();
+
+    if (shouldRedrawStep3 && currentUserImage) {
+        drawCanvasImageText(finalResultCanvas, true);
+        triggerCardPulse();
+    }
+}
+
 function renderFrameList() {
     frameList.innerHTML = '';
+    const step3ConceptChips = document.getElementById('step3-concept-chips');
+    const step3ClassicChips = document.getElementById('step3-classic-frame-chips');
+    if (step3ConceptChips) step3ConceptChips.innerHTML = '';
+    if (step3ClassicChips) step3ClassicChips.innerHTML = '';
+
     framesConfig.forEach((f, i) => {
+        // 1. Item trong Carousel Bước 2
         const div = document.createElement('div');
-        div.className = `frame-item ${i === 0 ? 'active' : ''}`;
+        div.className = `frame-item ${f.isConcept ? 'is-concept' : ''} ${i === currentSelectedFrameId ? 'active' : ''}`;
         div.innerHTML = `
-            <div style="width:100%; height:46px; background: url('${f.path}') center/contain no-repeat; margin-bottom:3px;"></div>
-            <span style="font-size:0.72rem">${f.label}</span>
+            <div class="frame-thumb-box" data-frame-thumb="${i}" style="width:100%; height:44px; background: url('${f.path}') center/contain no-repeat; margin-bottom:3px;"></div>
+            <span>${f.label}</span>
         `;
-        div.onclick = () => {
-            document.querySelectorAll('.frame-item').forEach(el => el.classList.remove('active'));
-            div.classList.add('active');
-            currentSelectedFrameId = i;
-            updateFrameOverlay();
-        };
+        div.onclick = () => selectFrameById(i, false);
         frameList.appendChild(div);
+
+        // 2. Chip chọn nhanh trực tiếp ở Bước 3
+        if (f.isConcept && step3ConceptChips) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `concept-chip ${i === currentSelectedFrameId ? 'active' : ''}`;
+            btn.setAttribute('data-frame-id', String(i));
+            btn.textContent = f.fullLabel;
+            btn.onclick = () => selectFrameById(i, true);
+            step3ConceptChips.appendChild(btn);
+        } else if (!f.isConcept && step3ClassicChips) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `style-chip ${i === currentSelectedFrameId ? 'active' : ''}`;
+            btn.setAttribute('data-frame-id', String(i));
+            btn.textContent = f.fullLabel;
+            btn.onclick = () => selectFrameById(i, true);
+            step3ClassicChips.appendChild(btn);
+        }
     });
 }
 renderFrameList();
@@ -887,9 +1464,9 @@ document.getElementById('apply-text-modal-btn').addEventListener('click', () => 
 });
 
 // 4. Chọn Kiểu viền lãng mạn & Tông màu nữ tính
-document.querySelectorAll('.style-chip').forEach(chip => {
+document.querySelectorAll('#border-style-chips .style-chip').forEach(chip => {
     chip.addEventListener('click', () => {
-        document.querySelectorAll('.style-chip').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('#border-style-chips .style-chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
         currentBorderStyle = chip.getAttribute('data-border');
         drawCanvasImageText(finalResultCanvas, true);
@@ -902,12 +1479,13 @@ document.querySelectorAll('.color-swatch-btn').forEach(btn => {
         document.querySelectorAll('.color-swatch-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         currentColorTheme = btn.getAttribute('data-theme');
+        refreshConceptFramesForTheme();
         drawCanvasImageText(finalResultCanvas, true);
         triggerCardPulse();
     });
 });
 
-// 5. Nút "‹ 🎨 Đổi khung" (Quay về Bước 2 giữ nguyên ảnh & giữ nguyên câu chúc)
+// 5. Nút "‹ Căn lại ảnh" (Quay về Bước 2 giữ nguyên ảnh & giữ nguyên câu chúc)
 document.getElementById('back-step2-btn').addEventListener('click', () => {
     step3.classList.remove('active');
     step2.classList.add('active');
@@ -1001,14 +1579,15 @@ function getActiveQuoteText() {
 function drawCanvasImageText(targetCanvas, isFinal) {
     if (!currentUserImage) return;
 
+    const selectedConfig = framesConfig[currentSelectedFrameId] || framesConfig[0];
     const frameImg = loadedFrameImages[currentSelectedFrameId];
-    if (!frameImg || !frameImg.complete) {
+    if (!selectedConfig.isConcept && (!frameImg || !frameImg.complete)) {
         setTimeout(() => drawCanvasImageText(targetCanvas, isFinal), 80);
         return;
     }
 
-    const targetW = frameImg.naturalWidth || 1024;
-    const originH = frameImg.naturalHeight || 1526;
+    const targetW = 1024;
+    const originH = 1526;
     const scale = targetW / 1024;
     const textSpaceHeight = Math.floor(originH * 0.35);
     const targetH = isFinal ? originH + textSpaceHeight : originH;
@@ -1018,30 +1597,121 @@ function drawCanvasImageText(targetCanvas, isFinal) {
     targetCanvas.width = targetW;
     targetCanvas.height = targetH;
 
-    // 1. Vẽ nền vùng ảnh trên (#ffffff) và vùng mở rộng bên dưới chuyển sắc liền mạch từ #ffffff
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, targetW, originH);
+    if (selectedConfig.isConcept && selectedConfig.concept === 'aura') {
+        // ====== CONCEPT 4: KÍNH MỜ AURA (NỀN MỜ TỪ CHÍNH ẢNH NGƯỜI DÙNG PHỦ TOÀN BỘ THIỆP) ======
+        ctx.save();
+        ctx.fillStyle = theme.canvasBgMid;
+        ctx.fillRect(0, 0, targetW, targetH);
 
-    if (isFinal) {
-        const bottomGrad = ctx.createLinearGradient(0, originH, 0, targetH);
-        bottomGrad.addColorStop(0, theme.canvasBgStart);
-        bottomGrad.addColorStop(0.32, theme.canvasBgMid);
-        bottomGrad.addColorStop(1, theme.canvasBgEnd);
-        ctx.fillStyle = bottomGrad;
-        ctx.fillRect(0, originH, targetW, textSpaceHeight);
+        ctx.filter = 'blur(42px) saturate(1.32) brightness(1.04)';
+        const bleed = 80 * scale;
+        ctx.drawImage(currentUserImage, -bleed, -bleed, targetW + bleed * 2, targetH + bleed * 2);
+        ctx.filter = 'none';
 
-        drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, theme);
+        const veilGrad = ctx.createLinearGradient(0, 0, 0, targetH);
+        veilGrad.addColorStop(0, 'rgba(255, 255, 255, 0.24)');
+        veilGrad.addColorStop(0.65, 'rgba(255, 255, 255, 0.32)');
+        veilGrad.addColorStop(1, theme.boxFillEnd);
+        ctx.fillStyle = veilGrad;
+        ctx.fillRect(0, 0, targetW, targetH);
+        ctx.restore();
+
+        // Đổ bóng khối kính nổi và cắt ảnh chính sắc nét bên trong cửa sổ kính bo tròn
+        const winX = Math.floor(66 * scale);
+        const winY = Math.floor(66 * scale);
+        const winW = targetW - winX * 2;
+        const winH = originH - Math.floor(96 * scale);
+        const winR = Math.floor(32 * scale);
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(10, 30, 24, 0.26)';
+        ctx.shadowBlur = 32 * scale;
+        ctx.shadowOffsetY = 12 * scale;
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, winX, winY, winW, winH, winR);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.beginPath();
+        traceRoundedWindowPath(ctx, winX, winY, winW, winH, winR);
+        ctx.clip();
+        if (currentSelectedFilter !== 'none') ctx.filter = currentSelectedFilter;
+        ctx.drawImage(currentUserImage, 0, 0, targetW, originH);
+        ctx.filter = 'none';
+        ctx.restore();
+
+        renderConceptOverlayToCtx(ctx, 'aura', targetW, originH, theme, false);
+
+    } else if (selectedConfig.isConcept) {
+        // ====== CÁC CONCEPT C1 (ARCH), C2 (MAGAZINE), C3 (POLAROID), C5 (DIOR) ======
+        // 1. Vẽ nền liền mạch toàn tấm thiệp
+        const fullGrad = ctx.createLinearGradient(0, 0, 0, targetH);
+        fullGrad.addColorStop(0, theme.canvasBgStart);
+        fullGrad.addColorStop(0.5, theme.canvasBgMid);
+        fullGrad.addColorStop(1, theme.canvasBgEnd);
+        ctx.fillStyle = fullGrad;
+        ctx.fillRect(0, 0, targetW, targetH);
+
+        if (isFinal) {
+            drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, theme);
+        }
+
+        // 2. Vẽ ảnh người dùng đã cắt kèm bộ lọc màu
+        ctx.save();
+        if (selectedConfig.concept === 'polaroid') {
+            const winX = Math.floor(88 * scale);
+            const winY = Math.floor(98 * scale);
+            const winW = targetW - winX * 2;
+            const winH = originH - Math.floor(245 * scale);
+            ctx.beginPath();
+            traceRoundedWindowPath(ctx, winX, winY, winW, winH, 12 * scale);
+            ctx.clip();
+        }
+        if (currentSelectedFilter !== 'none') {
+            ctx.filter = currentSelectedFilter;
+        }
+        ctx.drawImage(currentUserImage, 0, 0, targetW, originH);
+        ctx.filter = 'none';
+        ctx.restore();
+
+        // 3. Vẽ trực tiếp lớp thiết kế Concept sắc nét lên Canvas
+        renderConceptOverlayToCtx(ctx, selectedConfig.concept, targetW, originH, theme, false);
+
+        // 4. Đường viền mảnh bao quanh toàn bộ tấm thiệp (tạo sự liền khối từ đỉnh xuống đáy)
+        if (isFinal && (selectedConfig.concept === 'arch' || selectedConfig.concept === 'dior' || selectedConfig.concept === 'magazine')) {
+            ctx.save();
+            const outerM = Math.floor(22 * scale);
+            ctx.strokeStyle = theme.borderSecondary;
+            ctx.lineWidth = 1.6 * scale;
+            ctx.strokeRect(outerM, outerM, targetW - outerM * 2, targetH - outerM * 2);
+            ctx.restore();
+        }
+    } else {
+        // ====== 10 KHUNG ẢNH PNG TRUYỀN THỐNG ======
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, targetW, originH);
+
+        if (isFinal) {
+            const bottomGrad = ctx.createLinearGradient(0, originH, 0, targetH);
+            bottomGrad.addColorStop(0, theme.canvasBgStart);
+            bottomGrad.addColorStop(0.32, theme.canvasBgMid);
+            bottomGrad.addColorStop(1, theme.canvasBgEnd);
+            ctx.fillStyle = bottomGrad;
+            ctx.fillRect(0, originH, targetW, textSpaceHeight);
+
+            drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, theme);
+        }
+
+        if (currentSelectedFilter !== 'none') {
+            ctx.filter = currentSelectedFilter;
+        }
+        ctx.drawImage(currentUserImage, 0, 0, targetW, originH);
+        ctx.filter = 'none';
+
+        ctx.drawImage(frameImg, 0, 0, targetW, originH);
     }
-
-    // 2. Vẽ ảnh người dùng đã cắt kèm bộ lọc màu
-    if (currentSelectedFilter !== 'none') {
-        ctx.filter = currentSelectedFilter;
-    }
-    ctx.drawImage(currentUserImage, 0, 0, targetW, originH);
-    ctx.filter = 'none';
-
-    // 3. Vẽ khung ảnh PNG trong suốt đè lên
-    ctx.drawImage(frameImg, 0, 0, targetW, originH);
 
     // 4. Vẽ hộp lời chúc nghệ thuật
     const activeQuote = getActiveQuoteText();
@@ -1429,12 +2099,15 @@ function ensureQuoteFont() {
     return Promise.race([
         Promise.all([
             document.fonts.load(quoteFont(56), 'Chúc mừng 20/10'),
-            document.fonts.load(recipientFont(64), 'Happy Women Day 20/10')
+            document.fonts.load(recipientFont(64), 'Happy Women Day 20/10'),
+            document.fonts.load('italic 700 68px "Cormorant Garamond", serif', 'LA BEAUTÉ')
         ]),
         new Promise(resolve => setTimeout(resolve, 2000))
     ]).catch(() => {});
 }
-ensureQuoteFont();
+ensureQuoteFont().then(() => {
+    refreshConceptFramesForTheme();
+});
 
 function inkWidth(ctx, s) {
     const m = ctx.measureText(s);

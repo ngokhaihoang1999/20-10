@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css?v=5.0">
+    <link rel="stylesheet" href="style.css?v=6.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap"
         rel="stylesheet">
@@ -180,7 +180,7 @@
             <!-- Thanh điều hướng cân xứng 3 cột trên cùng -->
             <div class="result-topbar">
                 <button type="button" id="back-step2-btn" class="topbar-btn topbar-btn-left">
-                    ‹ Đổi khung
+                    ‹ Căn lại ảnh
                 </button>
                 <span class="result-title">Thiệp 20/10 🌸</span>
                 <button type="button" id="redo-btn" class="topbar-btn topbar-btn-right">
@@ -197,19 +197,32 @@
                 </div>
             </div>
 
-            <!-- Bảng điều khiển cố định 2 Tab ngay dưới thiệp (bấm đổi nhìn thấy ngay, không che thiệp) -->
+            <!-- Bảng điều khiển cố định 3 Tab ngay dưới thiệp (bấm đổi nhìn thấy ngay, không che thiệp) -->
             <div class="control-deck">
                 <div class="deck-tabs">
-                    <button type="button" class="deck-tab active" data-tab="tab-wish">
-                        💌 Tiêu đề & Lời chúc
+                    <button type="button" class="deck-tab active" data-tab="tab-concept">
+                        ✨ 5 Concept Khung
+                    </button>
+                    <button type="button" class="deck-tab" data-tab="tab-wish">
+                        💌 Tiêu đề & Chúc
                     </button>
                     <button type="button" class="deck-tab" data-tab="tab-style">
-                        🌸 Viền & Màu hộp chữ
+                        🌸 Viền & Màu
                     </button>
                 </div>
 
+                <!-- Tab 0: Đổi trực tiếp 5 Concept Mới & 10 Khung cũ ngay trên thiệp hoàn chỉnh -->
+                <div id="tab-concept" class="deck-pane active">
+                    <div class="deck-row">
+                        <div class="concept-chips" id="step3-concept-chips"></div>
+                    </div>
+                    <div class="deck-row">
+                        <div class="style-chips" id="step3-classic-frame-chips"></div>
+                    </div>
+                </div>
+
                 <!-- Tab 1: Đổi câu chúc, Chọn chủ đề, Tự viết / Tiêu đề -->
-                <div id="tab-wish" class="deck-pane active">
+                <div id="tab-wish" class="deck-pane">
                     <div class="deck-row deck-actions-row">
                         <button type="button" id="shuffle-quote-btn" class="deck-action-btn primary-pill">
                             🎲 Đổi câu chúc khác
@@ -280,8 +293,8 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=5.0"></script>
-    <script src="script.js?v=5.0"></script>
+    <script src="wishes.js?v=6.0"></script>
+    <script src="script.js?v=6.0"></script>
 </body>
 
 </html>
