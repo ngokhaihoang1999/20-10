@@ -39,11 +39,12 @@ let fxAnimating = false;
 function initCanvasSizes() {
     bgWidth = bgCanvas.width = fxCanvas.width = window.innerWidth;
     bgHeight = bgCanvas.height = fxCanvas.height = window.innerHeight;
+    fitPreviewAreaToStage();
+    fitCardShowcaseToWrap();
 }
 window.addEventListener('resize', initCanvasSizes, { passive: true });
-initCanvasSizes();
 
-// Lớp 1: Đốm sáng Bokeh mềm mại (dùng radial gradient tạo sẵn, không dùng shadowBlur để tránh lag)
+// Lớp 1: Đốm sáng Bokeh mềm mại (dùng radial gradient, không dùng shadowBlur để tránh lag)
 class BokehOrb {
     constructor() {
         this.reset(true);
@@ -117,7 +118,6 @@ class SakuraPetal {
         ctx.scale(1, flipY);
         ctx.globalAlpha = this.opacity;
         ctx.fillStyle = this.color;
-        // Vẽ cánh hoa anh đào có khía chữ V nhẹ ở đầu cánh
         ctx.beginPath();
         ctx.moveTo(0, s * 0.5);
         ctx.bezierCurveTo(-s * 0.55, s * 0.2, -s * 0.5, -s * 0.35, -s * 0.12, -s * 0.5);
@@ -179,9 +179,9 @@ function drawFourPointStarPath(ctx, cx, cy, r) {
 
 function initBgParticles() {
     const mobile = isMobileDevice();
-    const petalCount = mobile ? 24 : 36;
-    const bokehCount = mobile ? 7 : 11;
-    const starCount = mobile ? 10 : 16;
+    const petalCount = mobile ? 22 : 34;
+    const bokehCount = mobile ? 6 : 10;
+    const starCount = mobile ? 9 : 14;
 
     bgParticles = [];
     bokehOrbs = [];
@@ -190,7 +190,6 @@ function initBgParticles() {
     for (let i = 0; i < petalCount; i++) bgParticles.push(new SakuraPetal());
     for (let i = 0; i < starCount; i++) sparkles.push(new TwinkleStar());
 }
-initBgParticles();
 
 function animateBg() {
     if (!document.hidden) {
@@ -210,11 +209,10 @@ function animateBg() {
     }
     requestAnimationFrame(animateBg);
 }
-animateBg();
 
 // ====== HIỆU ỨNG CHẠM TAY NỞ HOA & PHÁO HOA CHÚC MỪNG (FX CANVAS) ======
 function spawnTouchSparkle(x, y, count = 2) {
-    if (fxParticles.length > 55) return;
+    if (fxParticles.length > 50) return;
     const palette = ['#ff8da8', '#ffd166', '#ffb7c5', '#7be0b8', '#ffffff'];
     for (let i = 0; i < count; i++) {
         const angle = Math.random() * Math.PI * 2;
@@ -225,11 +223,11 @@ function spawnTouchSparkle(x, y, count = 2) {
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed - 0.5,
             gravity: 0.04,
-            size: Math.random() * 6 + 4,
+            size: Math.random() * 5.5 + 3.5,
             rotation: Math.random() * Math.PI * 2,
             vRot: (Math.random() - 0.5) * 0.12,
             alpha: 1,
-            decay: Math.random() * 0.022 + 0.02,
+            decay: Math.random() * 0.024 + 0.02,
             color: palette[Math.floor(Math.random() * palette.length)],
             shape: Math.random() > 0.45 ? 'star' : 'heart'
         });
@@ -239,26 +237,26 @@ function spawnTouchSparkle(x, y, count = 2) {
 
 function triggerCelebrationBurst() {
     const palette = ['#ff6b9d', '#ffd166', '#ff9ebb', '#52b788', '#f48fb1', '#ffe57f'];
-    const total = isMobileDevice() ? 34 : 48;
+    const total = isMobileDevice() ? 30 : 44;
     for (let i = 0; i < total; i++) {
         const fromLeft = i % 2 === 0;
         const startX = fromLeft ? bgWidth * 0.08 : bgWidth * 0.92;
-        const startY = bgHeight * 0.62 + (Math.random() - 0.5) * 80;
+        const startY = bgHeight * 0.55 + (Math.random() - 0.5) * 80;
         const angle = fromLeft
-            ? (-Math.PI * 0.38 + (Math.random() - 0.5) * 0.45)
-            : (-Math.PI * 0.62 + (Math.random() - 0.5) * 0.45);
-        const speed = Math.random() * 7 + 5.5;
+            ? (-Math.PI * 0.36 + (Math.random() - 0.5) * 0.42)
+            : (-Math.PI * 0.64 + (Math.random() - 0.5) * 0.42);
+        const speed = Math.random() * 6.5 + 5;
         fxParticles.push({
             x: startX,
             y: startY,
             vx: Math.cos(angle) * speed,
             vy: Math.sin(angle) * speed,
             gravity: 0.16,
-            size: Math.random() * 7 + 5,
+            size: Math.random() * 6.5 + 4.5,
             rotation: Math.random() * Math.PI * 2,
             vRot: (Math.random() - 0.5) * 0.18,
             alpha: 1,
-            decay: Math.random() * 0.01 + 0.009,
+            decay: Math.random() * 0.011 + 0.009,
             color: palette[i % palette.length],
             shape: i % 3 === 0 ? 'heart' : (i % 3 === 1 ? 'star' : 'petal')
         });
@@ -325,11 +323,10 @@ function drawMiniHeartPath(ctx, cx, cy, size) {
     ctx.closePath();
 }
 
-// Lắng nghe chạm/vuốt màn hình tạo hiệu ứng hoa & sao (bỏ qua khi đang kéo ảnh Cropper để 100% mượt)
 let lastSparkleTime = 0;
 window.addEventListener('pointermove', (e) => {
     const now = performance.now();
-    if (now - lastSparkleTime < 36) return;
+    if (now - lastSparkleTime < 40) return;
     if (e.target && e.target.closest('#preview-area-wrap')) return;
     lastSparkleTime = now;
     spawnTouchSparkle(e.clientX, e.clientY, 1);
@@ -337,10 +334,11 @@ window.addEventListener('pointermove', (e) => {
 
 window.addEventListener('pointerdown', (e) => {
     if (e.target && e.target.closest('#preview-area-wrap')) return;
-    spawnTouchSparkle(e.clientX, e.clientY, 4);
+    spawnTouchSparkle(e.clientX, e.clientY, 3);
 }, { passive: true });
 
-// ====== CẤU HÌNH KHUNG ẢNH ======
+// ====== CẤU HÌNH 10 KHUNG ẢNH (TẤT CẢ ĐỀU CHUẨN TỶ LỆ 1024 x 1526) ======
+const FRAME_ASPECT_RATIO = 1024 / 1526;
 const framesConfig = [];
 for (let i = 1; i <= 10; i++) {
     framesConfig.push({
@@ -383,7 +381,6 @@ function getTopicIndices(topic) {
 function getNextQuoteByTopic(topic = 'all') {
     if (!topicDecks[topic] || topicDecks[topic].length === 0) {
         const pool = getTopicIndices(topic);
-        // Xáo bài Fisher-Yates
         for (let i = pool.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
             [pool[i], pool[j]] = [pool[j], pool[i]];
@@ -399,7 +396,7 @@ function getNextQuoteByTopic(topic = 'all') {
     return wishes2010[idx];
 }
 
-// ====== 5 BẢNG MÀU NỮ TÍNH & 5 KIỂU VIỀN LÃNG MẠN ======
+// ====== 5 BẢNG MÀU NỮ TÍNH ======
 const COLOR_THEMES = {
     emerald: {
         canvasBgStart: '#ffffff',
@@ -500,7 +497,7 @@ let currentScaleX = 1;
 let currentAIQuote = "";
 let hasGeneratedQuoteOnce = false;
 let currentTopic = 'all';
-let lastNonCustomTopic = 'all';
+let isCustomWishActive = false;
 let customWishText = "";
 let recipientName = "";
 let currentBorderStyle = 'sakura';
@@ -515,8 +512,55 @@ const finalResultCanvas = document.getElementById('final-result-canvas');
 const finalResultImg = document.getElementById('final-result-img');
 const cardShowcase = document.getElementById('card-showcase');
 const frameList = document.getElementById('frame-list');
+const frameOverlayEl = document.getElementById('frame-overlay');
 
-// Tải trước các hình ảnh khung để render canvas mượt
+// Tính toán kích thước khung Bước 2 chuẩn tỷ lệ 1024 x 1526 tuyệt đối trên mọi màn hình
+function fitPreviewAreaToStage() {
+    if (!step2 || !step2.classList.contains('active')) return;
+    const stage = document.querySelector('.preview-stage');
+    const previewArea = document.getElementById('preview-area-wrap');
+    if (!stage || !previewArea) return;
+    const availW = stage.clientWidth - 4;
+    const availH = stage.clientHeight - 4;
+    if (availW <= 0 || availH <= 0) return;
+
+    let w = availH * FRAME_ASPECT_RATIO;
+    let h = availH;
+    if (w > availW) {
+        w = availW;
+        h = availW / FRAME_ASPECT_RATIO;
+    }
+    previewArea.style.width = `${Math.floor(w)}px`;
+    previewArea.style.height = `${Math.floor(h)}px`;
+}
+
+// Tính toán kích thước hiển thị thực tế để luôn nhìn thấy TRỌN VẸN 100% tấm thiệp ở Bước 3
+function fitCardShowcaseToWrap() {
+    if (!step3 || !step3.classList.contains('active')) return;
+    const wrap = document.querySelector('.result-canvas-wrap');
+    if (!wrap || !cardShowcase) return;
+    const availW = wrap.clientWidth - 4;
+    const availH = wrap.clientHeight - 4;
+    if (availW <= 0 || availH <= 0) return;
+
+    const cw = finalResultCanvas.width || 1024;
+    const ch = finalResultCanvas.height || 2060;
+    const cardRatio = cw / ch;
+
+    let w = availH * cardRatio;
+    let h = availH;
+    if (w > availW) {
+        w = availW;
+        h = availW / cardRatio;
+    }
+    cardShowcase.style.width = `${Math.floor(w)}px`;
+    cardShowcase.style.height = `${Math.floor(h)}px`;
+}
+
+initCanvasSizes();
+initBgParticles();
+animateBg();
+
 function preloadFrames() {
     framesConfig.forEach(config => {
         const img = new Image();
@@ -532,8 +576,8 @@ function renderFrameList() {
         const div = document.createElement('div');
         div.className = `frame-item ${i === 0 ? 'active' : ''}`;
         div.innerHTML = `
-            <div style="width:100%; height:55px; background: url('${f.path}') center/contain no-repeat; margin-bottom:5px;"></div>
-            <span style="font-size:0.75rem">${f.label}</span>
+            <div style="width:100%; height:46px; background: url('${f.path}') center/contain no-repeat; margin-bottom:3px;"></div>
+            <span style="font-size:0.72rem">${f.label}</span>
         `;
         div.onclick = () => {
             document.querySelectorAll('.frame-item').forEach(el => el.classList.remove('active'));
@@ -565,7 +609,7 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     });
 });
 
-// Nút Lật gương & Xoay 90° cho ảnh Selfie
+// Nút Lật ảnh gương & Xoay 90° (nằm ngoài khung hình ở Bước 2)
 document.getElementById('flip-h-btn').addEventListener('click', () => {
     if (!cropperObj) return;
     currentScaleX = -currentScaleX;
@@ -575,6 +619,8 @@ document.getElementById('flip-h-btn').addEventListener('click', () => {
 document.getElementById('rotate-btn').addEventListener('click', () => {
     if (!cropperObj) return;
     cropperObj.rotate(90);
+    const cont = cropperObj.getContainerData();
+    cropperObj.setCropBoxData({ left: 0, top: 0, width: cont.width, height: cont.height });
 });
 
 async function handleImageInput(e) {
@@ -590,10 +636,14 @@ async function handleImageInput(e) {
     const reader = new FileReader();
     reader.onload = function (event) {
         originalImgSrc = event.target.result;
-        setTimeout(() => {
-            initCropper();
-            initScrollHints();
-        }, 100);
+        requestAnimationFrame(() => {
+            fitPreviewAreaToStage();
+            setTimeout(() => {
+                fitPreviewAreaToStage();
+                initCropper();
+                initScrollHints();
+            }, 60);
+        });
     };
     reader.readAsDataURL(file);
 }
@@ -602,15 +652,12 @@ function initCropper() {
     const imageEl = document.getElementById('cropper-image');
     imageEl.src = originalImgSrc;
 
-    const initialFrame = loadedFrameImages[currentSelectedFrameId];
-    const initialRatio = (initialFrame && initialFrame.complete && initialFrame.naturalWidth)
-        ? (initialFrame.naturalWidth / initialFrame.naturalHeight)
-        : (1024 / 1536);
+    updateFrameOverlay();
 
     if (cropperObj) cropperObj.destroy();
     cropperObj = new Cropper(imageEl, {
-        aspectRatio: initialRatio,
-        viewMode: 1,
+        aspectRatio: FRAME_ASPECT_RATIO,
+        viewMode: 3, // Giữ ảnh luôn lấp đầy 100% khung hình, không bao giờ làm hụt hay lẹm khung
         dragMode: 'move',
         autoCropArea: 1,
         cropBoxMovable: false,
@@ -622,7 +669,8 @@ function initCropper() {
         background: false,
         modal: false,
         ready: function () {
-            updateFrameOverlay();
+            const cont = cropperObj.getContainerData();
+            cropperObj.setCropBoxData({ left: 0, top: 0, width: cont.width, height: cont.height });
             applyFilterToPreview();
 
             const hint = document.getElementById('drag-hint');
@@ -636,30 +684,10 @@ function initCropper() {
     });
 }
 
+// Cập nhật trực tiếp lớp ảnh khung nằm phủ trên #preview-area-wrap (không bị Cropper cắt lẹm)
 function updateFrameOverlay() {
-    if (!cropperObj) return;
-    const cropBox = document.querySelector('.cropper-crop-box');
-    const frameImg = loadedFrameImages[currentSelectedFrameId];
-
-    if (frameImg && frameImg.complete && frameImg.naturalWidth) {
-        cropperObj.setAspectRatio(frameImg.naturalWidth / frameImg.naturalHeight);
-    }
-
-    if (cropBox) {
-        let overlay = document.getElementById('frame-overlay');
-        if (!overlay) {
-            overlay = document.createElement('img');
-            overlay.id = 'frame-overlay';
-            overlay.style.position = 'absolute';
-            overlay.style.top = '0';
-            overlay.style.left = '0';
-            overlay.style.width = '100%';
-            overlay.style.height = '100%';
-            overlay.style.pointerEvents = 'none';
-            overlay.style.zIndex = '10';
-            cropBox.appendChild(overlay);
-        }
-        overlay.src = framesConfig[currentSelectedFrameId].path;
+    if (frameOverlayEl && framesConfig[currentSelectedFrameId]) {
+        frameOverlayEl.src = framesConfig[currentSelectedFrameId].path;
     }
 }
 
@@ -679,7 +707,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = "🌸 Đang tạo thiệp...";
+    btn.innerHTML = "🌸 Đang tạo...";
     btn.disabled = true;
 
     const overlay = document.getElementById('transition-overlay');
@@ -716,15 +744,15 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
     setTimeout(() => {
         const frameImg = loadedFrameImages[currentSelectedFrameId];
         const targetW = (frameImg && frameImg.naturalWidth) ? frameImg.naturalWidth : 1024;
-        const targetH = (frameImg && frameImg.naturalHeight) ? frameImg.naturalHeight : 1536;
+        const targetH = (frameImg && frameImg.naturalHeight) ? frameImg.naturalHeight : 1526;
 
         const canvas = cropperObj.getCroppedCanvas({ width: targetW, height: targetH });
         const img = new Image();
         img.onload = function () {
             currentUserImage = img;
-            // Chỉ random lời chúc ở lần tạo đầu tiên; nếu quay lại Bước 2 đổi khung thì giữ nguyên câu chúc!
-            if (!hasGeneratedQuoteOnce || !currentAIQuote) {
-                currentAIQuote = getNextQuoteByTopic(currentTopic === 'custom' ? 'all' : currentTopic);
+            // Chỉ bốc câu chúc mới ở lần đầu tạo thiệp; khi quay lại Bước 2 đổi khung thì giữ nguyên câu chúc!
+            if (!hasGeneratedQuoteOnce || (!currentAIQuote && !customWishText)) {
+                currentAIQuote = getNextQuoteByTopic(currentTopic);
                 hasGeneratedQuoteOnce = true;
             }
 
@@ -733,26 +761,27 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
             });
 
             setTimeout(() => {
-                closeAllDrawers();
                 step2.classList.remove('active');
                 step3.classList.add('active');
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
 
-                // Hiệu ứng Grand Reveal 3D & Pháo hoa chúc mừng
-                if (cardShowcase) {
-                    cardShowcase.classList.remove('reveal-playing');
-                    void cardShowcase.offsetWidth;
-                    cardShowcase.classList.add('reveal-playing');
-                }
-                setTimeout(() => triggerCelebrationBurst(), 280);
-            }, 700);
+                requestAnimationFrame(() => {
+                    fitCardShowcaseToWrap();
+                    if (cardShowcase) {
+                        cardShowcase.classList.remove('reveal-playing');
+                        void cardShowcase.offsetWidth;
+                        cardShowcase.classList.add('reveal-playing');
+                    }
+                });
+                setTimeout(() => triggerCelebrationBurst(), 250);
+            }, 680);
         };
         img.src = canvas.toDataURL('image/jpeg', 0.95);
-    }, 150);
+    }, 140);
 });
 
-// ====== THANH CÔNG CỤ TUỲ CHỈNH TẠI BƯỚC 3 ======
+// ====== BẢNG ĐIỀU KHIỂN 2 TAB & MODAL TẠI BƯỚC 3 ======
 function triggerCardPulse() {
     if (!cardShowcase) return;
     cardShowcase.classList.remove('reveal-playing', 'pulse-playing');
@@ -760,111 +789,104 @@ function triggerCardPulse() {
     cardShowcase.classList.add('pulse-playing');
 }
 
-function closeAllDrawers() {
-    document.querySelectorAll('.custom-drawer').forEach(d => d.classList.remove('open'));
-    document.querySelectorAll('.tool-pill[data-panel]').forEach(b => b.classList.remove('active'));
-}
-
-document.querySelectorAll('.tool-pill[data-panel]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        const panelId = btn.getAttribute('data-panel');
-        const panel = document.getElementById(panelId);
-        const isOpen = panel.classList.contains('open');
-        closeAllDrawers();
-        if (!isOpen) {
-            panel.classList.add('open');
-            btn.classList.add('active');
-        }
+// Chuyển đổi giữa Tab "💌 Lời chúc & Tên" và Tab "🌸 Viền & Màu hộp chữ"
+document.querySelectorAll('.deck-tab').forEach(tabBtn => {
+    tabBtn.addEventListener('click', () => {
+        const targetId = tabBtn.getAttribute('data-tab');
+        document.querySelectorAll('.deck-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.deck-pane').forEach(p => p.classList.remove('active'));
+        tabBtn.classList.add('active');
+        const pane = document.getElementById(targetId);
+        if (pane) pane.classList.add('active');
+        requestAnimationFrame(fitCardShowcaseToWrap);
     });
 });
 
-document.querySelectorAll('.drawer-close').forEach(btn => {
-    btn.addEventListener('click', () => closeAllDrawers());
-});
-
-// 1. Nút "🎲 Đổi lời chúc" ngay tại Bước 3
+// 1. Nút "🎲 Đổi câu chúc khác"
 document.getElementById('shuffle-quote-btn').addEventListener('click', () => {
-    if (currentTopic === 'custom') {
-        currentTopic = lastNonCustomTopic || 'all';
-        document.querySelectorAll('.topic-chip').forEach(c => {
-            c.classList.toggle('active', c.getAttribute('data-topic') === currentTopic);
-        });
-        document.getElementById('custom-wish-group').style.display = 'none';
-    }
+    isCustomWishActive = false;
     currentAIQuote = getNextQuoteByTopic(currentTopic);
     drawCanvasImageText(finalResultCanvas, true);
     triggerCardPulse();
 
-    // Bắn nhẹ vài hạt lấp lánh trên mặt thiệp
     if (cardShowcase) {
         const rect = cardShowcase.getBoundingClientRect();
-        spawnTouchSparkle(rect.left + rect.width * 0.5, rect.top + rect.height * 0.78, 6);
+        spawnTouchSparkle(rect.left + rect.width * 0.5, rect.top + rect.height * 0.8, 5);
     }
 });
 
-// 2. Nút "🎨 Đổi khung" (Quay về Bước 2 giữ nguyên ảnh & giữ nguyên lời chúc)
-document.getElementById('back-step2-btn').addEventListener('click', () => {
-    closeAllDrawers();
-    step3.classList.remove('active');
-    step2.classList.add('active');
-});
-
-// 3. Ô nhập Tên người nhận
-const recipientInput = document.getElementById('recipient-input');
-const recipientCount = document.getElementById('recipient-count');
-let redrawTimer = null;
-
-function scheduleRedraw() {
-    clearTimeout(redrawTimer);
-    redrawTimer = setTimeout(() => {
-        drawCanvasImageText(finalResultCanvas, true);
-    }, 60);
-}
-
-recipientInput.addEventListener('input', (e) => {
-    recipientName = e.target.value;
-    recipientCount.textContent = `${recipientName.length}/35`;
-    scheduleRedraw();
-});
-
-// 4. Chọn Chủ đề lời chúc & Tự viết lời chúc
-const customWishGroup = document.getElementById('custom-wish-group');
-const customWishInput = document.getElementById('custom-wish-input');
-const wishCharCount = document.getElementById('wish-char-count');
-
+// 2. Chọn Chủ đề lời chúc
 document.querySelectorAll('.topic-chip').forEach(chip => {
     chip.addEventListener('click', () => {
         document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
-        const topic = chip.getAttribute('data-topic');
-        currentTopic = topic;
-
-        if (topic === 'custom') {
-            customWishGroup.style.display = 'block';
-            if (!customWishInput.value.trim()) {
-                customWishInput.value = currentAIQuote;
-                customWishText = currentAIQuote;
-                wishCharCount.textContent = `${customWishInput.value.length}/160`;
-            }
-            customWishInput.focus();
-            scheduleRedraw();
-        } else {
-            lastNonCustomTopic = topic;
-            customWishGroup.style.display = 'none';
-            currentAIQuote = getNextQuoteByTopic(topic);
-            drawCanvasImageText(finalResultCanvas, true);
-            triggerCardPulse();
-        }
+        currentTopic = chip.getAttribute('data-topic');
+        isCustomWishActive = false;
+        currentAIQuote = getNextQuoteByTopic(currentTopic);
+        drawCanvasImageText(finalResultCanvas, true);
+        triggerCardPulse();
     });
 });
 
-customWishInput.addEventListener('input', (e) => {
-    customWishText = e.target.value;
-    wishCharCount.textContent = `${customWishText.length}/160`;
-    scheduleRedraw();
+// 3. Modal "✍️ Tự viết / Thêm tên"
+const textEditModal = document.getElementById('text-edit-modal');
+const recipientInput = document.getElementById('recipient-input');
+const recipientCount = document.getElementById('recipient-count');
+const customWishInput = document.getElementById('custom-wish-input');
+const wishCharCount = document.getElementById('wish-char-count');
+
+document.getElementById('open-text-modal-btn').addEventListener('click', () => {
+    recipientInput.value = recipientName;
+    recipientCount.textContent = `${recipientName.length}/35`;
+    const activeText = getActiveQuoteText();
+    customWishInput.value = activeText;
+    wishCharCount.textContent = `${activeText.length}/160`;
+    textEditModal.style.display = 'flex';
 });
 
-// 5. Chọn Kiểu viền lãng mạn & Tông màu nữ tính
+document.getElementById('close-text-modal').addEventListener('click', () => {
+    textEditModal.style.display = 'none';
+});
+
+textEditModal.addEventListener('click', (e) => {
+    if (e.target === textEditModal) textEditModal.style.display = 'none';
+});
+
+recipientInput.addEventListener('input', (e) => {
+    recipientCount.textContent = `${e.target.value.length}/35`;
+});
+
+customWishInput.addEventListener('input', (e) => {
+    wishCharCount.textContent = `${e.target.value.length}/160`;
+});
+
+document.getElementById('modal-random-wish-btn').addEventListener('click', () => {
+    const suggested = getNextQuoteByTopic(currentTopic);
+    customWishInput.value = suggested;
+    wishCharCount.textContent = `${suggested.length}/160`;
+});
+
+document.getElementById('modal-clear-wish-btn').addEventListener('click', () => {
+    customWishInput.value = '';
+    wishCharCount.textContent = '0/160';
+    customWishInput.focus();
+});
+
+document.getElementById('apply-text-modal-btn').addEventListener('click', () => {
+    recipientName = recipientInput.value.trim();
+    const typedWish = customWishInput.value.trim();
+    if (typedWish) {
+        customWishText = typedWish;
+        isCustomWishActive = true;
+    } else {
+        isCustomWishActive = false;
+    }
+    textEditModal.style.display = 'none';
+    drawCanvasImageText(finalResultCanvas, true);
+    triggerCardPulse();
+});
+
+// 4. Chọn Kiểu viền lãng mạn & Tông màu nữ tính
 document.querySelectorAll('.style-chip').forEach(chip => {
     chip.addEventListener('click', () => {
         document.querySelectorAll('.style-chip').forEach(c => c.classList.remove('active'));
@@ -885,9 +907,15 @@ document.querySelectorAll('.color-swatch-btn').forEach(btn => {
     });
 });
 
-// 6. Nút "↩️ Tạo mới" (Làm lại từ Bước 1)
+// 5. Nút "‹ 🎨 Đổi khung" (Quay về Bước 2 giữ nguyên ảnh & giữ nguyên câu chúc)
+document.getElementById('back-step2-btn').addEventListener('click', () => {
+    step3.classList.remove('active');
+    step2.classList.add('active');
+    requestAnimationFrame(fitPreviewAreaToStage);
+});
+
+// 6. Nút "📷 Ảnh mới" (Quay về Bước 1 chọn ảnh mới)
 document.getElementById('redo-btn').addEventListener('click', () => {
-    closeAllDrawers();
     step3.classList.remove('active');
     step1.classList.add('active');
     document.getElementById('upload-btn').value = '';
@@ -924,7 +952,7 @@ document.getElementById('download-btn').addEventListener('click', () => {
 
         const file = new File([blob], 'Thiep_20_10.jpg', { type: 'image/jpeg' });
 
-        // Ưu tiên 1: Trên thiết bị di động (iOS / Android), gọi Web Share API CHỈ VỚI FILE ẢNH (không truyền text/url)
+        // Ưu tiên 1: Trên iOS / Android, gọi Web Share API CHỈ VỚI FILE ẢNH (không truyền text/url)
         if (isMobileDevice() && navigator.canShare && navigator.share) {
             try {
                 if (navigator.canShare({ files: [file] })) {
@@ -932,17 +960,17 @@ document.getElementById('download-btn').addEventListener('click', () => {
                     return;
                 }
             } catch (err) {
-                if (err && err.name === 'AbortError') return; // Người dùng tự đóng bảng share
+                if (err && err.name === 'AbortError') return;
             }
         }
 
-        // Ưu tiên 2: Nếu đang trong trình duyệt nội bộ (Telegram/Zalo...) trên iOS hoặc Web Share bị chặn
+        // Ưu tiên 2: Nếu mở trong Telegram/Zalo WebView hoặc iOS không hỗ trợ Web Share file
         if (isInAppBrowser() || isIOSDevice()) {
             showSaveFallbackModal();
             return;
         }
 
-        // Ưu tiên 3: Tải file trực tiếp qua Blob URL trên Desktop / Android Chrome
+        // Ưu tiên 3: Tải trực tiếp qua Blob URL trên Desktop / Android Chrome
         try {
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -969,9 +997,8 @@ function formatRecipientLine(rawName) {
 }
 
 function getActiveQuoteText() {
-    if (currentTopic === 'custom') {
-        const trimmed = (customWishText || '').trim();
-        return trimmed || currentAIQuote || wishes2010[0];
+    if (isCustomWishActive && (customWishText || '').trim()) {
+        return customWishText.trim();
     }
     return currentAIQuote || wishes2010[0];
 }
@@ -981,12 +1008,12 @@ function drawCanvasImageText(targetCanvas, isFinal) {
 
     const frameImg = loadedFrameImages[currentSelectedFrameId];
     if (!frameImg || !frameImg.complete) {
-        setTimeout(() => drawCanvasImageText(targetCanvas, isFinal), 100);
+        setTimeout(() => drawCanvasImageText(targetCanvas, isFinal), 80);
         return;
     }
 
     const targetW = frameImg.naturalWidth || 1024;
-    const originH = frameImg.naturalHeight || 1536;
+    const originH = frameImg.naturalHeight || 1526;
     const scale = targetW / 1024;
     const textSpaceHeight = Math.floor(originH * 0.35);
     const targetH = isFinal ? originH + textSpaceHeight : originH;
@@ -1008,7 +1035,6 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         ctx.fillStyle = bottomGrad;
         ctx.fillRect(0, originH, targetW, textSpaceHeight);
 
-        // Điểm xuyết bokeh & cánh hoa chìm nhẹ ở nền ngoài hộp lời chúc
         drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, theme);
     }
 
@@ -1032,18 +1058,15 @@ function drawCanvasImageText(targetCanvas, isFinal) {
         const boxH = Math.floor(textSpaceHeight * 0.81);
         const radius = Math.floor(targetW * 0.036);
 
-        // Vẽ khung nền & viền theo kiểu đã chọn
         drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme, currentBorderStyle);
 
-        // Tính toán kích thước & ngắt dòng chống tràn tuyệt đối (tính cả Tên người nhận + Lời chúc)
         const recipientLine = formatRecipientLine(recipientName);
         const layout = fitQuoteInBox(ctx, activeQuote, recipientLine, boxW, boxH, scale, currentBorderStyle);
 
-        // Vẽ nội dung chữ
         drawQuoteContent(ctx, boxX, boxY, boxW, boxH, layout, theme, scale);
     }
 
-    // Đồng bộ sang thẻ <img> để iOS / Android / Telegram có thể nhấn giữ lưu ảnh trực tiếp
+    // Đồng bộ sang thẻ <img> và căn lại đúng tỷ lệ hiển thị trọn vẹn 100% trên màn hình
     if (isFinal && finalResultImg) {
         try {
             const dataUrl = targetCanvas.toDataURL('image/jpeg', 0.95);
@@ -1051,13 +1074,13 @@ function drawCanvasImageText(targetCanvas, isFinal) {
             if (saveModalImg && saveGuideModal.style.display !== 'none') {
                 saveModalImg.src = dataUrl;
             }
+            fitCardShowcaseToWrap();
         } catch (e) {
             console.error(e);
         }
     }
 }
 
-// Trang trí nền bokeh & cánh hoa mờ xung quanh hộp chữ
 function drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, theme) {
     ctx.save();
     const spots = [
@@ -1087,7 +1110,6 @@ function drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, t
 function createBoxPath(ctx, x, y, w, h, r, style) {
     ctx.beginPath();
     if (style === 'vintage') {
-        // Góc vát cong thư tình Pháp (Inverted Scallop Corners)
         const cr = r * 0.85;
         ctx.moveTo(x + cr, y);
         ctx.lineTo(x + w - cr, y);
@@ -1115,7 +1137,6 @@ function createBoxPath(ctx, x, y, w, h, r, style) {
 function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme, style) {
     ctx.save();
 
-    // Đổ bóng dịu dưới hộp chữ
     ctx.shadowColor = theme.shadowRgba;
     ctx.shadowBlur = 24 * scale;
     ctx.shadowOffsetX = 0;
@@ -1128,12 +1149,10 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
     ctx.fillStyle = bgGrad;
     ctx.fill();
 
-    // Tắt bóng để vẽ các nét viền sắc nét
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
     ctx.shadowOffsetY = 0;
 
-    // Viền chính
     const borderGrad = ctx.createLinearGradient(boxX, boxY, boxX + boxW, boxY + boxH);
     borderGrad.addColorStop(0, theme.borderPrimary);
     borderGrad.addColorStop(0.5, theme.borderSecondary);
@@ -1142,7 +1161,6 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
     ctx.strokeStyle = borderGrad;
     ctx.stroke();
 
-    // Viền mảnh bên trong tạo độ sâu thanh lịch
     const inset = Math.floor(10 * scale);
     createBoxPath(ctx, boxX + inset, boxY + inset, boxW - inset * 2, boxH - inset * 2, Math.max(6, radius - inset * 0.6), style);
     ctx.lineWidth = Math.max(1, 1.5 * scale);
@@ -1153,7 +1171,6 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Dấu ngoặc kép nghệ thuật chìm trong nền hộp
     ctx.save();
     ctx.font = `italic 700 ${Math.floor(110 * scale)}px "Playfair Display", serif`;
     ctx.fillStyle = theme.flowerSoft;
@@ -1166,34 +1183,28 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
     ctx.fillText('”', boxX + boxW - 24 * scale, boxY + boxH - 2 * scale);
     ctx.restore();
 
-    // Vẽ họa tiết đặc trưng theo từng kiểu viền nữ tính
     const midY = boxY + boxH / 2;
     const midX = boxX + boxW / 2;
 
     if (style === 'sakura') {
-        // 🌸 Hoa anh đào 5 cánh & lá non hai bên + nụ hoa ở góc
         drawSakuraCluster(ctx, boxX + 36 * scale, midY, 22 * scale, theme);
         drawSakuraCluster(ctx, boxX + boxW - 36 * scale, midY, 22 * scale, theme);
         drawSakuraFlower(ctx, boxX + 26 * scale, boxY + 24 * scale, 11 * scale, theme.flowerSoft, theme.goldAccent);
         drawSakuraFlower(ctx, boxX + boxW - 26 * scale, boxY + boxH - 24 * scale, 11 * scale, theme.flowerSoft, theme.goldAccent);
     } else if (style === 'ribbon') {
-        // 🎀 Nơ ruy băng lụa mềm mại trên đỉnh hộp + ngọc trai góc + hoa nhỏ hai bên
         drawSilkRibbonBow(ctx, midX, boxY + 2 * scale, 44 * scale, theme);
         drawSakuraFlower(ctx, boxX + 34 * scale, midY, 15 * scale, theme.flowerMain, theme.goldAccent);
         drawSakuraFlower(ctx, boxX + boxW - 34 * scale, midY, 15 * scale, theme.flowerMain, theme.goldAccent);
         drawCornerPearls(ctx, boxX, boxY, boxW, boxH, scale, theme);
     } else if (style === 'hearts') {
-        // 💕 Trái tim đôi lồng nhau & ánh sao 4 cánh
         drawRomanticHeartsCluster(ctx, midX, boxY + 2 * scale, 22 * scale, theme);
         drawRomanticHeartsCluster(ctx, boxX + 36 * scale, midY, 19 * scale, theme);
         drawRomanticHeartsCluster(ctx, boxX + boxW - 36 * scale, midY, 19 * scale, theme);
         drawCornerStars(ctx, boxX, boxY, boxW, boxH, scale, theme);
     } else if (style === 'daisy') {
-        // 🌿 Nhành lá & hoa cúc họa mi ôm hai bên sườn hộp
         drawDaisyVineSide(ctx, boxX + 36 * scale, midY, scale, -1, theme);
         drawDaisyVineSide(ctx, boxX + boxW - 36 * scale, midY, scale, 1, theme);
     } else if (style === 'vintage') {
-        // 🌷 Thiệp ren hoa Pháp với họa tiết uốn lượn 4 góc & hoa hồng nhỏ hai bên
         drawVintageCornerFlourishes(ctx, boxX, boxY, boxW, boxH, scale, theme);
         drawSakuraFlower(ctx, boxX + 36 * scale, midY, 16 * scale, theme.flowerMain, theme.goldAccent);
         drawSakuraFlower(ctx, boxX + boxW - 36 * scale, midY, 16 * scale, theme.flowerMain, theme.goldAccent);
@@ -1202,7 +1213,6 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
     ctx.restore();
 }
 
-// --- Các hàm vẽ họa tiết hoa lá, nơ lụa, trái tim bằng Vector Canvas ---
 function drawSakuraFlower(ctx, cx, cy, radius, petalColor, centerColor) {
     ctx.save();
     ctx.translate(cx, cy);
@@ -1220,7 +1230,6 @@ function drawSakuraFlower(ctx, cx, cy, radius, petalColor, centerColor) {
         ctx.fill();
         ctx.restore();
     }
-    // Nhụy hoa vàng
     ctx.fillStyle = centerColor;
     ctx.beginPath();
     ctx.arc(0, 0, radius * 0.22, 0, Math.PI * 2);
@@ -1262,7 +1271,6 @@ function drawSakuraCluster(ctx, cx, cy, size, theme) {
 function drawSilkRibbonBow(ctx, cx, cy, size, theme) {
     ctx.save();
     ctx.translate(cx, cy);
-    // Dải ruy băng lượn sóng hai bên đỉnh hộp
     ctx.strokeStyle = theme.flowerMain;
     ctx.lineWidth = size * 0.14;
     ctx.lineCap = 'round';
@@ -1273,12 +1281,10 @@ function drawSilkRibbonBow(ctx, cx, cy, size, theme) {
     ctx.bezierCurveTo(size * 0.9, size * 0.55, size * 1.5, -size * 0.2, size * 2.2, size * 0.35);
     ctx.stroke();
 
-    // Hai cánh nơ lụa phồng
     ctx.fillStyle = theme.flowerSoft;
     ctx.strokeStyle = theme.flowerMain;
     ctx.lineWidth = size * 0.07;
 
-    // Cánh nơ trái
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.bezierCurveTo(-size * 0.95, -size * 0.7, -size * 1.15, size * 0.55, 0, size * 0.12);
@@ -1286,7 +1292,6 @@ function drawSilkRibbonBow(ctx, cx, cy, size, theme) {
     ctx.fill();
     ctx.stroke();
 
-    // Cánh nơ phải
     ctx.beginPath();
     ctx.moveTo(0, 0);
     ctx.bezierCurveTo(size * 0.95, -size * 0.7, size * 1.15, size * 0.55, 0, size * 0.12);
@@ -1294,7 +1299,6 @@ function drawSilkRibbonBow(ctx, cx, cy, size, theme) {
     ctx.fill();
     ctx.stroke();
 
-    // Nút thắt nơ ở tâm
     ctx.fillStyle = theme.flowerMain;
     ctx.beginPath();
     ctx.ellipse(0, size * 0.04, size * 0.2, size * 0.17, 0, 0, Math.PI * 2);
@@ -1492,7 +1496,6 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
         const padX = Math.max(Math.floor(boxW * 0.088), Math.ceil(66 * scale));
         const maxWidth = boxW - padX * 2;
 
-        // Đo dòng Tên người nhận (nếu có)
         let recFontSize = 0;
         let recBlockH = 0;
         if (recipientLine) {
@@ -1505,7 +1508,6 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
             recBlockH = Math.floor(recFontSize * 1.65);
         }
 
-        // Đo các dòng lời chúc
         ctx.font = quoteFont(fontSize);
         const lines = wrapLines(ctx, text, maxWidth);
         const lineHeight = Math.floor(fontSize * QUOTE_LINE_HEIGHT);
@@ -1543,14 +1545,12 @@ function drawQuoteContent(ctx, boxX, boxY, boxW, boxH, layout, theme, scale) {
 
     let quoteStartY = startBlockY + layout.lineHeight / 2;
 
-    // 1. Vẽ dòng Tên người nhận (nếu có)
     if (layout.recipientLine && layout.recFontSize > 0) {
         const recY = startBlockY + layout.recFontSize * 0.55;
         ctx.font = recipientFont(layout.recFontSize);
         ctx.fillStyle = theme.recipientColor;
         ctx.fillText(layout.recipientLine, centerX, recY, layout.maxWidth);
 
-        // Đường kẻ mảnh trang trí ngăn cách Tên người nhận và Lời chúc
         const divY = startBlockY + layout.recFontSize * 1.22;
         const divW = Math.min(layout.maxWidth * 0.36, 200 * scale);
         const divGrad = ctx.createLinearGradient(centerX - divW / 2, divY, centerX + divW / 2, divY);
@@ -1567,7 +1567,6 @@ function drawQuoteContent(ctx, boxX, boxY, boxW, boxH, layout, theme, scale) {
         quoteStartY = startBlockY + layout.recBlockH + layout.lineHeight / 2;
     }
 
-    // 2. Vẽ các dòng Lời chúc với gradient màu chữ & bóng chữ nhẹ
     const textBlockH = layout.lines.length * layout.lineHeight;
     const textGrad = ctx.createLinearGradient(0, quoteStartY - layout.lineHeight / 2, 0, quoteStartY + textBlockH);
     textGrad.addColorStop(0, theme.textTop);
