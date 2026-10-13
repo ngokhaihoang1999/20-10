@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css?v=4.0">
+    <link rel="stylesheet" href="style.css?v=5.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap"
         rel="stylesheet">
@@ -37,21 +37,21 @@
         </div>
     </div>
 
-    <!-- Modal nhập Tên người nhận & Tự viết lời chúc (Tách riêng để bàn phím điện thoại không đẩy lệch thiệp) -->
+    <!-- Modal nhập Tiêu đề & Tự viết lời chúc (Tách riêng để bàn phím điện thoại không đẩy lệch thiệp) -->
     <div id="text-edit-modal" class="custom-modal" style="display: none;">
         <div class="custom-modal-box">
             <div class="custom-modal-header">
-                <span class="custom-modal-title">💌 Tuỳ chỉnh Tên & Lời chúc</span>
+                <span class="custom-modal-title">💌 Tuỳ chỉnh Tiêu đề & Lời chúc</span>
                 <button type="button" id="close-text-modal" class="custom-modal-close" aria-label="Đóng">✕</button>
             </div>
             <div class="custom-modal-body">
                 <div class="input-group">
                     <label for="recipient-input" class="input-label">
-                        <span>Tên người nhận (tuỳ chọn)</span>
-                        <span id="recipient-count" class="char-counter">0/35</span>
+                        <span>Tiêu đề trên thiệp (tuỳ chọn)</span>
+                        <span id="recipient-count" class="char-counter">0/45</span>
                     </label>
-                    <input type="text" id="recipient-input" class="custom-input" maxlength="35"
-                        placeholder="VD: Chị Lan Anh, Ngọc Mai... (để trống nếu không cần)">
+                    <input type="text" id="recipient-input" class="custom-input" maxlength="45"
+                        placeholder="VD: Gửi chị Lan Anh, Happy Women's Day... (để trống nếu không cần)">
                 </div>
 
                 <div class="input-group" style="margin-bottom: 12px;">
@@ -121,9 +121,9 @@
     <!-- Bước 2: Căn chỉnh & Lựa chọn phong cách -->
     <div id="step-2" class="screen">
         <div class="glass-container main-container" style="max-width: 500px">
-            <!-- Thanh tiêu đề + 2 nút Lật / Xoay nằm NGOÀI khung hình -->
+            <!-- Thanh tiêu đề + 2 nút Lật / Xoay nằm NGOÀI khung hình, tối ưu cho mọi màn hình mobile -->
             <div class="step2-header-row">
-                <p class="carousel-title" style="margin: 0;">Căn chỉnh & Chọn khung</p>
+                <span class="step2-header-title">Chọn khung & Căn chỉnh</span>
                 <div class="crop-outside-tools">
                     <button type="button" id="flip-h-btn" class="crop-tool-btn">🪞 Lật ảnh</button>
                     <button type="button" id="rotate-btn" class="crop-tool-btn">🔄 Xoay 90°</button>
@@ -177,13 +177,13 @@
     <!-- Bước 3: Hoàn thành & Tuỳ chỉnh trực tiếp (Hiển thị trọn vẹn 100% tấm thiệp) -->
     <div id="step-3" class="screen screen-result">
         <div class="glass-container result-card-container">
-            <!-- Thanh điều hướng gọn trên cùng -->
+            <!-- Thanh điều hướng cân xứng 3 cột trên cùng -->
             <div class="result-topbar">
-                <button type="button" id="back-step2-btn" class="topbar-btn">
-                    ‹ 🎨 Đổi khung
+                <button type="button" id="back-step2-btn" class="topbar-btn topbar-btn-left">
+                    ‹ Đổi khung
                 </button>
                 <span class="result-title">Thiệp 20/10 🌸</span>
-                <button type="button" id="redo-btn" class="topbar-btn">
+                <button type="button" id="redo-btn" class="topbar-btn topbar-btn-right">
                     📷 Ảnh mới
                 </button>
             </div>
@@ -201,21 +201,21 @@
             <div class="control-deck">
                 <div class="deck-tabs">
                     <button type="button" class="deck-tab active" data-tab="tab-wish">
-                        💌 Lời chúc & Tên
+                        💌 Tiêu đề & Lời chúc
                     </button>
                     <button type="button" class="deck-tab" data-tab="tab-style">
                         🌸 Viền & Màu hộp chữ
                     </button>
                 </div>
 
-                <!-- Tab 1: Đổi câu chúc, Chọn chủ đề, Tự viết / Thêm tên -->
+                <!-- Tab 1: Đổi câu chúc, Chọn chủ đề, Tự viết / Tiêu đề -->
                 <div id="tab-wish" class="deck-pane active">
                     <div class="deck-row deck-actions-row">
                         <button type="button" id="shuffle-quote-btn" class="deck-action-btn primary-pill">
                             🎲 Đổi câu chúc khác
                         </button>
                         <button type="button" id="open-text-modal-btn" class="deck-action-btn secondary-pill">
-                            ✍️ Tự viết / Thêm tên
+                            ✍️ Tiêu đề / Tự viết
                         </button>
                     </div>
                     <div class="deck-row">
@@ -280,8 +280,8 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=4.0"></script>
-    <script src="script.js?v=4.0"></script>
+    <script src="wishes.js?v=5.0"></script>
+    <script src="script.js?v=5.0"></script>
 </body>
 
 </html>

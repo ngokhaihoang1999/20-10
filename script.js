@@ -828,7 +828,7 @@ document.querySelectorAll('.topic-chip').forEach(chip => {
     });
 });
 
-// 3. Modal "✍️ Tự viết / Thêm tên"
+// 3. Modal "✍️ Tiêu đề / Tự viết"
 const textEditModal = document.getElementById('text-edit-modal');
 const recipientInput = document.getElementById('recipient-input');
 const recipientCount = document.getElementById('recipient-count');
@@ -837,7 +837,7 @@ const wishCharCount = document.getElementById('wish-char-count');
 
 document.getElementById('open-text-modal-btn').addEventListener('click', () => {
     recipientInput.value = recipientName;
-    recipientCount.textContent = `${recipientName.length}/35`;
+    recipientCount.textContent = `${recipientName.length}/45`;
     const activeText = getActiveQuoteText();
     customWishInput.value = activeText;
     wishCharCount.textContent = `${activeText.length}/160`;
@@ -853,7 +853,7 @@ textEditModal.addEventListener('click', (e) => {
 });
 
 recipientInput.addEventListener('input', (e) => {
-    recipientCount.textContent = `${e.target.value.length}/35`;
+    recipientCount.textContent = `${e.target.value.length}/45`;
 });
 
 customWishInput.addEventListener('input', (e) => {
@@ -987,13 +987,8 @@ document.getElementById('download-btn').addEventListener('click', () => {
 });
 
 // ====== VẼ THIỆP & HỘP LỜI CHÚC LÃNG MẠN TRÊN CANVAS ======
-function formatRecipientLine(rawName) {
-    const clean = (rawName || '').trim();
-    if (!clean) return '';
-    if (/^(thân\s+gửi|thân\s+tặng|gửi|tặng|kính\s+gửi|kính\s+tặng|chúc\s+mừng|chúc)/i.test(clean)) {
-        return `🌸 ${clean} 🌸`;
-    }
-    return `🌸 Thân gửi ${clean} 🌸`;
+function formatRecipientLine(rawTitle) {
+    return (rawTitle || '').trim();
 }
 
 function getActiveQuoteText() {
@@ -1051,12 +1046,12 @@ function drawCanvasImageText(targetCanvas, isFinal) {
     // 4. Vẽ hộp lời chúc nghệ thuật
     const activeQuote = getActiveQuoteText();
     if (isFinal && activeQuote) {
-        const marginX = Math.floor(targetW * 0.058);
+        const marginX = Math.floor(targetW * 0.056);
         const boxX = marginX;
-        const boxY = originH + Math.floor(textSpaceHeight * 0.09);
+        const boxY = originH + Math.floor(textSpaceHeight * 0.085);
         const boxW = targetW - marginX * 2;
-        const boxH = Math.floor(textSpaceHeight * 0.81);
-        const radius = Math.floor(targetW * 0.036);
+        const boxH = Math.floor(textSpaceHeight * 0.82);
+        const radius = Math.floor(targetW * 0.034);
 
         drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme, currentBorderStyle);
 
@@ -1106,7 +1101,7 @@ function drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, t
     ctx.restore();
 }
 
-// ====== 5 KIỂU VIỀN HỘP LỜI CHÚC NỮ TÍNH & LÃNG MẠN ======
+// ====== 5 KIỂU VIỀN HỘP LỜI CHÚC THANH LỊCH & TINH TẾ ======
 function createBoxPath(ctx, x, y, w, h, r, style) {
     ctx.beginPath();
     if (style === 'vintage') {
@@ -1157,57 +1152,53 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
     borderGrad.addColorStop(0, theme.borderPrimary);
     borderGrad.addColorStop(0.5, theme.borderSecondary);
     borderGrad.addColorStop(1, theme.borderPrimary);
-    ctx.lineWidth = Math.max(2, 3.8 * scale);
+    ctx.lineWidth = Math.max(2, 3.2 * scale);
     ctx.strokeStyle = borderGrad;
     ctx.stroke();
 
-    const inset = Math.floor(10 * scale);
+    const inset = Math.floor(11 * scale);
     createBoxPath(ctx, boxX + inset, boxY + inset, boxW - inset * 2, boxH - inset * 2, Math.max(6, radius - inset * 0.6), style);
-    ctx.lineWidth = Math.max(1, 1.5 * scale);
+    ctx.lineWidth = Math.max(1, 1.3 * scale);
     ctx.strokeStyle = theme.borderSecondary;
-    if (style === 'daisy') {
-        ctx.setLineDash([8 * scale, 6 * scale]);
-    }
     ctx.stroke();
-    ctx.setLineDash([]);
 
     ctx.save();
-    ctx.font = `italic 700 ${Math.floor(110 * scale)}px "Playfair Display", serif`;
+    ctx.font = `italic 700 ${Math.floor(96 * scale)}px "Playfair Display", serif`;
     ctx.fillStyle = theme.flowerSoft;
-    ctx.globalAlpha = style === 'vintage' ? 0.25 : 0.14;
+    ctx.globalAlpha = style === 'vintage' ? 0.2 : 0.12;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText('“', boxX + 24 * scale, boxY + 8 * scale);
+    ctx.fillText('“', boxX + 22 * scale, boxY + 8 * scale);
     ctx.textAlign = 'right';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('”', boxX + boxW - 24 * scale, boxY + boxH - 2 * scale);
+    ctx.fillText('”', boxX + boxW - 22 * scale, boxY + boxH - 2 * scale);
     ctx.restore();
 
     const midY = boxY + boxH / 2;
     const midX = boxX + boxW / 2;
 
     if (style === 'sakura') {
-        drawSakuraCluster(ctx, boxX + 36 * scale, midY, 22 * scale, theme);
-        drawSakuraCluster(ctx, boxX + boxW - 36 * scale, midY, 22 * scale, theme);
-        drawSakuraFlower(ctx, boxX + 26 * scale, boxY + 24 * scale, 11 * scale, theme.flowerSoft, theme.goldAccent);
-        drawSakuraFlower(ctx, boxX + boxW - 26 * scale, boxY + boxH - 24 * scale, 11 * scale, theme.flowerSoft, theme.goldAccent);
-    } else if (style === 'ribbon') {
-        drawSilkRibbonBow(ctx, midX, boxY + 2 * scale, 44 * scale, theme);
-        drawSakuraFlower(ctx, boxX + 34 * scale, midY, 15 * scale, theme.flowerMain, theme.goldAccent);
-        drawSakuraFlower(ctx, boxX + boxW - 34 * scale, midY, 15 * scale, theme.flowerMain, theme.goldAccent);
+        drawSakuraCluster(ctx, boxX + 26 * scale, midY, 17 * scale, theme);
+        drawSakuraCluster(ctx, boxX + boxW - 26 * scale, midY, 17 * scale, theme);
         drawCornerPearls(ctx, boxX, boxY, boxW, boxH, scale, theme);
+    } else if (style === 'ribbon') {
+        drawSilkRibbonBow(ctx, midX, boxY + 2 * scale, 34 * scale, theme);
+        drawCornerPearls(ctx, boxX, boxY, boxW, boxH, scale, theme);
+        drawSakuraFlower(ctx, boxX + 24 * scale, midY, 12 * scale, theme.flowerMain, theme.goldAccent);
+        drawSakuraFlower(ctx, boxX + boxW - 24 * scale, midY, 12 * scale, theme.flowerMain, theme.goldAccent);
     } else if (style === 'hearts') {
-        drawRomanticHeartsCluster(ctx, midX, boxY + 2 * scale, 22 * scale, theme);
-        drawRomanticHeartsCluster(ctx, boxX + 36 * scale, midY, 19 * scale, theme);
-        drawRomanticHeartsCluster(ctx, boxX + boxW - 36 * scale, midY, 19 * scale, theme);
+        drawRomanticHeartsCluster(ctx, midX, boxY + 2 * scale, 18 * scale, theme);
         drawCornerStars(ctx, boxX, boxY, boxW, boxH, scale, theme);
+        drawRomanticHeartsCluster(ctx, boxX + 25 * scale, midY, 14 * scale, theme);
+        drawRomanticHeartsCluster(ctx, boxX + boxW - 25 * scale, midY, 14 * scale, theme);
     } else if (style === 'daisy') {
-        drawDaisyVineSide(ctx, boxX + 36 * scale, midY, scale, -1, theme);
-        drawDaisyVineSide(ctx, boxX + boxW - 36 * scale, midY, scale, 1, theme);
+        drawDaisyVineSide(ctx, boxX + 25 * scale, midY, scale, -1, theme);
+        drawDaisyVineSide(ctx, boxX + boxW - 25 * scale, midY, scale, 1, theme);
+        drawCornerPearls(ctx, boxX, boxY, boxW, boxH, scale, theme);
     } else if (style === 'vintage') {
         drawVintageCornerFlourishes(ctx, boxX, boxY, boxW, boxH, scale, theme);
-        drawSakuraFlower(ctx, boxX + 36 * scale, midY, 16 * scale, theme.flowerMain, theme.goldAccent);
-        drawSakuraFlower(ctx, boxX + boxW - 36 * scale, midY, 16 * scale, theme.flowerMain, theme.goldAccent);
+        drawSakuraFlower(ctx, boxX + 24 * scale, midY, 13 * scale, theme.flowerMain, theme.goldAccent);
+        drawSakuraFlower(ctx, boxX + boxW - 24 * scale, midY, 13 * scale, theme.flowerMain, theme.goldAccent);
     }
 
     ctx.restore();
@@ -1272,52 +1263,52 @@ function drawSilkRibbonBow(ctx, cx, cy, size, theme) {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.strokeStyle = theme.flowerMain;
-    ctx.lineWidth = size * 0.14;
+    ctx.lineWidth = size * 0.12;
     ctx.lineCap = 'round';
     ctx.beginPath();
     ctx.moveTo(-size * 0.2, 0);
-    ctx.bezierCurveTo(-size * 0.9, size * 0.55, -size * 1.5, -size * 0.2, -size * 2.2, size * 0.35);
+    ctx.bezierCurveTo(-size * 0.9, size * 0.5, -size * 1.5, -size * 0.18, -size * 2.1, size * 0.3);
     ctx.moveTo(size * 0.2, 0);
-    ctx.bezierCurveTo(size * 0.9, size * 0.55, size * 1.5, -size * 0.2, size * 2.2, size * 0.35);
+    ctx.bezierCurveTo(size * 0.9, size * 0.5, size * 1.5, -size * 0.18, size * 2.1, size * 0.3);
     ctx.stroke();
 
     ctx.fillStyle = theme.flowerSoft;
     ctx.strokeStyle = theme.flowerMain;
-    ctx.lineWidth = size * 0.07;
+    ctx.lineWidth = size * 0.06;
 
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(-size * 0.95, -size * 0.7, -size * 1.15, size * 0.55, 0, size * 0.12);
+    ctx.bezierCurveTo(-size * 0.9, -size * 0.65, -size * 1.1, size * 0.5, 0, size * 0.1);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
     ctx.beginPath();
     ctx.moveTo(0, 0);
-    ctx.bezierCurveTo(size * 0.95, -size * 0.7, size * 1.15, size * 0.55, 0, size * 0.12);
+    ctx.bezierCurveTo(size * 0.9, -size * 0.65, size * 1.1, size * 0.5, 0, size * 0.1);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
     ctx.fillStyle = theme.flowerMain;
     ctx.beginPath();
-    ctx.ellipse(0, size * 0.04, size * 0.2, size * 0.17, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, size * 0.04, size * 0.18, size * 0.15, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
 }
 
 function drawCornerPearls(ctx, boxX, boxY, boxW, boxH, scale, theme) {
     const corners = [
-        [boxX + 24 * scale, boxY + 24 * scale],
-        [boxX + boxW - 24 * scale, boxY + 24 * scale],
-        [boxX + 24 * scale, boxY + boxH - 24 * scale],
-        [boxX + boxW - 24 * scale, boxY + boxH - 24 * scale]
+        [boxX + 22 * scale, boxY + 22 * scale],
+        [boxX + boxW - 22 * scale, boxY + 22 * scale],
+        [boxX + 22 * scale, boxY + boxH - 22 * scale],
+        [boxX + boxW - 22 * scale, boxY + boxH - 22 * scale]
     ];
     ctx.save();
     corners.forEach(([x, y]) => {
         ctx.fillStyle = theme.goldAccent;
         ctx.beginPath();
-        ctx.arc(x, y, 4.5 * scale, 0, Math.PI * 2);
+        ctx.arc(x, y, 4 * scale, 0, Math.PI * 2);
         ctx.fill();
     });
     ctx.restore();
@@ -1328,14 +1319,14 @@ function drawRomanticHeartsCluster(ctx, cx, cy, size, theme) {
     ctx.translate(cx, cy);
     ctx.rotate(-0.12);
     ctx.fillStyle = theme.flowerMain;
-    drawMiniHeartPath(ctx, -size * 0.22, 0, size * 1.15);
+    drawMiniHeartPath(ctx, -size * 0.22, 0, size * 1.1);
     ctx.fill();
 
     ctx.rotate(0.28);
     ctx.fillStyle = theme.flowerSoft;
     ctx.strokeStyle = theme.flowerMain;
     ctx.lineWidth = size * 0.08;
-    drawMiniHeartPath(ctx, size * 0.35, -size * 0.12, size * 0.85);
+    drawMiniHeartPath(ctx, size * 0.35, -size * 0.12, size * 0.82);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
@@ -1343,10 +1334,10 @@ function drawRomanticHeartsCluster(ctx, cx, cy, size, theme) {
 
 function drawCornerStars(ctx, boxX, boxY, boxW, boxH, scale, theme) {
     const pts = [
-        [boxX + 28 * scale, boxY + 28 * scale, 10 * scale],
-        [boxX + boxW - 28 * scale, boxY + 28 * scale, 10 * scale],
-        [boxX + 28 * scale, boxY + boxH - 28 * scale, 10 * scale],
-        [boxX + boxW - 28 * scale, boxY + boxH - 28 * scale, 10 * scale]
+        [boxX + 26 * scale, boxY + 26 * scale, 9 * scale],
+        [boxX + boxW - 26 * scale, boxY + 26 * scale, 9 * scale],
+        [boxX + 26 * scale, boxY + boxH - 26 * scale, 9 * scale],
+        [boxX + boxW - 26 * scale, boxY + boxH - 26 * scale, 9 * scale]
     ];
     ctx.save();
     ctx.fillStyle = theme.goldAccent;
@@ -1379,19 +1370,19 @@ function drawDaisyFlower(ctx, cx, cy, radius, petalColor, centerColor) {
 
 function drawDaisyVineSide(ctx, cx, cy, scale, dir, theme) {
     ctx.save();
-    const hSpan = 72 * scale;
+    const hSpan = 60 * scale;
     ctx.strokeStyle = theme.leafColor;
-    ctx.lineWidth = 2.2 * scale;
+    ctx.lineWidth = 2 * scale;
     ctx.beginPath();
     ctx.moveTo(cx, cy - hSpan);
-    ctx.quadraticCurveTo(cx + dir * 12 * scale, cy, cx, cy + hSpan);
+    ctx.quadraticCurveTo(cx + dir * 10 * scale, cy, cx, cy + hSpan);
     ctx.stroke();
 
-    drawLeaf(ctx, cx, cy - 42 * scale, dir > 0 ? -0.5 : -2.6, 18 * scale, theme.leafColor);
-    drawLeaf(ctx, cx, cy + 42 * scale, dir > 0 ? 0.5 : 2.6, 18 * scale, theme.leafColor);
-    drawDaisyFlower(ctx, cx + dir * 4 * scale, cy, 18 * scale, theme.flowerMain, theme.goldAccent);
-    drawDaisyFlower(ctx, cx - dir * 2 * scale, cy - 52 * scale, 11 * scale, theme.flowerSoft, theme.goldAccent);
-    drawDaisyFlower(ctx, cx - dir * 2 * scale, cy + 52 * scale, 11 * scale, theme.flowerSoft, theme.goldAccent);
+    drawLeaf(ctx, cx, cy - 34 * scale, dir > 0 ? -0.5 : -2.6, 15 * scale, theme.leafColor);
+    drawLeaf(ctx, cx, cy + 34 * scale, dir > 0 ? 0.5 : 2.6, 15 * scale, theme.leafColor);
+    drawDaisyFlower(ctx, cx + dir * 3 * scale, cy, 14 * scale, theme.flowerMain, theme.goldAccent);
+    drawDaisyFlower(ctx, cx - dir * 2 * scale, cy - 44 * scale, 9 * scale, theme.flowerSoft, theme.goldAccent);
+    drawDaisyFlower(ctx, cx - dir * 2 * scale, cy + 44 * scale, 9 * scale, theme.flowerSoft, theme.goldAccent);
     ctx.restore();
 }
 
@@ -1421,15 +1412,16 @@ function drawVintageCornerFlourishes(ctx, boxX, boxY, boxW, boxH, scale, theme) 
     ctx.restore();
 }
 
-// ====== THUẬT TOÁN ĐO ĐẠC & CO CHỮ TỰ ĐỘNG (ĐẢM BẢO 100% KHÔNG TRÀN HỘP) ======
-const QUOTE_LINE_HEIGHT = 1.5;
+// ====== THUẬT TOÁN ĐO ĐẠC & CO CHỮ TỰ ĐỘNG (TIÊU ĐỀ LỚN NỔI BẬT + LỜI CHÚC KHÔNG XUNG ĐỘT & KHÔNG TRÀN KHUNG) ======
+const QUOTE_LINE_HEIGHT = 1.48;
+const TITLE_LINE_HEIGHT = 1.24;
 
 function quoteFont(size) {
     return `italic 500 ${size}px "Playfair Display", serif`;
 }
 
 function recipientFont(size) {
-    return `600 ${size}px "Montserrat", sans-serif`;
+    return `700 ${size}px "Playfair Display", serif`;
 }
 
 function ensureQuoteFont() {
@@ -1437,7 +1429,7 @@ function ensureQuoteFont() {
     return Promise.race([
         Promise.all([
             document.fonts.load(quoteFont(56), 'Chúc mừng 20/10'),
-            document.fonts.load(recipientFont(36), 'Thân gửi')
+            document.fonts.load(recipientFont(64), 'Happy Women Day 20/10')
         ]),
         new Promise(resolve => setTimeout(resolve, 2000))
     ]).catch(() => {});
@@ -1486,26 +1478,48 @@ function wrapLines(ctx, text, maxWidth) {
 
 function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle) {
     const hasTopOrnament = borderStyle === 'ribbon' || borderStyle === 'hearts';
-    const padTop = Math.floor(boxH * (hasTopOrnament ? 0.14 : 0.105));
-    const padBottom = Math.floor(boxH * 0.105);
+    const padTop = Math.floor(boxH * (hasTopOrnament ? 0.125 : 0.095));
+    const padBottom = Math.floor(boxH * 0.095);
     const maxH = boxH - padTop - padBottom;
     const minSize = Math.max(10, Math.floor(14 * scale));
     let layout = null;
 
     for (let fontSize = Math.floor(54 * scale); fontSize >= minSize; fontSize--) {
-        const padX = Math.max(Math.floor(boxW * 0.088), Math.ceil(66 * scale));
+        const padX = Math.max(Math.floor(boxW * 0.072), Math.ceil(54 * scale));
         const maxWidth = boxW - padX * 2;
 
         let recFontSize = 0;
+        let titleLines = [];
+        let titleLineHeight = 0;
+        let dividerSpace = 0;
         let recBlockH = 0;
+        let widestTitle = 0;
+
         if (recipientLine) {
-            recFontSize = Math.max(Math.floor(16 * scale), Math.floor(fontSize * 0.72));
+            // Tăng kích cỡ dòng Tiêu đề lớn vượt trội (~1.3x câu chúc, tối đa 68px trên canvas 1024)
+            recFontSize = Math.min(Math.floor(68 * scale), Math.floor(fontSize * 1.32));
+            const minSingleLineTitle = Math.max(Math.floor(18 * scale), Math.floor(fontSize * 1.12));
             ctx.font = recipientFont(recFontSize);
-            while (recFontSize > 12 * scale && inkWidth(ctx, recipientLine) > maxWidth) {
+
+            // Nếu tiêu đề hơi dài, giảm nhẹ xuống tối thiểu 1.12x fontSize để ưu tiên nằm trên 1 dòng to rõ
+            while (recFontSize > minSingleLineTitle && inkWidth(ctx, recipientLine) > maxWidth) {
                 recFontSize--;
                 ctx.font = recipientFont(recFontSize);
             }
-            recBlockH = Math.floor(recFontSize * 1.65);
+
+            // Nếu tiêu đề rất dài vẫn vượt maxWidth, giữ cỡ chữ lớn (1.16x fontSize) và tự động ngắt thành 2 dòng cân đối
+            if (inkWidth(ctx, recipientLine) > maxWidth) {
+                recFontSize = Math.min(Math.floor(62 * scale), Math.floor(fontSize * 1.16));
+                ctx.font = recipientFont(recFontSize);
+                titleLines = wrapLines(ctx, recipientLine, maxWidth);
+            } else {
+                titleLines = [recipientLine];
+            }
+
+            titleLineHeight = Math.floor(recFontSize * TITLE_LINE_HEIGHT);
+            dividerSpace = Math.floor(fontSize * 0.62);
+            recBlockH = titleLines.length * titleLineHeight + dividerSpace;
+            widestTitle = Math.max(...titleLines.map(l => inkWidth(ctx, l)));
         }
 
         ctx.font = quoteFont(fontSize);
@@ -1519,6 +1533,9 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
             lines,
             lineHeight,
             recipientLine,
+            titleLines,
+            titleLineHeight,
+            dividerSpace,
             recFontSize,
             recBlockH,
             padX,
@@ -1529,7 +1546,7 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
             totalTextH
         };
 
-        if (totalTextH <= maxH && widest <= maxWidth) break;
+        if (totalTextH <= maxH && widest <= maxWidth && widestTitle <= maxWidth) break;
     }
     return layout;
 }
@@ -1545,24 +1562,42 @@ function drawQuoteContent(ctx, boxX, boxY, boxW, boxH, layout, theme, scale) {
 
     let quoteStartY = startBlockY + layout.lineHeight / 2;
 
-    if (layout.recipientLine && layout.recFontSize > 0) {
-        const recY = startBlockY + layout.recFontSize * 0.55;
+    if (layout.recipientLine && layout.titleLines && layout.titleLines.length > 0 && layout.recFontSize > 0) {
+        ctx.save();
         ctx.font = recipientFont(layout.recFontSize);
         ctx.fillStyle = theme.recipientColor;
-        ctx.fillText(layout.recipientLine, centerX, recY, layout.maxWidth);
+        ctx.shadowColor = theme.shadowRgba;
+        ctx.shadowBlur = Math.floor(layout.recFontSize * 0.22);
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = Math.floor(layout.recFontSize * 0.05);
 
-        const divY = startBlockY + layout.recFontSize * 1.22;
-        const divW = Math.min(layout.maxWidth * 0.36, 200 * scale);
+        const firstTitleY = startBlockY + layout.titleLineHeight / 2;
+        layout.titleLines.forEach((tLine, idx) => {
+            ctx.fillText(tLine, centerX, firstTitleY + idx * layout.titleLineHeight, layout.maxWidth);
+        });
+        ctx.restore();
+
+        // Đường kẻ trang trí kim cương mảnh ngăn cách rõ ràng giữa Tiêu đề và Lời chúc
+        const titleBottomY = startBlockY + layout.titleLines.length * layout.titleLineHeight;
+        const divY = titleBottomY + layout.dividerSpace * 0.48;
+        const divW = Math.min(layout.maxWidth * 0.42, 240 * scale);
         const divGrad = ctx.createLinearGradient(centerX - divW / 2, divY, centerX + divW / 2, divY);
         divGrad.addColorStop(0, 'rgba(0,0,0,0)');
         divGrad.addColorStop(0.5, theme.borderPrimary);
         divGrad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.strokeStyle = divGrad;
-        ctx.lineWidth = Math.max(1, 1.5 * scale);
+        ctx.lineWidth = Math.max(1, 1.6 * scale);
         ctx.beginPath();
         ctx.moveTo(centerX - divW / 2, divY);
         ctx.lineTo(centerX + divW / 2, divY);
         ctx.stroke();
+
+        // Điểm nhấn thoi ánh kim ở tâm đường ngăn cách
+        ctx.save();
+        ctx.fillStyle = theme.goldAccent;
+        drawFourPointStarPath(ctx, centerX, divY, 5.5 * scale);
+        ctx.fill();
+        ctx.restore();
 
         quoteStartY = startBlockY + layout.recBlockH + layout.lineHeight / 2;
     }
