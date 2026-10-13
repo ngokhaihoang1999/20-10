@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css?v=9.0">
+    <link rel="stylesheet" href="style.css?v=10.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap"
         rel="stylesheet">
@@ -88,131 +88,32 @@
     <canvas id="bg-canvas"></canvas>
     <canvas id="fx-canvas"></canvas>
 
-    <!-- Nghi thức Nở Hoa Trà & Hào Quang Vàng 24K Đa Tầng 3D khi tạo thiệp -->
+    <!-- Đại Hoa Trà Couture 3D Ở Tâm: Vừa Xoáy Lốc Vừa Bung Xòe Từng Lớp Cánh Hoa -->
     <div id="transition-overlay" aria-hidden="true">
         <div class="bloom-aura-veil"></div>
 
-        <!-- Hai vòng kim tuyến vàng 24K đồng tâm xoay ngược chiều -->
-        <svg class="bloom-astrolabe bloom-astrolabe-outer" viewBox="0 0 400 400">
-            <defs>
-                <linearGradient id="bloomGoldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#fff4b8" />
-                    <stop offset="35%" stop-color="#e5b242" />
-                    <stop offset="70%" stop-color="#fff0a8" />
-                    <stop offset="100%" stop-color="#c48a18" />
-                </linearGradient>
-            </defs>
-            <circle cx="200" cy="200" r="176" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1.4" stroke-dasharray="5 7" opacity="0.78" />
-            <circle cx="200" cy="200" r="162" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="0.9" opacity="0.5" />
-            <path d="M200,12 L204,24 L216,28 L204,32 L200,44 L196,32 L184,28 L196,24 Z" fill="url(#bloomGoldStroke)" />
-            <path d="M200,356 L204,368 L216,372 L204,376 L200,388 L196,376 L184,372 L196,368 Z" fill="url(#bloomGoldStroke)" />
-            <path d="M12,200 L24,196 L28,184 L32,196 L44,200 L32,204 L28,216 L24,204 Z" fill="url(#bloomGoldStroke)" />
-            <path d="M356,200 L368,196 L372,184 L376,196 L388,200 L376,204 L372,216 L368,204 Z" fill="url(#bloomGoldStroke)" />
-        </svg>
-
-        <!-- Lớp cánh hoa lụa & bụi sao vàng bay xoáy 3D (sinh động bởi JS) -->
+        <!-- Lớp cánh hoa lụa & bụi sao vàng bay xoáy 3D quanh bông hoa chính -->
         <div id="bloom-vortex-layer" class="bloom-vortex-layer"></div>
 
-        <!-- Đóa Hoa Trà & Mẫu Đơn Hoàng Gia 4 Tầng Cánh Vector 3D -->
-        <div class="couture-bloom-wrap">
-            <svg class="couture-bloom-svg" viewBox="-160 -160 320 320">
+        <!-- Sân khấu Đại Hoa Trà đặt chính giữa màn hình (92vmin), từng tầng cánh vừa xoay vừa xòe rộng -->
+        <div class="couture-bloom-stage" id="couture-bloom-stage">
+            <svg class="bloom-astrolabe" viewBox="0 0 400 400" aria-hidden="true">
                 <defs>
-                    <radialGradient id="petalOuterGrad" cx="50%" cy="85%" r="85%">
-                        <stop offset="0%" stop-color="#e85d8c" />
-                        <stop offset="52%" stop-color="#f9bfd2" />
-                        <stop offset="100%" stop-color="#fff7fa" />
-                    </radialGradient>
-                    <radialGradient id="petalMidGrad" cx="50%" cy="85%" r="85%">
-                        <stop offset="0%" stop-color="#d84376" />
-                        <stop offset="48%" stop-color="#f49ab8" />
-                        <stop offset="92%" stop-color="#ffeef4" />
-                        <stop offset="100%" stop-color="#ffffff" />
-                    </radialGradient>
-                    <radialGradient id="petalInnerGrad" cx="50%" cy="80%" r="80%">
-                        <stop offset="0%" stop-color="#f07ca5" />
-                        <stop offset="55%" stop-color="#fde2ec" />
-                        <stop offset="100%" stop-color="#ffffff" />
-                    </radialGradient>
-                    <linearGradient id="sepalEmeraldGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-                        <stop offset="0%" stop-color="#0a5c46" />
-                        <stop offset="60%" stop-color="#289c7c" />
-                        <stop offset="100%" stop-color="#8fd9c0" />
+                    <linearGradient id="bloomGoldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#fff6c4" />
+                        <stop offset="35%" stop-color="#e5b242" />
+                        <stop offset="70%" stop-color="#fff0a8" />
+                        <stop offset="100%" stop-color="#c48a18" />
                     </linearGradient>
-                    <filter id="bloomSoftShadow" x="-25%" y="-25%" width="150%" height="150%">
-                        <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#5c1230" flood-opacity="0.24" />
-                    </filter>
-                    <!-- Hình mẫu 1 chiếc lá ngọc bích viền vàng -->
-                    <g id="coutureLeafDef">
-                        <path d="M 0,0 C -22,-38 -20,-92 0,-132 C 20,-92 22,-38 0,0 Z" fill="url(#sepalEmeraldGrad)" stroke="url(#bloomGoldStroke)" stroke-width="1.8" opacity="0.9" />
-                        <path d="M 0,-8 Q 2,-65 0,-122" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1.2" opacity="0.85" />
-                    </g>
-                    <!-- Hình mẫu cánh hoa lụa khuyết tim nhẹ -->
-                    <path id="coutureOuterPetalDef" d="M 0,0 C -38,-28 -44,-88 -12,-116 C -4,-122 0,-115 0,-115 C 0,-115 4,-122 12,-116 C 44,-88 38,-28 0,0 Z" />
-                    <path id="coutureMidPetalDef" d="M 0,0 C -32,-22 -36,-72 -9,-94 C -3,-99 0,-93 0,-93 C 0,-93 3,-99 9,-94 C 36,-72 32,-22 0,0 Z" />
-                    <path id="coutureInnerPetalDef" d="M 0,0 C -24,-16 -26,-52 -6,-68 C 0,-73 6,-68 6,-68 C 26,-52 24,-16 0,0 Z" />
                 </defs>
-
-                <!-- Tầng 1: 6 Đài Lá Ngọc Bích & Gân Vàng Kim -->
-                <g class="bloom-layer bloom-sepals">
-                    <use href="#coutureLeafDef" transform="rotate(0)" />
-                    <use href="#coutureLeafDef" transform="rotate(60)" />
-                    <use href="#coutureLeafDef" transform="rotate(120)" />
-                    <use href="#coutureLeafDef" transform="rotate(180)" />
-                    <use href="#coutureLeafDef" transform="rotate(240)" />
-                    <use href="#coutureLeafDef" transform="rotate(300)" />
-                </g>
-
-                <!-- Tầng 2: 10 Cánh Lụa Hồng Đào Ngoài -->
-                <g class="bloom-layer bloom-outer-petals" filter="url(#bloomSoftShadow)" fill="url(#petalOuterGrad)" stroke="url(#bloomGoldStroke)" stroke-width="1.6">
-                    <use href="#coutureOuterPetalDef" transform="rotate(0)" />
-                    <use href="#coutureOuterPetalDef" transform="rotate(36)" />
-                    <use href="#coutureOuterPetalDef" transform="rotate(72)" />
-                    <use href="#coutureOuterPetalDef" transform="rotate(108)" />
-                    <use href="#coutureOuterPetalDef" transform="rotate(144)" />
-                    <use href="#coutureOuterPetalDef" transform="rotate(180)" />
-                    <use href="#coutureOuterPetalDef" transform="rotate(216)" />
-                    <use href="#coutureOuterPetalDef" transform="rotate(252)" />
-                    <use href="#coutureOuterPetalDef" transform="rotate(288)" />
-                    <use href="#coutureOuterPetalDef" transform="rotate(324)" />
-                </g>
-
-                <!-- Tầng 3: 8 Cánh Nhung Hồng Trà Giữa (xoay lệch nhịp) -->
-                <g class="bloom-layer bloom-mid-petals" filter="url(#bloomSoftShadow)" fill="url(#petalMidGrad)" stroke="url(#bloomGoldStroke)" stroke-width="1.5">
-                    <use href="#coutureMidPetalDef" transform="rotate(18)" />
-                    <use href="#coutureMidPetalDef" transform="rotate(63)" />
-                    <use href="#coutureMidPetalDef" transform="rotate(108)" />
-                    <use href="#coutureMidPetalDef" transform="rotate(153)" />
-                    <use href="#coutureMidPetalDef" transform="rotate(198)" />
-                    <use href="#coutureMidPetalDef" transform="rotate(243)" />
-                    <use href="#coutureMidPetalDef" transform="rotate(288)" />
-                    <use href="#coutureMidPetalDef" transform="rotate(333)" />
-                </g>
-
-                <!-- Tầng 4: 6 Cánh Trắng Kem Ngọc Trai Trong -->
-                <g class="bloom-layer bloom-inner-petals" filter="url(#bloomSoftShadow)" fill="url(#petalInnerGrad)" stroke="url(#bloomGoldStroke)" stroke-width="1.4">
-                    <use href="#coutureInnerPetalDef" transform="rotate(0)" />
-                    <use href="#coutureInnerPetalDef" transform="rotate(60)" />
-                    <use href="#coutureInnerPetalDef" transform="rotate(120)" />
-                    <use href="#coutureInnerPetalDef" transform="rotate(180)" />
-                    <use href="#coutureInnerPetalDef" transform="rotate(240)" />
-                    <use href="#coutureInnerPetalDef" transform="rotate(300)" />
-                </g>
-
-                <!-- Tầng 5: Đài Nhụy Vàng 24K & Ánh Sao Bừng Sáng Ở Tâm -->
-                <g class="bloom-layer bloom-stamen-crown">
-                    <circle cx="0" cy="0" r="24" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1.5" stroke-dasharray="2 4" />
-                    <circle cx="0" cy="0" r="14" fill="url(#bloomGoldStroke)" />
-                    <path d="M0,-32 L4,-8 L32,0 L4,8 L0,32 L-4,8 L-32,0 L-4,-8 Z" fill="#ffffff" />
-                    <circle cx="0" cy="-24" r="3" fill="#fff7d6" />
-                    <circle cx="17" cy="-17" r="3" fill="#fff7d6" />
-                    <circle cx="24" cy="0" r="3" fill="#fff7d6" />
-                    <circle cx="17" cy="17" r="3" fill="#fff7d6" />
-                    <circle cx="0" cy="24" r="3" fill="#fff7d6" />
-                    <circle cx="-17" cy="17" r="3" fill="#fff7d6" />
-                    <circle cx="-24" cy="0" r="3" fill="#fff7d6" />
-                    <circle cx="-17" cy="-17" r="3" fill="#fff7d6" />
-                </g>
+                <circle cx="200" cy="200" r="190" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1.5" stroke-dasharray="6 8" opacity="0.82" />
+                <circle cx="200" cy="200" r="172" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1" opacity="0.55" />
+                <path d="M200,4 L205,18 L219,23 L205,28 L200,42 L195,28 L181,23 L195,18 Z" fill="url(#bloomGoldStroke)" />
+                <path d="M200,358 L205,372 L219,377 L205,382 L200,396 L195,382 L181,377 L195,372 Z" fill="url(#bloomGoldStroke)" />
+                <path d="M4,200 L18,195 L23,181 L28,195 L42,200 L28,205 L23,219 L18,205 Z" fill="url(#bloomGoldStroke)" />
+                <path d="M358,200 L372,195 L377,181 L382,195 L396,200 L382,205 L377,219 L372,205 Z" fill="url(#bloomGoldStroke)" />
             </svg>
+            <div id="bloom-flower-core" class="bloom-flower-core"></div>
         </div>
     </div>
 
@@ -436,46 +337,51 @@
                                   stroke-linecap="round"
                                   opacity="0.48" />
 
-                            <!-- Lòng con dấu lõm xuống (Recessed Stamp Impression) -->
-                            <circle cx="110" cy="110" r="66" fill="url(#waxWellGrad)" stroke="#593300" stroke-width="2.5" />
-                            <circle cx="110" cy="110" r="64.5" fill="none" stroke="#ffeba8" stroke-width="1.4" opacity="0.55" />
+                            <!-- Lòng con dấu lõm xuống (Recessed Stamp Impression mở rộng r=74 để chữ lớn, rõ nét) -->
+                            <circle cx="110" cy="110" r="74" fill="url(#waxWellGrad)" stroke="#593300" stroke-width="2.8" />
+                            <circle cx="110" cy="110" r="72.2" fill="none" stroke="#ffeba8" stroke-width="1.5" opacity="0.58" />
 
                             <!-- Vòng hạt cườm cổ điển chạy quanh lòng dấu sáp -->
-                            <circle cx="110" cy="110" r="58" fill="none" stroke="url(#waxReliefGrad)" stroke-width="2.2" stroke-dasharray="2.4 4.2" filter="url(#waxEmbossShadow)" />
+                            <circle cx="110" cy="110" r="66" fill="none" stroke="url(#waxReliefGrad)" stroke-width="2.4" stroke-dasharray="2.8 4.4" filter="url(#waxEmbossShadow)" />
 
-                            <!-- Họa tiết chạm nổi 3D: Cành nguyệt quế đối xứng + Hoa trà 5 cánh + 20•10 -->
+                            <!-- Họa tiết chạm nổi 3D cỡ lớn, sắc nét: Hoa đào 5 cánh + 20•10 + BTLMVN -->
                             <g filter="url(#waxEmbossShadow)" fill="url(#waxReliefGrad)">
                                 <!-- Hoa đào / Hoa trà 5 cánh chạm nổi phía trên -->
-                                <g transform="translate(110, 68)">
+                                <g transform="translate(110, 56) scale(1.12)">
                                     <circle cx="0" cy="-7" r="5" />
                                     <circle cx="6.6" cy="-2.1" r="5" />
                                     <circle cx="4.1" cy="5.6" r="5" />
                                     <circle cx="-4.1" cy="5.6" r="5" />
                                     <circle cx="-6.6" cy="-2.1" r="5" />
                                     <circle cx="0" cy="0" r="2.8" fill="#fff8dc" />
-                                    <!-- 2 chiếc lá nhỏ hai bên bông hoa -->
-                                    <path d="M -11,1 Q -22,-3 -26,4 Q -18,8 -11,1 Z" />
-                                    <path d="M 11,1 Q 22,-3 26,4 Q 18,8 11,1 Z" />
+                                    <path d="M -11,1 Q -23,-3 -27,4 Q -18,8 -11,1 Z" />
+                                    <path d="M 11,1 Q 23,-3 27,4 Q 18,8 11,1 Z" />
                                 </g>
 
-                                <!-- Chữ số 20 • 10 chạm nổi sắc nét ở chính giữa -->
-                                <text x="110" y="118"
+                                <!-- Chữ số 20•10 cỡ lớn chạm nổi 3D rõ nét ở chính giữa -->
+                                <text x="110" y="116"
                                       text-anchor="middle"
                                       font-family="'Cormorant Garamond', 'Playfair Display', serif"
-                                      font-size="34"
+                                      font-size="47"
                                       font-weight="700"
-                                      letter-spacing="1"
+                                      letter-spacing="1.2"
+                                      stroke="#4a2800"
+                                      stroke-width="0.8"
+                                      paint-order="stroke fill"
                                       fill="url(#waxReliefGrad)">20•10</text>
 
-                                <!-- Đường hoa văn mảnh & dòng chữ BTLMVN phía dưới -->
-                                <path d="M 74,131 L 146,131" stroke="url(#waxReliefGrad)" stroke-width="1.6" stroke-linecap="round" />
-                                <circle cx="110" cy="131" r="2.6" />
-                                <text x="110" y="149"
+                                <!-- Đường hoa văn mảnh & dòng chữ BTLMVN cỡ lớn phía dưới -->
+                                <path d="M 64,129 L 156,129" stroke="url(#waxReliefGrad)" stroke-width="2" stroke-linecap="round" />
+                                <circle cx="110" cy="129" r="3.2" fill="#fff8dc" />
+                                <text x="110" y="153"
                                       text-anchor="middle"
                                       font-family="'Montserrat', sans-serif"
-                                      font-size="11.5"
-                                      font-weight="700"
+                                      font-size="16.8"
+                                      font-weight="800"
                                       letter-spacing="3.2"
+                                      stroke="#4a2800"
+                                      stroke-width="0.6"
+                                      paint-order="stroke fill"
                                       fill="url(#waxReliefGrad)">BTLMVN</text>
                             </g>
                         </svg>
@@ -484,62 +390,69 @@
                 </div>
             </div>
 
-            <!-- Lớp 2 (z-index: 4 khi nằm trong phong bì -> z-index: 14 khi rút ra):
-                 CHÍNH LÀ TẤM THIỆP "THÁNG 10 RẠNG RỠ" NẰM TRONG BÌ THƯ -->
-            <div class="step1-card-column" id="step1-card-column">
-                <div class="glass-container step1-card" id="step1-main-card">
-                    <div class="card-glow-orb orb-1" aria-hidden="true"></div>
-                    <div class="card-glow-orb orb-2" aria-hidden="true"></div>
-                    <div class="step1-deco-corner corner-tl" aria-hidden="true"></div>
-                    <div class="step1-deco-corner corner-tr" aria-hidden="true"></div>
-                    <div class="step1-deco-corner corner-bl" aria-hidden="true"></div>
-                    <div class="step1-deco-corner corner-br" aria-hidden="true"></div>
+            <!-- Khe chứa lá thư vật lý (z-index: 4 khi nằm trong phong bì -> z-index: 14 khi rút ra hoàn toàn):
+                 Cắt khóa tuyệt đối theo lòng bao thư để lá thư KHÔNG BAO GIỜ lộ ra khi đóng hoặc đâm xuyên bao thư -->
+            <div class="envelope-letter-slot" id="envelope-letter-slot">
+                <div class="step1-card-column" id="step1-card-column">
+                    <div class="glass-container step1-card" id="step1-main-card">
+                        <div class="card-glow-orb orb-1" aria-hidden="true"></div>
+                        <div class="card-glow-orb orb-2" aria-hidden="true"></div>
+                        <div class="step1-deco-corner corner-tl" aria-hidden="true"></div>
+                        <div class="step1-deco-corner corner-tr" aria-hidden="true"></div>
+                        <div class="step1-deco-corner corner-bl" aria-hidden="true"></div>
+                        <div class="step1-deco-corner corner-br" aria-hidden="true"></div>
 
-                    <div class="title-wrapper">
-                        <h1 class="main-title">Tháng 10 Rạng Rỡ</h1>
-                        <p class="sub-title">BTLMVN thân gửi các chị em nhân ngày 20/10 🌸</p>
-                    </div>
+                        <div class="title-wrapper">
+                            <h1 class="main-title">Tháng 10 Rạng Rỡ</h1>
+                            <p class="sub-title">BTLMVN thân gửi các chị em nhân ngày 20/10 🌸</p>
+                        </div>
 
-                    <!-- Bộ 3 tấm thiệp mẫu 3D xếp xòe quạt độ phân giải cao (Tự động tuần tự 4 giây trượt đổi mẫu 3D) -->
-                    <div class="hero-fan-showcase" id="hero-fan-showcase">
-                        <div class="fan-Ambient-glow" aria-hidden="true"></div>
-                        <div class="fan-cards-stage" id="fan-cards-stage">
-                            <div class="fan-card fan-pos-left" id="fan-card-0">
-                                <canvas class="fan-card-canvas" width="400" height="756"></canvas>
-                                <div class="fan-card-shine" aria-hidden="true"></div>
+                        <!-- Bộ 3 tấm thiệp mẫu 3D xếp xòe quạt (Tự động 4 giây đổi mẫu + Bấm vào chuyển nhanh ngay lập tức) -->
+                        <div class="hero-fan-showcase" id="hero-fan-showcase" role="button" tabindex="0" aria-label="Bấm để chuyển nhanh sang mẫu thiệp khác">
+                            <div class="fan-Ambient-glow" aria-hidden="true"></div>
+                            <span class="fan-floating-accent accent-1" aria-hidden="true">🌸</span>
+                            <span class="fan-floating-accent accent-2" aria-hidden="true">✨</span>
+                            <span class="fan-floating-accent accent-3" aria-hidden="true">✿</span>
+                            <span class="fan-floating-accent accent-4" aria-hidden="true">✨</span>
+
+                            <div class="fan-cards-stage" id="fan-cards-stage">
+                                <div class="fan-card fan-pos-left" id="fan-card-0">
+                                    <canvas class="fan-card-canvas" width="420" height="846"></canvas>
+                                    <div class="fan-card-shine" aria-hidden="true"></div>
+                                </div>
+                                <div class="fan-card fan-pos-center" id="fan-card-1">
+                                    <canvas class="fan-card-canvas" width="420" height="846"></canvas>
+                                    <div class="fan-card-shine" aria-hidden="true"></div>
+                                </div>
+                                <div class="fan-card fan-pos-right" id="fan-card-2">
+                                    <canvas class="fan-card-canvas" width="420" height="846"></canvas>
+                                    <div class="fan-card-shine" aria-hidden="true"></div>
+                                </div>
                             </div>
-                            <div class="fan-card fan-pos-center" id="fan-card-1">
-                                <canvas class="fan-card-canvas" width="400" height="756"></canvas>
-                                <div class="fan-card-shine" aria-hidden="true"></div>
-                            </div>
-                            <div class="fan-card fan-pos-right" id="fan-card-2">
-                                <canvas class="fan-card-canvas" width="400" height="756"></canvas>
-                                <div class="fan-card-shine" aria-hidden="true"></div>
-                            </div>
+                        </div>
+
+                        <div class="upload-wrapper" id="upload-wrapper">
+                            <label for="selfie-btn" class="btn-primary btn-shimmer">
+                                <span class="icon">📸</span> Chụp ảnh trực tiếp
+                            </label>
+                            <input type="file" id="selfie-btn" accept="image/*" capture="user">
+
+                            <label for="upload-btn" class="btn-secondary" style="margin-top: 10px;">
+                                <span class="icon">🖼️</span> Chọn ảnh từ thư viện
+                            </label>
+                            <input type="file" id="upload-btn" accept="image/png, image/jpeg, image/jpg, image/webp">
                         </div>
                     </div>
 
-                    <div class="upload-wrapper" id="upload-wrapper">
-                        <label for="selfie-btn" class="btn-primary btn-shimmer">
-                            <span class="icon">📸</span> Chụp ảnh trực tiếp
-                        </label>
-                        <input type="file" id="selfie-btn" accept="image/*" capture="user">
-
-                        <label for="upload-btn" class="btn-secondary" style="margin-top: 10px;">
-                            <span class="icon">🖼️</span> Chọn ảnh từ thư viện
-                        </label>
-                        <input type="file" id="upload-btn" accept="image/png, image/jpeg, image/jpg, image/webp">
-                    </div>
+                    <!-- Nút Icon Phong Bì nằm ngay dưới tấm Tháng 10 Rạng Rỡ (bấm để đảo ngược hoạt ảnh cất thiệp vào phong bì) -->
+                    <button type="button" id="replay-envelope-btn" class="replay-env-icon-btn" aria-label="Cất thiệp vào lại phong bì" title="Đóng lại vào phong bì">
+                        <svg class="replay-env-svg" viewBox="0 0 44 34" aria-hidden="true">
+                            <rect x="2" y="2" width="40" height="30" rx="5" fill="#0b614b" stroke="#e2b049" stroke-width="1.8" />
+                            <path d="M 3,4 L 22,19 L 41,4" fill="none" stroke="#f7df94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+                            <circle cx="22" cy="18" r="4.2" fill="#e5ad3b" stroke="#fff3c4" stroke-width="1" />
+                        </svg>
+                    </button>
                 </div>
-
-                <!-- Nút Icon Phong Bì nằm ngay dưới tấm Tháng 10 Rạng Rỡ (bấm để đảo ngược hoạt ảnh cất thiệp vào phong bì) -->
-                <button type="button" id="replay-envelope-btn" class="replay-env-icon-btn" aria-label="Cất thiệp vào lại phong bì" title="Đóng lại vào phong bì">
-                    <svg class="replay-env-svg" viewBox="0 0 44 34" aria-hidden="true">
-                        <rect x="2" y="2" width="40" height="30" rx="5" fill="#0b614b" stroke="#e2b049" stroke-width="1.8" />
-                        <path d="M 3,4 L 22,19 L 41,4" fill="none" stroke="#f7df94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-                        <circle cx="22" cy="18" r="4.2" fill="#e5ad3b" stroke="#fff3c4" stroke-width="1" />
-                    </svg>
-                </button>
             </div>
 
         </div>
@@ -621,12 +534,9 @@
 
                 <div id="card-showcase" class="card-showcase">
                     <canvas id="final-result-canvas" style="display: none;"></canvas>
-                    <img id="final-result-img" alt="Thiệp 20/10 của bạn">
+                    <img id="final-result-img" alt="Thiệp 20/10 của bạn" draggable="false">
                     <div class="card-glass-shine" aria-hidden="true"></div>
                     <div id="card-floating-badge" class="card-floating-badge" aria-hidden="true">✨ 01/20 • Vòm Lụa</div>
-                    <div id="card-quote-tap-zone" class="card-quote-tap-zone" role="button" tabindex="0" aria-label="Chạm vào hộp chữ để sửa Tiêu đề và Lời chúc" title="Chạm để sửa Tiêu đề / Lời chúc">
-                        <span class="tap-edit-pill">✍️ Chạm sửa chữ</span>
-                    </div>
                 </div>
 
                 <button type="button" id="next-frame-btn" class="card-nav-arrow card-nav-next" aria-label="Mẫu khung tiếp theo" title="Mẫu tiếp theo">›</button>
@@ -729,9 +639,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=9.0"></script>
-    <script src="script.js?v=9.0"></script>
-    <script src="intro.js?v=9.0"></script>
+    <script src="wishes.js?v=10.0"></script>
+    <script src="script.js?v=10.0"></script>
+    <script src="intro.js?v=10.0"></script>
 </body>
 
 </html>

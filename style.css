@@ -204,104 +204,166 @@ body {
     border-left: 4px solid #8fd1ba;
 }
 
-/* ====== COUTURE 3D CAMELLIA & GOLD ASTROLABE BLOOMING TRANSITION ====== */
+/* ====== ĐẠI HOA TRÀ COUTURE 3D Ở TÂM: VỪA XOÁY LỐC VỪA XÒE BUNG CÁNH HOA ====== */
 #transition-overlay {
     position: fixed;
     inset: 0;
-    z-index: 999;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    z-index: 9999;
     pointer-events: none;
     opacity: 0;
     overflow: hidden;
-    perspective: 1000px;
 }
 
 #transition-overlay.playing {
     pointer-events: all;
-    animation: coutureOverlayLifecycle 2.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation: coutureOverlayLifecycle 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .bloom-aura-veil {
     position: absolute;
-    inset: -25%;
+    top: 50%;
+    left: 50%;
+    width: 150vmax;
+    height: 150vmax;
+    margin-left: -75vmax;
+    margin-top: -75vmax;
     border-radius: 50%;
     background:
         radial-gradient(circle at center,
-            rgba(255, 245, 249, 0.96) 0%,
-            rgba(252, 214, 228, 0.85) 26%,
-            rgba(182, 236, 216, 0.78) 54%,
-            rgba(15, 123, 95, 0.25) 75%,
+            rgba(255, 246, 250, 0.97) 0%,
+            rgba(253, 214, 229, 0.9) 24%,
+            rgba(182, 236, 216, 0.82) 52%,
+            rgba(15, 123, 95, 0.28) 74%,
             transparent 90%);
     backdrop-filter: blur(8px);
-    transform: scale(0.15);
+    transform: scale(0.08);
     opacity: 0;
 }
 
 #transition-overlay.playing .bloom-aura-veil {
-    animation: coutureVeilExpand 2.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: coutureVeilExpand 2.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Sân khấu Đại Hoa Trà đặt chính giữa màn hình với kích thước lớn (92vmin) */
+.couture-bloom-stage {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(92vmin, 520px);
+    height: min(92vmin, 520px);
+    transform: translate(-50%, -50%);
+    z-index: 4;
+    pointer-events: none;
 }
 
 .bloom-astrolabe {
     position: absolute;
-    width: min(78vmin, 340px);
-    height: min(78vmin, 340px);
+    inset: -5%;
+    width: 110%;
+    height: 110%;
     opacity: 0;
-    transform: scale(0.2) rotate(-90deg);
-    z-index: 2;
+    transform-origin: 50% 50%;
+    transform: scale(0.15) rotate(-140deg);
+    z-index: 1;
 }
 
 #transition-overlay.playing .bloom-astrolabe {
-    animation: coutureAstrolabeSpin 2.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: coutureAstrolabeSpin 2.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.couture-bloom-wrap {
-    position: relative;
-    width: min(64vmin, 270px);
-    height: min(64vmin, 270px);
-    z-index: 4;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+.bloom-flower-core {
+    position: absolute;
+    inset: 0;
+    z-index: 3;
+    transform-origin: 50% 50%;
 }
 
-.couture-bloom-svg {
+.bloom-ring {
+    position: absolute;
+    inset: 0;
+    transform-origin: 50% 50%;
+    opacity: 0;
+    will-change: transform, opacity;
+}
+
+#transition-overlay.playing .bloom-ring.ring-sepals {
+    animation: ringSwirlSepals 2.35s cubic-bezier(0.16, 1, 0.3, 1) 0.02s forwards;
+}
+
+#transition-overlay.playing .bloom-ring.ring-outer {
+    animation: ringSwirlOuter 2.35s cubic-bezier(0.16, 1, 0.3, 1) 0.06s forwards;
+}
+
+#transition-overlay.playing .bloom-ring.ring-mid {
+    animation: ringSwirlMid 2.35s cubic-bezier(0.16, 1, 0.3, 1) 0.11s forwards;
+}
+
+#transition-overlay.playing .bloom-ring.ring-inner {
+    animation: ringSwirlInner 2.35s cubic-bezier(0.16, 1, 0.3, 1) 0.16s forwards;
+}
+
+#transition-overlay.playing .bloom-ring.ring-core {
+    animation: ringSwirlCore 2.35s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+}
+
+.bloom-petal-slot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+}
+
+.bloom-petal-blade {
+    position: absolute;
+    left: calc(var(--pw) * -0.5);
+    bottom: -6px;
+    width: var(--pw);
+    height: var(--ph);
+    transform-origin: 50% 96%;
+    will-change: transform;
+    filter: drop-shadow(0 6px 12px rgba(92, 18, 48, 0.24));
+}
+
+.bloom-petal-blade svg {
     width: 100%;
     height: 100%;
+    display: block;
     overflow: visible;
 }
 
-.bloom-layer {
-    transform-origin: 0px 0px;
+#transition-overlay.playing .bloom-petal-blade {
+    animation: couturePetalSpread 2.35s cubic-bezier(0.16, 1, 0.3, 1) var(--pdelay, 0s) forwards;
+}
+
+.bloom-crown-stamen {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: min(28vmin, 156px);
+    height: min(28vmin, 156px);
+    margin-left: calc(min(28vmin, 156px) * -0.5);
+    margin-top: calc(min(28vmin, 156px) * -0.5);
+    transform-origin: 50% 50%;
     opacity: 0;
-    transform: scale(0);
+    z-index: 10;
 }
 
-#transition-overlay.playing .bloom-sepals {
-    animation: bloomLayerUnfurl 2.25s cubic-bezier(0.16, 1, 0.3, 1) 0.04s forwards;
+.bloom-crown-stamen svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
 }
 
-#transition-overlay.playing .bloom-outer-petals {
-    animation: bloomLayerUnfurlCW 2.25s cubic-bezier(0.16, 1, 0.3, 1) 0.12s forwards;
-}
-
-#transition-overlay.playing .bloom-mid-petals {
-    animation: bloomLayerUnfurlCCW 2.25s cubic-bezier(0.16, 1, 0.3, 1) 0.22s forwards;
-}
-
-#transition-overlay.playing .bloom-inner-petals {
-    animation: bloomLayerUnfurlCW 2.25s cubic-bezier(0.16, 1, 0.3, 1) 0.32s forwards;
-}
-
-#transition-overlay.playing .bloom-stamen-crown {
-    animation: bloomCrownSparkle 2.25s cubic-bezier(0.34, 1.56, 0.64, 1) 0.38s forwards;
+#transition-overlay.playing .bloom-crown-stamen {
+    animation: bloomCrownSparkle 2.35s cubic-bezier(0.22, 1, 0.36, 1) 0.22s forwards;
 }
 
 .bloom-vortex-layer {
     position: absolute;
     inset: 0;
-    z-index: 3;
+    z-index: 5;
     pointer-events: none;
     display: flex;
     align-items: center;
@@ -310,62 +372,99 @@ body {
 
 .couture-vortex-item {
     position: absolute;
-    width: var(--item-size, 28px);
-    height: var(--item-size, 28px);
+    width: var(--item-size, 32px);
+    height: var(--item-size, 32px);
     opacity: 0;
     will-change: transform, opacity;
-    animation: coutureVortexFlight 2.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: coutureVortexFlight 2.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes coutureOverlayLifecycle {
     0% { opacity: 0; }
-    12% { opacity: 1; }
+    10% { opacity: 1; }
     78% { opacity: 1; }
     100% { opacity: 0; }
 }
 
 @keyframes coutureVeilExpand {
-    0% { transform: scale(0.15); opacity: 0; }
-    24% { transform: scale(1.05); opacity: 1; }
-    72% { transform: scale(1.35); opacity: 0.92; }
-    100% { transform: scale(1.75); opacity: 0; }
+    0% { transform: scale(0.08); opacity: 0; }
+    24% { transform: scale(0.85); opacity: 1; }
+    72% { transform: scale(1.12); opacity: 0.94; }
+    100% { transform: scale(1.45); opacity: 0; }
 }
 
 @keyframes coutureAstrolabeSpin {
-    0% { opacity: 0; transform: scale(0.25) rotate(-80deg); }
-    25% { opacity: 0.95; transform: scale(1) rotate(0deg); }
-    75% { opacity: 0.85; transform: scale(1.14) rotate(55deg); }
-    100% { opacity: 0; transform: scale(1.38) rotate(95deg); }
+    0% { opacity: 0; transform: scale(0.18) rotate(-140deg); }
+    26% { opacity: 0.95; transform: scale(0.96) rotate(0deg); }
+    74% { opacity: 0.88; transform: scale(1.12) rotate(90deg); }
+    100% { opacity: 0; transform: scale(1.38) rotate(150deg); }
 }
 
-@keyframes bloomLayerUnfurl {
-    0% { opacity: 0; transform: scale(0) rotate(-25deg); }
-    28% { opacity: 1; transform: scale(1.06) rotate(4deg); }
-    65% { opacity: 1; transform: scale(1) rotate(12deg); }
-    100% { opacity: 0; transform: scale(1.42) rotate(24deg); }
+/* 5 tầng cánh hoa vừa xoáy lốc đồng tâm vừa mở rộng đường kính */
+@keyframes ringSwirlSepals {
+    0% { opacity: 0; transform: scale(0.12) rotate(-150deg); }
+    22% { opacity: 1; transform: scale(0.86) rotate(-25deg); }
+    62% { opacity: 1; transform: scale(1.04) rotate(28deg); }
+    82% { opacity: 0.94; transform: scale(1.14) rotate(56deg); }
+    100% { opacity: 0; transform: scale(1.42) rotate(95deg); }
 }
 
-@keyframes bloomLayerUnfurlCW {
-    0% { opacity: 0; transform: scale(0) rotate(-42deg); }
-    30% { opacity: 1; transform: scale(1.08) rotate(6deg); }
-    52% { opacity: 1; transform: scale(0.98) rotate(14deg); }
-    74% { opacity: 1; transform: scale(1.04) rotate(24deg); }
-    100% { opacity: 0; transform: scale(1.55) rotate(45deg); }
+@keyframes ringSwirlOuter {
+    0% { opacity: 0; transform: scale(0.1) rotate(-195deg); }
+    24% { opacity: 1; transform: scale(0.88) rotate(-30deg); }
+    64% { opacity: 1; transform: scale(1.06) rotate(42deg); }
+    82% { opacity: 0.96; transform: scale(1.18) rotate(78deg); }
+    100% { opacity: 0; transform: scale(1.48) rotate(125deg); }
 }
 
-@keyframes bloomLayerUnfurlCCW {
-    0% { opacity: 0; transform: scale(0) rotate(42deg); }
-    30% { opacity: 1; transform: scale(1.08) rotate(-6deg); }
-    52% { opacity: 1; transform: scale(0.98) rotate(-14deg); }
-    74% { opacity: 1; transform: scale(1.04) rotate(-24deg); }
-    100% { opacity: 0; transform: scale(1.52) rotate(-42deg); }
+@keyframes ringSwirlMid {
+    0% { opacity: 0; transform: scale(0.08) rotate(-240deg); }
+    26% { opacity: 1; transform: scale(0.9) rotate(-35deg); }
+    66% { opacity: 1; transform: scale(1.08) rotate(58deg); }
+    82% { opacity: 0.96; transform: scale(1.2) rotate(102deg); }
+    100% { opacity: 0; transform: scale(1.52) rotate(155deg); }
+}
+
+@keyframes ringSwirlInner {
+    0% { opacity: 0; transform: scale(0.06) rotate(-285deg); }
+    28% { opacity: 1; transform: scale(0.92) rotate(-40deg); }
+    68% { opacity: 1; transform: scale(1.1) rotate(76deg); }
+    84% { opacity: 0.96; transform: scale(1.22) rotate(128deg); }
+    100% { opacity: 0; transform: scale(1.56) rotate(190deg); }
+}
+
+@keyframes ringSwirlCore {
+    0% { opacity: 0; transform: scale(0.05) rotate(-330deg); }
+    30% { opacity: 1; transform: scale(0.94) rotate(-45deg); }
+    70% { opacity: 1; transform: scale(1.12) rotate(95deg); }
+    85% { opacity: 0.96; transform: scale(1.24) rotate(155deg); }
+    100% { opacity: 0; transform: scale(1.6) rotate(225deg); }
+}
+
+/* Từng cánh hoa riêng lẻ tự mở cuộn và xòe rộng từ búp hoa ra ngoài */
+@keyframes couturePetalSpread {
+    0% {
+        transform: translateY(24%) scaleX(0.22) scaleY(0.18) rotate(-44deg);
+    }
+    28% {
+        transform: translateY(6%) scaleX(0.72) scaleY(0.78) rotate(-14deg);
+    }
+    58% {
+        transform: translateY(-5%) scaleX(1.06) scaleY(1.04) rotate(3deg);
+    }
+    78% {
+        transform: translateY(-10%) scaleX(1.14) scaleY(1.08) rotate(9deg);
+    }
+    100% {
+        transform: translateY(-26%) scaleX(1.2) scaleY(1.12) rotate(18deg);
+    }
 }
 
 @keyframes bloomCrownSparkle {
-    0% { opacity: 0; transform: scale(0) rotate(-60deg); }
-    32% { opacity: 1; transform: scale(1.25) rotate(10deg); }
-    65% { opacity: 1; transform: scale(1) rotate(45deg); }
-    100% { opacity: 0; transform: scale(1.8) rotate(90deg); }
+    0% { opacity: 0; transform: scale(0.1) rotate(-180deg); }
+    32% { opacity: 1; transform: scale(1.18) rotate(15deg); }
+    68% { opacity: 1; transform: scale(1.02) rotate(85deg); }
+    100% { opacity: 0; transform: scale(1.65) rotate(165deg); }
 }
 
 @keyframes coutureVortexFlight {
@@ -375,15 +474,15 @@ body {
     }
     18% {
         opacity: 1;
-        transform: translate3d(var(--tx1), var(--ty1), 0) scale(1.12) rotate(var(--r1));
+        transform: translate3d(var(--tx1), var(--ty1), 0) scale(1.15) rotate(var(--r1));
     }
     64% {
-        opacity: 0.92;
-        transform: translate3d(var(--tx2), var(--ty2), 0) scale(0.96) rotate(var(--r2));
+        opacity: 0.94;
+        transform: translate3d(var(--tx2), var(--ty2), 0) scale(1) rotate(var(--r2));
     }
     100% {
         opacity: 0;
-        transform: translate3d(var(--tx3), var(--ty3), 0) scale(0.35) rotate(var(--r3));
+        transform: translate3d(var(--tx3), var(--ty3), 0) scale(0.4) rotate(var(--r3));
     }
 }
 
@@ -1415,54 +1514,6 @@ input[type="file"] {
     transform: translate3d(-50%, 0, 0);
 }
 
-/* Vùng chạm trực tiếp vào hộp lời chúc trên thiệp để mở khung sửa chữ */
-.card-quote-tap-zone {
-    position: absolute;
-    left: 4%;
-    right: 4%;
-    bottom: 2.2%;
-    height: 24.5%;
-    border-radius: 10px;
-    z-index: 10;
-    cursor: pointer;
-    display: flex;
-    align-items: flex-end;
-    justify-content: flex-end;
-    padding: 5px 7px;
-    border: 1.5px dashed transparent;
-    transition: border-color 0.22s ease, background-color 0.22s ease, transform 0.16s ease;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.card-quote-tap-zone:hover,
-.card-quote-tap-zone:active {
-    border-color: rgba(216, 75, 126, 0.55);
-    background-color: rgba(255, 245, 249, 0.18);
-}
-
-.card-quote-tap-zone:active {
-    transform: scale(0.985);
-}
-
-.tap-edit-pill {
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(216, 75, 126, 0.55);
-    color: #b53464;
-    font-size: 0.6rem;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(181, 52, 100, 0.16);
-    pointer-events: none;
-    opacity: 0.88;
-    transition: opacity 0.35s ease, transform 0.25s ease;
-}
-
-.card-quote-tap-zone:active .tap-edit-pill {
-    transform: scale(1.06);
-    opacity: 1;
-}
-
 #final-result-img {
     width: 100%;
     height: 100%;
@@ -1470,8 +1521,9 @@ input[type="file"] {
     max-height: 100%;
     object-fit: contain;
     display: block;
+    cursor: pointer;
     -webkit-touch-callout: default;
-    user-select: auto;
+    user-select: none;
 }
 
 .card-glass-shine {
