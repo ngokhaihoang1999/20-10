@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css?v=7.0">
+    <link rel="stylesheet" href="style.css?v=8.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap"
         rel="stylesheet">
@@ -94,14 +94,108 @@
         <div class="transition-heart">✿</div>
     </div>
 
-    <!-- Bước 1: Upload -->
+    <!-- Bước 1: Nghi thức Mở Phong Bì Ngọc Bích 3D & Card Mở Đầu -->
     <div id="step-1" class="screen active">
-        <div class="glass-container step1-card">
+        <!-- Giai đoạn 1A: Phong bì Lụa Xanh Ngọc Bích & Con dấu sáp vàng 3D -->
+        <div id="envelope-stage" class="envelope-stage" role="button" tabindex="0" aria-label="Chạm để mở phong bì 20/10">
+            <div class="env-floating-badge">✦ MÓN QUÀ NHỎ TỪ BTLMVN • 20.10 ✦</div>
+
+            <div class="emerald-envelope-wrap" id="emerald-envelope-wrap">
+                <div class="envelope-aura-glow" aria-hidden="true"></div>
+
+                <div class="emerald-envelope" id="emerald-envelope">
+                    <!-- Mặt lưng phong bì -->
+                    <div class="env-back"></div>
+
+                    <!-- Tấm thiệp ngọc bích hé lộ bên trong phong bì -->
+                    <div class="env-letter-peek">
+                        <div class="env-letter-inner">
+                            <span class="env-letter-crest">🌸 20 • 10 🌸</span>
+                            <h2 class="env-letter-title">Tháng 10 Rạng Rỡ</h2>
+                            <p class="env-letter-sub">Gửi trọn yêu thương đến phái đẹp BTLMVN</p>
+                        </div>
+                    </div>
+
+                    <!-- Túi gấp lụa phía trước phong bì -->
+                    <div class="env-pocket">
+                        <div class="env-pocket-lines"></div>
+                    </div>
+
+                    <!-- Nắp phong bì lật mở 3D -->
+                    <div class="env-flap">
+                        <div class="env-flap-gold-line"></div>
+                    </div>
+
+                    <!-- Con dấu sáp vàng chạm nổi 20•10 ở tâm phong bì -->
+                    <div class="env-wax-seal" id="env-wax-seal">
+                        <div class="wax-seal-pulse" aria-hidden="true"></div>
+                        <div class="wax-seal-disc">
+                            <span class="wax-seal-flower">✿</span>
+                            <span class="wax-seal-date">20•10</span>
+                            <span class="wax-seal-org">BTLMVN</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="env-tap-prompt">
+                <span class="tap-sparkle">✨</span>
+                <span>Chạm mở phong bì nhận thiệp 20/10</span>
+                <span class="tap-sparkle">✨</span>
+            </div>
+        </div>
+
+        <!-- Giai đoạn 1B: Card Mở Đầu Chính (Hiện ra sau khi mở phong bì) -->
+        <div class="glass-container step1-card" id="step1-main-card">
             <div class="card-glow-orb orb-1" aria-hidden="true"></div>
             <div class="card-glow-orb orb-2" aria-hidden="true"></div>
+            <div class="step1-deco-corner corner-tl" aria-hidden="true"></div>
+            <div class="step1-deco-corner corner-tr" aria-hidden="true"></div>
+            <div class="step1-deco-corner corner-bl" aria-hidden="true"></div>
+            <div class="step1-deco-corner corner-br" aria-hidden="true"></div>
+
+            <div class="step1-top-bar">
+                <div class="step1-crest-badge">✦ HAPPY WOMEN'S DAY • 20.10 ✦</div>
+                <button type="button" id="replay-envelope-btn" class="replay-env-btn" title="Xem lại hiệu ứng mở phong bì">
+                    💌 Phong bì
+                </button>
+            </div>
+
             <div class="title-wrapper">
                 <h1 class="main-title">Tháng 10 Rạng Rỡ</h1>
                 <p class="sub-title">BTLMVN thân gửi các chị em nhân ngày 20/10 🌸</p>
+            </div>
+
+            <!-- Điểm nhấn 1: Bộ 3 tấm thiệp mẫu 3D xếp xòe quạt (chạm để đổi mẫu khung) -->
+            <div class="hero-fan-showcase" id="hero-fan-showcase" role="button" tabindex="0" aria-label="Chạm để xem các mẫu khung thiệp 20/10">
+                <div class="fan-Ambient-glow" aria-hidden="true"></div>
+                <div class="fan-cards-stage" id="fan-cards-stage">
+                    <div class="fan-card fan-card-left" data-slot="0">
+                        <canvas class="fan-card-canvas" id="fan-canvas-left" width="220" height="420"></canvas>
+                    </div>
+                    <div class="fan-card fan-card-center" data-slot="1">
+                        <canvas class="fan-card-canvas" id="fan-canvas-center" width="240" height="458"></canvas>
+                        <div class="fan-card-shine" aria-hidden="true"></div>
+                    </div>
+                    <div class="fan-card fan-card-right" data-slot="2">
+                        <canvas class="fan-card-canvas" id="fan-canvas-right" width="220" height="420"></canvas>
+                    </div>
+                </div>
+                <div class="fan-caption-pill" id="fan-caption-pill">
+                    <span id="fan-concept-name">✨ Khung 01. Vòm Lụa</span>
+                    <span class="fan-tap-hint">• Chạm đổi 20 mẫu ↻</span>
+                </div>
+            </div>
+
+            <!-- Điểm nhấn 2: Thanh trích dẫn lời chúc tự đổi mỗi 4s, chạm bung sao đổi câu -->
+            <div class="live-quote-pill" id="live-quote-pill" role="button" tabindex="0" aria-label="Chạm để đổi câu chúc 20/10">
+                <div class="live-quote-header">
+                    <span class="live-quote-badge">💌 Lời chúc 20/10 dành tặng bạn</span>
+                    <span class="live-quote-action">Chạm đổi câu ✨</span>
+                </div>
+                <p class="live-quote-text" id="step1-live-quote">
+                    “Chúc bạn một ngày 20/10 thật nhiều niềm vui, luôn rạng rỡ và ngập tràn hạnh phúc!”
+                </p>
             </div>
 
             <div class="upload-wrapper" id="upload-wrapper">
@@ -110,7 +204,7 @@
                 </label>
                 <input type="file" id="selfie-btn" accept="image/*" capture="user">
 
-                <label for="upload-btn" class="btn-secondary" style="margin-top: 14px;">
+                <label for="upload-btn" class="btn-secondary" style="margin-top: 10px;">
                     <span class="icon">🖼️</span> Chọn ảnh từ thư viện
                 </label>
                 <input type="file" id="upload-btn" accept="image/png, image/jpeg, image/jpg, image/webp">
@@ -293,8 +387,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=7.0"></script>
-    <script src="script.js?v=7.0"></script>
+    <script src="wishes.js?v=8.0"></script>
+    <script src="script.js?v=8.0"></script>
+    <script src="intro.js?v=8.0"></script>
 </body>
 
 </html>
