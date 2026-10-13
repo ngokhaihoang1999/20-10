@@ -544,8 +544,11 @@ input[type="file"] {
     perspective: 1400px;
 }
 
+/* Giữ transform-style: flat trên sân khấu chính để trình duyệt tuân thủ tuyệt đối thứ tự z-index:
+   Lưng bao thư (z:2) < Nắp mở (z:3) < Khe chứa thư (z:4) < Túi chữ V trước (z:6) < Nắp đóng (z:8) < Dấu sáp (z:9)
+   Tuyệt đối không xảy ra hiện tượng đâm xuyên mặt phẳng 3D giữa lá thư và vỏ bao thư */
 .step1-physical-stage {
-    --env-w: min(358px, 91vw);
+    --env-w: min(362px, 91.5vw);
     --env-h: calc(var(--env-w) * 472 / 680);
     position: relative;
     width: 100%;
@@ -553,11 +556,8 @@ input[type="file"] {
     display: flex;
     align-items: center;
     justify-content: center;
-    transform-style: preserve-3d;
 }
 
-/* Dùng display: contents để các lớp Lưng bao thư (z:2), Thiệp (z:4), Túi trước (z:6), Nắp (z:8)
-   nằm chung một không gian xếp lớp vật lý */
 .envelope-rig {
     display: contents;
 }
@@ -576,7 +576,7 @@ input[type="file"] {
     user-select: none;
     /* Trạng thái 0 (khi mới tải trang): hoàn toàn ẩn, chỉ thấy nền hoa rơi */
     opacity: 0;
-    transform: translate3d(0, 48px, -100px) scale(0.64) rotateX(22deg) rotateY(-8deg);
+    transform: translate3d(0, 48px, 0) scale(0.64) perspective(1100px) rotateX(22deg) rotateY(-8deg);
     filter: blur(7px);
     transition:
         opacity 0.95s cubic-bezier(0.16, 1, 0.3, 1),
@@ -653,11 +653,11 @@ input[type="file"] {
 #step-1.env-appeared .env-wax-seal-layer,
 #step-1.env-appeared .envelope-aura-glow {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1) rotateX(0deg) rotateY(0deg);
+    transform: translate3d(0, 0, 0) scale(1) perspective(1100px) rotateX(0deg) rotateY(0deg);
     filter: blur(0px);
 }
 
-/* Khi phong bì đang chờ mở: chuyển sang nhịp thở nhẹ hơn */
+/* Khi phong bì đang đóng & chờ mở: chuyển sang nhịp thở nhẹ nhàng */
 #step-1.env-appeared.env-idle-float .env-back-layer,
 #step-1.env-appeared.env-idle-float .env-front-pocket-layer,
 #step-1.env-appeared.env-idle-float .env-top-flap-layer,
@@ -666,8 +666,8 @@ input[type="file"] {
 }
 
 @keyframes envHoverFloat {
-    0%, 100% { transform: translate3d(0, 0, 0); }
-    50% { transform: translate3d(0, -7px, 0); }
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1) perspective(1100px) rotateX(0deg); }
+    50% { transform: translate3d(0, -7px, 0) scale(1) perspective(1100px) rotateX(0deg); }
 }
 
 /* Trạng thái 2: Mở nắp phong bì 180 độ khi bấm vào con dấu sáp */
@@ -675,12 +675,12 @@ input[type="file"] {
 #step-1.env-appeared.env-flap-open .env-wax-seal-layer,
 #step-1.env-appeared.env-flap-open .envelope-aura-glow {
     transition:
-        opacity 0.58s cubic-bezier(0.22, 1, 0.36, 1),
-        transform 0.62s cubic-bezier(0.4, 0, 0.2, 1);
+        opacity 0.56s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.58s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #step-1.env-appeared.env-flap-open .env-top-flap-layer {
-    transform: translate3d(0, 0, 0) scale(1) rotateX(180deg);
+    transform: translate3d(0, 0, 0) scale(1) perspective(1100px) rotateX(180deg);
 }
 
 #step-1.env-appeared.env-flap-behind .env-top-flap-layer {
@@ -691,11 +691,11 @@ input[type="file"] {
 #step-1.env-appeared.env-letter-pull .env-back-layer,
 #step-1.env-appeared.env-letter-pull .env-front-pocket-layer,
 #step-1.env-appeared.env-letter-pull .envelope-aura-glow {
-    transform: translate3d(0, 44px, 0) scale(0.95);
+    transform: translate3d(0, 46px, 0) scale(0.96) perspective(1100px) rotateX(0deg);
 }
 
 #step-1.env-appeared.env-letter-pull .env-top-flap-layer {
-    transform: translate3d(0, 44px, 0) scale(0.95) rotateX(180deg);
+    transform: translate3d(0, 46px, 0) scale(0.96) perspective(1100px) rotateX(180deg);
 }
 
 /* Trạng thái 4: Khi lá thư đã lên lớp trước và mở rộng ra giữa màn hình, vỏ phong bì lùi xuống & mờ dần */
@@ -703,24 +703,24 @@ input[type="file"] {
 #step-1.env-appeared.envelope-opened .env-front-pocket-layer,
 #step-1.env-appeared.envelope-opened .envelope-aura-glow {
     opacity: 0;
-    transform: translate3d(0, 120px, -60px) scale(0.84);
+    transform: translate3d(0, 132px, 0) scale(0.85) perspective(1100px) rotateX(0deg);
     pointer-events: none;
 }
 
 #step-1.env-appeared.envelope-opened .env-top-flap-layer {
     opacity: 0;
-    transform: translate3d(0, 120px, -60px) scale(0.84) rotateX(180deg);
+    transform: translate3d(0, 132px, 0) scale(0.85) perspective(1100px) rotateX(180deg);
     pointer-events: none;
 }
 
-/* ====== CON DẤU SÁP VÀNG 3D SIÊU THỰC (CHỈ BẤM VÀO ĐÂY MỚI MỞ PHONG BÌ) ====== */
+/* ====== CON DẤU SÁP VÀNG 3D SIÊU THỰC (PHÓNG LỚN RÕ CHỮ 20•10 BTLMVN) ====== */
 .env-wax-seal {
     position: absolute;
     top: 55%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: clamp(84px, 23.5vw, 96px);
-    height: clamp(84px, 23.5vw, 96px);
+    width: clamp(98px, 27vw, 114px);
+    height: clamp(98px, 27vw, 114px);
     background: transparent;
     border: none;
     padding: 0;
@@ -742,7 +742,7 @@ input[type="file"] {
 }
 
 .env-wax-seal:hover {
-    transform: translate(-50%, -50%) scale(1.05);
+    transform: translate(-50%, -50%) scale(1.06);
 }
 
 .env-wax-seal:active {
@@ -769,17 +769,17 @@ input[type="file"] {
 
 .wax-seal-Ambient-ring {
     position: absolute;
-    inset: -8px;
+    inset: -7px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 226, 138, 0.72);
-    box-shadow: 0 0 18px rgba(245, 194, 73, 0.45);
+    border: 2px solid rgba(255, 226, 138, 0.78);
+    box-shadow: 0 0 20px rgba(245, 194, 73, 0.5);
     animation: sealPulseRing 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
     pointer-events: none;
 }
 
 @keyframes sealPulseRing {
-    0% { transform: scale(0.88); opacity: 0.88; }
-    100% { transform: scale(1.34); opacity: 0; }
+    0% { transform: scale(0.88); opacity: 0.9; }
+    100% { transform: scale(1.32); opacity: 0; }
 }
 
 .wax-seal-svg {
@@ -819,7 +819,62 @@ input[type="file"] {
     65%, 100% { transform: translate3d(380%, 0, 0) rotate(28deg); }
 }
 
-/* ====== LÁ THƯ "THÁNG 10 RẠNG RỠ" NẰM TRONG BÌ THƯ & MỞ RA GIỮA MÀN HÌNH ====== */
+/* ====== KHE CHỨA LÁ THƯ VẬT LÝ (.envelope-letter-slot) & LÁ THƯ "THÁNG 10 RẠNG RỠ" ======
+   - Khi phong bì đóng: Khe chứa thư cắt gọn bên trong lòng phong bì VÀ lá thư ẩn 100% (opacity: 0, visibility: hidden).
+   - Khi mở nắp (env-flap-open): Khe chứa thư (z:4) nằm giữa Lưng phong bì (z:2)/Nắp mở (z:3) và Túi chữ V trước (z:6),
+     cắt sát 4 cạnh trong của phong bì, chỉ lộ phần đỉnh lá thư qua khe chữ V của túi trước.
+   - Khi rút thư (env-letter-pull): Khe chứa thư mở trần phía trên (top: 0px) nhưng vẫn giữ cắt 2 mép trái/phải và đáy phong bì,
+     đảm bảo lá thư trượt vút lên từ miệng túi chữ V mà không bao giờ đâm xuyên đáy hay hai cạnh phong bì.
+   - Khi bung thư (envelope-opened): Khe chứa thư lên lớp trước (z:14) và mở toàn màn hình để lá thư phóng ra chính giữa. */
+.envelope-letter-slot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 4;
+    clip-path: inset(
+        calc(50% - var(--env-h) / 2 + 12px)
+        calc(50% - var(--env-w) / 2 + 16px)
+        calc(50% - var(--env-h) / 2 + 12px)
+        calc(50% - var(--env-w) / 2 + 16px)
+        round 16px
+    );
+    transition: clip-path 0.56s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+#step-1.env-appeared.env-flap-open .envelope-letter-slot {
+    clip-path: inset(
+        calc(50% - var(--env-h) / 2 + 8px)
+        calc(50% - var(--env-w) / 2 + 16px)
+        calc(50% - var(--env-h) / 2 + 10px)
+        calc(50% - var(--env-w) / 2 + 16px)
+        round 14px
+    );
+}
+
+#step-1.env-appeared.env-letter-pull .envelope-letter-slot {
+    clip-path: inset(
+        0px
+        calc(50% - var(--env-w) / 2 + 16px)
+        calc(50% - var(--env-h) / 2 - 36px)
+        calc(50% - var(--env-w) / 2 + 16px)
+        round 14px
+    );
+}
+
+#step-1.env-appeared.env-letter-front .envelope-letter-slot {
+    z-index: 14;
+}
+
+#step-1.env-appeared.envelope-opened .envelope-letter-slot {
+    z-index: 14;
+    clip-path: inset(0px 0px 0px 0px round 0px);
+}
+
 .step1-card-column {
     position: relative;
     width: 100%;
@@ -830,52 +885,45 @@ input[type="file"] {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    /* Khi nằm trong phong bì: z-index: 4 (nằm giữa Lưng bao thư z:2 và Túi trước z:6) */
-    z-index: 4;
+    /* Khi chưa mở phong bì: lá thư hoàn toàn ẩn (opacity: 0, visibility: hidden), không bao giờ lộ ra ngoài */
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
-    transform: translate3d(0, 42px, 0) scale(0.62);
-    clip-path: inset(12% 0% 52% 0% round 18px);
+    transform: translate3d(0, 118px, 0) scale(0.72);
     transition:
-        transform 0.62s cubic-bezier(0.22, 1, 0.36, 1),
-        clip-path 0.62s cubic-bezier(0.22, 1, 0.36, 1),
-        opacity 0.45s ease;
-    will-change: transform, clip-path, opacity;
+        transform 0.58s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.28s ease,
+        visibility 0.28s ease;
+    will-change: transform, opacity;
 }
 
-/* Khi phong bì đã hiện ra: lá thư nằm gọn bên trong túi phong bì, không lộ ra ngoài viền */
+/* Khi phong bì mới hiện ra nhưng CHƯA mở: lá thư vẫn ẩn tuyệt đối 100% bên trong phong bì */
 #step-1.env-appeared .step1-card-column {
-    opacity: 1;
-    transform: translate3d(0, 42px, 0) scale(0.62);
-    clip-path: inset(12% 0% 52% 0% round 18px);
+    opacity: 0;
+    visibility: hidden;
+    transform: translate3d(0, 118px, 0) scale(0.72);
 }
 
-/* Ngay khi nắp mở: lá thư nhích nhẹ lên hé lộ dòng chữ "Tháng 10 Rạng Rỡ" trong miệng phong bì */
+/* Khi nắp phong bì bắt đầu lật mở: lá thư lộ diện nằm gọn trong lòng túi chữ V (đỉnh thư thấp hơn miệng phong bì 45px) */
 #step-1.env-appeared.env-flap-open .step1-card-column {
     opacity: 1;
-    transform: translate3d(0, 22px, 0) scale(0.66);
-    clip-path: inset(2% 0% 46% 0% round 18px);
+    visibility: visible;
+    transform: translate3d(0, 108px, 0) scale(0.72);
 }
 
-/* Pha rút lá thư lên khỏi miệng phong bì (vẫn ở z-index: 4 hoặc 14 khi đảo chiều) */
+/* Pha rút lá thư vút lên khỏi miệng phong bì (phần thân dưới vẫn cắm trong túi chữ V z:6) */
 #step-1.env-appeared.env-letter-pull .step1-card-column {
     opacity: 1;
-    transform: translate3d(0, -134px, 0) scale(0.75);
-    clip-path: inset(0% 0% 22% 0% round 18px);
-}
-
-/* Khi đảo ngược (từ ngoài cất vào): giữ z-index: 14 trong nhịp nhấc lên miệng bao thư rồi mới tụt xuống z:4 */
-#step-1.env-appeared.env-letter-front .step1-card-column {
-    z-index: 14;
+    visibility: visible;
+    transform: translate3d(0, -106px, 0) scale(0.74);
 }
 
 /* Pha hoàn tất mở thư: Lá thư vượt lên lớp trước (z-index: 14) và bung trọn vẹn 100% giữa màn hình */
 #step-1.env-appeared.envelope-opened .step1-card-column {
-    z-index: 14;
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
     transform: translate3d(0, 0, 0) scale(1);
-    clip-path: inset(0% 0% 0% 0% round 22px);
 }
 
 .step1-card {
@@ -938,7 +986,7 @@ input[type="file"] {
     z-index: 2;
 }
 
-/* ====== BỘ 3 TẤM THIỆP MẪU 3D XẾP XÒE QUẠT ĐỘ NÉT CAO (TỰ ĐỘNG 4 GIÂY ĐỔI MẪU) ====== */
+/* ====== BỘ 3 TẤM THIỆP MẪU 3D XẾP XÒE QUẠT SỐNG ĐỘNG (TỰ ĐỘNG 4S + CHẠM ĐỂ ĐỔI NHANH) ====== */
 .hero-fan-showcase {
     position: relative;
     z-index: 2;
@@ -951,49 +999,109 @@ input[type="file"] {
     user-select: none;
     flex-shrink: 1;
     min-height: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .fan-Ambient-glow {
     position: absolute;
-    width: 260px;
-    height: 210px;
+    width: 280px;
+    height: 230px;
     border-radius: 50%;
     background: radial-gradient(
         circle,
-        rgba(143, 209, 186, 0.48) 0%,
-        rgba(226, 176, 73, 0.22) 42%,
-        rgba(255, 194, 212, 0.28) 65%,
-        transparent 80%
+        rgba(143, 209, 186, 0.56) 0%,
+        rgba(226, 176, 73, 0.28) 42%,
+        rgba(255, 183, 197, 0.34) 68%,
+        transparent 84%
     );
     pointer-events: none;
     z-index: 0;
+    animation: fanAuraBreathe 4s ease-in-out infinite;
+}
+
+@keyframes fanAuraBreathe {
+    0%, 100% { transform: scale(0.96); opacity: 0.85; }
+    50% { transform: scale(1.08); opacity: 1; }
+}
+
+.fan-floating-accents {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 4;
+}
+
+.fan-floating-accent {
+    position: absolute;
+    z-index: 4;
+    pointer-events: none;
+    font-size: 0.95rem;
+    filter: drop-shadow(0 2px 6px rgba(226, 176, 73, 0.45));
+    animation: fanAccentFloat 3.6s ease-in-out infinite;
+}
+
+.fan-floating-accent.accent-1 {
+    top: 8%;
+    left: 11%;
+    color: #e2b049;
+    animation-delay: 0s;
+}
+
+.fan-floating-accent.accent-2 {
+    top: 12%;
+    right: 11%;
+    font-size: 0.9rem;
+    animation-delay: 1.1s;
+}
+
+.fan-floating-accent.accent-3 {
+    bottom: 10%;
+    left: 13%;
+    color: #d46a92;
+    font-size: 0.88rem;
+    animation-delay: 2s;
+}
+
+.fan-floating-accent.accent-4 {
+    bottom: 12%;
+    right: 12%;
+    color: #e2b049;
+    font-size: 0.85rem;
+    animation-delay: 2.8s;
+}
+
+@keyframes fanAccentFloat {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(0.92) rotate(-8deg); opacity: 0.65; }
+    50% { transform: translate3d(0, -8px, 0) scale(1.16) rotate(10deg); opacity: 1; }
 }
 
 .fan-cards-stage {
     position: relative;
     width: 100%;
-    height: clamp(210px, 34dvh, 276px);
+    height: clamp(216px, 34.5dvh, 282px);
     display: flex;
     align-items: center;
     justify-content: center;
-    perspective: 1000px;
+    perspective: 1100px;
     z-index: 1;
 }
 
 .fan-card {
     position: absolute;
-    height: 95%;
-    aspect-ratio: 400 / 756;
-    border-radius: 12px;
+    height: 96%;
+    aspect-ratio: 420 / 846;
+    border-radius: 13px;
     background: #fff;
     overflow: hidden;
+    cursor: pointer;
     box-shadow:
         0 12px 28px rgba(9, 82, 65, 0.22),
         0 0 0 1.5px rgba(255, 255, 255, 0.96);
     transition:
-        transform 0.72s cubic-bezier(0.22, 1, 0.36, 1),
-        filter 0.55s ease,
-        box-shadow 0.55s ease;
+        transform 0.66s cubic-bezier(0.22, 1, 0.36, 1),
+        filter 0.5s ease,
+        box-shadow 0.5s ease;
     will-change: transform;
 }
 
@@ -1002,28 +1110,39 @@ input[type="file"] {
     height: 100%;
     display: block;
     object-fit: cover;
+    animation: fanCanvasBreathe 4s ease-in-out infinite;
 }
 
-/* 3 vị trí quạt 3D xoay vòng mượt mà mỗi 4 giây (Phải -> Giữa -> Trái) */
+@keyframes fanCanvasBreathe {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.018); }
+}
+
+/* 3 vị trí quạt 3D xoay vòng mượt mà (Phải -> Giữa -> Trái) */
 .fan-card.fan-pos-left {
-    transform: translate3d(-78px, 10px, 0) rotate(-14deg) scale(0.88);
+    transform: translate3d(-82px, 10px, -10px) rotate(-14.5deg) scale(0.88);
     z-index: 2;
-    filter: brightness(0.96);
+    filter: brightness(0.95) saturate(0.98);
 }
 
 .fan-card.fan-pos-center {
-    transform: translate3d(0, -4px, 24px) rotate(0deg) scale(1);
+    transform: translate3d(0, -5px, 28px) rotate(0deg) scale(1.02);
     z-index: 3;
-    filter: brightness(1);
+    filter: brightness(1.02) saturate(1.05);
     box-shadow:
-        0 16px 36px rgba(9, 82, 65, 0.3),
+        0 18px 38px rgba(9, 82, 65, 0.32),
+        0 0 18px rgba(226, 176, 73, 0.26),
         0 0 0 2px #8fd1ba;
 }
 
 .fan-card.fan-pos-right {
-    transform: translate3d(78px, 10px, 0) rotate(14deg) scale(0.88);
+    transform: translate3d(82px, 10px, -10px) rotate(14.5deg) scale(0.88);
     z-index: 1;
-    filter: brightness(0.96);
+    filter: brightness(0.95) saturate(0.98);
+}
+
+.hero-fan-showcase:active .fan-card.fan-pos-center {
+    transform: translate3d(0, -2px, 18px) rotate(0deg) scale(0.98);
 }
 
 .fan-card .fan-card-shine {
@@ -1052,11 +1171,11 @@ input[type="file"] {
     background: linear-gradient(
         90deg,
         rgba(255, 255, 255, 0) 0%,
-        rgba(255, 255, 255, 0.38) 50%,
+        rgba(255, 255, 255, 0.42) 50%,
         rgba(255, 255, 255, 0) 100%
     );
     transform: rotate(25deg);
-    animation: cardShineSweep 4s ease-in-out infinite;
+    animation: cardShineSweep 3.8s ease-in-out infinite;
 }
 
 .upload-wrapper {
@@ -1575,12 +1694,15 @@ input[type="file"] {
 }
 
 .deck-tab {
-    flex: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     border: none;
     background: transparent;
     color: #095241;
     font-family: inherit;
-    font-size: clamp(0.66rem, 2.7vw, 0.74rem);
+    font-size: clamp(0.64rem, 2.6vw, 0.74rem);
     font-weight: 600;
     padding: 5px 4px;
     border-radius: 8px;
@@ -2014,22 +2136,23 @@ input[type="file"] {
     font-family: 'Cormorant Garamond', serif;
     font-variant-numeric: lining-nums;
     font-feature-settings: "lnum" 1;
-    font-size: clamp(2.05rem, 9.2vw, 2.65rem);
+    font-size: clamp(2.45rem, 11vw, 3.18rem);
     background: linear-gradient(
         110deg,
-        #095241 0%,
+        #074738 0%,
         #0f7b5f 25%,
         #d46a92 50%,
         #c59b27 68%,
         #0f7b5f 85%,
-        #095241 100%
+        #074738 100%
     );
     background-size: 240% auto;
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    margin-bottom: 1px;
-    line-height: 1.18;
+    margin-bottom: 2px;
+    line-height: 1.12;
+    letter-spacing: -0.2px;
     padding-bottom: 3px;
     font-weight: 700;
     animation: titleShimmer 6s ease-in-out infinite;
@@ -2041,20 +2164,13 @@ input[type="file"] {
 }
 
 .sub-title {
-    font-size: clamp(0.75rem, 3.3vw, 0.88rem);
-    color: #4a5d55;
+    font-size: clamp(0.92rem, 4.1vw, 1.08rem);
+    color: #195946;
     margin: 0 auto 4px;
-    line-height: 1.4;
-    font-weight: 500;
+    line-height: 1.38;
+    font-weight: 600;
     text-align: center;
-    white-space: nowrap;
     text-wrap: balance;
-}
-
-@media (max-width: 340px) {
-    .sub-title {
-        white-space: normal;
-    }
 }
 
 .btn-primary,
@@ -2153,10 +2269,13 @@ input[type="file"] {
         gap: 6px;
     }
     .main-title {
-        font-size: clamp(1.85rem, 8.2vw, 2.25rem);
+        font-size: clamp(2.15rem, 9.6vw, 2.65rem);
+    }
+    .sub-title {
+        font-size: clamp(0.86rem, 3.8vw, 0.98rem);
     }
     .fan-cards-stage {
-        height: clamp(178px, 29dvh, 224px);
+        height: clamp(182px, 29.5dvh, 228px);
     }
     .btn-primary,
     .btn-secondary {

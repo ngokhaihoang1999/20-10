@@ -1167,9 +1167,10 @@ function drawFineLineRoseCorner(ctx, cx, cy, scale, flipX, flipY, theme) {
 }
 
 function drawLustrousPearl(ctx, x, y, r, theme) {
+    const safeTheme = (theme && typeof theme === 'object') ? theme : (COLOR_THEMES[currentColorTheme] || COLOR_THEMES.emerald);
     ctx.save();
     ctx.fillStyle = '#fff9f5';
-    ctx.strokeStyle = theme.borderSecondary;
+    ctx.strokeStyle = safeTheme.borderSecondary || '#e8d089';
     ctx.lineWidth = Math.max(0.6, r * 0.16);
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -1184,9 +1185,10 @@ function drawLustrousPearl(ctx, x, y, r, theme) {
 }
 
 function drawStarburstFlare(ctx, cx, cy, outerR, theme, colorOverride) {
+    const safeTheme = (theme && typeof theme === 'object') ? theme : (COLOR_THEMES[currentColorTheme] || COLOR_THEMES.emerald);
+    const col = (typeof theme === 'string') ? theme : (colorOverride || safeTheme.goldAccent || '#e2b049');
     ctx.save();
     ctx.translate(cx, cy);
-    const col = colorOverride || theme.goldAccent;
     const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, outerR);
     glow.addColorStop(0, '#ffffff');
     glow.addColorStop(0.35, col);
@@ -3246,11 +3248,11 @@ function drawOrnamentalBridge(ctx, centerX, originH, boxY, scale, theme, concept
     ctx.stroke();
 
     // Ngọc trai 3D hai bên cầu nối
-    drawLustrousPearl(ctx, centerX - 38 * scale, midY, 5 * scale);
-    drawLustrousPearl(ctx, centerX + 38 * scale, midY, 5 * scale);
+    drawLustrousPearl(ctx, centerX - 38 * scale, midY, 5 * scale, theme);
+    drawLustrousPearl(ctx, centerX + 38 * scale, midY, 5 * scale, theme);
 
     if (concept === 'aura' || concept === 'aura_arch' || concept === 'prism' || concept === 'celestial') {
-        drawStarburstFlare(ctx, centerX, midY, 20 * scale, theme.goldAccent);
+        drawStarburstFlare(ctx, centerX, midY, 20 * scale, theme);
     } else {
         ctx.fillStyle = theme.goldAccent;
         drawFourPointStarPath(ctx, centerX, midY, 13 * scale);
@@ -3343,40 +3345,40 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
 
     if (style === 'sakura') {
         // 🌸 Hoa Đào & Trà: Cụm Hoa Trà My đa tầng lớn & cành Anh Đào Watercolor đính góc đối xứng
-        drawFineBotanicalSprig(ctx, boxX + 22 * scale, boxY + 42 * scale, 58 * scale, 0.42, 1, theme);
-        drawFineBotanicalSprig(ctx, boxX + boxW - 22 * scale, boxY + boxH - 42 * scale, 58 * scale, -2.72, -1, theme);
+        drawFineBotanicalSprig(ctx, boxX + 20 * scale, boxY + 34 * scale, 0.72 * scale, 0.35, theme);
+        drawFineBotanicalSprig(ctx, boxX + boxW - 20 * scale, boxY + boxH - 34 * scale, 0.72 * scale, Math.PI + 0.35, theme);
 
-        drawLayeredCamellia(ctx, boxX + 16 * scale, boxY + 14 * scale, 42 * scale, theme);
-        drawDetailedSakuraBloom(ctx, boxX + 64 * scale, boxY + 8 * scale, 24 * scale, theme, 0.3);
-        drawDetailedSakuraBloom(ctx, boxX + 10 * scale, boxY + 62 * scale, 22 * scale, theme, -0.4);
+        drawLayeredCamellia(ctx, boxX + 18 * scale, boxY + 16 * scale, 40 * scale, theme);
+        drawDetailedSakuraBloom(ctx, boxX + 64 * scale, boxY + 10 * scale, 22 * scale, 0.3, theme);
+        drawDetailedSakuraBloom(ctx, boxX + 12 * scale, boxY + 62 * scale, 20 * scale, -0.4, theme);
 
-        drawLayeredCamellia(ctx, boxX + boxW - 16 * scale, boxY + boxH - 14 * scale, 42 * scale, theme);
-        drawDetailedSakuraBloom(ctx, boxX + boxW - 64 * scale, boxY + boxH - 8 * scale, 24 * scale, theme, -0.3);
-        drawDetailedSakuraBloom(ctx, boxX + boxW - 10 * scale, boxY + boxH - 62 * scale, 22 * scale, theme, 0.4);
+        drawLayeredCamellia(ctx, boxX + boxW - 18 * scale, boxY + boxH - 16 * scale, 40 * scale, theme);
+        drawDetailedSakuraBloom(ctx, boxX + boxW - 64 * scale, boxY + boxH - 10 * scale, 22 * scale, -0.3, theme);
+        drawDetailedSakuraBloom(ctx, boxX + boxW - 12 * scale, boxY + boxH - 62 * scale, 20 * scale, 0.4, theme);
 
         // Điểm hoa anh đào & ngọc trai hai bên hông
-        drawLustrousPearl(ctx, boxX + boxW - 20 * scale, boxY + 20 * scale, 7.5 * scale);
-        drawLustrousPearl(ctx, boxX + 20 * scale, boxY + boxH - 20 * scale, 7.5 * scale);
-        drawDetailedSakuraBloom(ctx, boxX + 16 * scale, midY, 20 * scale, theme, 0.15);
-        drawDetailedSakuraBloom(ctx, boxX + boxW - 16 * scale, midY, 20 * scale, theme, -0.15);
+        drawLustrousPearl(ctx, boxX + boxW - 20 * scale, boxY + 20 * scale, 7 * scale, theme);
+        drawLustrousPearl(ctx, boxX + 20 * scale, boxY + boxH - 20 * scale, 7 * scale, theme);
+        drawDetailedSakuraBloom(ctx, boxX + 16 * scale, midY, 19 * scale, 0.15, theme);
+        drawDetailedSakuraBloom(ctx, boxX + boxW - 16 * scale, midY, 19 * scale, -0.15, theme);
 
     } else if (style === 'ribbon') {
         // 🦪 Ngọc Trai & Nơ: Nơ lụa hoàng gia lớn đính ngọc trai ở đỉnh + chuỗi ngọc trai 3D viền quanh hộp
-        drawSilkRibbonBow(ctx, midX, boxY + 2 * scale, 52 * scale, theme);
-        drawLustrousPearl(ctx, midX, boxY + 4 * scale, 9.5 * scale);
+        drawSilkRibbonBow(ctx, midX, boxY + 2 * scale, 50 * scale, theme);
+        drawLustrousPearl(ctx, midX, boxY + 4 * scale, 9 * scale, theme);
 
         // Chuỗi ngọc trai dọc hai bên hông & 4 góc
         const pearlOffsets = [-72, -48, -24, 0, 24, 48, 72];
         pearlOffsets.forEach((off, idx) => {
-            const pr = (idx === 3 ? 8.5 : (idx % 2 === 1 ? 6.5 : 5)) * scale;
-            drawLustrousPearl(ctx, boxX, midY + off * scale, pr);
-            drawLustrousPearl(ctx, boxX + boxW, midY + off * scale, pr);
+            const pr = (idx === 3 ? 8 : (idx % 2 === 1 ? 6.2 : 4.8)) * scale;
+            drawLustrousPearl(ctx, boxX, midY + off * scale, pr, theme);
+            drawLustrousPearl(ctx, boxX + boxW, midY + off * scale, pr, theme);
         });
 
         const topPearlOffsets = [-160, -110, 110, 160];
         topPearlOffsets.forEach(off => {
-            drawLustrousPearl(ctx, midX + off * scale, boxY, 5.5 * scale);
-            drawLustrousPearl(ctx, midX + off * scale, boxY + boxH, 5.5 * scale);
+            drawLustrousPearl(ctx, midX + off * scale, boxY, 5.2 * scale, theme);
+            drawLustrousPearl(ctx, midX + off * scale, boxY + boxH, 5.2 * scale, theme);
         });
 
         const cPts = [
@@ -3385,51 +3387,51 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
             [boxX + 22 * scale, boxY + boxH - 22 * scale],
             [boxX + boxW - 22 * scale, boxY + boxH - 22 * scale]
         ];
-        cPts.forEach(([px, py]) => drawLustrousPearl(ctx, px, py, 7.5 * scale));
+        cPts.forEach(([px, py]) => drawLustrousPearl(ctx, px, py, 7.2 * scale, theme));
 
     } else if (style === 'hearts') {
         // ✨ Pha Lê & Sao: Khung bát giác vát kim cương + vương miện ánh sao 8 cánh lấp lánh
-        drawStarburstFlare(ctx, midX, boxY, 32 * scale, theme.goldAccent);
-        drawLustrousPearl(ctx, midX - 42 * scale, boxY, 6 * scale);
-        drawLustrousPearl(ctx, midX + 42 * scale, boxY, 6 * scale);
+        drawStarburstFlare(ctx, midX, boxY, 30 * scale, theme);
+        drawLustrousPearl(ctx, midX - 42 * scale, boxY, 6 * scale, theme);
+        drawLustrousPearl(ctx, midX + 42 * scale, boxY, 6 * scale, theme);
 
-        drawStarburstFlare(ctx, boxX + 26 * scale, boxY + 26 * scale, 24 * scale, theme.goldAccent);
-        drawStarburstFlare(ctx, boxX + boxW - 26 * scale, boxY + 26 * scale, 24 * scale, theme.goldAccent);
-        drawStarburstFlare(ctx, boxX + 26 * scale, boxY + boxH - 26 * scale, 24 * scale, theme.goldAccent);
-        drawStarburstFlare(ctx, boxX + boxW - 26 * scale, boxY + boxH - 26 * scale, 24 * scale, theme.goldAccent);
+        drawStarburstFlare(ctx, boxX + 26 * scale, boxY + 26 * scale, 22 * scale, theme);
+        drawStarburstFlare(ctx, boxX + boxW - 26 * scale, boxY + 26 * scale, 22 * scale, theme);
+        drawStarburstFlare(ctx, boxX + 26 * scale, boxY + boxH - 26 * scale, 22 * scale, theme);
+        drawStarburstFlare(ctx, boxX + boxW - 26 * scale, boxY + boxH - 26 * scale, 22 * scale, theme);
 
         ctx.fillStyle = theme.goldAccent;
-        drawFourPointStarPath(ctx, boxX + 18 * scale, midY, 15 * scale);
+        drawFourPointStarPath(ctx, boxX + 18 * scale, midY, 14 * scale);
         ctx.fill();
-        drawFourPointStarPath(ctx, boxX + boxW - 18 * scale, midY, 15 * scale);
+        drawFourPointStarPath(ctx, boxX + boxW - 18 * scale, midY, 14 * scale);
         ctx.fill();
-        drawFourPointStarPath(ctx, midX, boxY + boxH, 14 * scale);
+        drawFourPointStarPath(ctx, midX, boxY + boxH, 13 * scale);
         ctx.fill();
 
     } else if (style === 'daisy') {
         // 🌿 Nguyệt Quế & Cúc: Vòng nguyệt quế vàng, lá bạch quả Ginkgo, oải hương & Cúc Họa Mi lớn hai bên
-        drawFineBotanicalSprig(ctx, boxX + 16 * scale, midY + 75 * scale, 98 * scale, -Math.PI * 0.48, 1, theme);
-        drawFineBotanicalSprig(ctx, boxX + boxW - 16 * scale, midY + 75 * scale, 98 * scale, -Math.PI * 0.52, -1, theme);
+        drawFineBotanicalSprig(ctx, boxX + 16 * scale, midY + 75 * scale, 0.85 * scale, -Math.PI * 0.48, theme);
+        drawFineBotanicalSprig(ctx, boxX + boxW - 16 * scale, midY + 75 * scale, 0.85 * scale, -Math.PI * 0.52, theme);
 
-        drawGinkgoLeaf(ctx, boxX + 16 * scale, boxY + 28 * scale, 34 * scale, 0.55, theme);
-        drawGinkgoLeaf(ctx, boxX + boxW - 16 * scale, boxY + 28 * scale, 34 * scale, -0.55, theme);
+        drawGinkgoLeaf(ctx, boxX + 16 * scale, boxY + 28 * scale, 32 * scale, 0.55, theme);
+        drawGinkgoLeaf(ctx, boxX + boxW - 16 * scale, boxY + 28 * scale, 32 * scale, -0.55, theme);
 
-        drawLavenderSpike(ctx, boxX + 16 * scale, boxY + boxH - 20 * scale, 68 * scale, -0.45, theme);
-        drawLavenderSpike(ctx, boxX + boxW - 16 * scale, boxY + boxH - 20 * scale, 68 * scale, 0.45, theme);
+        drawLavenderSpike(ctx, boxX + 16 * scale, boxY + boxH - 20 * scale, 64 * scale, -0.45, theme);
+        drawLavenderSpike(ctx, boxX + boxW - 16 * scale, boxY + boxH - 20 * scale, 64 * scale, 0.45, theme);
 
-        drawRichChamomileDaisy(ctx, boxX + 16 * scale, midY, 28 * scale, theme);
-        drawRichChamomileDaisy(ctx, boxX + boxW - 16 * scale, midY, 28 * scale, theme);
+        drawRichChamomileDaisy(ctx, boxX + 16 * scale, midY, 26 * scale, theme);
+        drawRichChamomileDaisy(ctx, boxX + boxW - 16 * scale, midY, 26 * scale, theme);
 
     } else if (style === 'vintage') {
         // 🌹 Hồng Pháp: Khung góc khuyết cổ điển + Hoa Hồng Pháp Watercolor nét cọ vàng 24K cỡ lớn
-        drawFineLineRoseCorner(ctx, boxX + 20 * scale, boxY + 20 * scale, 44 * scale, 0.25, theme);
-        drawFineLineRoseCorner(ctx, boxX + boxW - 20 * scale, boxY + boxH - 20 * scale, 44 * scale, Math.PI + 0.25, theme);
+        drawFineLineRoseCorner(ctx, boxX + 8 * scale, boxY + 8 * scale, 0.92 * scale, 1, 1, theme);
+        drawFineLineRoseCorner(ctx, boxX + boxW - 8 * scale, boxY + boxH - 8 * scale, 0.92 * scale, -1, -1, theme);
 
-        drawFineBotanicalSprig(ctx, boxX + boxW - 24 * scale, boxY + 24 * scale, 52 * scale, 2.35, -1, theme);
-        drawFineBotanicalSprig(ctx, boxX + 24 * scale, boxY + boxH - 24 * scale, 52 * scale, -0.75, 1, theme);
+        drawFineBotanicalSprig(ctx, boxX + boxW - 22 * scale, boxY + 22 * scale, 0.65 * scale, 2.35, theme);
+        drawFineBotanicalSprig(ctx, boxX + 22 * scale, boxY + boxH - 22 * scale, 0.65 * scale, -0.75, theme);
 
-        drawLustrousPearl(ctx, boxX + 16 * scale, midY, 7 * scale);
-        drawLustrousPearl(ctx, boxX + boxW - 16 * scale, midY, 7 * scale);
+        drawLustrousPearl(ctx, boxX + 16 * scale, midY, 7 * scale, theme);
+        drawLustrousPearl(ctx, boxX + boxW - 16 * scale, midY, 7 * scale, theme);
     }
 
     ctx.restore();
