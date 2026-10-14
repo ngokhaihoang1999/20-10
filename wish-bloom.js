@@ -131,8 +131,24 @@
         }
     }
 
+    // Hàm lò xo giảm chấn vật lý (Underdamped Spring) cho chuyển động trồi mặt nước, bung cánh hoa & nhún tải trọng
+    function springOut(t, freq, damp, amp) {
+        t = clamp01(t);
+        if (t <= 0) return 0;
+        if (t >= 1) return 1;
+        return 1 - Math.exp(-damp * t) * (Math.cos(freq * t) + (damp / freq) * Math.sin(freq * t)) * (amp || 1);
+    }
+
+    function springPetalOpen(u) {
+        u = clamp01(u);
+        if (u <= 0) return 0;
+        const base = easeOutCubic(u);
+        const bounce = Math.exp(-3.6 * u) * Math.sin(u * 10.5) * 0.11 * smooth(u / 0.22);
+        return Math.max(0, base + bounce);
+    }
+
     // ---------------------------------------------------------------------------------
-    // 6 THẾ GIỚI CONCEPT (Bảng màu vật lý có AO sâu, SSS, Rim & Bóng nước)
+    // 6 THẾ GIỚI CONCEPT (Bảng màu vật lý có AO sâu, sắc tố nhung đặc 100%, không cháy sáng)
     // ---------------------------------------------------------------------------------
     const THEMES = {
         // 🌺 Đại Hoa Trà — Đêm Nhung Hồng Mận & Hồ Gương Ánh Trăng
@@ -148,15 +164,15 @@
             pad: ['#0d2e20', '#1f5c3e', '#5cb883'],
             petal: {
                 shape: 'camellia',
-                ao: '#360316',       // bóng sâu trong hốc hoa
-                base: '#a80c45',     // gốc cánh nhung đậm
-                mid: '#f55686',      // bụng cánh tán xạ hồng tươi
-                tip: '#ffd0de',      // đầu cánh phấn hồng
-                rim: '#fff7fa',      // viền bắt sáng ngọc trai
-                backAo: '#24020f',   // mặt lưng khi khép nụ
-                backBase: '#780832',
-                backTip: '#df5280',
-                vein: '255,235,242',
+                ao: '#2d0212',       // bóng sâu trong hốc hoa
+                base: '#940a3b',     // gốc cánh nhung đậm
+                mid: '#de3b70',      // bụng cánh hồng nhung giàu sắc tố
+                tip: '#f595b4',      // đầu cánh phấn hồng đậm đà (không cháy trắng)
+                rim: '#ffd8e5',      // viền bắt sáng ngọc trai dịu
+                backAo: '#21010d',   // mặt lưng khi khép nụ
+                backBase: '#70072e',
+                backTip: '#c9406d',
+                vein: '255,215,228',
                 roundness: 0.72      // độ tròn đầy của đầu cánh
             },
             center: 'stamen', groundCount: 34, driftCount: 28, fireflies: 46,
@@ -184,15 +200,15 @@
             pad: ['#08291c', '#16593d', '#58c98e'],
             petal: {
                 shape: 'lotus_wing',
-                ao: '#261402',
-                base: '#9e5e06',
-                mid: '#f2bd29',
-                tip: '#fff4ba',
-                rim: '#fffff2',
-                backAo: '#2b1602',
-                backBase: '#b86b08',
-                backTip: '#f5c838',
-                vein: '255,250,210',
+                ao: '#261302',
+                base: '#915105',
+                mid: '#e0a416',
+                tip: '#f7dc72',
+                rim: '#fff2ba',
+                backAo: '#241202',
+                backBase: '#9e5b07',
+                backTip: '#e3b629',
+                vein: '255,240,185',
                 roundness: 0.62
             },
             center: 'orb', groundCount: 32, driftCount: 30, fireflies: 58, butterflies: true,
@@ -219,15 +235,15 @@
             pad: ['#2e1628', '#5e2b4c', '#b86b95'],
             petal: {
                 shape: 'peony_silk',
-                ao: '#330519',
-                base: '#a81652',
-                mid: '#f576a6',
-                tip: '#ffe8f1',
-                rim: '#ffffff',
-                backAo: '#240211',
-                backBase: '#780e3a',
-                backTip: '#e06392',
-                vein: '255,245,250',
+                ao: '#2b0414',
+                base: '#941146',
+                mid: '#de5487',
+                tip: '#f5a6c4',
+                rim: '#ffdfec',
+                backAo: '#1f020e',
+                backBase: '#6e0c35',
+                backTip: '#cc4e7d',
+                vein: '255,225,238',
                 roundness: 0.78
             },
             center: 'pearls', groundCount: 32, driftCount: 28, fireflies: 42,
@@ -254,15 +270,15 @@
             pad: ['#14291b', '#265235', '#63a678'],
             petal: {
                 shape: 'rose',
-                ao: '#260109',
-                base: '#7d0620',
-                mid: '#e61947',
-                tip: '#ff96ad',
-                rim: '#ffe0e7',
+                ao: '#210107',
+                base: '#70051c',
+                mid: '#cc143d',
+                tip: '#f06e8b',
+                rim: '#ffc4d1',
                 backAo: '#170005',
-                backBase: '#520313',
-                backTip: '#ab1034',
-                vein: '255,195,210',
+                backBase: '#4d0212',
+                backTip: '#9e0e30',
+                vein: '255,185,202',
                 roundness: 0.80
             },
             center: 'stamen', groundCount: 34, driftCount: 28, fireflies: 46,
@@ -290,15 +306,15 @@
             pad: ['#142b24', '#265747', '#6cc4a4'],
             petal: {
                 shape: 'sakura',
-                ao: '#3d0a22',
-                base: '#cf2d6d',
-                mid: '#ff91bd',
-                tip: '#ffe8f2',
-                rim: '#ffffff',
-                backAo: '#290617',
-                backBase: '#961f50',
-                backTip: '#f77ead',
-                vein: '255,245,250',
+                ao: '#33071c',
+                base: '#b3205b',
+                mid: '#eb679b',
+                tip: '#fab1cf',
+                rim: '#ffe0ed',
+                backAo: '#240514',
+                backBase: '#871a46',
+                backTip: '#de6495',
+                vein: '255,225,238',
                 roundness: 0.68
             },
             center: 'stamen', groundCount: 36, driftCount: 38, fireflies: 48,
@@ -325,15 +341,15 @@
             pad: ['#143822', '#286b40', '#70c989'],
             petal: {
                 shape: 'tulip',
-                ao: '#380716',
-                base: '#c21f52',
-                mid: '#ff707f',
-                tip: '#ffd9ab',
-                rim: '#fff9de',
-                backAo: '#26040e',
-                backBase: '#8a1239',
-                backTip: '#f55b6f',
-                vein: '255,240,210',
+                ao: '#300511',
+                base: '#ab1845',
+                mid: '#e84d62',
+                tip: '#faa687',
+                rim: '#ffe2bd',
+                backAo: '#21030c',
+                backBase: '#7d1033',
+                backTip: '#db4b5e',
+                vein: '255,225,195',
                 roundness: 0.68
             },
             center: 'stamen', groundCount: 34, driftCount: 28, fireflies: 42,
@@ -783,12 +799,94 @@
             }
         }
 
+        // Hệ thống thuỷ động lực học khi sao băng chạm mặt nước:
+        // 36 giọt nước văng parabol vật lý (tự sinh vòng sóng phụ khi rơi chạm lại mặt hồ!)
+        const GRAV = 920;
         const splash = [];
-        for (let i = 0; i < 28; i++) {
-            splash.push({ v: 250 + R() * 310, el: (50 + R() * 34) * DEG, az: R() * TAU });
+        for (let i = 0; i < 36; i++) {
+            const v = 220 + R() * 340;
+            const el = (42 + R() * 38) * DEG;
+            const az = (i / 36) * TAU + (R() - 0.5) * 0.14;
+            const vh0 = Math.cos(el) * v;
+            const vy0 = Math.sin(el) * v;
+            const tLand = (2 * vy0) / GRAV;
+            const rLand = vh0 * tLand;
+            splash.push({
+                v, el, az, vh0, vy0,
+                tLand,
+                rLand,
+                xLand: Math.cos(az) * rLand,
+                zLand: Math.sin(az) * rLand,
+                sz: 2.2 + R() * 2.6
+            });
         }
+
+        // 14 phiến màng nước vương miện 3D (Liquid Crown Splash Sheets) bung lên quanh miệng hố va chạm
+        const crownSheets = [];
+        for (let i = 0; i < 14; i++) {
+            const az = (i / 14) * TAU + (R() - 0.5) * 0.08;
+            crownSheets.push({
+                az,
+                span: (0.16 + R() * 0.10),
+                vRad: 115 + R() * 55,
+                vUp: 245 + R() * 95,
+                pearls: 2 + (i % 2)
+            });
+        }
+
+        // 26 giọt nước hồ rũ rơi vật lý từ đầu các cánh hoa khi nụ hoa trồi lên và bung mở
+        const bloomDrops = [];
+        for (let i = 0; i < 26; i++) {
+            const az = (i / 26) * TAU + (R() - 0.5) * 0.18;
+            const layerIdx = i % 3;
+            const tDetach = T.BUD + 0.16 + layerIdx * 0.24 + (i % 5) * 0.09;
+            const r0 = 28 + layerIdx * 24 + R() * 22;
+            const y0 = 22 + layerIdx * 14 + R() * 18;
+            const vx = Math.cos(az) * (32 + R() * 44);
+            const vz = Math.sin(az) * (32 + R() * 44);
+            const vy = 48 + R() * 55;
+            const dropG = 760;
+            const tFall = (vy + Math.sqrt(vy * vy + 2 * dropG * y0)) / dropG;
+            bloomDrops.push({
+                tDetach,
+                x0: Math.cos(az) * r0,
+                y0,
+                z0: Math.sin(az) * r0,
+                vx, vy, vz,
+                dropG,
+                tFall,
+                xLand: Math.cos(az) * r0 + vx * tFall,
+                zLand: Math.sin(az) * r0 + vz * tFall,
+                sz: 1.9 + R() * 1.5
+            });
+        }
+
+        // 28 hạt phấn hoa hoàng kim bung nở vật lý khi tâm hoa thức tỉnh (tau = T.HEART)
+        const pollenParticles = [];
+        for (let i = 0; i < 28; i++) {
+            const az = (i / 28) * TAU + (R() - 0.5) * 0.2;
+            const el = (28 + R() * 52) * DEG;
+            const spd = 55 + R() * 85;
+            pollenParticles.push({
+                az,
+                vx: Math.cos(el) * Math.cos(az) * spd,
+                vy: Math.sin(el) * spd,
+                vz: Math.cos(el) * Math.sin(az) * spd,
+                spin: (R() - 0.5) * 4.5,
+                ph: R() * TAU,
+                sz: 1.5 + R() * 1.8
+            });
+        }
+
         const sparks = [];
-        for (let i = 0; i < 16; i++) sparks.push({ jx: (R() - 0.5) * 28, jz: (R() - 0.5) * 28 });
+        for (let i = 0; i < 22; i++) {
+            sparks.push({
+                jx: (R() - 0.5) * 38,
+                jy: 18 + R() * 42,
+                jz: (R() - 0.5) * 38,
+                sz: 0.7 + R() * 0.7
+            });
+        }
         const burst = [];
         for (let i = 0; i < 24; i++) {
             const az = R() * TAU, el = (12 + R() * 68) * DEG;
@@ -826,8 +924,8 @@
             stageEl.appendChild(skipBtn);
         }
 
-        // ---------- Hệ thống Máy quay 3D ----------
-        const cam = { x: 0, y: 0, z: 0, fx: 0, fy: 0, fz: 0, rx: 0, rz: 0, ux: 0, uy: 0, uz: 0, f: 600, cx: 0, cy: 0, yaw: 0, hy: 0 };
+        // ---------- Hệ thống Máy quay 3D (kèm Chấn động Thuỷ lực Vật lý tần số thấp) ----------
+        const cam = { x: 0, y: 0, z: 0, fx: 0, fy: 0, fz: 0, rx: 0, rz: 0, ux: 0, uy: 0, uz: 0, f: 600, cx: 0, cy: 0, yaw: 0, hy: 0, roll: 0 };
         const KS = [0, 0, 0, 0, 0];
 
         function setCamera(px, py, pz, tY, vw, vh) {
@@ -856,17 +954,33 @@
             const hgt = KS[3] + Math.sin(sc.clock * 0.47) * 4 * settle;
             let px = Math.sin(yaw) * rad + Math.sin(sc.clock * 0.8) * 2.0;
             let py = hgt + Math.sin(sc.clock * 1.1 + 1) * 1.4;
+            let lookY = KS[4];
             const pz = Math.cos(yaw) * rad;
-            if (sc.impactClock >= 0) {
-                const e = sc.clock - sc.impactClock;
-                if (e < 1.4) {
-                    const amp = 7.5 * Math.exp(-e * 5.2);
-                    px += Math.sin(e * 62) * amp;
-                    py += Math.cos(e * 50) * amp * 0.6;
-                }
+
+            // Chấn động thuỷ động lực học (Hydro-Shockwave Heave) khi sao băng phá vỡ mặt nước
+            const dtImpact = sc.tau - T.IMPACT;
+            if (dtImpact >= 0 && dtImpact < 1.35) {
+                const envWave = Math.exp(-dtImpact * 3.4);
+                // Cú sập áp suất ban đầu xuống mặt hồ + sóng dội ngược tần số thấp có sức nặng thật
+                const heave = -14.0 * Math.sin(dtImpact * 16.5) * envWave;
+                const swayX = 7.5 * Math.sin(dtImpact * 23.0 + 0.6) * Math.exp(-dtImpact * 4.2);
+                py += heave;
+                lookY += heave * 0.55;
+                px += swayX;
             }
+            // Nhịp dập dềnh nhẹ theo lực đẩy Archimedes khi Đại Đoá Hoa trồi lên khỏi mặt hồ
+            const dtBud = sc.tau - T.BUD;
+            if (dtBud >= 0 && dtBud < 1.1) {
+                lookY += Math.sin(dtBud * 9.2) * Math.exp(-dtBud * 3.2) * 5.5;
+            }
+            // Nhịp nhún nhẹ khi phong bì đáp xuống đài hoa (tau = T.ENV_IN)
+            const dtEnv = sc.tau - T.ENV_IN;
+            if (dtEnv >= 0 && dtEnv < 0.85) {
+                lookY -= Math.sin(dtEnv * 11.0) * Math.exp(-dtEnv * 4.0) * 4.5;
+            }
+
             cam.yaw = yaw;
-            setCamera(px, py, pz, KS[4], vw, vh);
+            setCamera(px, py, pz, lookY, vw, vh);
         }
 
         function project(x, y, z, o) {
@@ -891,7 +1005,7 @@
         }
 
         const P0 = { x: 0, y: 0, z: 0, k: 0, v: false };
-        const P1 = { ...P0 }, P2 = { ...P0 }, P2L = { ...P0 }, P3 = { ...P0 }, P4 = { ...P0 }, P4R = { ...P0 }, P5 = { ...P0 }, P6 = { ...P0 }, PTL = { ...P0 }, PTR = { ...P0 }, Q = { ...P0 }, Q2 = { ...P0 };
+        const P1 = { ...P0 }, P2 = { ...P0 }, P2L = { ...P0 }, P3 = { ...P0 }, P4 = { ...P0 }, P4R = { ...P0 }, P5 = { ...P0 }, P6 = { ...P0 }, PTL = { ...P0 }, PTR = { ...P0 }, Q = { ...P0 }, Q2 = { ...P0 }, Q3 = { ...P0 };
 
         function computeM0(vw, vh) {
             sampleCam(0, KS);
@@ -926,24 +1040,28 @@
                 return;
             }
             const p = clamp01((tau - T.FALL) / (T.IMPACT - T.FALL));
-            bez(Math.pow(p, 2.1), o);
+            // Gia tốc trọng trường vật lý: bắt đầu trượt nhẹ rồi lao vút xuống mặt nước với vận tốc cực đại tại tau = T.IMPACT
+            bez(Math.pow(p, 2.35), o);
         }
 
         function bez(s, o) {
             const M0 = sc.M0;
-            const cx = M0.x * 0.35, cy = M0.y * 0.55, cz = M0.z * 0.35;
+            const cx = M0.x * 0.32, cy = M0.y * 0.58, cz = M0.z * 0.32;
             const a = (1 - s) * (1 - s), b = 2 * (1 - s) * s;
             o.x = a * M0.x + b * cx;
             o.y = a * M0.y + b * cy;
             o.z = a * M0.z + b * cz;
         }
 
-        // Luôn bảo toàn globalAlpha = 1 sau khi vẽ Additive để không bao giờ làm mờ các vật thể vẽ sau!
+        // Luôn đóng gói độc lập cả globalCompositeOperation = 'lighter' và globalAlpha để KHÔNG BAO GIỜ rò rỉ sang cánh hoa/lá sen!
         function drawAdditive(g, img, x, y, w, h, a) {
             if (a <= 0.004) return;
             const prevA = g.globalAlpha;
+            const prevOp = g.globalCompositeOperation;
+            g.globalCompositeOperation = 'lighter';
             g.globalAlpha = a > 1 ? 1 : a;
             g.drawImage(img, x - w * 0.5, y - h * 0.5, w, h);
+            g.globalCompositeOperation = prevOp;
             g.globalAlpha = prevA;
         }
 
@@ -951,6 +1069,8 @@
         // 1. VẼ BẦU TRỜI, MÂY KHỐI 3D, NÚI MỜ SƯƠNG KHÓA CHÂN TRỜI & MẶT HỒ FRESNEL
         // =================================================================================
         function drawAtmosphereAndLake(g, vw, vh, hy, wake) {
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
             const skyEnd = Math.max(2, Math.min(vh, hy + 2));
 
             // 1A. Bầu trời đa tầng chiều sâu
@@ -979,12 +1099,10 @@
                 const subPulse = 0.35 + 0.65 * smooth((sc.tau - 1.55) / 1.2);
                 const subW = Math.min(vw * 1.25, 580 * Q.k);
                 const subH = subW * 0.52;
-                g.save();
-                g.globalCompositeOperation = 'lighter';
                 drawAdditive(g, S.softSubsurface, Q.x, Q.y, subW, subH, 0.52 * subPulse);
                 drawAdditive(g, S.softRipple, Q.x, Q.y, subW * 0.55, subH * 0.48, 0.38 * subPulse);
-                g.restore();
             }
+            g.globalCompositeOperation = 'source-over';
 
             // 1D. Bầu trời sao
             g.fillStyle = '#ffffff';
@@ -999,6 +1117,7 @@
                     drawAdditive(g, S.flare, Q.x, Q.y, st.s * 7.5, st.s * 7.5, tw * 0.45);
                 }
             }
+            g.globalCompositeOperation = 'source-over';
             g.globalAlpha = 1;
 
             // 1E. Mặt trăng / Mặt trời bình minh & cột ánh sáng phản chiếu dài trên mặt hồ
@@ -1009,18 +1128,17 @@
                 celScreenX = Q.x;
                 celVis = true;
                 const sz = th.celestial.size * 2.2;
-                g.save();
-                g.globalCompositeOperation = 'lighter';
                 drawAdditive(g, S.softAccent, Q.x, Q.y, sz * 2.4, sz * 2.4, 0.38);
-                g.restore();
+                g.globalCompositeOperation = 'source-over';
+                g.globalAlpha = 1;
                 g.drawImage(S.disc, Q.x - sz * 0.5, Q.y - sz * 0.5, sz, sz);
             }
             if (celVis && hy < vh && hy > -80) {
-                g.save();
-                g.globalCompositeOperation = 'lighter';
                 const colH = (vh - Math.max(0, hy)) * 0.88;
                 const colW = th.celestial.size * 2.6;
                 drawAdditive(g, S.softAccent, celScreenX, Math.max(0, hy) + colH * 0.28, colW, colH, 0.30);
+                g.save();
+                g.globalCompositeOperation = 'lighter';
                 g.fillStyle = `rgba(${rgbSpec}, 0.44)`;
                 for (let s = 0; s < 38; s++) {
                     const p = s / 38;
@@ -1035,6 +1153,8 @@
                     g.fill();
                 }
                 g.restore();
+                g.globalCompositeOperation = 'source-over';
+                g.globalAlpha = 1;
             }
 
             // 1F. Mây khối 3D trôi nhẹ trên bầu trời
@@ -1050,6 +1170,7 @@
                 g.globalAlpha = cl.alpha;
                 g.drawImage(S.cloud, Q.x - cw * 0.5, Q.y - ch * 0.5, cw, ch);
             }
+            g.globalCompositeOperation = 'source-over';
             g.globalAlpha = 1;
 
             // 1G. Dãy núi mờ sương khóa chuẩn trên đường chân trời hy
@@ -1058,6 +1179,8 @@
                     const ml = mountainLayers[m];
                     const steps = 48;
                     g.save();
+                    g.globalCompositeOperation = 'source-over';
+                    g.globalAlpha = 1;
                     g.beginPath();
                     g.moveTo(-10, hy + 1);
                     for (let s = 0; s <= steps; s++) {
@@ -1083,11 +1206,11 @@
 
             // 1H. Sương mù chân trời & đèn hoa đăng bờ xa
             g.save();
-            g.globalCompositeOperation = 'lighter';
+            g.globalCompositeOperation = 'source-over';
             const bandH = Math.max(42, vh * 0.09);
             const bandGrad = g.createLinearGradient(0, hy - bandH, 0, hy + bandH);
             bandGrad.addColorStop(0.0, `rgba(${th.mist}, 0)`);
-            bandGrad.addColorStop(0.5, `rgba(${th.mist}, 0.25)`);
+            bandGrad.addColorStop(0.5, `rgba(${th.mist}, 0.22)`);
             bandGrad.addColorStop(1.0, `rgba(${th.mist}, 0)`);
             g.fillStyle = bandGrad;
             g.fillRect(0, hy - bandH, vw, bandH * 2);
@@ -1104,6 +1227,8 @@
                 }
             }
             g.restore();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
 
             // 1I. Sương mù trôi là là trên mặt hồ
             for (let i = 0; i < lakeMists.length; i++) {
@@ -1119,6 +1244,7 @@
 
             // 1J. Gợn sóng lăn tăn 3D hữu cơ trên mặt hồ (Có hõm sóng tối & đỉnh sóng cong lấp lánh, không dùng fillRect!)
             g.save();
+            g.globalCompositeOperation = 'source-over';
             for (let i = 0; i < waterFacets.length; i++) {
                 const wf = waterFacets[i];
                 if (!project(wf.x, 0, wf.z, Q)) continue;
@@ -1152,21 +1278,87 @@
                 g.fill();
             }
             g.restore();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
         }
 
         // =================================================================================
-        // 2. SÓNG NƯỚC 3D CÓ HÕM SÓNG TỐI, ĐỈNH SÓNG BẮT SÁNG THEO GÓC FRESNEL & TÁN XẠ
+        // 2. SÓNG NƯỚC 3D, HỐ LÕM THUỶ LỰC (IMPACT CRATER), CỘT NƯỚC WORTHINGTON & GIỌT VĂNG PARABOL
         // =================================================================================
         const ripples = [
-            { t0: T.IMPACT + 0.00, v: 335, life: 3.1, w: 3.0, main: true },
-            { t0: T.IMPACT + 0.18, v: 270, life: 2.8, w: 2.2, main: false },
-            { t0: T.IMPACT + 0.40, v: 215, life: 2.5, w: 1.7, main: false },
-            { t0: T.IMPACT + 0.70, v: 165, life: 2.2, w: 1.3, main: false },
-            { t0: T.BUD + 0.10,    v: 135, life: 2.2, w: 1.4, main: false },
-            { t0: T.OPEN + 0.20,   v: 115, life: 2.0, w: 1.2, main: false }
+            { t0: T.IMPACT + 0.00, v: 335, life: 3.2, w: 3.2, main: true },
+            { t0: T.IMPACT + 0.16, v: 275, life: 2.9, w: 2.4, main: false },
+            { t0: T.IMPACT + 0.36, v: 220, life: 2.6, w: 1.9, main: false },
+            { t0: T.IMPACT + 0.65, v: 170, life: 2.3, w: 1.4, main: false },
+            { t0: T.BUD + 0.06,    v: 160, life: 2.3, w: 1.8, main: false },
+            { t0: T.BUD + 0.42,    v: 130, life: 2.1, w: 1.4, main: false },
+            { t0: T.OPEN + 0.18,   v: 115, life: 2.0, w: 1.2, main: false },
+            { t0: T.ENV_IN + 0.06, v: 145, life: 1.9, w: 1.6, main: false }
         ];
 
+        // Tính độ cao mặt sóng & độ nghiêng pháp tuyến mặt nước tại bán kính r để lá sen nhấp nhô vật lý
+        function sampleWaveAtRadius(r, tau) {
+            if (tau < T.IMPACT) return { y: 0, slope: 0 };
+            let totalY = 0;
+            let totalSlope = 0;
+            for (let idx = 0; idx < 4; idx++) {
+                const rp = ripples[idx];
+                const dt = tau - rp.t0;
+                if (dt <= 0 || dt >= rp.life) continue;
+                const rWave = rp.v * dt;
+                const dist = r - rWave;
+                const packetW = 38 + idx * 8;
+                if (Math.abs(dist) < packetW * 2.2) {
+                    const env = Math.exp(-(dist * dist) / (packetW * packetW)) * (1 - dt / rp.life);
+                    const phase = (dist / packetW) * Math.PI * 1.6;
+                    const amp = (idx === 0 ? 6.5 : 3.6 - idx * 0.6) * env;
+                    totalY += Math.cos(phase) * amp;
+                    totalSlope += -Math.sin(phase) * (amp / packetW) * 1.8;
+                }
+            }
+            return { y: totalY, slope: totalSlope };
+        }
+
+        function drawMiniRippleRing3D(g, cx, cz, r, alpha, lwScale) {
+            if (alpha <= 0.02 || r <= 0.5) return;
+            const segs = 20;
+            g.beginPath();
+            let pts = 0;
+            for (let s = 0; s <= segs; s++) {
+                const a = (s / segs) * TAU;
+                if (project(cx + Math.cos(a) * r, 0.2, cz + Math.sin(a) * r, Q)) {
+                    if (pts === 0) g.moveTo(Q.x, Q.y);
+                    else g.lineTo(Q.x, Q.y);
+                    pts++;
+                }
+            }
+            if (pts > 6) {
+                g.strokeStyle = `rgba(3, 1, 8, ${(alpha * 0.38).toFixed(3)})`;
+                g.lineWidth = Math.max(0.8, 2.2 * lwScale);
+                g.stroke();
+                g.strokeStyle = `rgba(${rgbRipple}, ${(alpha * 0.68).toFixed(3)})`;
+                g.lineWidth = Math.max(0.5, 1.0 * lwScale);
+                g.stroke();
+            }
+        }
+
         function drawWaterRipples3D(g, tau) {
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
+
+            // Áp suất gió nén lõm mặt nước ngay trước khi sao băng chạm hồ (tau = 1.36..1.60s)
+            if (tau >= 1.36 && tau < T.IMPACT) {
+                const preP = smooth((tau - 1.36) / (T.IMPACT - 1.36));
+                const preR = 16 + 46 * preP;
+                if (project(0, 0, 0, Q2)) {
+                    g.save();
+                    drawMiniRippleRing3D(g, 0, 0, preR, preP * 0.55, Q2.k);
+                    drawMiniRippleRing3D(g, 0, 0, preR * 0.55, preP * 0.72, Q2.k);
+                    g.restore();
+                }
+                return;
+            }
+
             if (tau < T.IMPACT) return;
             g.save();
             g.lineCap = 'round';
@@ -1181,26 +1373,26 @@
                 const fade = (1 - p) * (1 - p * 0.58);
                 const centerK = project(0, 0, 0, Q2) ? Q2.k : 1;
 
-                // 2A. Hõm sóng tối (Wave Trough) tạo khối nước lồi lõm 3D thật sự (không phải vòng neon phẳng)
+                // 2A. Hõm sóng tối (Wave Trough) tạo khối nước lồi lõm 3D thật sự
                 const segs = 48;
                 g.beginPath();
                 let valid = 0;
                 for (let s = 0; s <= segs; s++) {
                     const a = (s / segs) * TAU;
                     const rTrough = r * 0.965;
-                    if (project(Math.cos(a) * rTrough, -1.2, Math.sin(a) * rTrough, Q)) {
+                    if (project(Math.cos(a) * rTrough, -1.4, Math.sin(a) * rTrough, Q)) {
                         if (valid === 0) g.moveTo(Q.x, Q.y);
                         else g.lineTo(Q.x, Q.y);
                         valid++;
                     }
                 }
                 if (valid > 12) {
-                    g.strokeStyle = `rgba(3, 1, 8, ${(fade * 0.36).toFixed(3)})`;
-                    g.lineWidth = Math.max(2.2, rp.w * 3.4 * centerK);
+                    g.strokeStyle = `rgba(3, 1, 8, ${(fade * 0.42).toFixed(3)})`;
+                    g.lineWidth = Math.max(2.4, rp.w * 3.6 * centerK);
                     g.stroke();
                 }
 
-                // 2B. Đỉnh sóng bắt sáng biến thiên tự nhiên theo góc nhìn Fresnel (mạnh ở phía trước/sau, dịu nhẹ ở hai bên)
+                // 2B. Đỉnh sóng bắt sáng biến thiên tự nhiên theo góc nhìn Fresnel
                 g.save();
                 g.globalCompositeOperation = 'lighter';
                 const arcCount = 16;
@@ -1208,7 +1400,6 @@
                     const a0 = (ac / arcCount) * TAU;
                     const a1 = ((ac + 0.82) / arcCount) * TAU;
                     const aMid = (a0 + a1) * 0.5;
-                    // Sóng nước bắt sáng mạnh hơn ở trục phản chiếu trước-sau và gợn lăn tăn tự nhiên
                     const fresnelMod = 0.22 + 0.78 * Math.pow(Math.sin(aMid), 2);
                     const waveMod = 0.55 + 0.45 * Math.sin(aMid * 4.0 + dt * 3.5 + idx * 1.7);
                     const localFade = fade * fresnelMod * waveMod;
@@ -1219,7 +1410,7 @@
                     for (let step = 0; step <= 4; step++) {
                         const a = lerp(a0, a1, step / 4);
                         const rWobble = r + Math.sin(a * 6 + dt * 4) * 1.8;
-                        if (project(Math.cos(a) * rWobble, 0.4, Math.sin(a) * rWobble, Q)) {
+                        if (project(Math.cos(a) * rWobble, 0.5, Math.sin(a) * rWobble, Q)) {
                             if (pts === 0) g.moveTo(Q.x, Q.y);
                             else g.lineTo(Q.x, Q.y);
                             pts++;
@@ -1253,31 +1444,237 @@
                     }
                 }
                 g.restore();
+                g.globalCompositeOperation = 'source-over';
+            }
+
+            // 2C. Các vòng sóng phụ (Secondary Mini-Ripples) sinh ra đúng tại vị trí từng giọt nước văng rơi chạm lại mặt hồ!
+            const tSinceImpact = tau - T.IMPACT;
+            if (tSinceImpact > 0.25 && tSinceImpact < 1.95) {
+                for (let i = 0; i < splash.length; i++) {
+                    const sp = splash[i];
+                    const dtDrop = tSinceImpact - sp.tLand;
+                    if (dtDrop <= 0 || dtDrop >= 0.75) continue;
+                    const pDrop = dtDrop / 0.75;
+                    const rDrop = 4 + 58 * easeOutCubic(pDrop);
+                    const aDrop = (1 - pDrop) * (1 - pDrop) * 0.72;
+                    if (project(sp.xLand, 0, sp.zLand, Q2)) {
+                        drawMiniRippleRing3D(g, sp.xLand, sp.zLand, rDrop, aDrop, Q2.k);
+                    }
+                }
+            }
+
+            // 2D. Các vòng sóng nhỏ sinh ra khi giọt nước từ cánh hoa đang nở nhỏ xuống mặt hồ!
+            if (tau > T.BUD + 0.25 && tau < T.ENV_IN + 0.6) {
+                for (let i = 0; i < bloomDrops.length; i++) {
+                    const bd = bloomDrops[i];
+                    const dtHit = (tau - bd.tDetach) - bd.tFall;
+                    if (dtHit <= 0 || dtHit >= 0.68) continue;
+                    const pHit = dtHit / 0.68;
+                    const rHit = 3 + 42 * easeOutCubic(pHit);
+                    const aHit = (1 - pHit) * (1 - pHit) * 0.68;
+                    if (project(bd.xLand, 0, bd.zLand, Q2)) {
+                        drawMiniRippleRing3D(g, bd.xLand, bd.zLand, rHit, aHit, Q2.k);
+                    }
+                }
             }
 
             g.restore();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
+        }
+
+        // Hố lõm mặt nước 3D (Concave Water Crater), Vương miện màng nước (Crown Splash) & Cột nước dội ngược (Worthington Jet)
+        function drawImpactCraterAndSplash3D(g, tau) {
+            const t = tau - T.IMPACT;
+            if (t < 0 || t > 1.25) return;
+
+            g.save();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
+            g.lineJoin = 'round';
+            g.lineCap = 'round';
+
+            // 1. Hố lõm thuỷ lực 3D (Water Cavity Depression) & thành nước dựng đứng quanh miệng hố (t = 0..0.58s)
+            if (t < 0.58 && project(0, 0, 0, P0)) {
+                const pC = t / 0.58;
+                const craterR = (22 + 64 * easeOutCubic(pC));
+                const depth = 22 * Math.sin(Math.pow(pC, 0.65) * Math.PI);
+                const rimH = 15 * Math.sin(Math.pow(pC, 0.55) * Math.PI);
+                const fadeC = 1 - smooth((pC - 0.55) / 0.45);
+
+                const rimPts = [];
+                const botPts = [];
+                const segs = 28;
+                for (let s = 0; s <= segs; s++) {
+                    const a = (s / segs) * TAU;
+                    const crownMod = 1 + 0.18 * Math.sin(a * 12 + t * 8);
+                    if (project(Math.cos(a) * craterR, rimH * crownMod, Math.sin(a) * craterR, Q)) {
+                        rimPts.push({ x: Q.x, y: Q.y });
+                    }
+                    if (project(Math.cos(a) * craterR * 0.52, -depth, Math.sin(a) * craterR * 0.52, Q2)) {
+                        botPts.push({ x: Q2.x, y: Q2.y });
+                    }
+                }
+
+                if (rimPts.length > 10 && botPts.length > 10 && project(0, -depth, 0, P1)) {
+                    // Lòng hố nước lõm sâu thẳm
+                    const cg = g.createRadialGradient(P1.x, P1.y, 2, P0.x, P0.y, craterR * P0.k * 1.1);
+                    cg.addColorStop(0.00, th.veil);
+                    cg.addColorStop(0.50, th.lakeDeep);
+                    cg.addColorStop(0.84, th.lakeHorizon);
+                    cg.addColorStop(1.00, `rgba(${rgbRipple}, 0.85)`);
+                    g.globalAlpha = fadeC * 0.92;
+                    g.fillStyle = cg;
+                    g.beginPath();
+                    g.moveTo(rimPts[0].x, rimPts[0].y);
+                    for (let s = 1; s < rimPts.length; s++) g.lineTo(rimPts[s].x, rimPts[s].y);
+                    g.closePath();
+                    g.fill();
+
+                    // Viền bọt sóng & màng nước vương miện quanh miệng hố
+                    g.strokeStyle = `rgba(255, 255, 255, ${(fadeC * 0.85).toFixed(3)})`;
+                    g.lineWidth = Math.max(1.2, 2.4 * P0.k);
+                    g.stroke();
+                }
+
+                // 14 phiến màng nước vương miện 3D bung cong lên từ miệng hố
+                for (let i = 0; i < crownSheets.length; i++) {
+                    const cs = crownSheets[i];
+                    const rBase = craterR * 0.92;
+                    const rTip = rBase + cs.vRad * t * 0.65;
+                    const yTip = Math.max(0, cs.vUp * t - 0.5 * GRAV * t * t);
+                    if (yTip <= 0.5) continue;
+                    const aL = cs.az - cs.span;
+                    const aR = cs.az + cs.span;
+                    if (project(Math.cos(aL) * rBase, 1.5, Math.sin(aL) * rBase, P1) &&
+                        project(Math.cos(aR) * rBase, 1.5, Math.sin(aR) * rBase, P2) &&
+                        project(Math.cos(cs.az) * rTip, yTip, Math.sin(cs.az) * rTip, P3)) {
+                        const sg = g.createLinearGradient((P1.x + P2.x) * 0.5, (P1.y + P2.y) * 0.5, P3.x, P3.y);
+                        sg.addColorStop(0.0, `rgba(${th.waterSubsurface}, ${(fadeC * 0.38).toFixed(3)})`);
+                        sg.addColorStop(0.65, `rgba(${rgbRipple}, ${(fadeC * 0.72).toFixed(3)})`);
+                        sg.addColorStop(1.0, `rgba(255, 255, 255, ${(fadeC * 0.92).toFixed(3)})`);
+                        g.fillStyle = sg;
+                        g.beginPath();
+                        g.moveTo(P1.x, P1.y);
+                        g.quadraticCurveTo((P1.x + P3.x) * 0.5, P3.y, P3.x, P3.y);
+                        g.quadraticCurveTo((P2.x + P3.x) * 0.5, P3.y, P2.x, P2.y);
+                        g.closePath();
+                        g.fill();
+                    }
+                }
+            }
+
+            // 2. Cột nước dội ngược Worthington Jet 3D tại tâm hồ (t = 0.04..0.72s) nâng nụ hoa trồi lên!
+            if (t >= 0.04 && t < 0.74) {
+                const pJ = (t - 0.04) / 0.70;
+                const jetEnv = Math.sin(Math.pow(pJ, 0.58) * Math.PI);
+                const jetH = 82 * jetEnv;
+                const baseR = (26 - 12 * pJ) * (0.4 + 0.6 * jetEnv);
+                const neckR = Math.max(4.5, baseR * 0.34);
+                const bulbR = Math.max(6.5, baseR * 0.52);
+
+                if (jetH > 3 &&
+                    project(-cam.rx * baseR, 0, -cam.rz * baseR, P1) &&
+                    project( cam.rx * baseR, 0,  cam.rz * baseR, P2) &&
+                    project(-cam.rx * neckR, jetH * 0.68, -cam.rz * neckR, P2L) &&
+                    project( cam.rx * neckR, jetH * 0.68,  cam.rz * neckR, P4R) &&
+                    project(0, jetH, 0, P3)) {
+
+                    const fadeJ = (1 - smooth((pJ - 0.55) / 0.45)) * 0.90;
+                    const jg = g.createLinearGradient(P3.x, (P1.y + P2.y) * 0.5, P3.x, P3.y);
+                    jg.addColorStop(0.00, th.lakeMid);
+                    jg.addColorStop(0.38, `rgba(${th.waterSubsurface}, 0.85)`);
+                    jg.addColorStop(0.78, `rgba(${rgbRipple}, 0.92)`);
+                    jg.addColorStop(1.00, '#ffffff');
+
+                    g.globalAlpha = fadeJ;
+                    g.fillStyle = jg;
+                    g.beginPath();
+                    g.moveTo(P1.x, P1.y);
+                    g.bezierCurveTo(P1.x * 0.6 + P2L.x * 0.4, P1.y, P2L.x, P2L.y, P3.x - bulbR * P3.k, P3.y);
+                    g.arc(P3.x, P3.y, bulbR * P3.k, Math.PI, 0, false);
+                    g.bezierCurveTo(P4R.x, P4R.y, P2.x * 0.6 + P4R.x * 0.4, P2.y, P2.x, P2.y);
+                    g.closePath();
+                    g.fill();
+
+                    // Sống phản quang nước dọc thân cột Worthington
+                    g.strokeStyle = `rgba(255, 255, 255, ${(fadeJ * 0.82).toFixed(3)})`;
+                    g.lineWidth = Math.max(1.2, 2.2 * P3.k);
+                    g.beginPath();
+                    g.moveTo((P1.x + P2.x) * 0.5, (P1.y + P2.y) * 0.5);
+                    g.lineTo(P3.x, P3.y - bulbR * P3.k * 0.4);
+                    g.stroke();
+                }
+            }
+
+            // 3. 36 Giọt nước cầu thuỷ tinh 3D văng theo quỹ đạo Parabol trọng trường (t = 0..1.15s)
+            g.globalAlpha = 1;
+            for (let i = 0; i < splash.length; i++) {
+                const sp = splash[i];
+                if (t >= sp.tLand) continue;
+                const y = sp.vy0 * t - 0.5 * GRAV * t * t;
+                if (y < 0) continue;
+                const r = sp.vh0 * t;
+                const x = Math.cos(sp.az) * r, z = Math.sin(sp.az) * r;
+                if (!project(x, y, z, Q)) continue;
+
+                const fadeD = clamp01(1 - (t / sp.tLand) * 0.35);
+                const tPrev = Math.max(0, t - 0.028);
+                const yPrev = Math.max(0, sp.vy0 * tPrev - 0.5 * GRAV * tPrev * tPrev);
+                const rPrev = sp.vh0 * tPrev;
+                if (project(Math.cos(sp.az) * rPrev, yPrev, Math.sin(sp.az) * rPrev, Q2)) {
+                    g.strokeStyle = `rgba(${rgbRipple}, ${(fadeD * 0.68).toFixed(3)})`;
+                    g.lineWidth = Math.max(1.0, sp.sz * 0.85 * Q.k);
+                    g.beginPath();
+                    g.moveTo(Q2.x, Q2.y);
+                    g.lineTo(Q.x, Q.y);
+                    g.stroke();
+                }
+
+                // Hạt nước 3D có lõi khúc xạ tối & điểm loé sáng trắng
+                const dr = Math.max(1.6, sp.sz * 1.35 * Q.k);
+                g.fillStyle = `rgba(${th.waterSubsurface}, ${(fadeD * 0.85).toFixed(3)})`;
+                g.beginPath();
+                g.arc(Q.x, Q.y, dr, 0, TAU);
+                g.fill();
+                g.fillStyle = `rgba(255, 255, 255, ${(fadeD * 0.95).toFixed(3)})`;
+                g.beginPath();
+                g.arc(Q.x - dr * 0.25, Q.y - dr * 0.28, dr * 0.52, 0, TAU);
+                g.fill();
+            }
+
+            g.restore();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
         }
 
         // =================================================================================
-        // 3. HOA 3D TRONG KHU VƯỜN MẶT HỒ (ĐÀI LÁ SEN CÓ GÂN LÁ + CÁNH 3D + VƯƠNG MIỆN NHỤY VÀNG 3D)
+        // 3. HOA 3D TRONG KHU VƯỜN MẶT HỒ (ĐÀI LÁ SEN DẬP DỀNH THEO SÓNG VẬT LÝ + CÁNH 3D ĐẶC SẮC TỐ)
         // =================================================================================
         function prepareGardenFlowers(tau) {
             for (let i = 0; i < ground.length; i++) {
                 const gf = ground[i];
                 const age = tau - gf.born;
                 if (age <= 0) { gf.vis = false; continue; }
-                const bloom = easeOutBack(clamp01(age / 0.68));
-                const wy = Math.sin(sc.clock * 1.9 + gf.bob) * 1.5;
+                // Nở theo lò xo giảm chấn vật lý và dập dềnh theo đúng đỉnh sóng lan qua bán kính gf.r!
+                const bloom = springOut(clamp01(age / 0.82), 8.2, 3.4, 1);
+                const wave = sampleWaveAtRadius(gf.r, tau);
+                const emergeBob = Math.exp(-age * 2.8) * Math.sin(age * 9.5) * 4.5;
+                const wy = Math.sin(sc.clock * 1.9 + gf.bob) * 1.5 + wave.y + emergeBob;
                 if (!project(gf.x, wy, gf.z, Q)) { gf.vis = false; continue; }
                 gf.vis = true;
                 gf.sx = Q.x; gf.sy = Q.y; gf.sz = Q.z; gf.k = Q.k;
                 gf.bloom = bloom;
+                gf.waveTilt = clamp01(0.5 + wave.slope * 0.35) - 0.5;
             }
             ground.sort((a, b) => b.sz - a.sz);
         }
 
         function drawGardenFlower3D(g, gf) {
             if (!gf.vis || gf.bloom <= 0.01) return;
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
+
             const k = gf.k;
             const scale = gf.bloom;
             const padR = gf.padSize * 0.56 * k * scale;
@@ -1291,11 +1688,12 @@
 
             g.save();
             g.translate(gf.sx, gf.sy);
+            if (gf.waveTilt) g.rotate(gf.waveTilt * 0.45);
             g.lineJoin = 'round';
             g.lineCap = 'round';
 
             // 3A. Bóng tối tiếp xúc mặt nước dưới lá sen & vòng gợn nước mỏng
-            g.fillStyle = 'rgba(3, 1, 8, 0.45)';
+            g.fillStyle = 'rgba(3, 1, 8, 0.52)';
             g.beginPath();
             g.ellipse(0, 2.2 * k, padR * 1.06, padR * 1.06 * sinElev, 0, 0, TAU);
             g.fill();
@@ -1306,14 +1704,14 @@
             g.ellipse(0, 1.8 * k, padR * 1.24, padR * 1.24 * sinElev, 0, 0, TAU);
             g.stroke();
 
-            // 3B. Bóng phản chiếu mờ của đoá hoa dưới mặt nước
+            // 3B. Bóng phản chiếu mờ của đoá hoa dưới mặt nước (đậm màu nước, không làm loá)
             g.save();
             g.translate(0, 3.5 * k + stemPx * 0.4);
-            g.scale(1, -sinElev * 0.62);
-            g.globalAlpha = 0.20;
-            g.fillStyle = th.petal.base;
+            g.scale(1, -sinElev * 0.55);
+            g.globalAlpha = 0.14;
+            g.fillStyle = th.petal.ao;
             g.beginPath();
-            g.arc(0, 0, flwR * 0.88, 0, TAU);
+            g.arc(0, 0, flwR * 0.82, 0, TAU);
             g.fill();
             g.restore();
 
@@ -1349,13 +1747,13 @@
             }
             g.restore();
 
-            // 3D. Đoá hoa 3D 3 lớp cánh khum tròn đầy hướng lên trên
+            // 3D. Đoá hoa 3D 3 lớp cánh khum tròn đầy hướng lên trên (100% đặc sắc tố nhung, có viền khối rõ ràng)
             g.translate(0, -stemPx);
             const nPetals = gf.petalsCount;
-            const openAmt = clamp01((gf.bloom - 0.12) / 0.88);
+            const openAmt = springPetalOpen(clamp01((gf.bloom - 0.10) / 0.90));
 
             for (let ring = 0; ring < 3; ring++) {
-                const rScale = ring === 0 ? 1.0 : (ring === 1 ? 0.74 : 0.48);
+                const rScale = ring === 0 ? 1.0 : (ring === 1 ? 0.76 : 0.50);
                 const pLen = flwR * (0.68 + 0.50 * openAmt) * rScale;
                 const pWid = pLen * (ring === 2 ? 0.70 : 0.62);
                 const ringLift = ring === 0 ? 0.12 : (ring === 1 ? 0.32 : 0.58);
@@ -1369,10 +1767,11 @@
                     g.translate(px, py);
                     g.rotate(Math.atan2(sa * sinElev, ca) + Math.PI * 0.5);
                     const pg = g.createLinearGradient(0, pLen * 0.42, 0, -pLen * 0.58);
-                    pg.addColorStop(0.0, th.petal.ao);
-                    pg.addColorStop(0.32, ring === 0 ? th.petal.base : th.petal.mid);
-                    pg.addColorStop(0.82, th.petal.tip);
-                    pg.addColorStop(1.0, th.petal.rim);
+                    pg.addColorStop(0.00, th.petal.ao);
+                    pg.addColorStop(0.38, th.petal.base);
+                    pg.addColorStop(0.75, th.petal.mid);
+                    pg.addColorStop(0.95, th.petal.tip);
+                    pg.addColorStop(1.00, th.petal.rim);
                     g.fillStyle = pg;
                     g.beginPath();
                     g.moveTo(0, pLen * 0.38);
@@ -1380,11 +1779,14 @@
                     g.bezierCurveTo(pWid * 0.92, -pLen * 0.50, pWid, pLen * 0.14, 0, pLen * 0.38);
                     g.closePath();
                     g.fill();
+                    g.strokeStyle = 'rgba(28, 2, 14, 0.28)';
+                    g.lineWidth = Math.max(0.35, 0.55 * k);
+                    g.stroke();
                     g.restore();
                 }
             }
 
-            // 3E. Vương miện nhụy vàng 3D ở tâm hoa nhỏ (Không dùng hình tròn vàng phẳng!)
+            // 3E. Vương miện nhụy vàng 3D ở tâm hoa nhỏ
             const coreR = Math.max(1.4, flwR * 0.20);
             const coreY = -flwR * 0.14;
             const cg = g.createRadialGradient(0, coreY, coreR * 0.1, 0, coreY, coreR * 1.25);
@@ -1416,12 +1818,12 @@
                 }
             }
             g.restore();
-
-            drawAdditive(g, S.softAccent, gf.sx, gf.sy - stemPx, flwR * 2.4, flwR * 1.8, 0.22 * gf.bloom);
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
         }
 
         // =================================================================================
-        // 4. ĐẠI ĐOÁ HOA CHỦ ĐẠO 3D (ĐÀI LÁ SEN HOÀNG GIA + CÁNH HOA KHUM CHÉN NGỌC 3D + SƯƠNG MAI & NHỤY 3D)
+        // 4. ĐẠI ĐOÁ HOA CHỦ ĐẠO 3D (ĐÀI LÁ SEN HOÀNG GIA + CƠ HỌC NỞ CÁNH ĐÀN HỒI + LỰC ĐẨY ARCHIMEDES)
         // =================================================================================
         const drawQueue = [];
         const roundness = th.petal.roundness || 0.72;
@@ -1432,13 +1834,14 @@
             const open = hs.open;
             const cup = p.cup * (0.72 + 0.28 * open);
             const baseTheta = p.theta;
+            // Sóng đàn hồi sinh học lan từ gốc cánh ra đầu cánh khi bung mở (Biomechanical Whip Wave)
+            const whipWave = Math.sin((u - p.uOpen * 1.1) * Math.PI * 1.5) * 0.08 * (1 - p.uOpen) * smooth(p.uOpen / 0.15);
             // Bụng cánh căng đầy ở giữa (bellyArch > 0) và đầu cánh khum vòng lên bầu trời (p.curlRad < 0) tạo dáng chén ngọc 3D!
-            const bellyArch = Math.sin(u * Math.PI) * (0.14 + 0.08 * open);
+            const bellyArch = Math.sin(u * Math.PI) * (0.14 + 0.08 * open) + whipWave;
             const localTheta = Math.max(0.05, baseTheta + bellyArch + p.curlRad * Math.pow(u, 1.55));
             const sa = Math.sin(localTheta), ca = Math.cos(localTheta);
 
             const sDist = u * p.len * hs.scale;
-            // Hàm bề rộng liên tục C-infinity từ gốc tới đỉnh (Không có điểm nhảy tại u = 1.0!)
             const shapeProfile = Math.sin(Math.pow(u, 0.62) * Math.PI * 0.86) * (0.85 + 0.15 * roundness);
             const halfW = p.wid * 0.5 * hs.scale * shapeProfile;
 
@@ -1460,25 +1863,45 @@
         const W0 = { x: 0, y: 0, z: 0 }, W1 = { ...W0 }, W2 = { ...W0 }, W2L = { ...W0 }, W3 = { ...W0 }, W4 = { ...W0 }, W4R = { ...W0 }, W5 = { ...W0 }, W6 = { ...W0 }, WTL = { ...W0 }, WTR = { ...W0 };
 
         function computeHeroState(tau) {
-            const grow = clamp01((tau - T.BUD) / 1.05);
-            if (grow <= 0) return { visible: false, H: 0, scale: 0, open: 0, sway: 0, crownTop: 0 };
-            const H = th.hero.H * easeOutCubic(grow);
-            const scale = 0.28 + 0.72 * easeOutBack(clamp01((tau - T.BUD) / 1.25));
-            const open = clamp01((tau - (T.BUD + 0.18)) / 1.45);
-            const sway = Math.sin(sc.clock * 1.05) * 2.2 * grow;
+            const tBud = tau - (T.BUD - 0.08);
+            const grow = clamp01(tBud / 1.08);
+            if (grow <= 0) return { visible: false, H: 0, padY: 0, scale: 0, open: 0, sway: 0, crownTop: 0 };
+
+            // 1. Lực đẩy nổi Archimedes (Archimedes Buoyancy): Nụ hoa phóng vọt từ cột nước Worthington, nhô cao rồi nhún xuống mặt nước!
+            const archimedesBounce = Math.exp(-tBud * 2.9) * Math.sin(tBud * 8.6) * 7.8;
+            // 2. Độ nhún tải trọng vật lý (Weight Recoil) khi Phong bì 3D đáp xuống đài hoa tại tau = T.ENV_IN (3.55s)
+            const tEnv = Math.max(0, tau - T.ENV_IN);
+            const envWeightDip = (tau >= T.ENV_IN && tau < T.LIFT + 0.2)
+                ? -9.2 * Math.exp(-tEnv * 3.8) * Math.sin(tEnv * 10.8)
+                : 0;
+            const envPetalFlex = (tau >= T.ENV_IN && tau < T.LIFT + 0.2)
+                ? 5.6 * Math.exp(-tEnv * 3.6) * Math.sin(tEnv * 10.8)
+                : 0;
+
+            const waterBob = Math.sin(sc.clock * 1.85) * 1.1 * smooth(tBud / 0.8);
+            const padY = Math.max(-2.5, 0.8 + archimedesBounce * 0.38 + envWeightDip * 0.35 + waterBob * 0.45);
+            const H = Math.max(2.0, th.hero.H * easeOutCubic(grow) + archimedesBounce + envWeightDip + waterBob);
+
+            const scale = 0.24 + 0.76 * springOut(clamp01(tBud / 1.18), 7.5, 3.5, 1);
+            const open = clamp01((tau - (T.BUD + 0.14)) / 1.48);
+            const sway = (Math.sin(sc.clock * 1.05) * 2.2 + Math.sin(tBud * 7.2) * Math.exp(-tBud * 2.6) * 3.5) * grow;
             const breathe = Math.sin(sc.clock * 1.65) * 1.4 * smooth((tau - 3.6) / 0.8);
 
             let crownTop = 0;
             for (let i = 0; i < petals.length; i++) {
                 const p = petals[i];
-                const u = clamp01((open - p.delay) / Math.max(0.22, 0.88 - p.delay));
+                const uRaw = clamp01((open - p.delay) / Math.max(0.22, 0.88 - p.delay));
+                // Cánh hoa bung mở theo đường cong đàn hồi lò xo sinh học (có độ nảy nhẹ khi bung cánh!)
+                const uSpring = springPetalOpen(uRaw);
                 let deg;
-                if (u < 0.65) deg = lerp(p.a0, p.a1, easeInOutCubic(u / 0.65));
-                else deg = lerp(p.a1, p.a2, easeOutCubic((u - 0.65) / 0.35));
+                if (uRaw < 0.62) deg = lerp(p.a0, p.a1, springPetalOpen(uRaw / 0.62));
+                else deg = lerp(p.a1, p.a2, springPetalOpen((uRaw - 0.62) / 0.38));
+                // Tải trọng phong bì đè nhẹ các lớp cánh mở rộng thêm vài độ rồi đàn hồi lại
+                deg += envPetalFlex * (0.45 + 0.55 * (1 - p.ld));
                 deg += breathe * (0.4 + 0.6 * (1 - p.ld));
                 p.theta = deg * DEG;
-                p.curlRad = p.curl * DEG * easeOutCubic(u);
-                p.uOpen = u;
+                p.curlRad = p.curl * DEG * Math.min(1.12, uSpring);
+                p.uOpen = uRaw;
                 const phi = p.az + sc.clock * 0.018;
                 p.cp = Math.cos(phi);
                 p.sp = Math.sin(phi);
@@ -1488,7 +1911,7 @@
                 crownTop = Math.max(crownTop, W0.y - H, W1.y - H);
             }
 
-            return { visible: true, grow, H, scale, open, sway, crownTop };
+            return { visible: true, grow, H, padY, scale, open, sway, crownTop, envWeightDip };
         }
 
         function queueHeroFlower3D(hs, ms) {
@@ -1502,22 +1925,23 @@
             const hLen = Math.hypot(hdx, hdz) || 1;
             const vx = hdx / hLen, vz = hdz / hLen;
 
-            // 4A. Đài Lá Sen Hoàng Gia 3D (Royal Lotus Leaf Pad) nổi trên mặt nước ngay dưới chân Đại Đoá Hoa
+            // 4A. Đài Lá Sen Hoàng Gia 3D (Royal Lotus Leaf Pad) nổi và nhún trên mặt nước ngay dưới chân Đại Đoá Hoa
             if (!isRefl && hs.grow > 0.05) {
-                const padScale = easeOutBack(clamp01(hs.grow / 0.85)) * hs.scale;
+                const padScale = springOut(clamp01(hs.grow / 0.82), 7.8, 3.4, 1) * hs.scale;
                 const padWorldR = 98 * padScale;
                 const padPts = [];
                 const nSegs = 32;
                 const notchAz = 0.85; // Khe chữ V duyên dáng phía bên phải
+                const basePadY = hs.padY !== undefined ? hs.padY : 0.8;
                 for (let s = 0; s <= nSegs; s++) {
                     const a = notchAz + 0.20 + (s / nSegs) * (TAU - 0.40);
                     const waveR = padWorldR * (1 + 0.03 * Math.sin(a * 6 + sc.clock * 1.2));
-                    const waveY = 0.8 + Math.sin(a * 5 + sc.clock * 1.5) * 1.2;
+                    const waveY = basePadY + Math.sin(a * 5 + sc.clock * 1.5) * 1.2;
                     if (project(Math.cos(a) * waveR, waveY, Math.sin(a) * waveR, Q)) {
                         padPts.push({ x: Q.x, y: Q.y });
                     }
                 }
-                if (padPts.length > 10 && project(0, 0.8, 0, P0)) {
+                if (padPts.length > 10 && project(0, basePadY, 0, P0)) {
                     drawQueue.push({
                         kind: 'hero_pad',
                         key: centerZ + 220, // Luôn vẽ dưới đáy hoa và trên mặt nước
@@ -1769,7 +2193,8 @@
             queueHeroFlower3D(hs, isRefl ? -1 : 1);
 
             g.save();
-            g.globalAlpha = isRefl ? 0.22 : 1.0;
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = isRefl ? 0.14 : 1.0;
             g.lineJoin = 'round';
             g.lineCap = 'round';
 
@@ -1781,13 +2206,13 @@
                     const pts = it.pts;
                     // 1. Bóng tối tiếp xúc mặt nước dưới đài lá
                     g.save();
-                    g.translate(0, 3.5 * it.k);
-                    g.fillStyle = 'rgba(2, 1, 6, 0.52)';
+                    g.translate(0, 3.8 * it.k);
+                    g.fillStyle = 'rgba(2, 1, 6, 0.58)';
                     traceLotusPadPath(g, it.cx, it.cy, pts);
                     g.fill();
                     g.restore();
 
-                    // 2. Bề mặt lá sen 3D với Gradient toả tròn từ tâm
+                    // 2. Bề mặt lá sen 3D đặc 100% với Gradient toả tròn từ tâm
                     const padG = g.createRadialGradient(it.cx, it.cy, it.rPx * 0.06, it.cx, it.cy, it.rPx * 1.05);
                     padG.addColorStop(0.00, th.pad[0]);
                     padG.addColorStop(0.62, th.pad[1]);
@@ -1868,121 +2293,143 @@
 
                 if (it.kind === 'petal') {
                     const pt = th.petal;
+                    g.globalCompositeOperation = 'source-over';
+
+                    if (isRefl) {
+                        // Bóng phản chiếu dưới mặt nước: hấp thụ màu nước tối, không bao giờ hiện rõ như cánh hoa thật dưới lá sen
+                        traceHeroPetalPath(g, it);
+                        const rg = g.createLinearGradient(it.p0x, it.p0y, it.p3x, it.p3y);
+                        rg.addColorStop(0.00, th.lakeDeep);
+                        rg.addColorStop(0.55, mixHex(pt.ao, th.lakeMid, 0.55));
+                        rg.addColorStop(1.00, mixHex(pt.base, th.lakeHorizon, 0.45));
+                        g.fillStyle = rg;
+                        g.fill();
+                        continue;
+                    }
+
+                    g.globalAlpha = 1.0;
 
                     // Bóng đổ lớp cánh trên xuống lớp cánh dưới (Inter-petal 3D Drop Shadow)
-                    if (!isRefl && it.li > 0) {
+                    if (it.li > 0) {
                         g.save();
-                        g.translate(0, 3.2 * it.k);
+                        g.translate(0, 3.4 * it.k);
                         traceHeroPetalPath(g, it);
-                        g.fillStyle = 'rgba(12, 1, 8, 0.28)';
+                        g.fillStyle = 'rgba(10, 1, 6, 0.34)';
                         g.fill();
                         g.restore();
                     }
 
                     traceHeroPetalPath(g, it);
 
-                    // 1. Gradient dọc từ gốc cánh (Ambient Occlusion sâu) ra tới đỉnh cánh (Rim)
+                    // Lớp lót sắc tố đặc 100% (Solid Undercoat) đảm bảo cánh hoa có độ dày vật lý tuyệt đối, không bao giờ nhìn xuyên thấu
+                    g.fillStyle = pt.base;
+                    g.fill();
+
+                    // 1. Gradient dọc từ gốc cánh (Ambient Occlusion sâu) ra tới đỉnh cánh (Rim nhung mịn, không cháy trắng)
                     const pg = g.createLinearGradient(it.p0x, it.p0y, it.p3x, it.p3y);
                     if (it.isFrontFace) {
-                        const aoStop = clamp01(0.16 + (1 - it.uOpen) * 0.14 + it.ld * 0.08);
+                        const aoStop = clamp01(0.18 + (1 - it.uOpen) * 0.14 + it.ld * 0.08);
                         pg.addColorStop(0.00, pt.ao);
-                        pg.addColorStop(aoStop, mixHex(pt.ao, pt.base, it.lightVal * 0.88));
-                        pg.addColorStop(0.55, mixHex(pt.base, pt.mid, clamp01(it.lightVal * 1.08)));
-                        pg.addColorStop(0.85, mixHex(pt.mid, pt.tip, clamp01(0.68 + it.lightVal * 0.32)));
+                        pg.addColorStop(aoStop, mixHex(pt.ao, pt.base, it.lightVal * 0.85));
+                        pg.addColorStop(0.62, mixHex(pt.base, pt.mid, clamp01(it.lightVal * 0.96)));
+                        pg.addColorStop(0.90, mixHex(pt.mid, pt.tip, clamp01(0.55 + it.lightVal * 0.35)));
                         pg.addColorStop(1.00, pt.rim);
                     } else {
                         pg.addColorStop(0.00, pt.backAo);
-                        pg.addColorStop(0.45, pt.backBase);
+                        pg.addColorStop(0.48, pt.backBase);
                         pg.addColorStop(0.88, pt.backTip);
                         pg.addColorStop(1.00, pt.tip);
                     }
                     g.fillStyle = pg;
                     g.fill();
 
-                    if (!isRefl) {
-                        // 2. Đổ bóng chiều sâu ngang (Lateral 3D Cup Curvature Shading)
-                        g.save();
-                        g.clip();
-                        const latGrad = g.createLinearGradient(it.p2lx, it.p2ly, it.p4rx, it.p4ry);
-                        const leftBright = it.sideLight > 0;
-                        latGrad.addColorStop(0.00, leftBright ? 'rgba(255,255,255,0.20)' : 'rgba(18,2,10,0.24)');
-                        latGrad.addColorStop(0.50, 'rgba(0,0,0,0)');
-                        latGrad.addColorStop(1.00, leftBright ? 'rgba(18,2,10,0.24)' : 'rgba(255,255,255,0.20)');
-                        g.fillStyle = latGrad;
-                        const minX = Math.min(it.p0x, it.p2lx, it.p2x, it.p3x, it.p4x, it.p4rx) - 6;
-                        const maxX = Math.max(it.p0x, it.p2lx, it.p2x, it.p3x, it.p4x, it.p4rx) + 6;
-                        const minY = Math.min(it.p0y, it.p2ly, it.p2y, it.p3y, it.p4y, it.p4ry) - 6;
-                        const maxY = Math.max(it.p0y, it.p2ly, it.p2y, it.p3y, it.p4y, it.p4ry) + 6;
-                        g.fillRect(minX, minY, maxX - minX, maxY - minY);
+                    // 2. Đổ bóng chiều sâu ngang (Lateral 3D Cup Curvature Shading)
+                    g.save();
+                    g.clip();
+                    const latGrad = g.createLinearGradient(it.p2lx, it.p2ly, it.p4rx, it.p4ry);
+                    const leftBright = it.sideLight > 0;
+                    latGrad.addColorStop(0.00, leftBright ? 'rgba(255,235,242,0.14)' : 'rgba(16,1,9,0.32)');
+                    latGrad.addColorStop(0.50, 'rgba(0,0,0,0)');
+                    latGrad.addColorStop(1.00, leftBright ? 'rgba(16,1,9,0.32)' : 'rgba(255,235,242,0.14)');
+                    g.fillStyle = latGrad;
+                    const minX = Math.min(it.p0x, it.p2lx, it.p2x, it.p3x, it.p4x, it.p4rx) - 6;
+                    const maxX = Math.max(it.p0x, it.p2lx, it.p2x, it.p3x, it.p4x, it.p4rx) + 6;
+                    const minY = Math.min(it.p0y, it.p2ly, it.p2y, it.p3y, it.p4y, it.p4ry) - 6;
+                    const maxY = Math.max(it.p0y, it.p2ly, it.p2y, it.p3y, it.p4y, it.p4ry) + 6;
+                    g.fillRect(minX, minY, maxX - minX, maxY - minY);
 
-                        // 3. Vân lụa hữu cơ uốn cong mềm theo lòng cánh
-                        g.strokeStyle = `rgba(${pt.vein}, 0.14)`;
-                        g.lineWidth = Math.max(0.5, 0.85 * it.k);
-                        for (let v = -2; v <= 2; v++) {
-                            const vf = v * 0.28;
-                            const cx = lerp(it.p6x, vf < 0 ? it.p2lx : it.p4rx, Math.abs(vf));
-                            const cy = lerp(it.p6y, vf < 0 ? it.p2ly : it.p4ry, Math.abs(vf));
-                            const ex = lerp(it.p3x, vf < 0 ? it.p2x : it.p4x, Math.abs(vf) * 0.85);
-                            const ey = lerp(it.p3y, vf < 0 ? it.p2y : it.p4y, Math.abs(vf) * 0.85);
-                            g.beginPath();
-                            g.moveTo(it.p0x, it.p0y);
-                            g.quadraticCurveTo(cx, cy, ex, ey);
-                            g.stroke();
-                        }
-                        g.restore();
-
-                        // 4. Viền bắt sáng Fresnel chuyển sắc mượt dọc toàn bộ chu vi cánh (Không có điểm cắt đột ngột!)
-                        const rimGrad = g.createLinearGradient(it.p0x, it.p0y, it.p3x, it.p3y);
-                        rimGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0)');
-                        rimGrad.addColorStop(0.50, 'rgba(255, 250, 245, 0.05)');
-                        rimGrad.addColorStop(0.80, it.isFrontFace ? 'rgba(255, 250, 245, 0.28)' : 'rgba(255, 235, 220, 0.16)');
-                        rimGrad.addColorStop(1.00, it.isFrontFace ? 'rgba(255, 252, 248, 0.56)' : 'rgba(255, 235, 220, 0.30)');
-                        g.strokeStyle = rimGrad;
-                        g.lineWidth = Math.max(0.7, 1.15 * it.k);
-                        traceHeroPetalPath(g, it);
+                    // 3. Vân lụa hữu cơ uốn cong mềm theo lòng cánh
+                    g.strokeStyle = `rgba(${pt.vein}, 0.14)`;
+                    g.lineWidth = Math.max(0.5, 0.85 * it.k);
+                    for (let v = -2; v <= 2; v++) {
+                        const vf = v * 0.28;
+                        const cx = lerp(it.p6x, vf < 0 ? it.p2lx : it.p4rx, Math.abs(vf));
+                        const cy = lerp(it.p6y, vf < 0 ? it.p2ly : it.p4ry, Math.abs(vf));
+                        const ex = lerp(it.p3x, vf < 0 ? it.p2x : it.p4x, Math.abs(vf) * 0.85);
+                        const ey = lerp(it.p3y, vf < 0 ? it.p2y : it.p4y, Math.abs(vf) * 0.85);
+                        g.beginPath();
+                        g.moveTo(it.p0x, it.p0y);
+                        g.quadraticCurveTo(cx, cy, ex, ey);
                         g.stroke();
+                    }
+                    g.restore();
 
-                        // 5. Giọt sương mai pha lê 3D đọng trên cánh hoa
-                        if (it.dew) {
-                            const dw = it.dew;
-                            g.fillStyle = 'rgba(20, 2, 12, 0.38)';
-                            g.beginPath();
-                            g.ellipse(dw.x + dw.r * 0.2, dw.y + dw.r * 0.35, dw.r * 0.95, dw.r * 0.65, 0, 0, TAU);
-                            g.fill();
-                            const dg = g.createRadialGradient(dw.x - dw.r * 0.3, dw.y - dw.r * 0.3, dw.r * 0.1, dw.x, dw.y, dw.r);
-                            dg.addColorStop(0.0, '#ffffff');
-                            dg.addColorStop(0.45, 'rgba(255, 245, 250, 0.85)');
-                            dg.addColorStop(0.85, pt.mid);
-                            dg.addColorStop(1.0, 'rgba(255, 255, 255, 0.92)');
-                            g.fillStyle = dg;
-                            g.beginPath();
-                            g.arc(dw.x, dw.y, dw.r, 0, TAU);
-                            g.fill();
-                            g.fillStyle = '#ffffff';
-                            g.beginPath();
-                            g.arc(dw.x - dw.r * 0.32, dw.y - dw.r * 0.32, dw.r * 0.28, 0, TAU);
-                            g.fill();
-                        }
+                    // 4. Viền khối tối (Botanical Edge Contour) + Viền bắt sáng Fresnel dọc mép cánh giúp tách bạch từng lớp cánh
+                    traceHeroPetalPath(g, it);
+                    g.strokeStyle = 'rgba(28, 2, 14, 0.34)';
+                    g.lineWidth = Math.max(0.9, 1.5 * it.k);
+                    g.stroke();
+
+                    const rimGrad = g.createLinearGradient(it.p0x, it.p0y, it.p3x, it.p3y);
+                    rimGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0)');
+                    rimGrad.addColorStop(0.55, 'rgba(255, 240, 245, 0.05)');
+                    rimGrad.addColorStop(0.84, it.isFrontFace ? 'rgba(255, 240, 245, 0.24)' : 'rgba(255, 225, 215, 0.14)');
+                    rimGrad.addColorStop(1.00, it.isFrontFace ? 'rgba(255, 245, 248, 0.46)' : 'rgba(255, 225, 215, 0.26)');
+                    g.strokeStyle = rimGrad;
+                    g.lineWidth = Math.max(0.65, 1.05 * it.k);
+                    g.stroke();
+
+                    // 5. Giọt sương mai pha lê 3D đọng trên cánh hoa
+                    if (it.dew) {
+                        const dw = it.dew;
+                        g.fillStyle = 'rgba(20, 2, 12, 0.42)';
+                        g.beginPath();
+                        g.ellipse(dw.x + dw.r * 0.2, dw.y + dw.r * 0.35, dw.r * 0.95, dw.r * 0.65, 0, 0, TAU);
+                        g.fill();
+                        const dg = g.createRadialGradient(dw.x - dw.r * 0.3, dw.y - dw.r * 0.3, dw.r * 0.1, dw.x, dw.y, dw.r);
+                        dg.addColorStop(0.0, '#ffffff');
+                        dg.addColorStop(0.45, 'rgba(255, 240, 246, 0.85)');
+                        dg.addColorStop(0.85, pt.mid);
+                        dg.addColorStop(1.0, 'rgba(255, 255, 255, 0.92)');
+                        g.fillStyle = dg;
+                        g.beginPath();
+                        g.arc(dw.x, dw.y, dw.r, 0, TAU);
+                        g.fill();
+                        g.fillStyle = '#ffffff';
+                        g.beginPath();
+                        g.arc(dw.x - dw.r * 0.32, dw.y - dw.r * 0.32, dw.r * 0.28, 0, TAU);
+                        g.fill();
                     }
                     continue;
                 }
 
                 if (it.kind === 'receptacle') {
-                    const rg = g.createRadialGradient(it.x, it.y, 1, it.x, it.y, Math.max(4, it.r * 1.4));
+                    const rg = g.createRadialGradient(it.x, it.y, 1, it.x, it.y, Math.max(4, it.r * 1.35));
                     rg.addColorStop(0.0, '#fffef2');
-                    rg.addColorStop(0.45, th.accent);
-                    rg.addColorStop(1.0, 'rgba(255, 180, 90, 0)');
+                    rg.addColorStop(0.48, th.accent);
+                    rg.addColorStop(0.85, th.petal.base);
+                    rg.addColorStop(1.0, 'rgba(45, 2, 18, 0)');
                     g.fillStyle = rg;
                     g.beginPath();
-                    g.arc(it.x, it.y, Math.max(4, it.r * 1.4), 0, TAU);
+                    g.arc(it.x, it.y, Math.max(4, it.r * 1.35), 0, TAU);
                     g.fill();
                     continue;
                 }
 
                 if (it.kind === 'stamen') {
                     const sg = g.createLinearGradient(it.bx, it.by, it.tx, it.ty);
-                    sg.addColorStop(0.0, th.petal.base);
-                    sg.addColorStop(0.5, '#f5b942');
+                    sg.addColorStop(0.0, th.petal.ao);
+                    sg.addColorStop(0.45, '#e09f2d');
                     sg.addColorStop(1.0, '#fff6c2');
                     g.strokeStyle = sg;
                     g.lineWidth = Math.max(0.9, (1.6 - it.ring * 0.25) * it.k);
@@ -2005,6 +2452,72 @@
             }
 
             g.restore();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
+        }
+
+        // Vẽ các giọt nước hồ rũ rơi vật lý từ đầu cánh hoa khi bung nở + hạt phấn hoa hoàng kim bay lên khi lòng hoa mở
+        function drawBloomDropsAndPollen3D(g, tau, hs) {
+            if (!hs.visible) return;
+            g.save();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
+            g.lineCap = 'round';
+
+            // 1. Giọt nước rũ rơi từ các tầng cánh hoa đang mở xuống mặt hồ (tau = 2.05..3.55s)
+            if (tau > T.BUD + 0.12 && tau < T.ENV_IN + 0.35) {
+                for (let i = 0; i < bloomDrops.length; i++) {
+                    const bd = bloomDrops[i];
+                    const dt = tau - bd.tDetach;
+                    if (dt <= 0 || dt >= bd.tFall) continue;
+                    const x = hs.sway + bd.x0 + bd.vx * dt;
+                    const z = bd.z0 + bd.vz * dt;
+                    const y = bd.y0 + bd.vy * dt - 0.5 * bd.dropG * dt * dt;
+                    if (y <= 0 || !project(x, y, z, Q)) continue;
+
+                    const dt0 = Math.max(0, dt - 0.025);
+                    const y0 = Math.max(0, bd.y0 + bd.vy * dt0 - 0.5 * bd.dropG * dt0 * dt0);
+                    if (project(hs.sway + bd.x0 + bd.vx * dt0, y0, bd.z0 + bd.vz * dt0, Q2)) {
+                        g.strokeStyle = `rgba(${rgbRipple}, 0.62)`;
+                        g.lineWidth = Math.max(0.8, bd.sz * 0.75 * Q.k);
+                        g.beginPath();
+                        g.moveTo(Q2.x, Q2.y);
+                        g.lineTo(Q.x, Q.y);
+                        g.stroke();
+                    }
+
+                    const dr = Math.max(1.4, bd.sz * 1.25 * Q.k);
+                    g.fillStyle = `rgba(${th.waterSubsurface}, 0.82)`;
+                    g.beginPath();
+                    g.arc(Q.x, Q.y, dr, 0, TAU);
+                    g.fill();
+                    g.fillStyle = '#ffffff';
+                    g.beginPath();
+                    g.arc(Q.x - dr * 0.25, Q.y - dr * 0.25, dr * 0.48, 0, TAU);
+                    g.fill();
+                }
+            }
+
+            // 2. Hạt phấn hoa hoàng kim bung toả vật lý khi nhụy hoa thức tỉnh (tau >= T.HEART - 0.15)
+            const dtPollen = tau - (T.HEART - 0.15);
+            if (dtPollen > 0 && dtPollen < 1.85) {
+                for (let i = 0; i < pollenParticles.length; i++) {
+                    const pp = pollenParticles[i];
+                    const dragT = (1 - Math.exp(-dtPollen * 2.2)) / 2.2;
+                    const swirl = dtPollen * pp.spin;
+                    const rx = pp.vx * dragT + Math.cos(swirl + pp.ph) * 8 * dtPollen;
+                    const rz = pp.vz * dragT + Math.sin(swirl + pp.ph) * 8 * dtPollen;
+                    const ry = hs.H + 14 + pp.vy * dragT + 14 * dtPollen;
+                    if (!project(hs.sway + rx, ry, rz, Q)) continue;
+                    const fadeP = (1 - dtPollen / 1.85) * (0.65 + 0.35 * Math.sin(sc.clock * 5 + pp.ph));
+                    const pr = Math.max(2.0, pp.sz * 4.5 * Q.k);
+                    drawAdditive(g, S.glowFirefly, Q.x, Q.y, pr, pr, fadeP * 0.85);
+                }
+            }
+
+            g.restore();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
         }
 
         // =================================================================================
@@ -2015,17 +2528,19 @@
             if (s < 2) return;
             const wingFold = 0.20 + 0.80 * Math.abs(Math.cos(flap));
             g.save();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
             g.translate(x, y);
             g.rotate(Math.sin(yawAngle) * 0.25);
             g.lineJoin = 'round';
             g.lineCap = 'round';
 
-            drawAdditive(g, S.softAccent, 0, 0, s * 3.4, s * 3.4, 0.34);
+            drawAdditive(g, S.softAccent, 0, 0, s * 2.6, s * 2.6, 0.24);
 
             for (let side = -1; side <= 1; side += 2) {
                 g.save();
                 g.scale(side * wingFold, 1);
-                g.globalAlpha = 0.90;
+                g.globalAlpha = 0.94;
 
                 // Cánh trên (Forewing) chuyển sắc ngũ sắc lụa mỏng
                 const fg = g.createLinearGradient(0, 0, s * 1.15, -s * 0.85);
@@ -2107,12 +2622,15 @@
                 g.stroke();
             }
             g.restore();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
         }
 
         function drawDriftingPetal3D(g, x, y, k, sz, rx, ry, rz, alpha) {
             const r = 11 * sz * k;
             if (r < 1.2) return;
             g.save();
+            g.globalCompositeOperation = 'source-over';
             g.translate(x, y);
             g.rotate(rz);
             const squeeze = Math.max(0.28, Math.abs(Math.cos(rx)));
@@ -2130,6 +2648,8 @@
             g.closePath();
             g.fill();
             g.restore();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
         }
 
         function drawLivingEntities(gW, gF, pass, heroZ, envZ, hs, wake) {
@@ -2150,10 +2670,7 @@
                 const isBokeh = Q.z < 175;
                 const sz = Math.max(8, (isBokeh ? 42 : 24) * f.s * Q.k);
                 const target = (pass === 1 && Q.z < envZ) ? gF : gW;
-                target.save();
-                target.globalCompositeOperation = 'lighter';
                 drawAdditive(target, S.glowFirefly, Q.x, Q.y, sz, sz, isBokeh ? a * 0.45 : a);
-                target.restore();
             }
 
             if (tau > T.IMPACT + 0.25) {
@@ -2206,16 +2723,23 @@
                 const target = (pass === 1 && Q.z < envZ) ? gF : gW;
                 drawButterfly3D(target, Q.x, Q.y, Q.k, bf.sz, sc.clock * 15 + bf.fp, a);
             }
+            gW.globalCompositeOperation = 'source-over';
+            gW.globalAlpha = 1;
+            gF.globalCompositeOperation = 'source-over';
+            gF.globalAlpha = 1;
         }
 
         // =================================================================================
-        // 6. TÍNH TOÁN VỊ TRÍ & MA TRẬN 3D CỦA PHONG BÌ DOM TRÊN ĐÀI HOA
+        // 6. TÍNH TOÁN VỊ TRÍ & MA TRẬN 3D CỦA PHONG BÌ DOM TRÊN ĐÀI HOA (CÓ ĐỘ NHÚN TẢI TRỌNG VẬT LÝ)
         // =================================================================================
         function computeEnvelope(tau, hs, vw, vh, envBaseW, idleY, idleRotZ) {
             if (tau < T.ENV_IN) return { visible: false, depth: 1e9 };
-            const mat = easeOutBack(clamp01((tau - T.ENV_IN) / 0.65));
+            const tEnv = tau - T.ENV_IN;
+            const mat = springOut(clamp01(tEnv / 0.72), 8.5, 3.6, 1);
             const lift = easeInOutCubic(clamp01((tau - T.LIFT) / (T.LAND - T.LIFT)));
-            const envY = hs.H + Math.max(10, finalCrown, hs.crownTop) + 12 + th.hero.envLift * smooth((tau - 3.95) / 0.55);
+            // Phong bì hạ nhẹ từ trên xuống đài hoa khi kết tinh (dropSettle) tạo cảm giác có trọng lượng thật đè lên cánh hoa
+            const dropSettle = 18 * Math.exp(-tEnv * 5.5) * Math.cos(tEnv * 10.5);
+            const envY = hs.H + Math.max(10, finalCrown, hs.crownTop) + 12 + dropSettle + th.hero.envLift * smooth((tau - 3.95) / 0.55);
             const envX = hs.sway * 1.15 * (1 - lift);
             project(envX, envY, 0, P0);
             project(envX - cam.rx * ENV_W * 0.5, envY, -cam.rz * ENV_W * 0.5, P1);
@@ -2246,14 +2770,17 @@
 
         function drawEnvContactShadow(g, env, hs) {
             if (!env.visible) return;
-            const a = env.opacity * (1 - env.lift * 0.88) * 0.82;
+            const a = env.opacity * (1 - env.lift * 0.88) * 0.85;
             if (a <= 0.01) return;
             if (!project(hs.sway, hs.H + 10, 0, Q)) return;
             const w = ENV_W * 1.5 * Q.k, h = w * 0.52;
             g.save();
+            g.globalCompositeOperation = 'source-over';
             g.globalAlpha = a;
             g.drawImage(S.shadow, Q.x - w * 0.5, Q.y - h * 0.5, w, h);
             g.restore();
+            g.globalCompositeOperation = 'source-over';
+            g.globalAlpha = 1;
         }
 
         // =================================================================================
@@ -2271,8 +2798,13 @@
             const hy = cam.hy;
 
             gW.setTransform(dpr, 0, 0, dpr, 0, 0);
+            gW.globalCompositeOperation = 'source-over';
+            gW.globalAlpha = 1;
             gW.clearRect(0, 0, vw, vh);
+
             gF.setTransform(dpr, 0, 0, dpr, 0, 0);
+            gF.globalCompositeOperation = 'source-over';
+            gF.globalAlpha = 1;
             gF.clearRect(0, 0, vw, vh);
 
             // 1. Bầu trời, mây khối, núi mờ sương & mặt hồ phản quang Fresnel
@@ -2290,7 +2822,7 @@
                 renderHeroFlower3D(gW, hs, true);
             }
 
-            // 4. Sóng nước 3D lan toả trên mặt hồ
+            // 4. Sóng nước 3D lan toả trên mặt hồ + Vòng sóng phụ từ các giọt nước văng rơi xuống hồ
             drawWaterRipples3D(gW, tau);
 
             // 5. Các đoá hoa trong vườn ở phía xa hơn Đại Đoá Hoa Chủ Đạo
@@ -2303,84 +2835,52 @@
             // 6. Sinh vật bay phía sau Đại Đoá Hoa Chủ Đạo
             drawLivingEntities(gW, gF, 0, heroZ, envZ, hs, wake);
 
-            // 7. Quầng sáng elip mềm mại toả lên từ lòng hoa trước khi vẽ cánh hoa
+            // 7. Hố lõm mặt nước 3D (Impact Crater), Màng nước vương miện (Crown Splash), Cột nước Worthington & 36 Giọt nước Parabol
+            drawImpactCraterAndSplash3D(gW, tau);
+
+            // 8. Quầng sáng elip mềm mại toả lên phía sau trước khi vẽ Đại Đoá Hoa (không vẽ đè lên cánh hoa để giữ nguyên sắc nhung!)
             if (hs.visible && project(hs.sway, hs.H + 8, 0, Q)) {
-                const plumeA = 0.46 * smooth((tau - 2.65) / 0.7) * (1 - 0.45 * smooth((tau - 4.6) / 0.8));
+                const plumeA = 0.28 * smooth((tau - 2.65) / 0.7) * (1 - 0.45 * smooth((tau - 4.6) / 0.8));
                 if (plumeA > 0.01) {
-                    const pw = 320 * Q.k, ph = 360 * Q.k;
-                    gW.save();
-                    gW.globalCompositeOperation = 'lighter';
+                    const pw = 290 * Q.k, ph = 320 * Q.k;
                     drawAdditive(gW, S.plume, Q.x, Q.y - ph * 0.28, pw, ph, plumeA);
-                    gW.restore();
                 }
             }
 
-            // 8. Đại Đoá Hoa Chủ Đạo 3D (Thân Bezier liền mạch, Lá, Đài hoa, Cánh cong Bezier 3D tròn đầy, Sương mai, Nhụy vàng 3D)
+            // 9. Đại Đoá Hoa Chủ Đạo 3D (Thân Bezier liền mạch, Lá, Đài hoa, Cánh cong Bezier 3D đặc 100%, Sương mai, Nhụy vàng 3D)
             if (hs.visible) {
                 renderHeroFlower3D(gW, hs, false);
+                drawBloomDropsAndPollen3D(gW, tau, hs);
             }
 
-            // 9. Bóng tiếp xúc vật lý của Phong bì trên đài hoa
+            // 10. Bóng tiếp xúc vật lý của Phong bì trên đài hoa
             if (env.visible) {
                 drawEnvContactShadow(gW, env, hs);
             }
 
-            // 10. Các đoá hoa trong vườn ở phía gần ống kính hơn Đại Đoá Hoa Chủ Đạo
+            // 11. Các đoá hoa trong vườn ở phía gần ống kính hơn Đại Đoá Hoa Chủ Đạo
             for (; gi < ground.length; gi++) {
                 if (ground[gi].vis) drawGardenFlower3D(gW, ground[gi]);
             }
 
-            // 11. Hào quang kết tinh bức thư trong lòng hoa
-            if (hs.visible && project(hs.sway * 2, hs.H + 14, 0, Q)) {
-                gW.save();
-                gW.globalCompositeOperation = 'lighter';
-                const glowI = smooth((tau - 2.65) / 0.75);
-                const matFlash = Math.exp(-Math.pow((tau - (T.ENV_IN + 0.12)) / 0.15, 2));
-                drawAdditive(gW, S.glowAccent, Q.x, Q.y, (130 + 150 * matFlash) * Q.k, (130 + 150 * matFlash) * Q.k, glowI * 0.42 + matFlash * 0.85);
-
+            // 12. Tia sao kết tinh lúc bức thư vừa chạm đài hoa (không phủ glow trắng lên cánh hoa!)
+            if (hs.visible && env.visible) {
                 const bt = (tau - T.ENV_IN) / 0.72;
-                if (bt > 0 && bt < 1 && env.visible) {
+                if (bt > 0 && bt < 1) {
                     for (let i = 0; i < burst.length; i++) {
                         const b = burst[i];
                         const d = 68 + 125 * b.d * easeOutCubic(bt);
                         if (!project(b.dx * d, env.worldY + b.dy * d * 0.6, b.dz * d, Q2)) continue;
-                        const w = 44 * Q2.k * (1 - bt * 0.5);
-                        drawAdditive(gW, S.flare, Q2.x, Q2.y, w, w, 1 - bt);
+                        const w = 40 * Q2.k * (1 - bt * 0.5);
+                        drawAdditive(gW, S.flare, Q2.x, Q2.y, w, w, (1 - bt) * 0.85);
                     }
                 }
-                gW.restore();
             }
 
-            // 12. Sinh vật bay phía trước hoa
+            // 13. Sinh vật bay phía trước hoa
             drawLivingEntities(gW, gF, 1, heroZ, envZ, hs, wake);
 
-            // 13. Giọt nước ánh sáng bắn tung lên khi sao băng chạm mặt hồ (tau = 1.60s)
-            if (tau >= T.IMPACT && tau < T.IMPACT + 0.64) {
-                gW.save();
-                gW.globalCompositeOperation = 'lighter';
-                const t = tau - T.IMPACT;
-                const fade = 1 - t / 0.64;
-                gW.strokeStyle = `rgba(${rgbRipple}, ${(fade * 0.82).toFixed(3)})`;
-                for (let i = 0; i < splash.length; i++) {
-                    const sp = splash[i];
-                    const ch = Math.cos(sp.el) * sp.v, cv = Math.sin(sp.el) * sp.v;
-                    const y = cv * t - 640 * t * t;
-                    if (y < 0) continue;
-                    const r = ch * t;
-                    if (!project(Math.cos(sp.az) * r, y, Math.sin(sp.az) * r, Q)) continue;
-                    const t0 = Math.max(0, t - 0.03);
-                    const y0 = cv * t0 - 640 * t0 * t0, r0 = ch * t0;
-                    if (project(Math.cos(sp.az) * r0, Math.max(0, y0), Math.sin(sp.az) * r0, Q2)) {
-                        gW.globalAlpha = 1;
-                        gW.lineWidth = Math.max(1, 2.2 * Q.k);
-                        gW.beginPath(); gW.moveTo(Q2.x, Q2.y); gW.lineTo(Q.x, Q.y); g.stroke();
-                    }
-                    drawAdditive(gW, S.glowMote, Q.x, Q.y, 18 * Q.k, 18 * Q.k, fade);
-                }
-                gW.restore();
-            }
-
-            // Cột sáng thiên đỉnh tại khoảnh khắc chạm mặt hồ
+            // 14. Cột sáng thiên đỉnh tại khoảnh khắc sao băng chạm mặt hồ (tau = 1.60s)
             const pillarA = smooth((tau - 1.585) / 0.03) * (1 - smooth((tau - 1.62) / 0.42));
             if (pillarA > 0.01 && project(0, 0, 0, Q)) {
                 gW.save();
@@ -2393,9 +2893,13 @@
                 gW.scale(1, -0.6);
                 gW.drawImage(S.pillar, -w * 0.5, -h, w, h);
                 gW.restore();
+                gW.globalCompositeOperation = 'source-over';
+                gW.globalAlpha = 1;
             }
 
-            // 14. Viền tối điện ảnh (Vignette) & màn tối mở đầu
+            // 15. Viền tối điện ảnh (Vignette) & màn tối mở đầu
+            gW.globalCompositeOperation = 'source-over';
+            gW.globalAlpha = 1;
             if (sc.vignette) gW.drawImage(sc.vignette, 0, 0, vw, vh);
             const veil = 1 - smooth(tau / 0.58);
             if (veil > 0.002) {
@@ -2405,30 +2909,29 @@
                 gW.globalAlpha = 1;
             }
 
-            // 15. Đốm sáng ước nguyện & đuôi sao băng (tau < 1.62s)
+            // 16. Đốm sáng ước nguyện & đuôi sao băng kéo dài theo gia tốc trọng trường (tau < 1.62s)
             if (tau < T.IMPACT + 0.02) {
-                gW.save();
-                gW.globalCompositeOperation = 'lighter';
                 const p = clamp01((tau - T.FALL) / (T.IMPACT - T.FALL));
-                const s = Math.pow(p, 2.1);
+                const s = Math.pow(p, 2.35);
                 for (let j = 0; j < sparks.length; j++) {
                     const sj = (j + 0.5) / sparks.length;
-                    const tj = T.FALL + Math.pow(sj, 1 / 2.1) * (T.IMPACT - T.FALL);
+                    const tj = T.FALL + Math.pow(sj, 1 / 2.35) * (T.IMPACT - T.FALL);
                     const age = tau - tj;
-                    if (age < 0 || age > 0.6) continue;
+                    if (age < 0 || age > 0.55) continue;
                     bez(sj, Q2);
-                    if (!project(Q2.x + sparks[j].jx * age * 3, Q2.y - 60 * age, Q2.z + sparks[j].jz * age * 3, Q)) continue;
-                    drawAdditive(gW, S.glowMote, Q.x, Q.y, 22 * Q.k, 22 * Q.k, 1 - age / 0.6);
+                    const sparkY = Q2.y + sparks[j].jy * age - 140 * age * age;
+                    if (!project(Q2.x + sparks[j].jx * age * 2.5, sparkY, Q2.z + sparks[j].jz * age * 2.5, Q)) continue;
+                    drawAdditive(gW, S.glowMote, Q.x, Q.y, 24 * sparks[j].sz * Q.k, 24 * sparks[j].sz * Q.k, (1 - age / 0.55) * 0.9);
                 }
                 if (p > 0) {
-                    for (let i = 18; i >= 1; i--) {
-                        const si = s - i * 0.026 * (0.45 + s);
+                    for (let i = 22; i >= 1; i--) {
+                        const si = s - i * 0.024 * (0.40 + s * 1.15);
                         if (si < 0) continue;
                         bez(si, Q2);
                         if (!project(Q2.x, Q2.y, Q2.z, Q)) continue;
-                        const f = 1 - i / 19;
-                        const w = Math.max(30, 122 * Q.k) * (0.35 + 0.65 * f);
-                        drawAdditive(gW, S.glowMote, Q.x, Q.y, w, w, 0.62 * f * f);
+                        const f = 1 - i / 23;
+                        const w = Math.max(26, 128 * Q.k) * (0.28 + 0.72 * f);
+                        drawAdditive(gW, S.glowMote, Q.x, Q.y, w, w, 0.64 * f * f);
                     }
                 }
                 motePos(tau, Q2);
@@ -2437,27 +2940,29 @@
                     const G = Math.max(78, 152 * Q.k) * tw;
                     drawAdditive(gW, S.glowMote, Q.x, Q.y, G, G, 1);
                     gW.save();
+                    gW.globalCompositeOperation = 'lighter';
                     gW.translate(Q.x, Q.y);
                     gW.rotate(clock * 0.4);
                     gW.globalAlpha = 0.88;
                     gW.drawImage(S.flare, -G * 0.95, -G * 0.95, G * 1.9, G * 1.9);
                     gW.restore();
                     if (project(Q2.x, -Q2.y, Q2.z, Q)) {
-                        drawAdditive(gW, S.glowMote, Q.x, Q.y, G * 0.82, G * 1.35, 0.34 * (1 - veil));
+                        drawAdditive(gW, S.glowMote, Q.x, Q.y, G * 0.85, G * (1.35 + p * 0.8), 0.38 * (1 - veil));
                     }
                 }
-                gW.restore();
+                gW.globalCompositeOperation = 'source-over';
+                gW.globalAlpha = 1;
             }
 
-            // 16. Lớp trước (canvasFront): Chớp sáng & Letterbox điện ảnh
+            // 17. Lớp trước (canvasFront): Chớp sáng va chạm & Letterbox điện ảnh
             const flash = sc.impactClock >= 0 && !sc.skipped ? Math.exp(-(clock - sc.impactClock) * 7.5) : 0;
             if (flash > 0.01 || sc.skipFlash > 0.01) {
                 gF.save();
                 gF.globalCompositeOperation = 'lighter';
                 if (flash > 0.01 && project(0, 0, 0, Q)) {
                     const w = Math.max(vw, vh) * 1.5;
-                    drawAdditive(gF, S.glowMote, Q.x, Q.y, w, w, flash * 0.72);
-                    gF.globalAlpha = flash * 0.16;
+                    drawAdditive(gF, S.glowMote, Q.x, Q.y, w, w, flash * 0.68);
+                    gF.globalAlpha = flash * 0.14;
                     gF.fillStyle = `rgb(${th.mote.join(',')})`;
                     gF.fillRect(0, 0, vw, vh);
                 }
@@ -2467,10 +2972,14 @@
                     gF.fillRect(0, 0, vw, vh);
                 }
                 gF.restore();
+                gF.globalCompositeOperation = 'source-over';
+                gF.globalAlpha = 1;
             }
 
             const lb = vh * 0.068 * clamp01(smooth(tau / 0.35) - smooth((tau - 4.7) / 0.7));
             if (lb > 0.5) {
+                gF.globalCompositeOperation = 'source-over';
+                gF.globalAlpha = 1;
                 gF.fillStyle = '#040206';
                 gF.fillRect(0, 0, vw, lb);
                 gF.fillRect(0, vh - lb, vw, lb + 1);

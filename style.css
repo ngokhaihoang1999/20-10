@@ -5,6 +5,14 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+:root,
+html,
+body,
+canvas,
+svg {
+    color-scheme: only light;
+}
+
 html,
 body {
     width: 100%;
