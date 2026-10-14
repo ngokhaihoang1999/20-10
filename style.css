@@ -1936,17 +1936,23 @@ input[type="file"] {
     display: flex;
     justify-content: center;
     align-items: center;
-    border-radius: 11px;
+    border-radius: 14px;
     overflow: hidden;
     box-shadow:
-        0 14px 36px rgba(9, 72, 56, 0.28),
-        0 0 22px rgba(226, 176, 73, 0.32),
-        0 0 0 2px rgba(255, 248, 224, 0.95);
-    background: #fff;
+        0 20px 44px rgba(4, 28, 21, 0.42),
+        0 0 26px rgba(242, 201, 99, 0.34),
+        0 0 0 2px rgba(248, 218, 134, 0.95);
+    background: #fffdf9;
     transform-style: preserve-3d;
     transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
     animation: showcaseCardLevitate 5.2s ease-in-out infinite;
     will-change: transform, opacity;
+}
+
+body.u3d-stage-active #step-3 .card-showcase {
+    animation: none !important;
+    transition: none !important;
+    transform: translate3d(0, 0, 0) scale(1) !important;
 }
 
 @keyframes showcaseCardLevitate {
@@ -1960,7 +1966,7 @@ input[type="file"] {
 
 .card-showcase.is-tilting {
     animation: none;
-    transition: transform 0.08s ease-out;
+    transition: none;
 }
 
 .card-showcase.reveal-playing {
@@ -2923,7 +2929,9 @@ input[type="file"] {
     text-overflow: ellipsis;
 }
 
-/* Khi Sân khấu Phong bì 3D (#u3d-envelope-stage) đang hiển thị: Ẩn tuyệt đối 100% các nút & khung bên dưới để không bao giờ bị lộ bóng mờ phía sau phong bì */
+/* Khi Sân khấu Phong bì 3D (#u3d-envelope-stage) đang hiển thị:
+   - GIỮ NGUYÊN #showcase-motion-sanctuary hiển thị xuyên suốt từ đầu đến cuối để KHÔNG BAO GIỜ bị chớp nền khi mở xong!
+   - Ẩn mượt các nút điều khiển bên dưới và cho phép trượt nhẹ nhàng hiện lên sau khi thiệp đáp vào khung */
 body.u3d-stage-active #step-3 .result-card-container {
     background: transparent !important;
     border-color: transparent !important;
@@ -2932,7 +2940,16 @@ body.u3d-stage-active #step-3 .result-card-container {
     -webkit-backdrop-filter: none !important;
 }
 
-body.u3d-stage-active #step-3 .showcase-motion-sanctuary,
+#step-3 .result-topbar,
+#step-3 .showcase-quick-bar,
+#step-3 .result-actions,
+#step-3 .recipient-luxury-dock,
+#step-3 .showcase-halo-aura,
+#step-3 .showcase-astrolabe-ring,
+#step-3 .showcase-ambient-orbs {
+    transition: opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1), transform 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
 body.u3d-stage-active #step-3 .result-topbar,
 body.u3d-stage-active #step-3 .showcase-quick-bar,
 body.u3d-stage-active #step-3 .result-actions,
@@ -2941,7 +2958,6 @@ body.u3d-stage-active #step-3 .showcase-halo-aura,
 body.u3d-stage-active #step-3 .showcase-astrolabe-ring,
 body.u3d-stage-active #step-3 .showcase-ambient-orbs {
     opacity: 0 !important;
-    visibility: hidden !important;
     pointer-events: none !important;
 }
 
@@ -3623,39 +3639,15 @@ body.recipient-mode .recipient-luxury-dock {
     pointer-events: none;
 }
 
-.u3d-backdrop {
+/* Nền sân khấu 3D trong suốt 100% để dùng chung trực tiếp thế giới nền #showcase-motion-sanctuary ở dưới -> Không bao giờ chớp màn hình khi bàn giao! */
+.u3d-backdrop,
+.u3d-envelope-stage[data-motion] .u3d-backdrop {
     position: absolute;
     inset: 0;
     z-index: 1;
-    background:
-        radial-gradient(circle at 50% 48%, #fff8e2 0%, #f8b4ca 28%, #911847 64%, #240512 100%);
-    transition: opacity 0.42s ease-out;
-    will-change: opacity;
-}
-
-.u3d-envelope-stage[data-motion="butterflies"] .u3d-backdrop {
-    background:
-        radial-gradient(circle at 50% 48%, #fffad8 0%, #80deba 28%, #0b5843 64%, #031b14 100%);
-}
-
-.u3d-envelope-stage[data-motion="ribbon"] .u3d-backdrop {
-    background:
-        radial-gradient(circle at 50% 48%, #fff8fc 0%, #f6b6d4 28%, #881f52 64%, #220618 100%);
-}
-
-.u3d-envelope-stage[data-motion="galaxy"] .u3d-backdrop {
-    background:
-        radial-gradient(circle at 50% 48%, #dbf5ff 0%, #5e3db0 28%, #171246 64%, #040616 100%);
-}
-
-.u3d-envelope-stage[data-motion="sakura"] .u3d-backdrop {
-    background:
-        radial-gradient(circle at 50% 48%, #fff9fc 0%, #ffbcd6 28%, #743066 64%, #1a0b28 100%);
-}
-
-.u3d-envelope-stage[data-motion="hearts"] .u3d-backdrop {
-    background:
-        radial-gradient(circle at 50% 48%, #f0fdff 0%, #84e8f6 28%, #0e4c64 64%, #031420 100%);
+    background: transparent !important;
+    opacity: 0 !important;
+    pointer-events: none;
 }
 
 /* --- Hai Nửa Khung Phong Bì 3D (Back Rig z:5 & Front Rig z:10) đồng bộ Ma Trận 3D 60fps --- */
@@ -3938,8 +3930,9 @@ body.recipient-mode .recipient-luxury-dock {
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     box-shadow:
-        0 18px 38px rgba(4, 32, 24, 0.38),
-        0 0 0 2px rgba(248, 218, 134, 0.92);
+        0 20px 44px rgba(4, 28, 21, 0.42),
+        0 0 26px rgba(242, 201, 99, 0.34),
+        0 0 0 2px rgba(248, 218, 134, 0.95);
 }
 
 .u3d-card-front {
@@ -3958,24 +3951,25 @@ body.recipient-mode .recipient-luxury-dock {
     position: absolute;
     inset: 0;
     border-radius: 14px;
-    border: 2px solid rgba(246, 214, 126, 0.88);
+    border: none;
     pointer-events: none;
 }
 
-/* Vệt ánh kim phản xạ vật lý quét qua mặt thiệp khi nghiêng/xoay 3D (Thuần Alpha GPU siêu mượt) */
+/* Vệt ánh kim phản xạ vật lý quét qua mặt thiệp khi nghiêng/xoay 3D (Chỉ hiện khi đang nghiêng 3D, tự tắt = 0 khi đáp phẳng) */
 .u3d-card-specular {
     position: absolute;
     inset: -40%;
     background: linear-gradient(
         115deg,
-        transparent 30%,
-        rgba(255, 252, 230, 0.14) 43%,
-        rgba(255, 255, 255, 0.56) 50%,
-        rgba(255, 236, 168, 0.18) 57%,
-        transparent 70%
+        transparent 34%,
+        rgba(255, 252, 230, 0.12) 45%,
+        rgba(255, 255, 255, 0.38) 50%,
+        rgba(255, 236, 168, 0.12) 55%,
+        transparent 66%
     );
+    opacity: 0;
     pointer-events: none;
-    will-change: transform;
+    will-change: transform, opacity;
 }
 
 /* Mặt lưng tấm thiệp: Lụa Hoàng Gia Ép Kim Vàng 24K (Hiện ra khi thiệp xoay 360° trên không trung) */

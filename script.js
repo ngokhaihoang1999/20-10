@@ -2994,6 +2994,7 @@ let gyroTargetTiltX = 0;
 let gyroTargetTiltY = 0;
 let gyroCurTiltX = 0;
 let gyroCurTiltY = 0;
+let gyroHandoffTimestamp = 0;
 let gyroShowcaseRafId = null;
 
 function applyShowcase3DTilt(clientX, clientY) {
@@ -3010,7 +3011,7 @@ function applyShowcase3DTilt(clientX, clientY) {
     gyroCurTiltY = tiltY;
 
     cardShowcase.classList.add('is-tilting');
-    cardShowcase.style.transform = `perspective(1050px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(1.012)`;
+    cardShowcase.style.transform = `perspective(1050px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(1)`;
 
     if (cardFoilGlint) {
         cardFoilGlint.style.setProperty('--glint-x', `${(relX * 100).toFixed(1)}%`);
@@ -3029,23 +3030,30 @@ function resetShowcase3DTilt() {
     cardShowcase.style.transform = '';
 }
 
-function stepGyroShowcaseLoop() {
+function stepGyroShowcaseLoop(now = performance.now()) {
     if (!gyroHasReading || !step3 || !step3.classList.contains('active')) {
         gyroShowcaseRafId = null;
         return;
     }
 
     if (!isPointerTrackingShowcase && cardShowcase && !document.body.classList.contains('u3d-stage-active')) {
-        gyroCurTiltX += (gyroTargetTiltX - gyroCurTiltX) * 0.12;
-        gyroCurTiltY += (gyroTargetTiltY - gyroCurTiltY) * 0.12;
+        // Hệ số hòa trộn mượt từ 0 -> 1 trong 1.0 giây sau khi bàn giao từ phong bì để KHÔNG BAO GIỜ giật cục!
+        const rawBlend = gyroHandoffTimestamp > 0 ? Math.min(1, Math.max(0, (now - gyroHandoffTimestamp) / 1000)) : 1;
+        const smoothBlend = rawBlend * rawBlend * (3 - 2 * rawBlend);
 
-        const floatY = Math.sin(performance.now() * 0.002) * 3.5;
+        gyroCurTiltX += (gyroTargetTiltX - gyroCurTiltX) * 0.10;
+        gyroCurTiltY += (gyroTargetTiltY - gyroCurTiltY) * 0.10;
+
+        const floatY = Math.sin((now - gyroHandoffTimestamp) * 0.002) * 3.2 * smoothBlend;
+        const effTiltX = gyroCurTiltX * smoothBlend;
+        const effTiltY = gyroCurTiltY * smoothBlend;
+
         cardShowcase.classList.add('is-tilting');
-        cardShowcase.style.transform = `perspective(1050px) translate3d(0, ${floatY.toFixed(2)}px, 0) rotateX(${gyroCurTiltX.toFixed(2)}deg) rotateY(${gyroCurTiltY.toFixed(2)}deg) scale(1.012)`;
+        cardShowcase.style.transform = `perspective(1050px) translate3d(0, ${floatY.toFixed(2)}px, 0) rotateX(${effTiltX.toFixed(2)}deg) rotateY(${effTiltY.toFixed(2)}deg) scale(1)`;
 
         if (cardFoilGlint) {
-            const glintX = Math.max(5, Math.min(95, 50 + (gyroCurTiltY / 13.5) * 40));
-            const glintY = Math.max(5, Math.min(95, 38 - (gyroCurTiltX / 11.0) * 36));
+            const glintX = Math.max(5, Math.min(95, 50 + (effTiltY / 13.5) * 40));
+            const glintY = Math.max(5, Math.min(95, 38 - (effTiltX / 11.0) * 36));
             cardFoilGlint.style.setProperty('--glint-x', `${glintX.toFixed(1)}%`);
             cardFoilGlint.style.setProperty('--glint-y', `${glintY.toFixed(1)}%`);
         }
@@ -3096,6 +3104,11 @@ function bindCardGyroscopeSensor() {
 window.recenterCardGyroscope = function () {
     gyroBaseBeta = null;
     gyroBaseGamma = null;
+    gyroTargetTiltX = 0;
+    gyroTargetTiltY = 0;
+    gyroCurTiltX = 0;
+    gyroCurTiltY = 0;
+    gyroHandoffTimestamp = performance.now();
 };
 
 window.requestCardGyroscopePermission = function () {
@@ -5501,10 +5514,14 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     step3?.classList.add('active');
     fitCardShowcaseToWrap();
 
-    // Ẩn tạm #card-showcase ở dưới trong lúc thiệp đang nằm trong phong bì và rút từ phong bì ra
+    // Giữ #card-showcase ở mức opacity 0.001 (thay vì 0) để trình duyệt di động luôn giữ sẵn texture ảnh trên GPU, không bao giờ bị chớp màn hình khi bàn giao!
     if (cardShowcase) {
-        cardShowcase.style.opacity = '0';
-        cardShowcase.style.transform = '';
+        cardShowcase.classList.remove('is-tilting');
+        cardShowcase.style.opacity = '0.001';
+        cardShowcase.style.transform = 'translate3d(0, 0, 0) scale(1)';
+    }
+    if (cardSpecular) {
+        cardSpecular.style.opacity = '0';
     }
 
     // Đồng bộ ảnh mặt trước của tấm thiệp 3D nằm trong phong bì (Chỉ gán khi đã có ảnh thật hợp lệ)
@@ -5534,7 +5551,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
     stage.classList.remove('is-summoning', 'is-arriving', 'is-opening', 'pocket-cleared', 'handing-off');
     stage.style.display = 'block';
-    if (backdrop) backdrop.style.opacity = '1';
+    if (backdrop) backdrop.style.opacity = '0';
     if (flapFront) {
         flapFront.style.display = 'block';
         flapFront.style.transform = 'perspective(1200px) rotateX(0deg)';
@@ -5576,6 +5593,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     function measureTargetShowcaseOnce() {
         curVw = window.innerWidth;
         curVh = window.innerHeight;
+        if (cardShowcase) {
+            cardShowcase.classList.remove('is-tilting');
+            cardShowcase.style.transform = 'translate3d(0, 0, 0) scale(1)';
+        }
         fitCardShowcaseToWrap();
         const rawRect = cardShowcase ? cardShowcase.getBoundingClientRect() : null;
         if (rawRect && rawRect.width > 40 && rawRect.height > rawRect.width * 1.3) {
@@ -6682,7 +6703,6 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         } else {
             // (2.32s -> 2.94s): Toàn bộ 100% tấm thiệp đã ra khỏi miệng bì thư!
             // Bây giờ tấm thiệp mới phóng to mượt mà từ kích thước lọt lòng túi (pocketScale) lên 1.000 khớp vào #card-showcase!
-            cardOpacity = 1;
             if (!stage.classList.contains('pocket-cleared')) {
                 stage.classList.add('pocket-cleared');
             }
@@ -6691,7 +6711,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             const fp = Math.min(1, (elapsed - EXTRACT_END) / (PRESENT_END - EXTRACT_END));
             // Quintic smooth-out để đáp vào khung đích êm như nhung, không khựng
             const easeExpand = 1 - Math.pow(1 - fp, 3.2);
-            const rem = Math.pow(1 - fp, 2.0);
+            const rem = Math.pow(1 - fp, 2.2);
 
             cardCx = screenCx + (targetCx - screenCx) * easeExpand;
             cardCy = extractedCy + (targetCy - extractedCy) * easeExpand;
@@ -6701,6 +6721,20 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             cardRotX = -Math.sin(fp * Math.PI) * 6 * rem;
             cardRotY = Math.sin(fp * Math.PI) * (cfg.id === 'butterflies' ? -9 : 9) * rem;
             cardRotZ = Math.sin(fp * Math.PI) * 1.8 * rem;
+
+            // Pre-reveal #card-showcase nằm ngay bên dưới #u3d-card-actor từ t = PRESENT_END - 0.14s (khi thiệp đã trùng khớp 99.6% vị trí đích)
+            // để đến đúng t = PRESENT_END, #card-showcase đã hiện 100% ở dưới, sau đó #u3d-card-actor tan nhẹ từ 1 -> 0 trong 0.24s mà KHÔNG HỀ CHỚP HAY GIẬT CỤC!
+            if (cardShowcase && elapsed >= PRESENT_END - 0.14) {
+                const underOp = Math.min(1, (elapsed - (PRESENT_END - 0.14)) / 0.12);
+                cardShowcase.style.opacity = `${underOp.toFixed(3)}`;
+            }
+
+            if (elapsed < PRESENT_END) {
+                cardOpacity = 1;
+            } else {
+                const handoffFade = Math.max(0, 1 - (elapsed - PRESENT_END) / 0.24);
+                cardOpacity = handoffFade;
+            }
         }
 
         // Áp dụng vị trí & tỷ lệ cho Tấm Thiệp BẰNG THUẦN GPU TRANSFORM (Không chạm vào style.width / style.height!)
@@ -6725,9 +6759,12 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             cardInner.style.transform = `translateZ(${cardZ.toFixed(1)}px) rotateX(${cardRotX.toFixed(2)}deg) rotateY(${cardRotY.toFixed(2)}deg) rotateZ(${cardRotZ.toFixed(2)}deg)`;
         }
 
-        // Quét vệt ánh kim phản quang vật lý (Specular Glare) theo góc nghiêng 3D thực tế của thiệp
+        // Quét vệt ánh kim phản quang vật lý (Specular Glare) theo góc nghiêng 3D thực tế của thiệp (Tự động tắt = 0 khi thiệp đáp phẳng để không tạo vệt trắng chớp màn hình!)
         const glareShift = ((cardRotY % 360) * 2.2 + cardRotX * 1.6);
+        const tiltMagnitude = Math.min(1, (Math.abs(cardRotX) + Math.abs(cardRotY)) / 10);
+        const specAlpha = elapsed < PRESENT_END ? (tiltMagnitude * 0.42) : 0;
         if (cardSpecular) {
+            cardSpecular.style.opacity = `${specAlpha.toFixed(3)}`;
             cardSpecular.style.transform = `translateX(${glareShift.toFixed(1)}%) rotate(15deg)`;
         }
         if (backSpecular) {
@@ -6851,18 +6888,18 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             draw3DProjectedParticle(targetCtx, p, screenCx, screenCy, focal);
         }
 
-        // Bàn giao mượt mà sang #card-showcase tại t >= PRESENT_END (2.94s): KHÔNG gọi thêm canvas phụ để tránh giật lag!
+        // Bàn giao êm như nhung sang #card-showcase tại t >= PRESENT_END (2.94s):
+        // - #card-showcase ở dưới đã hiện sẵn 100% từ t = 2.80s -> 2.92s
+        // - #u3d-card-actor ở trên đang giảm mượt opacity từ 1 -> 0 (2.94s -> 3.18s)
+        // - Không gọi lại updateShowcaseAmbientForMotion để tránh khởi tạo lại Canvas nền gây chớp màn hình!
         if (!hasHandedOffCard && elapsed >= PRESENT_END) {
             hasHandedOffCard = true;
             stage.classList.add('handing-off');
-            document.body.classList.remove('u3d-stage-active');
             if (cardShowcase) {
                 cardShowcase.style.opacity = '1';
-                cardShowcase.style.transform = '';
+                cardShowcase.style.transform = 'translate3d(0, 0, 0) scale(1)';
             }
-            cardActor.style.opacity = '0';
-            if (backdrop) backdrop.style.opacity = '0';
-            updateShowcaseAmbientForMotion(cfg.id);
+            document.body.classList.remove('u3d-stage-active');
             if (typeof window.recenterCardGyroscope === 'function') {
                 window.recenterCardGyroscope();
             }
@@ -6878,7 +6915,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         // Kết thúc hoàn toàn sân khấu khi các hạt 3D cuối cùng đã tan hết (t >= 3.65s)
         if (elapsed >= 3.65) {
             stage.style.display = 'none';
-            stage.classList.remove('is-opening', 'pocket-cleared', 'handing-off');
+            stage.classList.remove('is-summoning', 'is-arriving', 'is-opening', 'pocket-cleared', 'handing-off');
             document.body.classList.remove('u3d-stage-active');
             if (cardShowcase) cardShowcase.style.opacity = '1';
             u3dCurrentDirectorState = 'hidden';
@@ -7116,7 +7153,7 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
     if (!ctx) return;
 
     const resizeCanvas = () => {
-        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
         const w = window.innerWidth || 390;
         const h = window.innerHeight || 844;
         if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
@@ -7127,10 +7164,12 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
     };
 
     const dims = resizeCanvas();
-    if (showcaseBgCurrentMotion !== motionId || showcaseBgActors.length === 0) {
-        showcaseBgCurrentMotion = motionId;
-        showcaseBgActors = initShowcaseBgActors(motionId, dims.w, dims.h);
+    if (showcaseBgCurrentMotion === motionId && showcaseBgAnimFrameId && showcaseBgActors.length > 0) {
+        return;
     }
+
+    showcaseBgCurrentMotion = motionId;
+    showcaseBgActors = initShowcaseBgActors(motionId, dims.w, dims.h);
 
     if (showcaseBgAnimFrameId) {
         cancelAnimationFrame(showcaseBgAnimFrameId);
@@ -7183,15 +7222,18 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 if (a.x > w + 20) a.x = -18;
 
                 const pulse = 0.55 + 0.45 * Math.sin(t * 3.0 + (a.pulsePhase || a.swayPhase || i));
+                const baseAlpha = (a.alpha || 0.7) * pulse;
                 ctx.save();
-                ctx.globalAlpha = (a.alpha || 0.7) * pulse;
-                const grad = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, a.size * 2.6);
-                grad.addColorStop(0, '#ffffff');
-                grad.addColorStop(0.45, a.color || '#ffe5ec');
-                grad.addColorStop(1, 'rgba(0,0,0,0)');
-                ctx.fillStyle = grad;
+                ctx.globalAlpha = baseAlpha * 0.34;
+                ctx.fillStyle = a.color || '#ffe5ec';
                 ctx.beginPath();
-                ctx.arc(a.x, a.y, a.size * 2.6, 0, Math.PI * 2);
+                ctx.arc(a.x, a.y, a.size * 2.1, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.globalAlpha = baseAlpha;
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.size * 0.78, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
             } else if (a.kind === 'butterfly') {
@@ -7208,8 +7250,6 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 ctx.rotate(Math.sin(t * 1.5 + a.swayPhase) * 0.25);
                 ctx.globalAlpha = a.alpha;
                 ctx.fillStyle = a.color;
-                ctx.shadowColor = '#ffd86b';
-                ctx.shadowBlur = 10;
 
                 for (const dir of [-1, 1]) {
                     ctx.save();
@@ -7362,9 +7402,10 @@ function updateShowcaseAmbientForMotion(motionId) {
     const u3dStage = document.getElementById('u3d-envelope-stage');
     if (u3dStage) u3dStage.setAttribute('data-motion', validMotion);
 
-    // Cập nhật Vòng Mandala / Tinh Đồ SVG tương ứng chủ đề Motion
+    // Cập nhật Vòng Mandala / Tinh Đồ SVG tương ứng chủ đề Motion (chỉ gán lại khi đổi chủ đề)
     const wheelEl = document.getElementById('sanctuary-sacred-wheel');
-    if (wheelEl) {
+    if (wheelEl && wheelEl.getAttribute('data-wheel-motion') !== validMotion) {
+        wheelEl.setAttribute('data-wheel-motion', validMotion);
         wheelEl.innerHTML = getSanctuarySacredWheelSVG(validMotion);
     }
 
