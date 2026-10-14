@@ -506,6 +506,14 @@ body {
 .screen.active {
     opacity: 1;
     pointer-events: auto;
+    z-index: 5;
+}
+
+.screen:not(.active):not(.step2-preloading) {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
 }
 
 input[type="file"] {
@@ -1404,9 +1412,9 @@ input[type="file"] {
     z-index: 1 !important;
 }
 
-/* Giữ độ đục màn hình Bước 2 ở 100% khi bắt đầu Morph để không bị hụt alpha giữa 2 màn hình */
-#step-2.step2-morph-from,
-#step-2.step2-morph-to {
+/* Giữ độ đục màn hình Bước 2 ở 100% khi đang active và bắt đầu Morph để không bị hụt alpha giữa 2 màn hình */
+#step-2.active.step2-morph-from,
+#step-2.active.step2-morph-to {
     opacity: 1 !important;
     transition: none !important;
     z-index: 5 !important;
@@ -2985,8 +2993,17 @@ body.u3d-stage-active #step-3 .card-showcase {
 }
 
 /* Khi Sân khấu Phong bì 3D (#u3d-envelope-stage) đang hiển thị:
+   - Ẩn tuyệt đối màn hình Bước 1 và màn hình Edit Bước 2 để chuyển hẳn sang Không Gian 3D Đầy Đủ
    - GIỮ NGUYÊN #showcase-motion-sanctuary hiển thị xuyên suốt từ đầu đến cuối để KHÔNG BAO GIỜ bị chớp nền khi mở xong!
    - Ẩn mượt các nút điều khiển bên dưới và cho phép trượt nhẹ nhàng hiện lên sau khi thiệp đáp vào khung */
+body.u3d-stage-active #step-1,
+body.u3d-stage-active #step-2 {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    z-index: -1 !important;
+}
+
 body.u3d-stage-active #step-3 .result-card-container {
     background: transparent !important;
     border-color: transparent !important;
@@ -3667,8 +3684,9 @@ body.recipient-mode .recipient-luxury-dock {
     touch-action: none;
 }
 
-.u3d-envelope-stage.handing-off {
-    pointer-events: none;
+.u3d-envelope-stage.handing-off,
+.u3d-envelope-stage.handing-off * {
+    pointer-events: none !important;
 }
 
 /* Nền sân khấu 3D trong suốt 100% để dùng chung trực tiếp thế giới nền #showcase-motion-sanctuary ở dưới -> Không bao giờ chớp màn hình khi bàn giao! */

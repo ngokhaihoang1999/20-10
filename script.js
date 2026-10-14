@@ -2887,7 +2887,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                     window.schedulePreUploadCardToTelegram();
                 }
 
-                step2.classList.remove('active');
+                step2.classList.remove('active', 'step2-preloading', 'step2-morph-from');
                 step3.classList.add('active');
                 btn.innerHTML = originalHTML;
                 btn.disabled = false;
@@ -3443,7 +3443,9 @@ document.getElementById('back-step2-btn').addEventListener('click', () => {
         window.restoreCreatorStep1UI(false);
     }
     step3.classList.remove('active');
-    step2.classList.add('active');
+    step1.classList.remove('active');
+    step2.classList.remove('step2-preloading', 'step2-morph-from');
+    step2.classList.add('active', 'step2-morph-to');
     requestAnimationFrame(() => {
         fitPreviewAreaToStage();
         renderStep2WishPreview();
@@ -3462,6 +3464,7 @@ document.getElementById('redo-btn').addEventListener('click', () => {
         window.restoreCreatorStep1UI(true);
     }
     step3.classList.remove('active');
+    step2.classList.remove('active', 'step2-preloading', 'step2-morph-from');
     step1.classList.add('active');
     document.getElementById('upload-btn').value = '';
     document.getElementById('selfie-btn').value = '';
@@ -5512,7 +5515,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     }
 
     step1?.classList.remove('active');
-    step2?.classList.remove('active');
+    step2?.classList.remove('active', 'step2-preloading', 'step2-morph-from');
     step3?.classList.add('active');
     fitCardShowcaseToWrap();
 
@@ -5772,6 +5775,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         u3dCurrentDirectorState = 'opening';
         openStartTime = performance.now();
         stage.classList.add('is-opening');
+        if (frontRig) frontRig.style.pointerEvents = 'none';
         if (sealBtn) sealBtn.style.pointerEvents = 'none';
     }
 
@@ -6897,6 +6901,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (!hasHandedOffCard && elapsed >= PRESENT_END) {
             hasHandedOffCard = true;
             stage.classList.add('handing-off');
+            if (frontRig) frontRig.style.pointerEvents = 'none';
+            if (sealBtn) sealBtn.style.pointerEvents = 'none';
             if (cardShowcase) {
                 cardShowcase.style.opacity = '1';
                 cardShowcase.style.transform = 'translate3d(0, 0, 0) scale(1)';
@@ -7760,7 +7766,7 @@ function setMotionEffect(motionId, showToast = true) {
     }
 }
 
-// Helper kết xuất nhanh thiệp hiện tại ở Bước 2 rồi mở Sân Khấu Phong Bì Vật Lý 3D
+// Helper kết xuất nhanh thiệp hiện tại ở Bước 2 rồi chuyển hẳn sang Màn Hình 3D Đầy Đủ (Bước 3 + Sân Khấu Phong Bì 3D)
 function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = true) {
     if (shareLinkModal) shareLinkModal.style.display = 'none';
     if (cropperObj && step2 && step2.classList.contains('active')) {
@@ -7775,6 +7781,12 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = true) {
                 }
                 ensureQuoteFont().then(() => {
                     drawCanvasImageText(finalResultCanvas, true);
+                    if (typeof window.schedulePreUploadCardToTelegram === 'function') {
+                        window.schedulePreUploadCardToTelegram();
+                    }
+                    step2.classList.remove('active', 'step2-preloading', 'step2-morph-from');
+                    step3.classList.add('active');
+                    fitCardShowcaseToWrap();
                     window.launchUnified3DEnvelopeDirector({
                         autoOpen,
                         autoOpenDelay: 280,
@@ -7788,6 +7800,12 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = true) {
             return;
         }
     }
+    if (currentUserImage && !window.isRecipientCardLinkMode) {
+        drawCanvasImageText(finalResultCanvas, true);
+    }
+    step2?.classList.remove('active', 'step2-preloading', 'step2-morph-from');
+    step3?.classList.add('active');
+    fitCardShowcaseToWrap();
     window.launchUnified3DEnvelopeDirector({
         autoOpen,
         autoOpenDelay: 260,
