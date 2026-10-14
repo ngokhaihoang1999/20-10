@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title></title>
 
-    <link rel="stylesheet" href="style.css?v=34.0">
+    <link rel="stylesheet" href="style.css?v=35.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
@@ -169,6 +169,9 @@
     <div id="u3d-envelope-stage" class="u3d-envelope-stage" data-motion="bloom" data-theme="emerald" aria-hidden="true" style="display: none;">
         <!-- Lớp nền không gian nhung lụa & ánh đèn sân khấu 3D -->
         <div id="u3d-backdrop" class="u3d-backdrop"></div>
+
+        <!-- Lớp 0 (z: 2): Thế Giới Vật Lý 3D "Nụ Hoa Ước Nguyện" (Hồ Gương, Cánh Đồng Hoa, Đại Đoá Hoa Chủ Đạo nâng đỡ Phong Bì) -->
+        <canvas id="u3d-canvas-world" class="u3d-physics-canvas u3d-canvas-world"></canvas>
 
         <!-- Lớp 1 (z: 5): Nửa sau của Phong Bì 3D (Bóng đổ sàn, Hào quang, Lưng lót lụa, Ánh sáng nội tâm & Nắp thư khi đã mở >90°) -->
         <div id="u3d-env-back-rig" class="u3d-env-rig u3d-env-back-rig">
@@ -982,11 +985,12 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=34.0"></script>
-    <script src="script.js?v=34.0"></script>
-    <script src="director-3d.js?v=34.0"></script>
-    <script src="share-cloud.js?v=34.0"></script>
-    <script src="intro.js?v=34.0"></script>
+    <script src="wishes.js?v=35.0"></script>
+    <script src="script.js?v=35.0"></script>
+    <script src="wish-bloom.js?v=35.0"></script>
+    <script src="director-3d.js?v=35.0"></script>
+    <script src="share-cloud.js?v=35.0"></script>
+    <script src="intro.js?v=35.0"></script>
 </body>
 
 </html>

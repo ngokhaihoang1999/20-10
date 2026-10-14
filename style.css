@@ -4378,7 +4378,7 @@ body.recipient-mode .recipient-luxury-dock {
     opacity: 0.9;
 }
 
-/* --- Hai Lớp Canvas Vật Lý 3D 60fps (Lớp Sau z:6 & Lớp Trước z:12) --- */
+/* --- Ba Lớp Canvas Vật Lý 3D 60fps (Thế Giới z:2, Lớp Sau z:6 & Lớp Trước z:12) --- */
 .u3d-physics-canvas {
     position: absolute;
     inset: 0;
@@ -4387,12 +4387,111 @@ body.recipient-mode .recipient-luxury-dock {
     pointer-events: none;
 }
 
+.u3d-canvas-world {
+    z-index: 2;
+    transition: opacity 0.22s linear;
+}
+
 .u3d-canvas-back {
     z-index: 6;
 }
 
 .u3d-canvas-front {
     z-index: 12;
+}
+
+/* --- Màn Dạo Đầu Tức Thì (GPU Compositor Prelude) & Nút Bỏ Qua Cutscene "Nụ Hoa Ước Nguyện" --- */
+.wish-prelude {
+    position: fixed;
+    inset: 0;
+    z-index: 2600;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity;
+}
+
+.wish-prelude.is-on {
+    opacity: 1;
+}
+
+.wish-prelude.is-off {
+    opacity: 0;
+    transition: opacity 0.28s ease-out;
+}
+
+.wish-prelude-mote {
+    position: absolute;
+    left: 50%;
+    top: 26%;
+    width: 110px;
+    height: 110px;
+    margin-left: -55px;
+    margin-top: -55px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffffff 0%, var(--wp-glow, rgba(255, 215, 130, 0.85)) 26%, rgba(255, 190, 120, 0) 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: wishPreludePulse 0.9s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+}
+
+.wish-prelude-mote i {
+    display: block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 0 18px 6px #ffffff, 0 0 38px 14px var(--wp-glow, rgba(255, 215, 130, 0.9));
+}
+
+@keyframes wishPreludePulse {
+    0% {
+        transform: translate3d(0, -4px, 0) scale(0.88);
+        opacity: 0.86;
+    }
+    100% {
+        transform: translate3d(0, 4px, 0) scale(1.16);
+        opacity: 1;
+    }
+}
+
+.wish-skip-btn {
+    position: absolute;
+    top: max(18px, env(safe-area-inset-top, 18px));
+    right: max(18px, env(safe-area-inset-right, 18px));
+    z-index: 24;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 240, 200, 0.42);
+    background: rgba(12, 8, 22, 0.46);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: rgba(255, 250, 240, 0.92);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.6px;
+    cursor: pointer;
+    opacity: 0;
+    transform: translate3d(0, -8px, 0);
+    pointer-events: none;
+    transition: opacity 0.32s ease, transform 0.32s ease, background 0.2s ease, border-color 0.2s ease;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.wish-skip-btn.show,
+.wish-skip-btn.is-visible {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    pointer-events: auto;
+}
+
+.wish-skip-btn:hover,
+.wish-skip-btn:active {
+    background: rgba(28, 18, 46, 0.72);
+    border-color: rgba(255, 232, 165, 0.82);
 }
 
 /* --- Chân Trang Hướng Dẫn Chạm Phong Ấn 3D (Chỉ hiện sau khi Phong Bì & Ấn Sáp đã sẵn sàng 100%) --- */

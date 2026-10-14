@@ -2231,6 +2231,24 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const ctxBack = canvasBack.getContext('2d');
     const ctxFront = canvasFront.getContext('2d');
 
+    // Lớp Canvas Thế Giới (z: 2 — nằm DƯỚI phong bì) cho Đại cảnh One-Shot "Nụ Hoa Ước Nguyện"
+    const canvasWorld = document.getElementById('u3d-canvas-world');
+    const ctxWorld = canvasWorld ? canvasWorld.getContext('2d') : null;
+    if (canvasWorld) {
+        canvasWorld.width = Math.round(curVw * dpr);
+        canvasWorld.height = Math.round(curVh * dpr);
+        canvasWorld.style.opacity = '1';
+        ctxWorld.setTransform(1, 0, 0, 1, 0, 0);
+        ctxWorld.clearRect(0, 0, canvasWorld.width, canvasWorld.height);
+    }
+    if (window.u3dWishBloomScene) {
+        window.u3dWishBloomScene.destroy();
+        window.u3dWishBloomScene = null;
+    }
+    let wishBloom = null;
+    document.body.classList.remove('u3d-wish-cinematic');
+    if (floorShadow) floorShadow.style.opacity = '1';
+
     // ĐO TỌA ĐỘ ĐÍCH #card-showcase & ĐỒNG BỘ TỶ LỆ RESPONSIVE (motionScale) VỚI KÍCH THƯỚC THIỆP TRÊN MỌI THIẾT BỊ
     let cachedTargetRect = null;
     let cachedEnvBaseW = 356;
@@ -2306,7 +2324,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     let hasSpawnedArrivalStamp = false;
 
     if (skyOracleMode) {
-        u3dCurrentDirectorState = 'sky_oracle';
+        if (window.WishBloomCutscene && ctxWorld) {
+            wishBloom = window.WishBloomCutscene.create(cfg.id, stage);
+            window.u3dWishBloomScene = wishBloom;
+            u3dCurrentDirectorState = 'wish_bloom';
+            document.body.classList.add('u3d-wish-cinematic');
+            if (floorShadow) floorShadow.style.opacity = '0';
+        } else {
+            u3dCurrentDirectorState = 'sky_oracle';
+        }
         stage.classList.add('is-summoning');
         backRig.style.opacity = '0';
         frontRig.style.opacity = '0';
@@ -4093,6 +4119,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             canvasBack.height = Math.round(curVh * dpr);
             canvasFront.width = Math.round(curVw * dpr);
             canvasFront.height = Math.round(curVh * dpr);
+            if (canvasWorld) {
+                canvasWorld.width = Math.round(curVw * dpr);
+                canvasWorld.height = Math.round(curVh * dpr);
+            }
         }
 
         const screenCx = curVw * 0.5;
@@ -4114,6 +4144,132 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         const pocketScale = Math.min(0.86, (envBaseW * 0.76) / baseW);
         const cardInPocketW = baseW * pocketScale;
         const cardInPocketH = baseH * pocketScale;
+
+        // ====== TRẠNG THÁI WISH-A: ĐẠI CẢNH ONE-SHOT "NỤ HOA ƯỚC NGUYỆN" (~6 GIÂY LIỀN MẠCH, KHÔNG CẮT CẢNH) ======
+        // Ước nguyện rơi xuống hồ gương -> khu vườn bừng nở -> nụ hoa khổng lồ nở ra -> bức thư nằm trong lòng hoa -> nâng lên dâng tặng
+        if (u3dCurrentDirectorState === 'wish_bloom' && wishBloom) {
+            const floatT = now * 0.0022;
+            const idleY = Math.sin(floatT) * 7;
+            const idleRotZ = Math.cos(floatT * 0.7) * 1.2;
+            wishBloom.step(dt);
+            let env = null;
+            try {
+                env = wishBloom.render(ctxWorld, ctxFront, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY, idleRotZ });
+            } catch (wishErr) {
+                console.error('Wish Bloom frame error:', wishErr);
+            }
+            // Khung hình đầu tiên đã vẽ xong -> gỡ màn chuyển cảnh CSS (hai lớp trùng khớp nên không thấy đường nối)
+            if (window.WishBloomCutscene.hasPrelude()) window.WishBloomCutscene.endPrelude();
+
+            cardActor.style.opacity = '0';
+            if (env && env.visible) {
+                const tf = `perspective(1400px) translate3d(${env.tx.toFixed(1)}px, ${env.ty.toFixed(1)}px, 0px) scale(${env.scale.toFixed(4)}) rotateX(${env.rotX.toFixed(2)}deg) rotateY(${env.rotY.toFixed(2)}deg) rotateZ(${env.rotZ.toFixed(2)}deg)`;
+                backRig.style.transform = tf;
+                frontRig.style.transform = tf;
+                const op = env.opacity.toFixed(3);
+                backRig.style.opacity = op;
+                frontRig.style.opacity = op;
+            } else {
+                backRig.style.opacity = '0';
+                frontRig.style.opacity = '0';
+            }
+
+            if (wishBloom.finished) {
+                u3dCurrentDirectorState = 'wish_stamp';
+                arriveStartTime = now;
+                hasSpawnedArrivalStamp = false;
+                stage.classList.remove('is-summoning');
+                stage.classList.add('is-arriving');
+            }
+            u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
+            return;
+        }
+
+        // ====== TRẠNG THÁI WISH-B: ẤN SÁP VÀNG GIÁNG XUỐNG ĐÓNG DẤU LÊN BỨC THƯ VỪA ĐƯỢC DÂNG TẶNG (0.62 GIÂY) ======
+        if (u3dCurrentDirectorState === 'wish_stamp' && wishBloom) {
+            if (arriveStartTime === null) arriveStartTime = now;
+            const e = Math.max(0, (now - arriveStartTime) / 1000);
+            const STAMP_TOTAL = 0.62;
+            const floatT = now * 0.0022;
+            const idleY = Math.sin(floatT) * 7;
+            const idleRotZ = Math.cos(floatT * 0.7) * 1.2;
+            wishBloom.step(dt);
+            try {
+                wishBloom.render(ctxWorld, ctxFront, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY, idleRotZ });
+            } catch (_) {}
+
+            const sealP = Math.min(1, e / 0.52);
+            let sealScale = 2.5;
+            let sealTy = -56 * motionScale;
+            let sealOp = 0;
+            let recoil = 0;
+            if (sealP < 0.62) {
+                const d = sealP / 0.62;
+                const ed = d * d;
+                sealScale = 2.5 - 1.58 * ed;
+                sealTy = -56 * motionScale * (1 - ed);
+                sealOp = Math.min(1, d * 1.85);
+            } else {
+                const b = (sealP - 0.62) / 0.38;
+                sealScale = 0.92 + 0.08 * Math.sin(b * Math.PI * 0.5);
+                sealTy = 0;
+                sealOp = 1;
+                recoil = Math.sin(b * Math.PI) * 6;
+                if (!hasSpawnedArrivalStamp) {
+                    hasSpawnedArrivalStamp = true;
+                    const mouthY0 = (envBaseCy - envBaseH * 0.24) - screenCy;
+                    spawnSealBreakExplosion(mouthY0 + envBaseH * 0.28);
+                }
+            }
+            const tf = `perspective(1400px) translate3d(0px, ${(idleY + recoil).toFixed(1)}px, 0px) rotateX(6deg) rotateY(0deg) rotateZ(${idleRotZ.toFixed(2)}deg)`;
+            backRig.style.transform = tf;
+            frontRig.style.transform = tf;
+            backRig.style.opacity = '1';
+            frontRig.style.opacity = '1';
+            if (sealBtn) {
+                sealBtn.style.opacity = sealOp.toFixed(2);
+                sealBtn.style.transform = `translate3d(0px, ${sealTy.toFixed(1)}px, 0px) scale(${sealScale.toFixed(3)})`;
+            }
+            if (floorShadow) floorShadow.style.opacity = Math.min(1, e / STAMP_TOTAL).toFixed(2);
+            cardActor.style.opacity = '0';
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life += dt;
+                if (p.life >= p.maxLife) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                const dragFactor = Math.max(0, 1 - p.drag * dt);
+                p.vx *= dragFactor;
+                p.vy *= dragFactor;
+                p.vz *= dragFactor;
+                p.vy += p.gravity * dt;
+                if (p.type === 'butterfly') p.flapPhase += p.flapSpeed * dt;
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.z += p.vz * dt;
+                p.rx += p.vrx * dt;
+                p.ry += p.vry * dt;
+                p.rz += p.vrz * dt;
+                const lr = p.life / p.maxLife;
+                p.alpha = lr < 0.15 ? lr / 0.15 : (lr > 0.7 ? (1 - lr) / 0.3 : 1);
+                draw3DProjectedParticle(p.z < 0 ? ctxBack : ctxFront, p, screenCx, screenCy, focal);
+            }
+
+            if (e >= STAMP_TOTAL) {
+                u3dCurrentDirectorState = 'waiting';
+                stage.classList.remove('is-arriving');
+                frontRig.style.pointerEvents = 'none';
+                if (sealBtn) {
+                    sealBtn.style.opacity = '1';
+                    sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
+                    sealBtn.style.pointerEvents = 'auto';
+                }
+            }
+            u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
+            return;
+        }
 
         // ====== TRẠNG THÁI 0-SKY-A: ĐẠI CẢNH ONE-SHOT SPEED-RAMP "TỪ BỨC ẢNH HOÁ THÀNH BỨC THƯ 3D" (6.20 GIÂY LIỀN MẠCH) ======
         if (u3dCurrentDirectorState === 'sky_oracle') {
@@ -4850,6 +5006,13 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             const idleY = Math.sin(floatT) * 7;
             const idleRotZ = Math.cos(floatT * 0.7) * 1.2;
 
+            if (wishBloom) {
+                wishBloom.step(dt);
+                try {
+                    wishBloom.render(ctxWorld, ctxFront, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY, idleRotZ });
+                } catch (_) {}
+            }
+
             u3dPointerCurRotX += (u3dPointerTargetRotX - u3dPointerCurRotX) * Math.min(1, dt * 10);
             u3dPointerCurRotY += (u3dPointerTargetRotY - u3dPointerCurRotY) * Math.min(1, dt * 10);
 
@@ -4894,6 +5057,20 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         // ====== TRẠNG THÁI 2: KHỞI ĐỘNG SÁP THƯ HỒI HỘP -> BẬT NẮP -> RÚT THIỆP TỪ TỪ 0%->100% KHỎI BÌ THƯ ======
         if (!openStartTime) openStartTime = now;
         const elapsed = Math.max(0, (now - openStartTime) / 1000);
+
+        if (wishBloom) {
+            if (document.body.classList.contains('u3d-wish-cinematic')) {
+                document.body.classList.remove('u3d-wish-cinematic');
+            }
+            const worldFade = 1 - Math.min(1, Math.max(0, (elapsed - 0.95) / 1.3));
+            if (canvasWorld) canvasWorld.style.opacity = worldFade.toFixed(3);
+            if (worldFade > 0.002) {
+                wishBloom.step(dt);
+                try {
+                    wishBloom.render(ctxWorld, ctxFront, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY: 0, idleRotZ: 0 });
+                } catch (_) {}
+            }
+        }
         const envMouthWorldY = (envBaseCy - envBaseH * 0.24) - screenCy;
         const sealWorldY = envMouthWorldY + envBaseH * 0.28;
 
@@ -5442,6 +5619,17 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
         // Kết thúc hoàn toàn sân khấu khi các hạt 3D cuối cùng đã tan hết (t >= 3.65s)
         if (elapsed >= 3.65) {
+            if (wishBloom) {
+                wishBloom.destroy();
+                wishBloom = null;
+                window.u3dWishBloomScene = null;
+            }
+            if (ctxWorld) {
+                ctxWorld.setTransform(1, 0, 0, 1, 0, 0);
+                ctxWorld.clearRect(0, 0, canvasWorld.width, canvasWorld.height);
+                canvasWorld.style.opacity = '1';
+            }
+            document.body.classList.remove('u3d-wish-cinematic');
             stage.style.display = 'none';
             stage.classList.remove('is-summoning', 'is-arriving', 'is-opening', 'pocket-cleared', 'handing-off');
             document.body.classList.remove('u3d-stage-active');
@@ -5868,7 +6056,7 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
     let lastTime = performance.now();
     const renderLoop = (now) => {
         showcaseBgAnimFrameId = requestAnimationFrame(renderLoop);
-        if (!step3 || !step3.classList.contains('active')) return;
+        if (!step3 || !step3.classList.contains('active') || document.body.classList.contains('u3d-wish-cinematic')) return;
 
         const dt = Math.min(0.05, Math.max(0.008, (now - lastTime) / 1000));
         lastTime = now;

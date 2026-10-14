@@ -2836,7 +2836,7 @@ function buildSelfOracleCommonFrameOverlayDataUrl() {
 
 // Hàm bốc thăm ngẫu nhiên Khung + Viền + Tông màu + Lời chúc + Hiệu ứng mở 3D cho luồng "Lời chúc dành cho bạn"
 // (GIỮ NGUYÊN 100% Filter màu & Mức độ Filter mà người dùng đã tự chọn!)
-function applyRandomSelfOracleArtSelections() {
+function applyRandomSelfOracleArtSelections(presetMotion) {
     currentSelectedFrameId = Math.floor(Math.random() * framesConfig.length);
     const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
 
@@ -2853,7 +2853,7 @@ function applyRandomSelfOracleArtSelections() {
         currentColorTheme = themeKeys[Math.floor(Math.random() * themeKeys.length)];
     }
 
-    const randomMotion = motionKeys[Math.floor(Math.random() * motionKeys.length)];
+    const randomMotion = (presetMotion && motionKeys.includes(presetMotion)) ? presetMotion : motionKeys[Math.floor(Math.random() * motionKeys.length)];
     window.currentMotionEffect = randomMotion;
 
     isCustomWishActive = false;
@@ -3186,30 +3186,49 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = window.isSelfOracleMode ? "✨ Đang gửi thông điệp..." : "🌸 Đang tạo thiệp...";
     btn.disabled = true;
 
-    setTimeout(() => {
-        const targetW = 1024;
-        const targetH = 1526;
+    // Nhánh 1: Luồng "Lời chúc dành cho bạn" -> CHUYỂN CẢNH NGAY TRONG KHUNG HÌNH BẤM NÚT:
+    // Màn đêm & đốm sáng ước nguyện chạy trên GPU compositor (không phụ thuộc luồng chính),
+    // trong lúc đó ảnh thiệp được kết xuất ngầm => vào Đại cảnh "Nụ Hoa Ước Nguyện" liền mạch, không khựng.
+    if (window.isSelfOracleMode) {
+        const motionKeys = ['bloom', 'butterflies', 'ribbon', 'galaxy', 'sakura', 'hearts'];
+        const presetMotion = motionKeys[Math.floor(Math.random() * motionKeys.length)];
+        const cinematic = window.WishBloomCutscene || null;
+        const preludeReady = cinematic ? cinematic.beginPrelude(presetMotion) : Promise.resolve();
+        if (!cinematic) btn.innerHTML = "✨ Đang gửi thông điệp...";
 
-        const canvas = cropperObj.getCroppedCanvas({ width: targetW, height: targetH });
+        const restoreBtn = () => {
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        };
 
-        // Nhánh 1: Luồng "Lời chúc dành cho bạn" -> Sau khi người dùng đã căn ảnh & chọn Filter ưng ý, kết xuất thiệp trước 100% để không bao giờ gây khựng nhịp trong lúc chạy One-Shot 3D Cutscene!
-        if (window.isSelfOracleMode) {
-            window.skyOracleUserThumbCanvas = buildSkyOracleUserThumbCanvas(canvas);
-            window.skyOracleUserCardPhotoCanvas = buildSkyOracleUserCardPhotoCanvas(canvas);
-            const randomMotion = applyRandomSelfOracleArtSelections();
-            currentUserImage = canvas;
+        // Nhường 2 khung hình để màn chuyển cảnh GPU bắt đầu chạy trước khi xử lý ảnh nặng
+        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
+            let randomMotion = presetMotion;
+            try {
+                const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
+                window.skyOracleUserThumbCanvas = null;
+                window.skyOracleUserCardPhotoCanvas = null;
+                randomMotion = applyRandomSelfOracleArtSelections(presetMotion);
+                currentUserImage = canvas;
+            } catch (cropErr) {
+                console.error('Self oracle crop error:', cropErr);
+                if (cinematic) cinematic.endPrelude();
+                restoreBtn();
+                return;
+            }
 
             ensureQuoteFont().then(() => {
                 drawCanvasImageText(finalResultCanvas, true, false);
                 window.isRecipientCardImageReady = true;
+                if (cinematic) cinematic.prepare(randomMotion);
+                if (typeof getU3DLuxurySpriteAtlas === 'function') getU3DLuxurySpriteAtlas();
+                return preludeReady;
+            }).then(() => {
                 fitCardShowcaseToWrap();
-
                 document.body.classList.remove('step2-previewing-3d');
-                btn.innerHTML = originalHTML;
-                btn.disabled = false;
+                restoreBtn();
 
                 if (typeof window.launchUnified3DEnvelopeDirector === 'function') {
                     window.launchUnified3DEnvelopeDirector({
@@ -3227,10 +3246,25 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                             }
                         }
                     });
+                } else if (cinematic) {
+                    cinematic.endPrelude();
                 }
+            }).catch((err) => {
+                console.error('Self oracle render error:', err);
+                if (cinematic) cinematic.endPrelude();
+                restoreBtn();
             });
-            return;
-        }
+        }, 0)));
+        return;
+    }
+
+    btn.innerHTML = "🌸 Đang tạo thiệp...";
+
+    setTimeout(() => {
+        const targetW = 1024;
+        const targetH = 1526;
+
+        const canvas = cropperObj.getCroppedCanvas({ width: targetW, height: targetH });
 
         // Nhánh 2: Luồng "Soạn lời chúc cho người thân" -> Tạo thiệp và đưa phong bì 3D ra chờ người dùng bấm vào con dấu sáp để mở!
         const img = new Image();
