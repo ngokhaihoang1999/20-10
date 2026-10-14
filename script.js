@@ -5051,37 +5051,26 @@ function drawSplit3DRing(ctxBack, ctxFront, ring, cx, cy, focal, cardZ) {
         { ctx: ctxFront, isFront: true }
     ].forEach(({ ctx, isFront }) => {
         ctx.save();
-        if (ring.dashed) ctx.setLineDash([8, 6]);
-
-        ctx.beginPath();
-        let penDown = false;
-        for (let i = 0; i < pts.length; i++) {
+        // Vẽ dải hạt tinh tú / sao băng 3D mượt mà thay vì vẽ đường nét đứt hay vòng kẻ cứng
+        for (let i = 0; i < pts.length; i += 2) {
             const p = pts[i];
             const belongs = isFront ? (p.z >= cardZ) : (p.z < cardZ);
-            if (belongs) {
-                if (!penDown) {
-                    ctx.moveTo(p.sx, p.sy);
-                    penDown = true;
-                } else {
-                    ctx.lineTo(p.sx, p.sy);
-                }
-            } else {
-                penDown = false;
-            }
+            if (!belongs) continue;
+            const wave = 0.45 + 0.55 * Math.sin((i / pts.length) * Math.PI * 4 + ring.rz * 2);
+            const rSize = (ring.lineWidth * 1.15) * (0.65 + 0.55 * wave);
+
+            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * 0.28 * wave));
+            ctx.fillStyle = ring.glowColor || ring.color;
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, rSize * 2.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * (0.55 + 0.45 * wave)));
+            ctx.fillStyle = ring.color;
+            ctx.beginPath();
+            ctx.arc(p.sx, p.sy, rSize * 0.9, 0, Math.PI * 2);
+            ctx.fill();
         }
-
-        // Lớp hào quang mềm bên ngoài (thay thế shadowBlur)
-        ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * 0.28));
-        ctx.strokeStyle = ring.glowColor || ring.color;
-        ctx.lineWidth = ring.lineWidth * 3.0;
-        ctx.stroke();
-
-        // Lớp lõi sắc nét bên trong
-        ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha));
-        ctx.strokeStyle = ring.color;
-        ctx.lineWidth = ring.lineWidth;
-        ctx.stroke();
-
         ctx.restore();
     });
 }
@@ -5152,38 +5141,40 @@ function drawSealWindupEffect(ctx, modeId, w, cx, cy, sealScreenY) {
     const fadeOut = w > 0.84 ? (1 - w) / 0.16 : 1;
     const baseAlpha = Math.min(1, w * 2.5) * fadeOut;
 
-    if (modeId === 'bloom') {
-        // Đại Hoa Trà: 2 vòng cánh hoa vàng hồng nở xoáy & nhịp tim lan tỏa từ ấn sáp
-        const pulseR = 34 + (w * 95) % 48;
-        ctx.globalAlpha = baseAlpha * 0.55;
-        ctx.strokeStyle = '#ff9ebb';
-        ctx.lineWidth = 2.2;
-        ctx.beginPath();
-        ctx.arc(0, 0, pulseR, 0, Math.PI * 2);
-        ctx.stroke();
+    // Vầng hào quang năng lượng ấm áp lan tỏa từ tâm ấn sáp (không dùng vòng kẻ nét đứt)
+    const auraR = 46 + Math.sin(w * Math.PI) * 28;
+    ctx.globalAlpha = baseAlpha * 0.26;
+    ctx.fillStyle = '#ffe58f';
+    ctx.beginPath();
+    ctx.arc(0, 0, auraR, 0, Math.PI * 2);
+    ctx.fill();
 
+    if (modeId === 'bloom') {
+        // Đại Hoa Trà: 2 tầng cánh hoa trà hồng-vàng bung nở xoay quanh ấn sáp
         ctx.rotate(w * Math.PI * 1.8);
         const petalCount = 8;
-        const ringR = 36 + Math.sin(w * Math.PI) * 14;
-        ctx.fillStyle = '#ffd54f';
-        ctx.globalAlpha = baseAlpha * 0.85;
+        const ringR = 36 + Math.sin(w * Math.PI) * 16;
         for (let i = 0; i < petalCount; i++) {
             const a = (i / petalCount) * Math.PI * 2;
             ctx.save();
             ctx.rotate(a);
+            ctx.globalAlpha = baseAlpha * 0.85;
+            ctx.fillStyle = i % 2 === 0 ? '#ff80ab' : '#ffd54f';
             ctx.beginPath();
-            ctx.ellipse(0, -ringR, 4.5, 9.5, 0, 0, Math.PI * 2);
+            ctx.moveTo(0, -ringR + 10);
+            ctx.bezierCurveTo(-9, -ringR, -8, -ringR - 14, 0, -ringR - 18);
+            ctx.bezierCurveTo(8, -ringR - 14, 9, -ringR, 0, -ringR + 10);
             ctx.fill();
             ctx.restore();
         }
     } else if (modeId === 'butterflies') {
-        // Hồ Điệp Vàng: Đôi cánh ánh kim khổng lồ bằng tia sáng đập nhịp nhàng hai bên ấn sáp trước khi hóa bướm bay lên
+        // Hồ Điệp Vàng: Đôi cánh ánh kim khổng lồ vỗ nhịp nhàng hai bên ấn sáp trước khi hóa đàn bướm bay lên
         const wingFlap = Math.max(0.18, Math.abs(Math.cos(w * Math.PI * 9.5)));
-        const span = (42 + w * 38);
-        ctx.globalAlpha = baseAlpha * 0.82;
-        ctx.strokeStyle = '#ffe57f';
-        ctx.fillStyle = 'rgba(255, 213, 79, 0.22)';
-        ctx.lineWidth = 2.0;
+        const span = (44 + w * 38);
+        ctx.globalAlpha = baseAlpha * 0.85;
+        ctx.strokeStyle = '#fff59d';
+        ctx.fillStyle = 'rgba(255, 213, 79, 0.34)';
+        ctx.lineWidth = 1.8;
 
         [-1, 1].forEach(dir => {
             ctx.save();
@@ -5206,85 +5197,96 @@ function drawSealWindupEffect(ctx, modeId, w, cx, cy, sealScreenY) {
             ctx.restore();
         });
     } else if (modeId === 'ribbon') {
-        // Ruy-Băng Lụa: 4 vòng lụa kim tuyến xoắn căng dần quanh nút thắt rồi bung nút
-        ctx.globalAlpha = baseAlpha * 0.85;
-        for (let k = 0; k < 2; k++) {
-            ctx.save();
-            ctx.rotate((k === 0 ? 1 : -1) * w * Math.PI * 2.4);
-            ctx.strokeStyle = k === 0 ? '#ff80ab' : '#ffd54f';
-            ctx.lineWidth = 2.4;
-            ctx.setLineDash([14, 10]);
-            const r = 38 + k * 12 + Math.sin(w * Math.PI * 2) * 8;
+        // Ruy-Băng Lụa: Cánh nơ lụa hồng hoàng gia & chuỗi hạt ngọc trai phát sáng xoay hội tụ
+        ctx.rotate(w * Math.PI * 1.6);
+        const pearlCount = 10;
+        const r = 42 + Math.sin(w * Math.PI) * 14;
+        for (let i = 0; i < pearlCount; i++) {
+            const a = (i / pearlCount) * Math.PI * 2;
+            const px = Math.cos(a) * r;
+            const py = Math.sin(a) * r;
+            ctx.globalAlpha = baseAlpha * 0.35;
+            ctx.fillStyle = '#ff80ab';
             ctx.beginPath();
-            ctx.arc(0, 0, r, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.restore();
+            ctx.arc(px, py, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.globalAlpha = baseAlpha * 0.92;
+            ctx.fillStyle = i % 2 === 0 ? '#fff9e6' : '#ffb2c9';
+            ctx.beginPath();
+            ctx.arc(px, py, 4.2, 0, Math.PI * 2);
+            ctx.fill();
         }
     } else if (modeId === 'galaxy') {
-        // Ngân Hà Sao: Vòng La Bàn Thiên Văn 3D xoay tít hội tụ tinh vân vào tâm ấn sáp
-        ctx.globalAlpha = baseAlpha * 0.9;
-        for (let k = 0; k < 2; k++) {
+        // Ngân Hà Sao: Chòm sao 4 cánh lấp lánh xoáy hội tụ vào tâm ấn sáp
+        ctx.rotate(w * Math.PI * 2.8);
+        const starCount = 8;
+        const r = 58 - w * 18;
+        for (let i = 0; i < starCount; i++) {
+            const a = (i / starCount) * Math.PI * 2;
             ctx.save();
-            ctx.rotate((k === 0 ? 1 : -1.4) * w * Math.PI * 3.5);
-            ctx.scale(1, k === 0 ? 0.62 : 0.78);
-            ctx.strokeStyle = k === 0 ? '#ffe898' : '#80deea';
-            ctx.lineWidth = 2.0;
-            if (k === 1) ctx.setLineDash([8, 6]);
-            const r = 68 - w * 22 + k * 14;
+            ctx.rotate(a);
+            ctx.translate(0, -r);
+            const s = (i % 2 === 0 ? 11 : 7) * (0.7 + 0.3 * Math.sin(w * 12 + i));
+            ctx.globalAlpha = baseAlpha * 0.92;
+            ctx.fillStyle = i % 2 === 0 ? '#ffe58f' : '#80deea';
             ctx.beginPath();
-            ctx.arc(0, 0, r, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.moveTo(0, -s);
+            ctx.lineTo(s * 0.24, -s * 0.24);
+            ctx.lineTo(s, 0);
+            ctx.lineTo(s * 0.24, s * 0.24);
+            ctx.lineTo(0, s);
+            ctx.lineTo(-s * 0.24, s * 0.24);
+            ctx.lineTo(-s, 0);
+            ctx.lineTo(-s * 0.24, -s * 0.24);
+            ctx.closePath();
+            ctx.fill();
             ctx.restore();
         }
     } else if (modeId === 'sakura') {
-        // Lốc Anh Đào: Lốc xoáy gió hồng cuộn 6 vệt cánh hoa xoáy tròn tốc độ cao quanh ấn sáp
-        ctx.globalAlpha = baseAlpha * 0.85;
-        ctx.rotate(w * Math.PI * 4.2);
-        const arms = 6;
-        for (let i = 0; i < arms; i++) {
+        // Lốc Anh Đào: 5 cánh hoa anh đào 3D hồng phấn xoáy tròn quanh ấn sáp
+        ctx.rotate(w * Math.PI * 3.2);
+        const petals = 5;
+        const ringR = 38 + Math.sin(w * Math.PI) * 14;
+        for (let i = 0; i < petals; i++) {
             ctx.save();
-            ctx.rotate((i / arms) * Math.PI * 2);
-            ctx.strokeStyle = i % 2 === 0 ? '#ff9ebb' : '#ffe596';
-            ctx.lineWidth = 2.2;
-            ctx.lineCap = 'round';
-            const rIn = 22 + (1 - w) * 18;
-            const rOut = rIn + 26;
+            ctx.rotate((i / petals) * Math.PI * 2);
+            ctx.translate(0, -ringR);
+            ctx.rotate(0.45);
+            ctx.globalAlpha = baseAlpha * 0.88;
+            ctx.fillStyle = '#ffb2c9';
+            const s = 9.5;
             ctx.beginPath();
-            ctx.arc(0, 0, (rIn + rOut) * 0.5, -0.45, 0.45);
-            ctx.stroke();
+            ctx.moveTo(0, s);
+            ctx.bezierCurveTo(-s * 0.85, s * 0.3, -s * 0.75, -s * 0.75, -s * 0.22, -s);
+            ctx.lineTo(0, -s * 0.65);
+            ctx.lineTo(s * 0.22, -s);
+            ctx.bezierCurveTo(s * 0.75, -s * 0.75, s * 0.85, s * 0.3, 0, s);
+            ctx.closePath();
+            ctx.fill();
             ctx.restore();
         }
     } else if (modeId === 'hearts') {
-        // Kim Cương Sao: Khung Bát Giác Kim Cương & 8 tia khúc xạ lấp lánh hội tụ
-        ctx.globalAlpha = baseAlpha * 0.9;
-        ctx.save();
+        // Kim Cương Sao: Viên pha lê 8 cạnh & tia sao khúc xạ lấp lánh (không vẽ khung dây thô)
         ctx.rotate(w * Math.PI * 1.5);
-        const r = 36 + Math.sin(w * Math.PI * 3) * 8;
-        ctx.strokeStyle = '#e0f7fa';
-        ctx.lineWidth = 2.0;
-        ctx.beginPath();
-        for (let i = 0; i < 8; i++) {
-            const a = (i / 8) * Math.PI * 2;
-            const px = Math.cos(a) * r;
-            const py = Math.sin(a) * r;
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-        }
-        ctx.closePath();
-        ctx.stroke();
-
-        // Tia chớp kim cương phóng ra
-        ctx.strokeStyle = '#fff9c4';
-        ctx.lineWidth = 1.6;
-        for (let i = 0; i < 8; i++) {
-            const a = (i / 8) * Math.PI * 2;
-            const len = (i % 2 === 0 ? 58 : 44) * Math.sin(w * Math.PI);
+        const gemCount = 8;
+        const r = 42 + Math.sin(w * Math.PI * 2) * 10;
+        for (let i = 0; i < gemCount; i++) {
+            ctx.save();
+            ctx.rotate((i / gemCount) * Math.PI * 2);
+            ctx.translate(0, -r);
+            const s = i % 2 === 0 ? 9 : 6.5;
+            ctx.globalAlpha = baseAlpha * 0.9;
+            ctx.fillStyle = i % 2 === 0 ? '#e0f7fa' : '#ffd54f';
             ctx.beginPath();
-            ctx.moveTo(Math.cos(a) * 26, Math.sin(a) * 26);
-            ctx.lineTo(Math.cos(a) * (26 + len), Math.sin(a) * (26 + len));
-            ctx.stroke();
+            ctx.moveTo(0, -s * 1.3);
+            ctx.lineTo(s * 0.75, 0);
+            ctx.lineTo(0, s * 1.3);
+            ctx.lineTo(-s * 0.75, 0);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
         }
-        ctx.restore();
     }
 
     ctx.restore();
@@ -6944,202 +6946,249 @@ window.triggerShowcaseMotionReveal = function (motionId = 'bloom') {
     updateShowcaseAmbientForMotion(motionId || window.currentMotionEffect || 'bloom');
 };
 
-// ====== THẾ GIỚI NỀN HẬU CẢNH RIÊNG BIỆT CHO TỪNG KIỂU MOTION SAU KHI MỞ THIỆP ======
+// ====== THẾ GIỚI NỀN HẬU CẢNH 3D SỐNG ĐỘNG & HOÀNH TRÁNG RIÊNG CHO TỪNG KIỂU MOTION ======
 let showcaseBgAnimFrameId = null;
 let showcaseBgCurrentMotion = '';
 let showcaseBgActors = [];
-
-function getSanctuarySacredWheelSVG(motionId) {
-    switch (motionId) {
-        case 'butterflies':
-            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ffd86b" stroke-width="0.9">
-                <circle cx="100" cy="100" r="88" stroke-dasharray="4 6" opacity="0.55"/>
-                <circle cx="100" cy="100" r="70" opacity="0.38"/>
-                <polygon points="100,16 122,78 184,100 122,122 100,184 78,122 16,100 78,78" opacity="0.42"/>
-                <polygon points="100,28 118,82 172,100 118,118 100,172 82,118 28,100 82,82" transform="rotate(45 100 100)" opacity="0.35"/>
-                <circle cx="100" cy="100" r="42" stroke-dasharray="2 4" opacity="0.5"/>
-            </svg>`;
-        case 'ribbon':
-            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ff9ebb" stroke-width="0.9">
-                <circle cx="100" cy="100" r="86" stroke-dasharray="8 5" opacity="0.45"/>
-                <ellipse cx="100" cy="100" rx="82" ry="38" transform="rotate(30 100 100)" opacity="0.42"/>
-                <ellipse cx="100" cy="100" rx="82" ry="38" transform="rotate(-30 100 100)" opacity="0.42"/>
-                <ellipse cx="100" cy="100" rx="82" ry="38" transform="rotate(90 100 100)" opacity="0.42"/>
-                <circle cx="100" cy="100" r="52" opacity="0.35"/>
-            </svg>`;
-        case 'galaxy':
-            return `<svg viewBox="0 0 200 200" fill="none" stroke="#8ec5ff" stroke-width="0.9">
-                <circle cx="100" cy="100" r="90" stroke-dasharray="2 5" opacity="0.65"/>
-                <circle cx="100" cy="100" r="74" opacity="0.42"/>
-                <circle cx="100" cy="100" r="56" stroke-dasharray="10 4" opacity="0.48"/>
-                <polygon points="100,10 124,76 190,100 124,124 100,190 76,124 10,100 76,76" opacity="0.5"/>
-                <polygon points="100,22 118,82 178,100 118,118 100,178 82,118 22,100 82,82" transform="rotate(30 100 100)" opacity="0.35"/>
-                <polygon points="100,22 118,82 178,100 118,118 100,178 82,118 22,100 82,82" transform="rotate(60 100 100)" opacity="0.35"/>
-            </svg>`;
-        case 'sakura':
-            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ffb7d5" stroke-width="0.9">
-                <circle cx="100" cy="100" r="86" stroke-dasharray="5 5" opacity="0.5"/>
-                <circle cx="100" cy="100" r="66" opacity="0.38"/>
-                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" opacity="0.45"/>
-                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" transform="rotate(72 100 100)" opacity="0.45"/>
-                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" transform="rotate(144 100 100)" opacity="0.45"/>
-                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" transform="rotate(216 100 100)" opacity="0.45"/>
-                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" transform="rotate(288 100 100)" opacity="0.45"/>
-            </svg>`;
-        case 'hearts':
-            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ff7aa8" stroke-width="0.9">
-                <circle cx="100" cy="100" r="88" stroke-dasharray="3 5" opacity="0.55"/>
-                <polygon points="100,14 161,39 186,100 161,161 100,186 39,161 14,100 39,39" opacity="0.45"/>
-                <polygon points="100,26 152,48 174,100 152,152 100,174 48,152 26,100 48,48" transform="rotate(22.5 100 100)" opacity="0.4"/>
-                <line x1="100" y1="14" x2="100" y2="186" opacity="0.3"/>
-                <line x1="14" y1="100" x2="186" y2="100" opacity="0.3"/>
-                <line x1="39" y1="39" x2="161" y2="161" opacity="0.3"/>
-                <line x1="161" y1="39" x2="39" y2="161" opacity="0.3"/>
-            </svg>`;
-        case 'bloom':
-        default:
-            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ffb3c6" stroke-width="0.9">
-                <circle cx="100" cy="100" r="88" stroke-dasharray="6 4" opacity="0.5"/>
-                <circle cx="100" cy="100" r="68" opacity="0.38"/>
-                <ellipse cx="100" cy="100" rx="76" ry="30" opacity="0.4"/>
-                <ellipse cx="100" cy="100" rx="76" ry="30" transform="rotate(45 100 100)" opacity="0.4"/>
-                <ellipse cx="100" cy="100" rx="76" ry="30" transform="rotate(90 100 100)" opacity="0.4"/>
-                <ellipse cx="100" cy="100" rx="76" ry="30" transform="rotate(135 100 100)" opacity="0.4"/>
-                <circle cx="100" cy="100" r="40" stroke-dasharray="3 3" opacity="0.48"/>
-            </svg>`;
-    }
-}
 
 function initShowcaseBgActors(motionId, width, height) {
     const actors = [];
     const w = Math.max(width, 320);
     const h = Math.max(height, 480);
 
+    // 1. Lớp Hào Quang Bokeh Chiều Sâu (Optical Depth-of-Field Bokeh Orbs) cho mọi thế giới
+    const bokehPalette = {
+        bloom: ['#ffb3c6', '#ffd166', '#ff8fab', '#ffe5ec'],
+        butterflies: ['#ffe169', '#7ae582', '#ffd166', '#a8f0c6'],
+        ribbon: ['#ff9ebb', '#ffe5ec', '#ffd166', '#f48fb1'],
+        galaxy: ['#80deea', '#b388ff', '#ffd166', '#90caf9'],
+        sakura: ['#ffb7d5', '#ffe5ec', '#ffd166', '#ffc2d1'],
+        hearts: ['#80deea', '#ff8fab', '#fff59d', '#b2ebf2']
+    }[motionId] || ['#ffb3c6', '#ffd166'];
+
+    for (let i = 0; i < 16; i++) {
+        actors.push({
+            kind: 'bokeh_orb',
+            x: Math.random() * w,
+            y: Math.random() * h,
+            radius: 18 + Math.random() * 42,
+            vx: (Math.random() - 0.5) * 0.22,
+            vy: -0.15 - Math.random() * 0.25,
+            phase: Math.random() * Math.PI * 2,
+            alpha: 0.08 + Math.random() * 0.14,
+            color: bokehPalette[i % bokehPalette.length]
+        });
+    }
+
     if (motionId === 'bloom') {
-        // Cánh hoa trà hồng đào & phấn nhũ vàng lơ lửng
-        for (let i = 0; i < 28; i++) {
+        // 🌺 VƯỜN THƯỢNG UYỂN ĐẠI HOA TRÀ 3D: Những đóa Hoa Trà nhiều tầng cánh nở xoay 3D + Cánh hoa nhung & Phấn hoàng kim
+        for (let i = 0; i < 7; i++) {
             actors.push({
-                kind: i % 3 === 0 ? 'pollen' : 'camellia',
+                kind: 'grand_camellia',
                 x: Math.random() * w,
                 y: Math.random() * h,
-                size: i % 3 === 0 ? (2 + Math.random() * 3.5) : (8 + Math.random() * 11),
-                vx: -0.25 + Math.random() * 0.5,
-                vy: -0.35 - Math.random() * 0.55,
+                size: 16 + Math.random() * 18,
+                vx: (Math.random() - 0.5) * 0.35,
+                vy: -0.28 - Math.random() * 0.38,
                 rot: Math.random() * Math.PI * 2,
-                vRot: (Math.random() - 0.5) * 0.02,
+                vRot: (Math.random() - 0.5) * 0.014,
+                tiltPhase: Math.random() * Math.PI * 2,
+                alpha: 0.45 + Math.random() * 0.38,
+                outerColor: i % 2 === 0 ? '#ff5c8a' : '#ff85a1',
+                innerColor: '#ffe5ec'.replace('', '')
+            });
+        }
+        for (let i = 0; i < 26; i++) {
+            actors.push({
+                kind: 'camellia_petal',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 9 + Math.random() * 11,
+                vx: -0.3 + Math.random() * 0.6,
+                vy: -0.45 - Math.random() * 0.65,
+                rot: Math.random() * Math.PI * 2,
+                vRot: (Math.random() - 0.5) * 0.025,
                 swayPhase: Math.random() * Math.PI * 2,
-                alpha: 0.35 + Math.random() * 0.45,
-                color: ['#ff8fab', '#ffb3c6', '#ffd166', '#ffe5ec'][i % 4]
+                alpha: 0.5 + Math.random() * 0.42,
+                color: ['#ff4d79', '#ff8fab', '#ffb3c6', '#ffd166'][i % 4]
+            });
+        }
+        for (let i = 0; i < 18; i++) {
+            actors.push({
+                kind: 'gold_sparkle',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 4 + Math.random() * 6,
+                vy: -0.3 - Math.random() * 0.4,
+                phase: Math.random() * Math.PI * 2,
+                color: '#ffe58f'
             });
         }
     } else if (motionId === 'butterflies') {
-        // Đàn bướm hoàng kim vỗ cánh 3D & đom đóm rừng tiên
-        for (let i = 0; i < 14; i++) {
+        // 🦋 RỪNG THIÊNG HỒ ĐIỆP ÁNH KIM: Đàn Bướm Hoàng Kim 3D 4 cánh chi tiết + Đom đóm phát quang rực rỡ
+        for (let i = 0; i < 16; i++) {
+            const isClose = i < 5;
             actors.push({
-                kind: 'butterfly',
+                kind: 'monarch_butterfly',
                 x: Math.random() * w,
                 y: Math.random() * h,
-                size: 9 + Math.random() * 8,
-                vx: (Math.random() - 0.5) * 0.7,
-                vy: -0.45 - Math.random() * 0.65,
+                size: isClose ? (15 + Math.random() * 8) : (9 + Math.random() * 7),
+                vx: (Math.random() - 0.5) * 0.85,
+                vy: -0.55 - Math.random() * 0.75,
                 flapPhase: Math.random() * Math.PI * 2,
-                flapSpeed: 0.14 + Math.random() * 0.08,
+                flapSpeed: 0.15 + Math.random() * 0.08,
                 swayPhase: Math.random() * Math.PI * 2,
-                alpha: 0.5 + Math.random() * 0.4,
-                color: i % 2 === 0 ? '#ffd86b' : '#ffb703'
+                alpha: isClose ? (0.78 + Math.random() * 0.2) : (0.48 + Math.random() * 0.35),
+                primaryColor: i % 3 === 0 ? '#ff9ebb' : '#ffd54f',
+                innerColor: '#fff9db'
             });
         }
-        for (let i = 0; i < 22; i++) {
+        for (let i = 0; i < 28; i++) {
             actors.push({
-                kind: 'firefly',
+                kind: 'firefly_glow',
                 x: Math.random() * w,
                 y: Math.random() * h,
-                size: 2 + Math.random() * 3.5,
-                vx: (Math.random() - 0.5) * 0.35,
-                vy: (Math.random() - 0.5) * 0.35,
+                size: 2.5 + Math.random() * 4.5,
+                vx: (Math.random() - 0.5) * 0.45,
+                vy: -0.25 - Math.random() * 0.45,
                 pulsePhase: Math.random() * Math.PI * 2,
-                color: i % 3 === 0 ? '#7ae582' : '#ffe169'
+                color: i % 3 === 0 ? '#69f0ae' : '#ffe57f'
             });
         }
     } else if (motionId === 'ribbon') {
-        // Sóng lụa satin ánh ngọc trai & hạt ngọc bồng bềnh
-        for (let i = 0; i < 4; i++) {
+        // 🎀 KHÁN PHÒNG LỤA HOÀNG GIA & NGỌC TRAI: Nơ Lụa 3D bồng bềnh + Dải Ruy-băng Satin lượn sóng + Ngọc Trai phát sáng
+        for (let i = 0; i < 8; i++) {
             actors.push({
-                kind: 'silk_wave',
-                yRatio: 0.2 + i * 0.2,
-                amp: 26 + i * 9,
-                freq: 0.0045 + i * 0.001,
-                speed: 0.8 + i * 0.25,
-                phase: i * 1.4,
-                color: i % 2 === 0 ? 'rgba(255, 158, 187, 0.16)' : 'rgba(255, 229, 236, 0.13)'
+                kind: 'couture_bow',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 13 + Math.random() * 11,
+                vx: (Math.random() - 0.5) * 0.35,
+                vy: -0.32 - Math.random() * 0.45,
+                rot: (Math.random() - 0.5) * 0.5,
+                swayPhase: Math.random() * Math.PI * 2,
+                alpha: 0.52 + Math.random() * 0.38,
+                color: i % 2 === 0 ? '#ff6b9d' : '#ff9ebb'
+            });
+        }
+        for (let i = 0; i < 12; i++) {
+            actors.push({
+                kind: 'silk_petal_ribbon',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 14 + Math.random() * 12,
+                vx: (Math.random() - 0.5) * 0.45,
+                vy: -0.38 - Math.random() * 0.5,
+                rot: Math.random() * Math.PI * 2,
+                vRot: (Math.random() - 0.5) * 0.02,
+                phase: Math.random() * Math.PI * 2,
+                alpha: 0.45 + Math.random() * 0.35,
+                color: i % 2 === 0 ? '#ff80ab' : '#ffd54f'
             });
         }
         for (let i = 0; i < 24; i++) {
             actors.push({
-                kind: 'pearl',
+                kind: 'lustrous_pearl',
                 x: Math.random() * w,
                 y: Math.random() * h,
-                size: 2.5 + Math.random() * 4.5,
-                vy: -0.25 - Math.random() * 0.45,
+                size: 3.5 + Math.random() * 5.5,
+                vy: -0.28 - Math.random() * 0.45,
                 swayPhase: Math.random() * Math.PI * 2,
-                alpha: 0.35 + Math.random() * 0.45
+                alpha: 0.55 + Math.random() * 0.4
             });
         }
     } else if (motionId === 'galaxy') {
-        // Tinh vân sao lấp lánh & sao băng vệt sáng chéo
-        for (let i = 0; i < 60; i++) {
+        // 🌌 TINH VÂN NGÂN HÀ & MƯA SAO BĂNG: Tinh tú 4 cánh lấp lánh đa tầng + Sao băng rực rỡ
+        for (let i = 0; i < 58; i++) {
             actors.push({
-                kind: 'star',
+                kind: 'celestial_star',
                 x: Math.random() * w,
                 y: Math.random() * h,
-                size: 1.0 + Math.random() * 2.4,
+                size: 1.2 + Math.random() * 3.2,
                 twinklePhase: Math.random() * Math.PI * 2,
-                twinkleSpeed: 1.5 + Math.random() * 2.5,
-                color: ['#ffffff', '#90e0ef', '#cdb4db', '#ffd166'][i % 4]
+                twinkleSpeed: 1.6 + Math.random() * 2.6,
+                hasFlare: i < 18,
+                color: ['#ffffff', '#80deea', '#ffe57f', '#ea80fc'][i % 4]
             });
         }
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < 5; i++) {
             actors.push({
-                kind: 'meteor',
+                kind: 'shooting_comet',
                 x: Math.random() * w,
-                y: Math.random() * (h * 0.5),
-                vx: -4.5 - Math.random() * 3.0,
-                vy: 2.6 + Math.random() * 2.0,
-                len: 55 + Math.random() * 45,
-                cooldown: i * 95
+                y: Math.random() * (h * 0.55),
+                vx: -5.2 - Math.random() * 3.2,
+                vy: 2.8 + Math.random() * 2.2,
+                cooldown: i * 55
             });
         }
     } else if (motionId === 'sakura') {
-        // Cánh hoa anh đào Nhật Bản bay chéo theo làn gió xuân
-        for (let i = 0; i < 32; i++) {
+        // 🌸 ĐÊM TRĂNG MƯA HOA ANH ĐÀO: Đóa Anh Đào 5 cánh xoay 3D + Cánh hoa chẻ đôi bay lượn + Đèn lồng đom đóm ấm
+        for (let i = 0; i < 9; i++) {
+            actors.push({
+                kind: 'sakura_blossom',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 13 + Math.random() * 11,
+                vx: 0.35 + Math.random() * 0.55,
+                vy: 0.42 + Math.random() * 0.65,
+                rot: Math.random() * Math.PI * 2,
+                vRot: (Math.random() - 0.5) * 0.022,
+                tiltPhase: Math.random() * Math.PI * 2,
+                alpha: 0.55 + Math.random() * 0.38
+            });
+        }
+        for (let i = 0; i < 34; i++) {
             actors.push({
                 kind: 'sakura_petal',
                 x: Math.random() * w,
                 y: Math.random() * h,
-                size: 7 + Math.random() * 8,
-                vx: 0.45 + Math.random() * 0.75,
-                vy: 0.55 + Math.random() * 0.85,
+                size: 7.5 + Math.random() * 8.5,
+                vx: 0.5 + Math.random() * 0.85,
+                vy: 0.58 + Math.random() * 0.9,
                 rot: Math.random() * Math.PI * 2,
-                vRot: (Math.random() - 0.5) * 0.03,
+                vRot: (Math.random() - 0.5) * 0.032,
                 flipPhase: Math.random() * Math.PI * 2,
-                alpha: 0.42 + Math.random() * 0.42,
-                color: i % 2 === 0 ? '#ffb7d5' : '#ffdbe9'
+                alpha: 0.52 + Math.random() * 0.42,
+                color: i % 2 === 0 ? '#ffb7d5' : '#ffe5ec'
+            });
+        }
+        for (let i = 0; i < 16; i++) {
+            actors.push({
+                kind: 'firefly_glow',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 2.5 + Math.random() * 3.8,
+                vx: (Math.random() - 0.5) * 0.3,
+                vy: -0.25 - Math.random() * 0.35,
+                pulsePhase: Math.random() * Math.PI * 2,
+                color: '#ffe58f'
             });
         }
     } else if (motionId === 'hearts') {
-        // Tinh thể pha lê hồng ngọc & tim lăng kính phản quang
-        for (let i = 0; i < 24; i++) {
+        // 💎 CUNG ĐIỆN KIM CƯƠNG ÁNH SAO: Kim cương Đa Giác Cắt Brilliant 3D + Pha lê Tim Lăng Kính + Chớp Sao 8 Cánh
+        for (let i = 0; i < 16; i++) {
             actors.push({
-                kind: i % 2 === 0 ? 'diamond_gem' : 'crystal_heart',
+                kind: i % 3 === 0 ? 'prismatic_heart' : 'brilliant_diamond',
                 x: Math.random() * w,
                 y: Math.random() * h,
-                size: 7 + Math.random() * 9,
+                size: 10 + Math.random() * 11,
                 vy: -0.35 - Math.random() * 0.55,
                 rot: Math.random() * Math.PI * 2,
-                vRot: (Math.random() - 0.5) * 0.025,
+                vRot: (Math.random() - 0.5) * 0.022,
                 shimmerPhase: Math.random() * Math.PI * 2,
-                alpha: 0.35 + Math.random() * 0.45,
-                color: ['#ff4d79', '#ff8fab', '#ffd166', '#ffb3c6'][i % 4]
+                alpha: 0.55 + Math.random() * 0.38,
+                tint: i % 2 === 0 ? '#80deea' : '#ff80ab'
+            });
+        }
+        for (let i = 0; i < 22; i++) {
+            actors.push({
+                kind: 'gold_sparkle',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 5 + Math.random() * 7,
+                vy: -0.25 - Math.random() * 0.4,
+                phase: Math.random() * Math.PI * 2,
+                color: i % 2 === 0 ? '#e0f7fa' : '#fff59d'
             });
         }
     }
@@ -7193,110 +7242,291 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
         for (let i = 0; i < showcaseBgActors.length; i++) {
             const a = showcaseBgActors[i];
 
-            if (a.kind === 'camellia') {
-                a.x += a.vx + Math.sin(t * 1.4 + a.swayPhase) * 0.35;
+            if (a.kind === 'bokeh_orb') {
+                a.x += a.vx + Math.sin(t * 0.8 + a.phase) * 0.18;
+                a.y += a.vy;
+                if (a.y < -a.radius * 1.5) { a.y = h + a.radius; a.x = Math.random() * w; }
+                if (a.x < -a.radius * 1.5) a.x = w + a.radius;
+                if (a.x > w + a.radius * 1.5) a.x = -a.radius;
+
+                const breathe = 0.7 + 0.3 * Math.sin(t * 1.6 + a.phase);
+                ctx.save();
+                ctx.fillStyle = a.color;
+                ctx.globalAlpha = a.alpha * breathe * 0.45;
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.radius * 1.25, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.globalAlpha = a.alpha * breathe;
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.radius * 0.72, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else if (a.kind === 'grand_camellia') {
+                a.x += a.vx + Math.sin(t * 1.1 + a.tiltPhase) * 0.32;
+                a.y += a.vy;
+                a.rot += a.vRot;
+                if (a.y < -45) { a.y = h + 40; a.x = Math.random() * w; }
+                if (a.x < -45) a.x = w + 40;
+                if (a.x > w + 45) a.x = -40;
+
+                const s = a.size;
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                ctx.rotate(a.rot);
+                ctx.scale(1, 0.72 + 0.25 * Math.sin(t * 1.5 + a.tiltPhase));
+                ctx.globalAlpha = a.alpha;
+
+                // Tầng 8 cánh hoa trà lớn bên ngoài
+                ctx.fillStyle = a.outerColor;
+                for (let p = 0; p < 8; p++) {
+                    ctx.save();
+                    ctx.rotate((p / 8) * Math.PI * 2);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.bezierCurveTo(-s * 0.42, -s * 0.35, -s * 0.48, -s * 0.92, 0, -s);
+                    ctx.bezierCurveTo(s * 0.48, -s * 0.92, s * 0.42, -s * 0.35, 0, 0);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                // Tầng 6 cánh hoa hồng phấn bên trong
+                ctx.fillStyle = a.innerColor;
+                for (let p = 0; p < 6; p++) {
+                    ctx.save();
+                    ctx.rotate((p / 6) * Math.PI * 2 + 0.26);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.bezierCurveTo(-s * 0.28, -s * 0.22, -s * 0.32, -s * 0.62, 0, -s * 0.68);
+                    ctx.bezierCurveTo(s * 0.32, -s * 0.62, s * 0.28, -s * 0.22, 0, 0);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                // Nhụy hoàng kim phát sáng
+                ctx.fillStyle = '#ffd54f';
+                ctx.beginPath();
+                ctx.arc(0, 0, s * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else if (a.kind === 'camellia_petal') {
+                a.x += a.vx + Math.sin(t * 1.5 + a.swayPhase) * 0.42;
                 a.y += a.vy;
                 a.rot += a.vRot;
                 if (a.y < -30) { a.y = h + 25; a.x = Math.random() * w; }
                 if (a.x < -30) a.x = w + 25;
                 if (a.x > w + 30) a.x = -25;
 
+                const s = a.size;
                 ctx.save();
                 ctx.translate(a.x, a.y);
                 ctx.rotate(a.rot);
-                ctx.scale(1, 0.65 + 0.3 * Math.sin(t * 2 + a.swayPhase));
+                ctx.scale(1, 0.58 + 0.38 * Math.sin(t * 2.1 + a.swayPhase));
                 ctx.globalAlpha = a.alpha;
                 ctx.fillStyle = a.color;
                 ctx.beginPath();
-                ctx.moveTo(0, -a.size);
-                ctx.bezierCurveTo(a.size * 0.9, -a.size * 0.6, a.size * 0.85, a.size * 0.7, 0, a.size);
-                ctx.bezierCurveTo(-a.size * 0.85, a.size * 0.7, -a.size * 0.9, -a.size * 0.6, 0, -a.size);
-                ctx.fill();
-                ctx.restore();
-            } else if (a.kind === 'pollen' || a.kind === 'firefly' || a.kind === 'pearl') {
-                a.x += (a.vx || 0) + Math.sin(t * 1.6 + (a.swayPhase || a.pulsePhase || 0)) * 0.3;
-                a.y += (a.vy || -0.3);
-                if (a.y < -20) { a.y = h + 18; a.x = Math.random() * w; }
-                if (a.y > h + 20) { a.y = -18; a.x = Math.random() * w; }
-                if (a.x < -20) a.x = w + 18;
-                if (a.x > w + 20) a.x = -18;
-
-                const pulse = 0.55 + 0.45 * Math.sin(t * 3.0 + (a.pulsePhase || a.swayPhase || i));
-                const baseAlpha = (a.alpha || 0.7) * pulse;
-                ctx.save();
-                ctx.globalAlpha = baseAlpha * 0.34;
-                ctx.fillStyle = a.color || '#ffe5ec';
-                ctx.beginPath();
-                ctx.arc(a.x, a.y, a.size * 2.1, 0, Math.PI * 2);
+                ctx.moveTo(0, s * 0.85);
+                ctx.bezierCurveTo(-s * 0.9, s * 0.35, -s * 0.85, -s * 0.72, 0, -s);
+                ctx.bezierCurveTo(s * 0.85, -s * 0.72, s * 0.9, s * 0.35, 0, s * 0.85);
                 ctx.fill();
 
-                ctx.globalAlpha = baseAlpha;
-                ctx.fillStyle = '#ffffff';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
                 ctx.beginPath();
-                ctx.arc(a.x, a.y, a.size * 0.78, 0, Math.PI * 2);
+                ctx.arc(-s * 0.15, -s * 0.25, s * 0.32, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.restore();
-            } else if (a.kind === 'butterfly') {
+            } else if (a.kind === 'monarch_butterfly') {
                 a.flapPhase += a.flapSpeed;
-                a.x += a.vx + Math.sin(t * 1.8 + a.swayPhase) * 0.55;
+                const sway = Math.sin(t * 1.8 + a.swayPhase) * 0.65;
+                a.x += a.vx + sway;
                 a.y += a.vy;
-                if (a.y < -35) { a.y = h + 30; a.x = Math.random() * w; }
-                if (a.x < -35) a.x = w + 30;
-                if (a.x > w + 35) a.x = -30;
+                if (a.y < -40) { a.y = h + 35; a.x = Math.random() * w; }
+                if (a.x < -40) a.x = w + 35;
+                if (a.x > w + 40) a.x = -35;
 
-                const wingScale = 0.25 + 0.75 * Math.abs(Math.cos(a.flapPhase));
+                const wingScale = 0.18 + 0.82 * Math.abs(Math.cos(a.flapPhase));
+                const s = a.size;
                 ctx.save();
                 ctx.translate(a.x, a.y);
-                ctx.rotate(Math.sin(t * 1.5 + a.swayPhase) * 0.25);
+                ctx.rotate((a.vx + sway) * 0.28);
+
+                // Hào quang hoàng kim quanh thân bướm
+                ctx.globalAlpha = a.alpha * 0.22;
+                ctx.fillStyle = a.primaryColor;
+                ctx.beginPath();
+                ctx.arc(0, 0, s * 1.45, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.globalAlpha = a.alpha;
+                for (const dir of [-1, 1]) {
+                    ctx.save();
+                    ctx.scale(dir * wingScale, 1);
+                    // Cánh trên & Cánh dưới điêu khắc 3D
+                    ctx.fillStyle = a.primaryColor;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -s * 0.12);
+                    ctx.bezierCurveTo(s * 0.65, -s * 1.15, s * 1.45, -s * 0.55, s * 1.05, s * 0.12);
+                    ctx.bezierCurveTo(s * 0.72, s * 0.32, s * 0.28, s * 0.18, 0, s * 0.06);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    ctx.beginPath();
+                    ctx.moveTo(0, s * 0.06);
+                    ctx.bezierCurveTo(s * 0.75, s * 0.26, s * 0.92, s * 0.98, s * 0.42, s * 1.04);
+                    ctx.bezierCurveTo(s * 0.16, s * 1.02, s * 0.06, s * 0.52, 0, s * 0.22);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Vân sáng ngọc trai bên trong cánh
+                    ctx.fillStyle = a.innerColor;
+                    ctx.globalAlpha = a.alpha * 0.75;
+                    ctx.beginPath();
+                    ctx.ellipse(s * 0.48, -s * 0.26, s * 0.26, s * 0.16, -0.35, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                // Thân bướm ánh đồng
+                ctx.fillStyle = '#fff3b8';
+                ctx.beginPath();
+                ctx.ellipse(0, s * 0.1, s * 0.09, s * 0.42, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else if (a.kind === 'firefly_glow') {
+                a.x += (a.vx || 0) + Math.sin(t * 1.5 + a.pulsePhase) * 0.35;
+                a.y += (a.vy || -0.3);
+                if (a.y < -24) { a.y = h + 20; a.x = Math.random() * w; }
+                if (a.y > h + 24) { a.y = -20; a.x = Math.random() * w; }
+                if (a.x < -24) a.x = w + 20;
+                if (a.x > w + 24) a.x = -20;
+
+                const pulse = 0.45 + 0.55 * Math.pow(0.5 + 0.5 * Math.sin(t * 2.8 + a.pulsePhase), 2);
+                ctx.save();
+                ctx.fillStyle = a.color;
+                ctx.globalAlpha = 0.18 * pulse;
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.size * 3.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.globalAlpha = 0.42 * pulse;
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.size * 1.7, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.globalAlpha = 0.92 * pulse;
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.size * 0.65, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else if (a.kind === 'couture_bow') {
+                a.x += a.vx + Math.sin(t * 1.3 + a.swayPhase) * 0.35;
+                a.y += a.vy;
+                if (a.y < -40) { a.y = h + 35; a.x = Math.random() * w; }
+                if (a.x < -40) a.x = w + 35;
+                if (a.x > w + 40) a.x = -35;
+
+                const s = a.size;
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                ctx.rotate(a.rot + Math.sin(t * 1.6 + a.swayPhase) * 0.16);
                 ctx.globalAlpha = a.alpha;
                 ctx.fillStyle = a.color;
 
                 for (const dir of [-1, 1]) {
-                    ctx.save();
-                    ctx.scale(dir * wingScale, 1);
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
-                    ctx.bezierCurveTo(a.size * 1.2, -a.size * 1.1, a.size * 1.5, a.size * 0.2, 0, a.size * 0.4);
-                    ctx.bezierCurveTo(a.size * 0.9, a.size * 0.6, a.size * 0.8, a.size * 1.2, 0, a.size * 0.85);
+                    ctx.bezierCurveTo(dir * s * 0.65, -s * 0.85, dir * s * 1.35, -s * 0.45, dir * s * 1.15, s * 0.15);
+                    ctx.bezierCurveTo(dir * s * 0.95, s * 0.55, dir * s * 0.35, s * 0.35, 0, s * 0.08);
                     ctx.closePath();
                     ctx.fill();
-                    ctx.restore();
+
+                    // Đuôi ruy-băng lụa mềm rủ xuống
+                    ctx.beginPath();
+                    ctx.moveTo(dir * s * 0.1, s * 0.08);
+                    ctx.quadraticCurveTo(dir * s * 0.55, s * 0.65, dir * s * 0.78, s * 1.15);
+                    ctx.lineTo(dir * s * 0.38, s * 1.05);
+                    ctx.quadraticCurveTo(dir * s * 0.22, s * 0.58, 0, s * 0.12);
+                    ctx.closePath();
+                    ctx.fill();
                 }
-                ctx.restore();
-            } else if (a.kind === 'silk_wave') {
-                ctx.save();
-                ctx.strokeStyle = a.color;
-                ctx.lineWidth = 22;
-                ctx.lineCap = 'round';
+                // Viên ngọc trai tâm nơ
+                ctx.fillStyle = '#fff9e6';
                 ctx.beginPath();
-                const baseY = h * a.yRatio;
-                for (let x = 0; x <= w; x += 24) {
-                    const y = baseY + Math.sin(x * a.freq + t * a.speed + a.phase) * a.amp;
-                    if (x === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                }
-                ctx.stroke();
+                ctx.arc(0, s * 0.05, s * 0.24, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.restore();
-            } else if (a.kind === 'star') {
-                const twinkle = 0.25 + 0.75 * Math.pow(0.5 + 0.5 * Math.sin(t * a.twinkleSpeed + a.twinklePhase), 2);
+            } else if (a.kind === 'silk_petal_ribbon') {
+                a.x += a.vx + Math.sin(t * 1.4 + a.phase) * 0.45;
+                a.y += a.vy;
+                a.rot += a.vRot;
+                if (a.y < -35) { a.y = h + 30; a.x = Math.random() * w; }
+
+                const s = a.size;
+                const wave = Math.sin(t * 2.4 + a.phase) * s * 0.35;
                 ctx.save();
-                ctx.globalAlpha = twinkle;
+                ctx.translate(a.x, a.y);
+                ctx.rotate(a.rot);
+                ctx.globalAlpha = a.alpha;
                 ctx.fillStyle = a.color;
+                ctx.beginPath();
+                ctx.moveTo(-s, -s * 0.22);
+                ctx.bezierCurveTo(-s * 0.3, -s * 0.65 + wave, s * 0.3, s * 0.25 - wave, s, -s * 0.18);
+                ctx.lineTo(s * 0.85, s * 0.24);
+                ctx.bezierCurveTo(s * 0.25, s * 0.68 - wave, -s * 0.35, -s * 0.2 + wave, -s * 0.85, s * 0.22);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            } else if (a.kind === 'lustrous_pearl') {
+                a.x += Math.sin(t * 1.4 + a.swayPhase) * 0.32;
+                a.y += a.vy;
+                if (a.y < -20) { a.y = h + 18; a.x = Math.random() * w; }
+
+                ctx.save();
+                ctx.globalAlpha = a.alpha * 0.28;
+                ctx.fillStyle = '#ff9ebb';
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.size * 1.8, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.globalAlpha = a.alpha;
+                ctx.fillStyle = '#fff5f8';
                 ctx.beginPath();
                 ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
                 ctx.fill();
-                if (a.size > 2.1 && twinkle > 0.75) {
-                    ctx.strokeStyle = a.color;
-                    ctx.lineWidth = 0.8;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(a.x - a.size * 0.3, a.y - a.size * 0.3, a.size * 0.35, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else if (a.kind === 'celestial_star') {
+                const twinkle = 0.25 + 0.75 * Math.pow(0.5 + 0.5 * Math.sin(t * a.twinkleSpeed + a.twinklePhase), 2);
+                ctx.save();
+                ctx.fillStyle = a.color;
+                ctx.globalAlpha = twinkle * 0.32;
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.size * 2.4, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.globalAlpha = twinkle;
+                if (a.hasFlare) {
+                    const s = a.size * (2.2 + twinkle * 1.4);
                     ctx.beginPath();
-                    ctx.moveTo(a.x - a.size * 2.8, a.y);
-                    ctx.lineTo(a.x + a.size * 2.8, a.y);
-                    ctx.moveTo(a.x, a.y - a.size * 2.8);
-                    ctx.lineTo(a.x, a.y + a.size * 2.8);
-                    ctx.stroke();
+                    ctx.moveTo(a.x, a.y - s);
+                    ctx.lineTo(a.x + s * 0.2, a.y - s * 0.2);
+                    ctx.lineTo(a.x + s, a.y);
+                    ctx.lineTo(a.x + s * 0.2, a.y + s * 0.2);
+                    ctx.lineTo(a.x, a.y + s);
+                    ctx.lineTo(a.x - s * 0.2, a.y + s * 0.2);
+                    ctx.lineTo(a.x - s, a.y);
+                    ctx.lineTo(a.x - s * 0.2, a.y - s * 0.2);
+                    ctx.closePath();
+                    ctx.fill();
+                } else {
+                    ctx.beginPath();
+                    ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
+                    ctx.fill();
                 }
                 ctx.restore();
-            } else if (a.kind === 'meteor') {
+            } else if (a.kind === 'shooting_comet') {
                 if (a.cooldown > 0) {
                     a.cooldown -= 60 * dt;
                     continue;
@@ -7304,28 +7534,65 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 a.x += a.vx;
                 a.y += a.vy;
                 ctx.save();
-                const tailX = a.x - a.vx * 11;
-                const tailY = a.y - a.vy * 11;
+                const tailX = a.x - a.vx * 14;
+                const tailY = a.y - a.vy * 14;
                 const grad = ctx.createLinearGradient(a.x, a.y, tailX, tailY);
-                grad.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
-                grad.addColorStop(0.4, 'rgba(144, 224, 239, 0.45)');
-                grad.addColorStop(1, 'rgba(144, 224, 239, 0)');
+                grad.addColorStop(0, 'rgba(255, 255, 255, 0.96)');
+                grad.addColorStop(0.35, 'rgba(128, 222, 234, 0.58)');
+                grad.addColorStop(1, 'rgba(128, 222, 234, 0)');
                 ctx.strokeStyle = grad;
-                ctx.lineWidth = 2.0;
+                ctx.lineWidth = 2.6;
                 ctx.lineCap = 'round';
                 ctx.beginPath();
                 ctx.moveTo(a.x, a.y);
                 ctx.lineTo(tailX, tailY);
                 ctx.stroke();
+
+                // Đầu sao băng lóe sáng 4 cánh
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, 2.8, 0, Math.PI * 2);
+                ctx.fill();
                 ctx.restore();
 
-                if (a.x < -100 || a.y > h + 100) {
-                    a.x = w * (0.35 + Math.random() * 0.65);
+                if (a.x < -120 || a.y > h + 120) {
+                    a.x = w * (0.3 + Math.random() * 0.7);
                     a.y = -30;
-                    a.cooldown = 70 + Math.random() * 140;
+                    a.cooldown = 55 + Math.random() * 110;
                 }
+            } else if (a.kind === 'sakura_blossom') {
+                a.x += a.vx + Math.sin(t * 1.2 + a.tiltPhase) * 0.35;
+                a.y += a.vy;
+                a.rot += a.vRot;
+                if (a.y > h + 40) { a.y = -35; a.x = Math.random() * w; }
+                if (a.x > w + 40) { a.x = -35; a.y = Math.random() * h; }
+
+                const s = a.size;
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                ctx.rotate(a.rot);
+                ctx.scale(1, 0.72 + 0.25 * Math.cos(t * 1.8 + a.tiltPhase));
+                ctx.globalAlpha = a.alpha;
+                ctx.fillStyle = '#ffc2d4';
+                for (let p = 0; p < 5; p++) {
+                    ctx.save();
+                    ctx.rotate((p / 5) * Math.PI * 2);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.bezierCurveTo(-s * 0.42, -s * 0.28, -s * 0.45, -s * 0.85, -s * 0.12, -s);
+                    ctx.lineTo(0, -s * 0.76);
+                    ctx.lineTo(s * 0.12, -s);
+                    ctx.bezierCurveTo(s * 0.45, -s * 0.85, s * 0.42, -s * 0.28, 0, 0);
+                    ctx.fill();
+                    ctx.restore();
+                }
+                ctx.fillStyle = '#ffe58f';
+                ctx.beginPath();
+                ctx.arc(0, 0, s * 0.16, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
             } else if (a.kind === 'sakura_petal') {
-                a.x += a.vx + Math.sin(t * 1.5 + a.flipPhase) * 0.35;
+                a.x += a.vx + Math.sin(t * 1.5 + a.flipPhase) * 0.38;
                 a.y += a.vy;
                 a.rot += a.vRot;
                 if (a.y > h + 25) { a.y = -20; a.x = Math.random() * w; }
@@ -7346,42 +7613,95 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 ctx.closePath();
                 ctx.fill();
                 ctx.restore();
-            } else if (a.kind === 'diamond_gem' || a.kind === 'crystal_heart') {
+            } else if (a.kind === 'brilliant_diamond' || a.kind === 'prismatic_heart') {
                 a.y += a.vy;
-                a.x += Math.sin(t * 1.3 + a.shimmerPhase) * 0.3;
+                a.x += Math.sin(t * 1.3 + a.shimmerPhase) * 0.35;
                 a.rot += a.vRot;
-                if (a.y < -30) { a.y = h + 25; a.x = Math.random() * w; }
+                if (a.y < -35) { a.y = h + 30; a.x = Math.random() * w; }
 
-                const shimmer = 0.65 + 0.35 * Math.sin(t * 3.5 + a.shimmerPhase);
+                const shimmer = 0.68 + 0.32 * Math.sin(t * 3.5 + a.shimmerPhase);
+                const s = a.size;
                 ctx.save();
                 ctx.translate(a.x, a.y);
                 ctx.rotate(a.rot);
-                ctx.globalAlpha = a.alpha * shimmer;
-                ctx.fillStyle = a.color;
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-                ctx.lineWidth = 0.9;
 
-                if (a.kind === 'diamond_gem') {
+                // Hào quang khúc xạ quanh viên kim cương
+                ctx.globalAlpha = a.alpha * 0.25 * shimmer;
+                ctx.fillStyle = a.tint;
+                ctx.beginPath();
+                ctx.arc(0, 0, s * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.globalAlpha = a.alpha * shimmer;
+                if (a.kind === 'brilliant_diamond') {
+                    // Viên Kim Cương giác cắt Brilliant 3D đa diện (không dùng khung nét đứt)
+                    ctx.fillStyle = '#e0f7fa';
                     ctx.beginPath();
-                    ctx.moveTo(0, -a.size);
-                    ctx.lineTo(a.size * 0.78, 0);
-                    ctx.lineTo(0, a.size);
-                    ctx.lineTo(-a.size * 0.78, 0);
+                    ctx.moveTo(-s * 0.55, -s * 0.68);
+                    ctx.lineTo(s * 0.55, -s * 0.68);
+                    ctx.lineTo(s * 0.96, -s * 0.16);
+                    ctx.lineTo(0, s * 0.98);
+                    ctx.lineTo(-s * 0.96, -s * 0.16);
                     ctx.closePath();
                     ctx.fill();
-                    ctx.stroke();
+
+                    // Mặt bàn kim cương sáng trắng
+                    ctx.fillStyle = '#ffffff';
+                    ctx.beginPath();
+                    ctx.moveTo(-s * 0.55, -s * 0.68);
+                    ctx.lineTo(s * 0.55, -s * 0.68);
+                    ctx.lineTo(s * 0.38, -s * 0.16);
+                    ctx.lineTo(-s * 0.38, -s * 0.16);
+                    ctx.closePath();
+                    ctx.fill();
+
+                    // Giác cắt hồng-lam lấp lánh bên phải
+                    ctx.fillStyle = a.tint;
+                    ctx.globalAlpha = a.alpha * shimmer * 0.72;
+                    ctx.beginPath();
+                    ctx.moveTo(s * 0.38, -s * 0.16);
+                    ctx.lineTo(s * 0.96, -s * 0.16);
+                    ctx.lineTo(0, s * 0.98);
+                    ctx.closePath();
+                    ctx.fill();
                 } else {
-                    const s = a.size * 0.08;
+                    const hs = s * 0.088;
+                    ctx.fillStyle = '#ff80ab';
                     ctx.beginPath();
-                    ctx.moveTo(0, 4 * s);
-                    ctx.bezierCurveTo(0, 1 * s, -6 * s, -4 * s, -10 * s, 1 * s);
-                    ctx.bezierCurveTo(-14 * s, 6 * s, -5 * s, 12 * s, 0, 16 * s);
-                    ctx.bezierCurveTo(5 * s, 12 * s, 14 * s, 6 * s, 10 * s, 1 * s);
-                    ctx.bezierCurveTo(6 * s, -4 * s, 0, 1 * s, 0, 4 * s);
+                    ctx.moveTo(0, 4 * hs);
+                    ctx.bezierCurveTo(0, 1 * hs, -6 * hs, -4 * hs, -10 * hs, 1 * hs);
+                    ctx.bezierCurveTo(-14 * hs, 6 * hs, -5 * hs, 12 * hs, 0, 16 * hs);
+                    ctx.bezierCurveTo(5 * hs, 12 * hs, 14 * hs, 6 * hs, 10 * hs, 1 * hs);
+                    ctx.bezierCurveTo(6 * hs, -4 * hs, 0, 1 * hs, 0, 4 * hs);
                     ctx.closePath();
                     ctx.fill();
-                    ctx.stroke();
+
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+                    ctx.beginPath();
+                    ctx.arc(-4.2 * hs, 3.2 * hs, 2.4 * hs, 0, Math.PI * 2);
+                    ctx.fill();
                 }
+                ctx.restore();
+            } else if (a.kind === 'gold_sparkle') {
+                a.y += a.vy;
+                if (a.y < -20) { a.y = h + 18; a.x = Math.random() * w; }
+                const twinkle = 0.25 + 0.75 * Math.pow(0.5 + 0.5 * Math.sin(t * 3.2 + a.phase), 2);
+                const s = a.size * (0.65 + 0.55 * twinkle);
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                ctx.globalAlpha = 0.88 * twinkle;
+                ctx.fillStyle = a.color;
+                ctx.beginPath();
+                ctx.moveTo(0, -s);
+                ctx.lineTo(s * 0.22, -s * 0.22);
+                ctx.lineTo(s, 0);
+                ctx.lineTo(s * 0.22, s * 0.22);
+                ctx.lineTo(0, s);
+                ctx.lineTo(-s * 0.22, s * 0.22);
+                ctx.lineTo(-s, 0);
+                ctx.lineTo(-s * 0.22, -s * 0.22);
+                ctx.closePath();
+                ctx.fill();
                 ctx.restore();
             }
         }
@@ -7402,14 +7722,7 @@ function updateShowcaseAmbientForMotion(motionId) {
     const u3dStage = document.getElementById('u3d-envelope-stage');
     if (u3dStage) u3dStage.setAttribute('data-motion', validMotion);
 
-    // Cập nhật Vòng Mandala / Tinh Đồ SVG tương ứng chủ đề Motion (chỉ gán lại khi đổi chủ đề)
-    const wheelEl = document.getElementById('sanctuary-sacred-wheel');
-    if (wheelEl && wheelEl.getAttribute('data-wheel-motion') !== validMotion) {
-        wheelEl.setAttribute('data-wheel-motion', validMotion);
-        wheelEl.innerHTML = getSanctuarySacredWheelSVG(validMotion);
-    }
-
-    // Khởi chạy Thế Giới Hậu Cảnh Canvas 60fps riêng cho từng chủ đề Motion
+    // Khởi chạy Thế Giới Hậu Cảnh Canvas 60fps riêng cho từng chủ đề Motion (Không dùng vòng nét đứt / đường kẻ vô nghĩa)
     startShowcaseBackgroundWorld(validMotion);
 
     const container = document.getElementById('showcase-ambient-orbs');

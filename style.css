@@ -2973,116 +2973,93 @@ body.u3d-stage-active #step-3 .showcase-ambient-orbs {
     transition: background 0.65s ease, opacity 0.45s ease;
     /* Mặc định: 1. bloom (🌺 Đại Hoa Trà - Vườn Thượng Uyển Hoa Trà Đỏ Nhung & Hoàng Kim 24K) */
     background:
-        radial-gradient(circle at 50% 42%, rgba(255, 248, 224, 0.96) 0%, rgba(249, 172, 198, 0.88) 24%, rgba(154, 24, 74, 0.94) 60%, #240512 100%);
+        radial-gradient(ellipse 85% 65% at 50% 18%, rgba(255, 224, 178, 0.42) 0%, transparent 65%),
+        radial-gradient(circle at 50% 46%, rgba(255, 240, 228, 0.88) 0%, rgba(244, 143, 177, 0.78) 26%, rgba(136, 18, 64, 0.94) 62%, #1d040e 100%);
 }
 
 /* 2. butterflies (🦋 Hồ Điệp Vàng - Rừng Thiêng Lục Bảo & Hồ Điệp Ánh Kim) */
 .showcase-motion-sanctuary[data-motion="butterflies"] {
     background:
-        radial-gradient(circle at 50% 42%, rgba(255, 250, 214, 0.96) 0%, rgba(126, 222, 184, 0.85) 24%, rgba(11, 88, 67, 0.95) 60%, #031b14 100%);
+        radial-gradient(ellipse 85% 60% at 50% 16%, rgba(255, 238, 158, 0.44) 0%, transparent 65%),
+        radial-gradient(circle at 50% 46%, rgba(255, 248, 206, 0.86) 0%, rgba(78, 198, 156, 0.78) 26%, rgba(9, 76, 58, 0.95) 62%, #021610 100%);
 }
 
 /* 3. ribbon (🎀 Ruy-Băng Lụa - Khán Phòng Lụa Satin Paris & Ngọc Trai) */
 .showcase-motion-sanctuary[data-motion="ribbon"] {
     background:
-        radial-gradient(circle at 50% 42%, rgba(255, 248, 252, 0.96) 0%, rgba(246, 182, 212, 0.88) 26%, rgba(136, 31, 82, 0.95) 62%, #220618 100%);
+        radial-gradient(ellipse 85% 60% at 50% 18%, rgba(255, 232, 186, 0.42) 0%, transparent 65%),
+        radial-gradient(circle at 50% 46%, rgba(255, 244, 250, 0.88) 0%, rgba(240, 156, 196, 0.80) 28%, rgba(118, 22, 68, 0.95) 64%, #1c0513 100%);
 }
 
 /* 4. galaxy (🌌 Ngân Hà Sao - Đài Thiên Văn Tinh Vân & Sao Băng Vũ Trụ) */
 .showcase-motion-sanctuary[data-motion="galaxy"] {
     background:
-        radial-gradient(circle at 50% 42%, rgba(218, 246, 255, 0.92) 0%, rgba(96, 62, 178, 0.86) 25%, rgba(23, 18, 72, 0.96) 60%, #040616 100%);
+        radial-gradient(ellipse 90% 60% at 50% 20%, rgba(130, 224, 255, 0.36) 0%, transparent 65%),
+        radial-gradient(circle at 50% 46%, rgba(210, 240, 255, 0.82) 0%, rgba(92, 56, 176, 0.84) 26%, rgba(20, 15, 64, 0.96) 62%, #030512 100%);
 }
 
 /* 5. sakura (🌸 Lốc Anh Đào - Đêm Trăng Kyoto Mưa Hoa Anh Đào) */
 .showcase-motion-sanctuary[data-motion="sakura"] {
     background:
-        radial-gradient(circle at 50% 42%, rgba(255, 249, 253, 0.96) 0%, rgba(255, 188, 214, 0.88) 26%, rgba(116, 48, 102, 0.94) 62%, #1a0b28 100%);
+        radial-gradient(ellipse 85% 60% at 50% 16%, rgba(255, 236, 210, 0.45) 0%, transparent 65%),
+        radial-gradient(circle at 50% 46%, rgba(255, 244, 250, 0.88) 0%, rgba(252, 172, 204, 0.82) 28%, rgba(104, 38, 90, 0.95) 64%, #160822 100%);
 }
 
 /* 6. hearts (💎 Kim Cương Sao - Cung Điện Pha Lê Kim Cương Khúc Xạ Cầu Vồng) */
 .showcase-motion-sanctuary[data-motion="hearts"] {
     background:
-        radial-gradient(circle at 50% 42%, rgba(240, 253, 255, 0.96) 0%, rgba(132, 232, 246, 0.86) 24%, rgba(14, 76, 100, 0.95) 60%, #031420 100%);
+        radial-gradient(ellipse 85% 60% at 50% 16%, rgba(224, 252, 255, 0.46) 0%, transparent 65%),
+        radial-gradient(circle at 50% 46%, rgba(236, 252, 255, 0.88) 0%, rgba(112, 218, 238, 0.80) 26%, rgba(12, 66, 90, 0.95) 62%, #02101a 100%);
 }
 
-/* Luồng Hào Quang Xoay Chậm Phía Sau Tấm Thiệp Theo Từng Chủ Đề Motion */
+/* Vầng Hào Quang Thể Tích (Volumetric Nebula Glow) Mềm Mại - Tuyệt Đối Không Dùng Nét Kẻ Hay Sọc Cứng */
 .sanctuary-aura-beam {
     position: absolute;
     top: 44%;
     left: 50%;
-    width: min(145vmax, 1180px);
-    height: min(145vmax, 1180px);
-    margin-left: calc(min(145vmax, 1180px) * -0.5);
-    margin-top: calc(min(145vmax, 1180px) * -0.5);
+    width: min(130vmax, 1080px);
+    height: min(130vmax, 1080px);
+    margin-left: calc(min(130vmax, 1080px) * -0.5);
+    margin-top: calc(min(130vmax, 1080px) * -0.5);
     border-radius: 50%;
     background:
-        repeating-conic-gradient(
-            from 0deg,
-            rgba(255, 240, 182, 0.16) 0deg 10deg,
-            transparent 10deg 24deg,
-            rgba(255, 198, 220, 0.11) 24deg 32deg,
-            transparent 32deg 45deg
-        );
-    mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 38%, transparent 70%);
-    -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 38%, transparent 70%);
-    animation: sanctuaryBeamRotate 44s linear infinite;
-    will-change: transform;
+        radial-gradient(ellipse 62% 38% at 38% 42%, rgba(255, 236, 179, 0.34) 0%, transparent 70%),
+        radial-gradient(ellipse 38% 62% at 62% 58%, rgba(255, 182, 212, 0.30) 0%, transparent 70%),
+        radial-gradient(circle at 50% 50%, rgba(255, 248, 225, 0.28) 0%, transparent 62%);
+    filter: blur(22px);
+    animation: sanctuaryBeamBreathe 16s ease-in-out infinite alternate;
+    will-change: transform, opacity;
+}
+
+.showcase-motion-sanctuary[data-motion="butterflies"] .sanctuary-aura-beam {
+    background:
+        radial-gradient(ellipse 65% 40% at 36% 40%, rgba(255, 230, 128, 0.36) 0%, transparent 70%),
+        radial-gradient(ellipse 42% 65% at 64% 60%, rgba(105, 240, 174, 0.28) 0%, transparent 70%),
+        radial-gradient(circle at 50% 50%, rgba(255, 245, 196, 0.26) 0%, transparent 62%);
 }
 
 .showcase-motion-sanctuary[data-motion="galaxy"] .sanctuary-aura-beam {
     background:
-        repeating-conic-gradient(
-            from 0deg,
-            rgba(142, 234, 255, 0.18) 0deg 12deg,
-            transparent 12deg 26deg,
-            rgba(255, 226, 138, 0.14) 26deg 35deg,
-            transparent 35deg 45deg
-        );
+        radial-gradient(ellipse 68% 40% at 35% 42%, rgba(128, 222, 234, 0.36) 0%, transparent 72%),
+        radial-gradient(ellipse 42% 68% at 65% 58%, rgba(186, 104, 200, 0.34) 0%, transparent 72%),
+        radial-gradient(circle at 50% 50%, rgba(255, 236, 179, 0.24) 0%, transparent 62%);
 }
 
 .showcase-motion-sanctuary[data-motion="hearts"] .sanctuary-aura-beam {
     background:
-        repeating-conic-gradient(
-            from 0deg,
-            rgba(224, 251, 255, 0.22) 0deg 8deg,
-            rgba(255, 206, 236, 0.12) 8deg 16deg,
-            transparent 16deg 30deg,
-            rgba(255, 243, 176, 0.16) 30deg 38deg,
-            transparent 38deg 45deg
-        );
+        radial-gradient(ellipse 64% 40% at 38% 40%, rgba(178, 235, 242, 0.38) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 64% at 62% 60%, rgba(248, 187, 208, 0.30) 0%, transparent 70%),
+        radial-gradient(circle at 50% 50%, rgba(255, 249, 196, 0.28) 0%, transparent 62%);
 }
 
-@keyframes sanctuaryBeamRotate {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+@keyframes sanctuaryBeamBreathe {
+    0% { transform: scale(0.94) rotate(-6deg); opacity: 0.82; }
+    100% { transform: scale(1.08) rotate(6deg); opacity: 1; }
 }
 
-/* Vòng Mandala / Tinh Bàn Nghệ Thuật Lớn Đặt Sau Tấm Thiệp Riêng Cho Mỗi Motion */
-.sanctuary-sacred-wheel {
-    position: absolute;
-    top: 44%;
-    left: 50%;
-    width: min(94vw, 500px);
-    height: min(94vw, 500px);
-    transform: translate3d(-50%, -50%, 0);
-    pointer-events: none;
-    opacity: 0.86;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.sanctuary-sacred-wheel svg {
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-    animation: sanctuaryWheelSpin 36s linear infinite;
-}
-
-@keyframes sanctuaryWheelSpin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+.sanctuary-sacred-wheel,
+.showcase-astrolabe-ring {
+    display: none !important;
 }
 
 .showcase-bg-canvas {
