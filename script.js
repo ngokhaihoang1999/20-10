@@ -5108,14 +5108,373 @@ let u3dPointerCurRotY = 0;
     });
 })();
 
-// Hàm vẽ các thực thể Vật Lý 3D trên 2 lớp Canvas (Sau thiệp & Trước thiệp)
-// TỐI ƯU GPU DI ĐỘNG: Tuyệt đối KHÔNG cấp phát createLinearGradient / createRadialGradient hay shadowBlur mỗi frame!
+// ====== BỘ TEXTURE KIM HOÀN & VẬT LIỆU 3D CAO CẤP ĐƯỢC KẾT XUẤT SẴN (PRE-BAKED LUXURY SPRITE ATLAS) ======
+// Giúp mọi Cánh Hoa Nhung, Cánh Bướm Khảm Vàng, Ngọc Trai Nam Hải, Kim Cương 57 Giác Cắt, Mây Tinh Vân & Trăng Rằm
+// có độ chi tiết vân bề mặt (texture/veins/iridescence/specular) sống động tuyệt đối mà vẫn chạy 60fps mượt mà!
+let _u3dLuxuryAtlas = null;
+function getU3DLuxurySpriteAtlas() {
+    if (_u3dLuxuryAtlas) return _u3dLuxuryAtlas;
+    const atlas = {};
+    const makeCanvas = (w, h) => {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        return { c, ctx: c.getContext('2d') };
+    };
+
+    // 1. NGỌC TRAI NAM HẢI XÀ CỪ 3D (Mother-of-Pearl Sphere Texture - 96x96)
+    {
+        const { c, ctx } = makeCanvas(96, 96);
+        const cx = 48, cy = 48, r = 38;
+        // Hào quang xà cừ mỏng quanh viên ngọc
+        const glow = ctx.createRadialGradient(cx, cy, r * 0.6, cx, cy, r * 1.22);
+        glow.addColorStop(0, 'rgba(255, 244, 214, 0.55)');
+        glow.addColorStop(1, 'rgba(255, 244, 214, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 1.22, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Thân ngọc trai đa lớp (Subsurface Scattering: Hồng phấn xà cừ -> Kem hoàng kim -> Bóng phản quang đáy)
+        const body = ctx.createRadialGradient(cx - r * 0.32, cy - r * 0.32, r * 0.08, cx, cy, r);
+        body.addColorStop(0, '#ffffff');
+        body.addColorStop(0.24, '#fff8ea');
+        body.addColorStop(0.55, '#f7d9c4');
+        body.addColorStop(0.82, '#d9a78c');
+        body.addColorStop(0.94, '#b87d6a');
+        body.addColorStop(1, '#f3d299'); // Rim light vàng kim ở đáy ngọc
+        ctx.fillStyle = body;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Lớp ánh xà cừ ngũ sắc (Iridescent Nacre Sheen)
+        const nacre = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+        nacre.addColorStop(0, 'rgba(178, 235, 242, 0.26)');
+        nacre.addColorStop(0.5, 'rgba(255, 182, 208, 0.28)');
+        nacre.addColorStop(1, 'rgba(255, 236, 179, 0.25)');
+        ctx.fillStyle = nacre;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.96, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Điểm phản광 Studio Specular sắc nét
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.94)';
+        ctx.beginPath();
+        ctx.ellipse(cx - r * 0.34, cy - r * 0.36, r * 0.22, r * 0.14, -Math.PI / 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.beginPath();
+        ctx.arc(cx - r * 0.14, cy - r * 0.52, r * 0.06, 0, Math.PI * 2);
+        ctx.fill();
+        atlas.pearl = c;
+    }
+
+    // 2. CÁNH ĐẠI HOA TRÀ NHUNG ĐỎ DÁT GÂN VÀNG 24K (Velvet Camellia Petal Texture - 120x120)
+    {
+        const { c, ctx } = makeCanvas(120, 120);
+        ctx.translate(60, 64);
+        const s = 46;
+        const pGrad = ctx.createRadialGradient(0, s * 0.25, 2, 0, -s * 0.2, s * 1.15);
+        pGrad.addColorStop(0, '#7b0d34');
+        pGrad.addColorStop(0.28, '#c2185b');
+        pGrad.addColorStop(0.65, '#ff5c8d');
+        pGrad.addColorStop(0.90, '#ffb2c9');
+        pGrad.addColorStop(1, '#fff0f5');
+
+        ctx.fillStyle = pGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.52);
+        ctx.bezierCurveTo(-s * 0.92, s * 0.12, -s * 0.88, -s * 0.84, 0, -s * 1.02);
+        ctx.bezierCurveTo(s * 0.88, -s * 0.84, s * 0.92, s * 0.12, 0, s * 0.52);
+        ctx.closePath();
+        ctx.fill();
+
+        // Gân cánh hoa nhung ánh kim (Delicate Velvet & Gold Micro-Veins)
+        ctx.strokeStyle = 'rgba(255, 236, 179, 0.38)';
+        ctx.lineWidth = 1.1;
+        for (let v = -3; v <= 3; v++) {
+            ctx.beginPath();
+            ctx.moveTo(0, s * 0.42);
+            ctx.quadraticCurveTo(v * s * 0.18, -s * 0.15, v * s * 0.24, -s * (0.85 - Math.abs(v) * 0.07));
+            ctx.stroke();
+        }
+        // Viền lụa vàng kim mỏng quanh mép cánh hoa
+        ctx.strokeStyle = 'rgba(255, 240, 200, 0.82)';
+        ctx.lineWidth = 1.35;
+        ctx.stroke();
+
+        // Giọt sương ánh vàng ở gốc cánh hoa
+        const baseGlow = ctx.createRadialGradient(0, s * 0.24, 1, 0, s * 0.24, s * 0.28);
+        baseGlow.addColorStop(0, '#fff3b0');
+        baseGlow.addColorStop(0.5, 'rgba(245, 194, 66, 0.55)');
+        baseGlow.addColorStop(1, 'rgba(245, 194, 66, 0)');
+        ctx.fillStyle = baseGlow;
+        ctx.beginPath();
+        ctx.arc(0, s * 0.24, s * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+        atlas.camelliaPetal = c;
+    }
+
+    // 3. CÁNH HOA ANH ĐÀO PHA LÊ KYOTO (Translucent Sakura Petal Texture - 120x120)
+    {
+        const { c, ctx } = makeCanvas(120, 120);
+        ctx.translate(60, 64);
+        const s = 46;
+        const sGrad = ctx.createLinearGradient(0, s * 0.5, 0, -s);
+        sGrad.addColorStop(0, '#d81b60');
+        sGrad.addColorStop(0.28, '#ff80ab');
+        sGrad.addColorStop(0.68, '#ffc1d6');
+        sGrad.addColorStop(1, '#ffffff');
+
+        ctx.fillStyle = sGrad;
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.48);
+        ctx.bezierCurveTo(-s * 0.78, s * 0.06, -s * 0.88, -s * 0.76, -s * 0.24, -s * 1.0);
+        ctx.lineTo(0, -s * 0.74);
+        ctx.lineTo(s * 0.24, -s * 1.0);
+        ctx.bezierCurveTo(s * 0.88, -s * 0.76, s * 0.78, s * 0.06, 0, s * 0.48);
+        ctx.closePath();
+        ctx.fill();
+
+        // Gân hoa anh đào mảnh như tơ lụa
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.lineWidth = 1.0;
+        for (let v = -2; v <= 2; v++) {
+            if (v === 0) continue;
+            ctx.beginPath();
+            ctx.moveTo(0, s * 0.36);
+            ctx.quadraticCurveTo(v * s * 0.16, -s * 0.2, v * s * 0.22, -s * 0.78);
+            ctx.stroke();
+        }
+        ctx.strokeStyle = 'rgba(255, 245, 250, 0.88)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        atlas.sakuraPetal = c;
+    }
+
+    // 4. CÁNH HỒ ĐIỆP HOÀNG KIM & HỒNG NGỌC KHẢM XÀ CỪ (Iridescent Filigree Butterfly Wing Sprite - 140x140)
+    const buildButterflyWingSprite = (isGold) => {
+        const { c, ctx } = makeCanvas(140, 140);
+        ctx.translate(18, 68);
+        const s = 52;
+        // Cánh trên (Forewing)
+        const fg = ctx.createLinearGradient(0, -s, s * 1.1, s * 0.2);
+        if (isGold) {
+            fg.addColorStop(0, '#fffdf2');
+            fg.addColorStop(0.28, '#ffe066');
+            fg.addColorStop(0.65, '#f59e0b');
+            fg.addColorStop(0.88, '#b45309');
+            fg.addColorStop(1, '#065f46'); // Viền ngọc lục bảo hoàng gia
+        } else {
+            fg.addColorStop(0, '#fff5f8');
+            fg.addColorStop(0.30, '#ff80ab');
+            fg.addColorStop(0.68, '#d81b60');
+            fg.addColorStop(0.90, '#880e4f');
+            fg.addColorStop(1, '#ffd54f');
+        }
+        ctx.fillStyle = fg;
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 0.08);
+        ctx.bezierCurveTo(s * 0.58, -s * 1.02, s * 1.22, -s * 0.58, s * 0.92, s * 0.08);
+        ctx.bezierCurveTo(s * 0.68, s * 0.28, s * 0.28, s * 0.16, 0, s * 0.05);
+        ctx.closePath();
+        ctx.fill();
+
+        // Cánh dưới (Hindwing có đuôi én phượng hoàng)
+        const hg = ctx.createRadialGradient(s * 0.15, s * 0.15, 2, s * 0.35, s * 0.45, s * 0.85);
+        if (isGold) {
+            hg.addColorStop(0, '#fff9db');
+            hg.addColorStop(0.45, '#fbbf24');
+            hg.addColorStop(0.82, '#10b981'); // Ánh xà cừ ngọc bích ở cánh dưới
+            hg.addColorStop(1, '#fde68a');
+        } else {
+            hg.addColorStop(0, '#ffe4ef');
+            hg.addColorStop(0.5, '#f06292');
+            hg.addColorStop(0.85, '#ad1457');
+            hg.addColorStop(1, '#ffe082');
+        }
+        ctx.fillStyle = hg;
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.05);
+        ctx.bezierCurveTo(s * 0.65, s * 0.22, s * 0.84, s * 0.88, s * 0.38, s * 0.96);
+        ctx.bezierCurveTo(s * 0.14, s * 0.98, s * 0.04, s * 0.48, 0, s * 0.2);
+        ctx.closePath();
+        ctx.fill();
+
+        // Hoa văn Mạch Cánh Bướm Khắc Chỉ Vàng 24K (Gold Filigree Venation)
+        ctx.strokeStyle = isGold ? 'rgba(255, 252, 220, 0.82)' : 'rgba(255, 232, 166, 0.82)';
+        ctx.lineWidth = 1.25;
+        const veins = [
+            [s * 0.42, -s * 0.45, s * 0.82, -s * 0.35],
+            [s * 0.48, -s * 0.22, s * 0.86, -s * 0.06],
+            [s * 0.35, -s * 0.08, s * 0.72, s * 0.12],
+            [s * 0.32, s * 0.28, s * 0.60, s * 0.58],
+            [s * 0.18, s * 0.38, s * 0.36, s * 0.84]
+        ];
+        for (let v = 0; v < veins.length; v++) {
+            const [cx1, cy1, ex, ey] = veins[v];
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.quadraticCurveTo(cx1, cy1, ex, ey);
+            ctx.stroke();
+        }
+
+        // Đốm Ngọc Trai Phát Sáng dọc viền cánh bướm (Marginal Pearl Ocelli)
+        ctx.fillStyle = '#ffffff';
+        const spots = [
+            [s * 0.82, -s * 0.42, 2.2],
+            [s * 0.88, -s * 0.20, 2.5],
+            [s * 0.82, 0.00, 2.0],
+            [s * 0.58, s * 0.54, 2.2],
+            [s * 0.38, s * 0.78, 2.4]
+        ];
+        for (let i = 0; i < spots.length; i++) {
+            ctx.beginPath();
+            ctx.arc(spots[i][0], spots[i][1], spots[i][2], 0, Math.PI * 2);
+            ctx.fill();
+        }
+        return c;
+    };
+    atlas.butterflyWingGold = buildButterflyWingSprite(true);
+    atlas.butterflyWingRose = buildButterflyWingSprite(false);
+
+    // 5. KIM CƯƠNG GIÁC CẮT 57 MẶT KHÚC XẠ CẦU VỒNG (57-Facet Brilliant Cut Diamond Sprite - 128x128)
+    {
+        const { c, ctx } = makeCanvas(128, 128);
+        ctx.translate(64, 66);
+        const s = 44;
+
+        // Mặt cắt chính Crown & Pavilion
+        const dGrad = ctx.createLinearGradient(-s, -s, s, s);
+        dGrad.addColorStop(0, '#ffffff');
+        dGrad.addColorStop(0.25, '#b2ebf2');
+        dGrad.addColorStop(0.52, '#e0f7fa');
+        dGrad.addColorStop(0.78, '#f8bbd0');
+        dGrad.addColorStop(1, '#ffd54f');
+
+        ctx.fillStyle = dGrad;
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.54, -s * 0.68);
+        ctx.lineTo(s * 0.54, -s * 0.68);
+        ctx.lineTo(s * 0.95, -s * 0.18);
+        ctx.lineTo(0, s * 0.98);
+        ctx.lineTo(-s * 0.95, -s * 0.18);
+        ctx.closePath();
+        ctx.fill();
+
+        // Các giác cắt tam giác khúc xạ nội tâm (Internal Prismatic Fire Facets)
+        const facets = [
+            { pts: [[-s * 0.95, -s * 0.18], [-s * 0.36, -s * 0.18], [0, s * 0.98]], col: 'rgba(0, 188, 212, 0.42)' },
+            { pts: [[s * 0.95, -s * 0.18], [s * 0.36, -s * 0.18], [0, s * 0.98]], col: 'rgba(244, 143, 177, 0.45)' },
+            { pts: [[-s * 0.36, -s * 0.18], [s * 0.36, -s * 0.18], [0, s * 0.98]], col: 'rgba(255, 238, 170, 0.58)' },
+            { pts: [[-s * 0.54, -s * 0.68], [-s * 0.95, -s * 0.18], [-s * 0.36, -s * 0.18]], col: 'rgba(224, 247, 250, 0.78)' },
+            { pts: [[s * 0.54, -s * 0.68], [s * 0.95, -s * 0.18], [s * 0.36, -s * 0.18]], col: 'rgba(255, 213, 79, 0.52)' },
+            { pts: [[-s * 0.54, -s * 0.68], [s * 0.54, -s * 0.68], [s * 0.36, -s * 0.18], [-s * 0.36, -s * 0.18]], col: 'rgba(255, 255, 255, 0.92)' }
+        ];
+        for (let f = 0; f < facets.length; f++) {
+            const fc = facets[f];
+            ctx.fillStyle = fc.col;
+            ctx.beginPath();
+            ctx.moveTo(fc.pts[0][0], fc.pts[0][1]);
+            for (let k = 1; k < fc.pts.length; k++) ctx.lineTo(fc.pts[k][0], fc.pts[k][1]);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
+            ctx.lineWidth = 1.15;
+            ctx.stroke();
+        }
+        atlas.diamond = c;
+    }
+
+    // 6. MÂY TINH VÂN VŨ TRỤ 3D ĐA LỚP (Volumetric Cosmic Cloud Puff Sprite - 256x160)
+    const buildNebulaCloudSprite = (coreRgba, rimRgba) => {
+        const { c, ctx } = makeCanvas(256, 160);
+        const puffs = [
+            { x: 128, y: 82, r: 72, a: 0.55 },
+            { x: 78,  y: 88, r: 56, a: 0.42 },
+            { x: 178, y: 86, r: 58, a: 0.42 },
+            { x: 108, y: 64, r: 52, a: 0.48 },
+            { x: 152, y: 68, r: 48, a: 0.45 }
+        ];
+        for (let i = 0; i < puffs.length; i++) {
+            const pf = puffs[i];
+            const g = ctx.createRadialGradient(pf.x, pf.y - pf.r * 0.2, 4, pf.x, pf.y, pf.r);
+            g.addColorStop(0, rimRgba);
+            g.addColorStop(0.42, coreRgba);
+            g.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = g;
+            ctx.beginPath();
+            ctx.arc(pf.x, pf.y, pf.r, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        return c;
+    };
+    atlas.cloudGold = buildNebulaCloudSprite('rgba(245, 194, 66, 0.26)', 'rgba(255, 250, 220, 0.48)');
+    atlas.cloudRose = buildNebulaCloudSprite('rgba(236, 72, 153, 0.25)', 'rgba(255, 210, 230, 0.45)');
+    atlas.cloudEmerald = buildNebulaCloudSprite('rgba(16, 185, 129, 0.26)', 'rgba(167, 243, 208, 0.44)');
+    atlas.cloudAstral = buildNebulaCloudSprite('rgba(56, 189, 248, 0.26)', 'rgba(224, 242, 254, 0.48)');
+
+    // 7. TRĂNG RẰM HOÀNG KIM CÓ VÂN BỀ MẶT NGỌC BÍCH (Textured Celestial Full Moon - 256x256)
+    {
+        const { c, ctx } = makeCanvas(256, 256);
+        const cx = 128, cy = 128, r = 84;
+        // Hào quang nguyệt thực
+        const corona = ctx.createRadialGradient(cx, cy, r * 0.85, cx, cy, 124);
+        corona.addColorStop(0, 'rgba(255, 248, 214, 0.85)');
+        corona.addColorStop(0.45, 'rgba(255, 196, 132, 0.35)');
+        corona.addColorStop(1, 'rgba(255, 182, 208, 0)');
+        ctx.fillStyle = corona;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 124, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Đĩa trăng rằm
+        const mGrad = ctx.createRadialGradient(cx - 22, cy - 22, 8, cx, cy, r);
+        mGrad.addColorStop(0, '#ffffff');
+        mGrad.addColorStop(0.45, '#fff9e2');
+        mGrad.addColorStop(0.82, '#ffe094');
+        mGrad.addColorStop(1, '#f5b041');
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = mGrad;
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+
+        // Vân biển trăng (Lunar Maria / Thỏ Ngọc) mềm mại
+        const maria = [
+            { x: cx - 24, y: cy - 12, rx: 28, ry: 20, rot: 0.3 },
+            { x: cx + 16, y: cy - 24, rx: 22, ry: 16, rot: -0.4 },
+            { x: cx + 22, y: cy + 14, rx: 26, ry: 22, rot: 0.5 },
+            { x: cx - 12, y: cy + 28, rx: 18, ry: 14, rot: -0.2 }
+        ];
+        for (let m = 0; m < maria.length; m++) {
+            const mr = maria[m];
+            const mg = ctx.createRadialGradient(mr.x, mr.y, 2, mr.x, mr.y, mr.rx);
+            mg.addColorStop(0, 'rgba(214, 158, 72, 0.28)');
+            mg.addColorStop(1, 'rgba(214, 158, 72, 0)');
+            ctx.fillStyle = mg;
+            ctx.beginPath();
+            ctx.ellipse(mr.x, mr.y, mr.rx, mr.ry, mr.rot, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+        atlas.fullMoon = c;
+    }
+
+    _u3dLuxuryAtlas = atlas;
+    return atlas;
+}
+
+// Hàm vẽ các thực thể Vật Lý 3D trên 2 lớp Canvas (Sau thiệp & Trước thiệp) với Texture Kim Hoàn Pre-Baked
 function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
     const depth = focal - p.z;
     if (depth <= 80) return;
     const scale = focal / depth;
     const sx = cx + p.x * scale;
     const sy = cy + p.y * scale;
+    const atlas = getU3DLuxurySpriteAtlas();
 
     ctx.save();
     ctx.translate(sx, sy);
@@ -5124,143 +5483,76 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
 
     if (p.type === 'shard') {
         ctx.rotate(p.rz);
-        ctx.scale(Math.max(0.22, Math.cos(p.rx)), Math.max(0.22, Math.sin(p.ry)));
+        ctx.scale(Math.max(0.24, Math.cos(p.rx)), Math.max(0.24, Math.sin(p.ry)));
+        const s = p.size;
+        // Mảnh pha lê/vàng 24K đa giác có mặt cắt ánh kim 2 tông
         ctx.fillStyle = p.color || '#f5c242';
-        ctx.strokeStyle = '#fff6c4';
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1.1;
         ctx.beginPath();
-        ctx.moveTo(0, -p.size);
-        ctx.lineTo(p.size * 0.85, -p.size * 0.2);
-        ctx.lineTo(p.size * 0.5, p.size * 0.9);
-        ctx.lineTo(-p.size * 0.7, p.size * 0.6);
-        ctx.lineTo(-p.size * 0.9, -p.size * 0.4);
+        ctx.moveTo(0, -s);
+        ctx.lineTo(s * 0.85, -s * 0.2);
+        ctx.lineTo(s * 0.5, s * 0.9);
+        ctx.lineTo(-s * 0.7, s * 0.6);
+        ctx.lineTo(-s * 0.9, -s * 0.4);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+
+        // Mặt phản quang sáng trắng bên trong mảnh vỡ
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 0.85);
+        ctx.lineTo(s * 0.65, -s * 0.15);
+        ctx.lineTo(0, s * 0.25);
+        ctx.closePath();
+        ctx.fill();
     } else if (p.type === 'butterfly') {
         const heading = Math.atan2(p.vy, p.vx) + Math.PI / 2;
         ctx.rotate(heading * 0.35 + Math.sin(p.phase * 0.5) * 0.2);
         const wingCos = Math.max(0.14, Math.abs(Math.cos(p.flapPhase)));
         const s = p.size;
-        const wingMain = p.isGold ? '#ffd54f' : '#ff80ab';
-        const wingTip = p.isGold ? '#fff8cc' : '#ffe4ef';
+        const wingSprite = p.isGold ? atlas.butterflyWingGold : atlas.butterflyWingRose;
+        const drawScale = s / 48;
 
         [-1, 1].forEach(dir => {
             ctx.save();
-            ctx.scale(dir * wingCos, 1);
-            ctx.fillStyle = wingMain;
-            ctx.strokeStyle = wingTip;
-            ctx.lineWidth = 1.0;
-
-            ctx.beginPath();
-            ctx.moveTo(0, -s * 0.1);
-            ctx.bezierCurveTo(s * 0.55, -s * 0.95, s * 1.15, -s * 0.55, s * 0.88, s * 0.08);
-            ctx.bezierCurveTo(s * 0.65, s * 0.25, s * 0.25, s * 0.15, 0, s * 0.05);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(0, s * 0.05);
-            ctx.bezierCurveTo(s * 0.62, s * 0.22, s * 0.78, s * 0.85, s * 0.36, s * 0.92);
-            ctx.bezierCurveTo(s * 0.12, s * 0.95, s * 0.04, s * 0.45, 0, s * 0.2);
-            ctx.closePath();
-            ctx.fill();
+            ctx.scale(dir * wingCos * drawScale, drawScale);
+            ctx.drawImage(wingSprite, -18, -68);
             ctx.restore();
         });
 
-        ctx.fillStyle = '#4e2c04';
+        // Thân bướm kim hoàn 3D & râu vàng
+        ctx.fillStyle = '#fff3b0';
         ctx.beginPath();
-        ctx.ellipse(0, 0, Math.max(1.4, s * 0.08), s * 0.36, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, Math.max(1.5, s * 0.09), s * 0.36, 0, 0, Math.PI * 2);
         ctx.fill();
     } else if (p.type === 'petal') {
         ctx.rotate(p.rz);
-        const tiltX = Math.max(0.24, Math.abs(Math.cos(p.rx)));
-        const tiltY = Math.max(0.28, Math.abs(Math.sin(p.ry)));
+        const tiltX = Math.max(0.28, Math.abs(Math.cos(p.rx)));
+        const tiltY = Math.max(0.32, Math.abs(Math.sin(p.ry)));
         ctx.scale(tiltX, tiltY);
         const s = p.size;
-        ctx.fillStyle = p.colorMid || '#f48fb1';
-        ctx.strokeStyle = '#ffeef5';
-        ctx.lineWidth = 0.9;
-
-        ctx.beginPath();
-        if (p.isSakura) {
-            ctx.moveTo(0, s * 0.45);
-            ctx.bezierCurveTo(-s * 0.75, s * 0.05, -s * 0.85, -s * 0.75, -s * 0.22, -s * 0.98);
-            ctx.lineTo(0, -s * 0.74);
-            ctx.lineTo(s * 0.22, -s * 0.98);
-            ctx.bezierCurveTo(s * 0.85, -s * 0.75, s * 0.75, s * 0.05, 0, s * 0.45);
-        } else {
-            ctx.moveTo(0, s * 0.5);
-            ctx.bezierCurveTo(-s * 0.82, s * 0.1, -s * 0.78, -s * 0.82, 0, -s);
-            ctx.bezierCurveTo(s * 0.78, -s * 0.82, s * 0.82, s * 0.1, 0, s * 0.5);
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Lớp nhụy sáng nhẹ bên trong cánh hoa
-        ctx.fillStyle = p.colorEnd || '#ad1457';
-        ctx.beginPath();
-        ctx.arc(0, s * 0.12, s * 0.24, 0, Math.PI * 2);
-        ctx.fill();
+        const sprite = p.isSakura ? atlas.sakuraPetal : atlas.camelliaPetal;
+        const drawR = s * 1.35;
+        ctx.drawImage(sprite, -drawR, -drawR, drawR * 2, drawR * 2);
     } else if (p.type === 'pearl') {
-        const r = p.size;
-        ctx.fillStyle = '#f5deb3';
-        ctx.beginPath();
-        ctx.arc(0, 0, r, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.arc(-r * 0.28, -r * 0.28, r * 0.38, 0, Math.PI * 2);
-        ctx.fill();
+        const drawR = p.size * 1.28;
+        ctx.drawImage(atlas.pearl, -drawR, -drawR, drawR * 2, drawR * 2);
     } else if (p.type === 'diamond') {
-        // Viên Kim Cương Giác Cắt Đa Diện 3D siêu mượt (không tạo gradient mỗi frame)
         ctx.rotate(p.rz);
-        const turnX = Math.max(0.45, Math.abs(Math.cos(p.ry)));
+        const turnX = Math.max(0.48, Math.abs(Math.cos(p.ry)));
         const s = p.size;
+        const drawR = s * 1.42;
 
         ctx.save();
         ctx.scale(turnX, 1);
-
-        // Mặt cắt chính của viên kim cương Brilliant
-        ctx.fillStyle = p.tintA || '#e0f7fa';
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.05;
-
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.52, -s * 0.68);
-        ctx.lineTo(s * 0.52, -s * 0.68);
-        ctx.lineTo(s * 0.92, -s * 0.18);
-        ctx.lineTo(0, s * 0.98);
-        ctx.lineTo(-s * 0.92, -s * 0.18);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        // Mặt giác cắt khúc xạ ánh hồng/vàng bên trong
-        ctx.fillStyle = p.tintB || '#fce4ec';
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.34, -s * 0.18);
-        ctx.lineTo(s * 0.34, -s * 0.18);
-        ctx.lineTo(0, s * 0.92);
-        ctx.closePath();
-        ctx.fill();
-
-        // Mặt bàn (Table facet) sáng trắng ở đỉnh
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.42, -s * 0.62);
-        ctx.lineTo(s * 0.42, -s * 0.62);
-        ctx.lineTo(s * 0.28, -s * 0.18);
-        ctx.lineTo(-s * 0.28, -s * 0.18);
-        ctx.closePath();
-        ctx.fill();
+        ctx.drawImage(atlas.diamond, -drawR, -drawR, drawR * 2, drawR * 2);
         ctx.restore();
 
         // Tia chớp lấp lánh 4 cánh mảnh ở đỉnh viên kim cương
         const glint = 0.55 + 0.45 * Math.sin(p.phase * 2.5);
-        const gs = s * 0.78 * glint;
+        const gs = s * 0.85 * glint;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.moveTo(0, -s * 0.42 - gs);
@@ -5274,36 +5566,52 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
         ctx.closePath();
         ctx.fill();
     } else if (p.type === 'bokeh') {
-        // Hạt ánh sáng Bokeh 2 lớp đồng tâm siêu nhẹ (không dùng radialGradient)
         const r = p.size;
         ctx.fillStyle = p.bokehColor || 'rgba(255, 232, 156, 0.38)';
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+        ctx.strokeStyle = 'rgba(255, 250, 224, 0.52)';
+        ctx.lineWidth = 0.85;
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
         ctx.beginPath();
-        ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2);
+        ctx.arc(-r * 0.22, -r * 0.22, r * 0.36, 0, Math.PI * 2);
         ctx.fill();
     } else if (p.type === 'star') {
         if (p.hasTrail && (Math.abs(p.vx) + Math.abs(p.vy) > 40)) {
             const ang = Math.atan2(p.vy, p.vx);
             ctx.save();
             ctx.rotate(ang);
-            ctx.strokeStyle = 'rgba(255, 244, 184, 0.48)';
-            ctx.lineWidth = p.size * 0.34;
+            ctx.strokeStyle = 'rgba(255, 232, 142, 0.38)';
+            ctx.lineWidth = p.size * 0.56;
             ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.lineTo(-p.size * 3.6, 0);
+            ctx.lineTo(-p.size * 4.2, 0);
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.lineWidth = p.size * 0.22;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(-p.size * 2.8, 0);
             ctx.stroke();
             ctx.restore();
         }
         ctx.rotate(p.rz);
         const s = p.size;
+        // Hào quang tâm sao
+        ctx.fillStyle = 'rgba(255, 230, 128, 0.38)';
+        ctx.beginPath();
+        ctx.arc(0, 0, s * 0.72, 0, Math.PI * 2);
+        ctx.fill();
+
         ctx.fillStyle = '#fffef5';
-        ctx.strokeStyle = '#f5c242';
-        ctx.lineWidth = 0.9;
+        ctx.strokeStyle = p.color || '#f5c242';
+        ctx.lineWidth = 0.95;
         ctx.beginPath();
         ctx.moveTo(0, -s);
         ctx.lineTo(s * 0.18, -s * 0.18);
@@ -5321,11 +5629,10 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
     ctx.restore();
 }
 
-// Vẽ Vòng Quỹ Đạo Thiên Văn 3D (Galaxy Gyroscope) hoặc Vòng Hào Quang Kim Cương 3D
-// Đã bỏ shadowBlur nặng nề, thay bằng 2 nét vẽ (hào quang mờ + lõi sáng) mượt 60fps trên mọi điện thoại
+// Vẽ Vòng Quỹ Đạo Thiên Văn Khắc Vạch Độ & Chòm Sao 3D (Engraved Astrolabe Gyroscope Ring)
 function drawSplit3DRing(ctxBack, ctxFront, ring, cx, cy, focal, cardZ) {
     if (ring.alpha <= 0.01) return;
-    const steps = 52;
+    const steps = 64;
     const cosX = Math.cos(ring.rx), sinX = Math.sin(ring.rx);
     const cosY = Math.cos(ring.ry), sinY = Math.sin(ring.ry);
     const cosZ = Math.cos(ring.rz), sinZ = Math.sin(ring.rz);
@@ -5353,7 +5660,8 @@ function drawSplit3DRing(ctxBack, ctxFront, ring, cx, cy, focal, cardZ) {
         pts.push({
             sx: cx + x3 * s,
             sy: cy + y3 * s,
-            z: z3
+            z: z3,
+            s
         });
     }
 
@@ -5362,34 +5670,52 @@ function drawSplit3DRing(ctxBack, ctxFront, ring, cx, cy, focal, cardZ) {
         { ctx: ctxFront, isFront: true }
     ].forEach(({ ctx, isFront }) => {
         ctx.save();
-        // Vẽ dải hạt tinh tú / sao băng 3D mượt mà thay vì vẽ đường nét đứt hay vòng kẻ cứng
-        for (let i = 0; i < pts.length; i += 2) {
+        // 1. Dải chỉ vàng kim liên kết chòm sao (Engraved Celestial Filigree Arc)
+        ctx.lineCap = 'round';
+        for (let i = 1; i < pts.length; i++) {
+            const p0 = pts[i - 1];
+            const p1 = pts[i];
+            const belongs = isFront ? (p1.z >= cardZ) : (p1.z < cardZ);
+            if (!belongs) continue;
+            if (ring.dashed && i % 3 === 0) continue;
+            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * 0.42));
+            ctx.strokeStyle = ring.color;
+            ctx.lineWidth = Math.max(0.8, ring.lineWidth * p1.s * 0.65);
+            ctx.beginPath();
+            ctx.moveTo(p0.sx, p0.sy);
+            ctx.lineTo(p1.sx, p1.sy);
+            ctx.stroke();
+        }
+
+        // 2. Các nút tinh tú & hạt kim hoàn đính dọc trên vành thiên văn
+        for (let i = 0; i < pts.length - 1; i += 2) {
             const p = pts[i];
             const belongs = isFront ? (p.z >= cardZ) : (p.z < cardZ);
             if (!belongs) continue;
-            const wave = 0.45 + 0.55 * Math.sin((i / pts.length) * Math.PI * 4 + ring.rz * 2);
-            const rSize = (ring.lineWidth * 1.15) * (0.65 + 0.55 * wave);
+            const isMajorNode = i % 8 === 0;
+            const wave = 0.5 + 0.5 * Math.sin((i / pts.length) * Math.PI * 4 + ring.rz * 2);
+            const rSize = (ring.lineWidth * (isMajorNode ? 1.55 : 0.95)) * (0.7 + 0.45 * wave) * p.s;
 
-            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * 0.28 * wave));
+            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * 0.30 * wave));
             ctx.fillStyle = ring.glowColor || ring.color;
             ctx.beginPath();
-            ctx.arc(p.sx, p.sy, rSize * 2.4, 0, Math.PI * 2);
+            ctx.arc(p.sx, p.sy, rSize * 2.3, 0, Math.PI * 2);
             ctx.fill();
 
-            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * (0.55 + 0.45 * wave)));
-            ctx.fillStyle = ring.color;
+            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * (0.65 + 0.35 * wave)));
+            ctx.fillStyle = isMajorNode ? '#ffffff' : ring.color;
             ctx.beginPath();
-            ctx.arc(p.sx, p.sy, rSize * 0.9, 0, Math.PI * 2);
+            ctx.arc(p.sx, p.sy, rSize * 0.92, 0, Math.PI * 2);
             ctx.fill();
         }
         ctx.restore();
     });
 }
 
-// Vẽ Dải Lụa Hoàng Gia 3D (3D Helical Silk Ribbon Streamer) quấn quanh thiệp từ trong túi phong bì
+// Vẽ Dải Lụa Satin Thêu Chỉ Vàng 24K 3D (3D Woven Silk Satin & Gold-Thread Ribbon Streamer)
 function drawSplit3DRibbonHelix(ctxBack, ctxFront, ribbon, cx, cy, focal, cardZ) {
     if (ribbon.alpha <= 0.01) return;
-    const segs = 36;
+    const segs = 38;
     const pts = [];
     for (let i = 0; i <= segs; i++) {
         const u = i / segs;
@@ -5402,11 +5728,14 @@ function drawSplit3DRibbonHelix(ctxBack, ctxFront, ribbon, cx, cy, focal, cardZ)
 
         const depth = Math.max(120, focal - wz);
         const s = focal / depth;
+        // Độ nghiêng mặt lụa theo góc xoắn 3D để tạo hiệu ứng lụa lật mặt (3D Twist Ribbon Width)
+        const ribbonTwist = 0.38 + 0.62 * Math.abs(Math.cos(theta * 0.85));
         pts.push({
             sx: cx + wx * s,
             sy: cy + wy * s,
             z: wz,
-            w: (13 * (1 - u * 0.45)) * s
+            w: (15 * (1 - u * 0.42)) * s * ribbonTwist,
+            sheen: Math.pow(Math.max(0, Math.sin(theta)), 2)
         });
     }
 
@@ -5415,7 +5744,6 @@ function drawSplit3DRibbonHelix(ctxBack, ctxFront, ribbon, cx, cy, focal, cardZ)
         { ctx: ctxFront, isFront: true }
     ].forEach(({ ctx, isFront }) => {
         ctx.save();
-        ctx.globalAlpha = Math.max(0, Math.min(1, ribbon.alpha));
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
@@ -5425,6 +5753,16 @@ function drawSplit3DRibbonHelix(ctxBack, ctxFront, ribbon, cx, cy, focal, cardZ)
             const belongs = isFront ? (p1.z >= cardZ) : (p1.z < cardZ);
             if (!belongs) continue;
 
+            // 1. Viền chỉ vàng kim 24K hai bên mép dải lụa
+            ctx.globalAlpha = Math.max(0, Math.min(1, ribbon.alpha * 0.92));
+            ctx.strokeStyle = '#ffd54f';
+            ctx.lineWidth = p1.w + 2.4;
+            ctx.beginPath();
+            ctx.moveTo(p0.sx, p0.sy);
+            ctx.lineTo(p1.sx, p1.sy);
+            ctx.stroke();
+
+            // 2. Thân lụa satin chính
             ctx.strokeStyle = ribbon.color;
             ctx.lineWidth = p1.w;
             ctx.beginPath();
@@ -5432,8 +5770,10 @@ function drawSplit3DRibbonHelix(ctxBack, ctxFront, ribbon, cx, cy, focal, cardZ)
             ctx.lineTo(p1.sx, p1.sy);
             ctx.stroke();
 
-            ctx.strokeStyle = '#fff5c0';
-            ctx.lineWidth = Math.max(1, p1.w * 0.22);
+            // 3. Bóng phản quang lụa (Satin Specular Highlight khi mặt lụa đón ánh sáng)
+            ctx.globalAlpha = Math.max(0, Math.min(1, ribbon.alpha * (0.35 + 0.60 * p1.sheen)));
+            ctx.strokeStyle = '#fff8dc';
+            ctx.lineWidth = Math.max(1.1, p1.w * 0.34);
             ctx.beginPath();
             ctx.moveTo(p0.sx, p0.sy);
             ctx.lineTo(p1.sx, p1.sy);
@@ -5603,142 +5943,121 @@ function drawSealWindupEffect(ctx, modeId, w, cx, cy, sealScreenY) {
     ctx.restore();
 }
 
-// Vẽ Biểu Tượng Ánh Sáng 3D Kết Tinh ở tâm màn hình trong pha Triệu Hồi Thiệp (Pure Motion Prelude - Không dùng chữ Loading!)
+// Vẽ Biểu Tượng Kim Hoàn 3D Kết Tinh ở tâm màn hình (Sử dụng Pre-Baked Luxury Sprite Atlas sống động tuyệt đối!)
 function drawSummonCenterMotif(ctx, modeId, t, cx, cy) {
+    const atlas = getU3DLuxurySpriteAtlas();
     ctx.save();
     ctx.translate(cx, cy);
 
-    const pulse = 1 + Math.sin(t * 4.5) * 0.1;
-    // Hào quang lõi kim hoàn 2 lớp đồng tâm (không dùng radialGradient nặng GPU)
-    ctx.globalAlpha = 0.22 + 0.08 * Math.sin(t * 3.8);
-    ctx.fillStyle = '#ffe58f';
+    const pulse = 1 + Math.sin(t * 4.5) * 0.10;
+    // 1. Hào quang lõi kim hoàn đa lớp
+    const coreGrad = ctx.createRadialGradient(0, 0, 4, 0, 0, 88 * pulse);
+    coreGrad.addColorStop(0, 'rgba(255, 253, 232, 0.92)');
+    coreGrad.addColorStop(0.32, 'rgba(255, 224, 130, 0.48)');
+    coreGrad.addColorStop(0.68, 'rgba(244, 143, 177, 0.22)');
+    coreGrad.addColorStop(1, 'rgba(244, 143, 177, 0)');
+    ctx.fillStyle = coreGrad;
     ctx.beginPath();
-    ctx.arc(0, 0, 58 * pulse, 0, Math.PI * 2);
+    ctx.arc(0, 0, 88 * pulse, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.globalAlpha = 0.42 + 0.14 * Math.cos(t * 4.2);
-    ctx.fillStyle = '#fff9d6';
-    ctx.beginPath();
-    ctx.arc(0, 0, 32 * pulse, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Vòng cung tiến trình ánh sáng 24K xoay mượt xung quanh tâm
+    // 2. Vòng Pháp Trận Tinh Tú Khắc Vàng 24K (Engraved 24K Gold Filigree Mandala)
     for (let k = 0; k < 3; k++) {
         ctx.save();
-        ctx.rotate(t * (k % 2 === 0 ? 2.6 : -2.1) + (k * Math.PI * 2) / 3);
-        ctx.globalAlpha = 0.85 - k * 0.18;
+        ctx.rotate(t * (k % 2 === 0 ? 2.4 : -1.9) + (k * Math.PI * 2) / 3);
+        ctx.globalAlpha = 0.88 - k * 0.16;
         ctx.strokeStyle = k === 0 ? '#fff4b8' : (k === 1 ? '#f5c242' : '#ff9ebb');
         ctx.lineWidth = 2.4 - k * 0.4;
         ctx.lineCap = 'round';
+        const rad = 48 + k * 14;
         ctx.beginPath();
-        ctx.arc(0, 0, 44 + k * 11, 0, Math.PI * 0.72);
+        ctx.arc(0, 0, rad, 0, Math.PI * 0.78);
         ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(0, 0, rad, Math.PI, Math.PI * 1.78);
+        ctx.stroke();
+
+        // Điểm ngọc trai trên vành pháp trận
+        ctx.drawImage(atlas.pearl, rad - 6, -6, 12, 12);
+        ctx.drawImage(atlas.pearl, -rad - 6, -6, 12, 12);
         ctx.restore();
     }
 
-    // Biểu tượng chủ đề Motion đang kết tinh ở chính giữa
-    ctx.globalAlpha = 0.94;
+    // 3. Biểu tượng chủ đề 3D với Texture Kim Hoàn / Nhung Lụa thật ở chính tâm
+    ctx.globalAlpha = 0.98;
     if (modeId === 'butterflies') {
         const wingCos = Math.max(0.18, Math.abs(Math.cos(t * 11)));
-        const s = 26 * pulse;
+        const drawScale = (38 * pulse) / 48;
         ctx.rotate(Math.sin(t * 2.5) * 0.18);
         [-1, 1].forEach(dir => {
             ctx.save();
-            ctx.scale(dir * wingCos, 1);
-            ctx.fillStyle = '#ffd54f';
-            ctx.strokeStyle = '#fff9d2';
-            ctx.lineWidth = 1.3;
+            ctx.scale(dir * wingCos * drawScale, drawScale);
+            ctx.drawImage(atlas.butterflyWingGold, -18, -68);
+            ctx.restore();
+        });
+        ctx.fillStyle = '#fff3b0';
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 3.2, 14 * pulse, 0, 0, Math.PI * 2);
+        ctx.fill();
+    } else if (modeId === 'hearts') {
+        ctx.rotate(Math.sin(t * 2.2) * 0.22);
+        const drawR = 42 * pulse;
+        ctx.drawImage(atlas.diamond, -drawR, -drawR, drawR * 2, drawR * 2);
+    } else if (modeId === 'galaxy') {
+        ctx.rotate(t * 1.8);
+        const s = 34 * pulse;
+        for (let k = 0; k < 2; k++) {
+            ctx.save();
+            if (k === 1) ctx.rotate(Math.PI / 4);
+            ctx.fillStyle = k === 0 ? '#ffffff' : '#ffd700';
+            ctx.strokeStyle = '#7dd3fc';
+            ctx.lineWidth = 1.2;
             ctx.beginPath();
-            ctx.moveTo(0, -s * 0.1);
-            ctx.bezierCurveTo(s * 0.6, -s * 1.0, s * 1.2, -s * 0.55, s * 0.9, s * 0.1);
-            ctx.bezierCurveTo(s * 0.65, s * 0.3, s * 0.25, s * 0.18, 0, s * 0.06);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(0, s * 0.06);
-            ctx.bezierCurveTo(s * 0.65, s * 0.24, s * 0.8, s * 0.88, s * 0.38, s * 0.94);
-            ctx.bezierCurveTo(s * 0.14, s * 0.95, s * 0.05, s * 0.48, 0, s * 0.2);
+            ctx.moveTo(0, -s);
+            ctx.quadraticCurveTo(5, -5, s, 0);
+            ctx.quadraticCurveTo(5, 5, 0, s);
+            ctx.quadraticCurveTo(-5, 5, -s, 0);
+            ctx.quadraticCurveTo(-5, -5, 0, -s);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
             ctx.restore();
-        });
-    } else if (modeId === 'hearts') {
-        ctx.rotate(t * 1.2);
-        const s = 24 * pulse;
-        ctx.fillStyle = '#e0f7fa';
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(-s * 0.52, -s * 0.68);
-        ctx.lineTo(s * 0.52, -s * 0.68);
-        ctx.lineTo(s * 0.95, -s * 0.16);
-        ctx.lineTo(0, s * 0.98);
-        ctx.lineTo(-s * 0.95, -s * 0.16);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-    } else if (modeId === 'galaxy') {
-        ctx.rotate(t * 1.8);
-        const s = 26 * pulse;
-        ctx.fillStyle = '#fff9d2';
-        ctx.strokeStyle = '#80deea';
-        ctx.lineWidth = 1.3;
-        ctx.beginPath();
-        for (let i = 0; i < 8; i++) {
-            const a = (i / 8) * Math.PI * 2;
-            const r = i % 2 === 0 ? s : s * 0.28;
-            if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-            else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
         }
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
+        ctx.drawImage(atlas.pearl, -10, -10, 20, 20);
     } else if (modeId === 'ribbon') {
         ctx.rotate(Math.sin(t * 3) * 0.15);
-        const s = 22 * pulse;
-        ctx.strokeStyle = '#ffd54f';
-        ctx.fillStyle = '#ff80ab';
-        ctx.lineWidth = 2.0;
+        const s = 28 * pulse;
+        // 4 cánh nơ lụa satin ánh kim + chuỗi ngọc trai Nam Hải
+        for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2 + t * 1.5;
+            ctx.drawImage(atlas.pearl, Math.cos(a) * 32 - 8, Math.sin(a) * 32 - 8, 16, 16);
+        }
         [-1, 1].forEach(dir => {
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.bezierCurveTo(dir * s * 1.1, -s * 0.9, dir * s * 1.25, s * 0.75, 0, s * 0.15);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
+            ctx.save();
+            ctx.scale(dir, 1);
+            ctx.drawImage(atlas.camelliaPetal, 4, -22, 34, 34);
+            ctx.restore();
         });
-        ctx.fillStyle = '#fff6c4';
-        ctx.beginPath();
-        ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.drawImage(atlas.pearl, -14, -14, 28, 28);
     } else {
-        // bloom hoặc sakura: Đóa hoa 8 cánh hoặc 5 cánh xoay nở bằng ánh sáng vàng hồng
-        ctx.rotate(t * 1.4);
+        // bloom hoặc sakura: Đóa Đại Hoa Trà 8 cánh nhung đỏ hoặc Hoa Anh Đào 5 cánh pha lê nở bung đa lớp
+        ctx.rotate(t * 1.35);
         const petals = modeId === 'sakura' ? 5 : 8;
-        const r = 16 * pulse;
-        ctx.fillStyle = modeId === 'sakura' ? '#ffb2c9' : '#ff80ab';
-        ctx.strokeStyle = '#fff3b8';
-        ctx.lineWidth = 1.2;
+        const sprite = modeId === 'sakura' ? atlas.sakuraPetal : atlas.camelliaPetal;
+        const pSize = (modeId === 'sakura' ? 26 : 24) * pulse;
         for (let i = 0; i < petals; i++) {
             ctx.save();
             ctx.rotate((i / petals) * Math.PI * 2);
-            ctx.beginPath();
-            ctx.ellipse(0, -r * 0.72, 6.2, 11.5, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
+            ctx.translate(0, -pSize * 0.62);
+            ctx.drawImage(sprite, -pSize, -pSize, pSize * 2, pSize * 2);
             ctx.restore();
         }
-        ctx.fillStyle = '#ffe57f';
-        ctx.beginPath();
-        ctx.arc(0, 0, 6.5, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.drawImage(atlas.pearl, -11, -11, 22, 22);
     }
 
     ctx.restore();
 }
+
 
 // Trạng thái sẵn sàng 100% của ảnh thiệp người nhận (Chống tuyệt đối hiện tượng mở ra ảnh đen hoặc icon lỗi ảnh)
 window.isRecipientCardImageReady = false;
@@ -6066,15 +6385,187 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         { cx: 0, cy: 0, cz: 0, radius: 124, rx: -0.85, ry: 0.9, rz: 0.5, vrx: -1.3, vry: 0.85, vrz: -1.9, color: '#ff9ebb', glowColor: '#d84b7e', lineWidth: 1.8, dashed: true, alpha: 0.82 },
         { cx: 0, cy: 0, cz: 0, radius: 152, rx: 0.45, ry: -1.1, rz: -0.4, vrx: 0.95, vry: -1.4, vrz: 1.6, color: '#b2ebf2', glowColor: '#4dd0e1', lineWidth: 1.6, dashed: false, alpha: 0.75 }
     ];
+    // ====== HỆ THỐNG ĐẠO DIỄN GÓC QUAY 3D GACHA 5 SAO (GENSHIN IMPACT WISH CINEMATIC ENGINE - 6 CHỦ ĐỀ 3D ĐỘC BẢN) ======
+    const SKY_GACHA_THEMES = {
+        bloom: {
+            skyTopGlow: 'rgba(255, 226, 152, 0.56)',
+            skyMidNebula: 'rgba(216, 58, 111, 0.36)',
+            skyDeepVeil: 'rgba(8, 38, 30, 0.68)',
+            beamCore: 'rgba(255, 245, 210, 1)',
+            beamMid: 'rgba(255, 138, 178, 0.85)',
+            beamEdge: 'rgba(216, 58, 111, 0.42)',
+            cometAwakenCore: '#fffef5',
+            cometAwakenHalo: '#ff5c8d',
+            cometAwakenGold: '#ffd54f',
+            trailHelixA: '#ff6f9c',
+            trailHelixB: '#ffd54f',
+            ringColorA: '#ffd54f',
+            ringColorB: '#ff80ab',
+            ringColorC: '#ffb2c9',
+            petalMid: '#ff6f9c',
+            petalEnd: '#ad1457',
+            isSakura: false
+        },
+        butterflies: {
+            skyTopGlow: 'rgba(255, 244, 178, 0.58)',
+            skyMidNebula: 'rgba(16, 185, 129, 0.36)',
+            skyDeepVeil: 'rgba(4, 34, 26, 0.72)',
+            beamCore: 'rgba(255, 252, 218, 1)',
+            beamMid: 'rgba(255, 213, 79, 0.88)',
+            beamEdge: 'rgba(52, 211, 153, 0.46)',
+            cometAwakenCore: '#fffff4',
+            cometAwakenHalo: '#ffd54f',
+            cometAwakenGold: '#34d399',
+            trailHelixA: '#ffd54f',
+            trailHelixB: '#34d399',
+            ringColorA: '#ffe57f',
+            ringColorB: '#6ee7b7',
+            ringColorC: '#ffd54f',
+            petalMid: '#ffd54f',
+            petalEnd: '#d97706',
+            isSakura: false
+        },
+        ribbon: {
+            skyTopGlow: 'rgba(255, 238, 206, 0.56)',
+            skyMidNebula: 'rgba(236, 72, 153, 0.35)',
+            skyDeepVeil: 'rgba(12, 36, 30, 0.68)',
+            beamCore: 'rgba(255, 248, 228, 1)',
+            beamMid: 'rgba(244, 114, 182, 0.86)',
+            beamEdge: 'rgba(251, 191, 36, 0.44)',
+            cometAwakenCore: '#fffdf9',
+            cometAwakenHalo: '#f472b6',
+            cometAwakenGold: '#fbbf24',
+            trailHelixA: '#f472b6',
+            trailHelixB: '#fde68a',
+            ringColorA: '#fde68a',
+            ringColorB: '#f472b6',
+            ringColorC: '#ffffff',
+            petalMid: '#f48fb1',
+            petalEnd: '#c2185b',
+            isSakura: false
+        },
+        galaxy: {
+            skyTopGlow: 'rgba(224, 247, 250, 0.58)',
+            skyMidNebula: 'rgba(139, 92, 246, 0.38)',
+            skyDeepVeil: 'rgba(5, 26, 34, 0.74)',
+            beamCore: 'rgba(255, 252, 224, 1)',
+            beamMid: 'rgba(125, 211, 252, 0.86)',
+            beamEdge: 'rgba(192, 132, 252, 0.46)',
+            cometAwakenCore: '#ffffff',
+            cometAwakenHalo: '#ffd700',
+            cometAwakenGold: '#38bdf8',
+            trailHelixA: '#ffd700',
+            trailHelixB: '#7dd3fc',
+            ringColorA: '#ffd700',
+            ringColorB: '#7dd3fc',
+            ringColorC: '#e879f9',
+            petalMid: '#ce93d8',
+            petalEnd: '#6a1b9a',
+            isSakura: false
+        },
+        sakura: {
+            skyTopGlow: 'rgba(255, 240, 218, 0.60)',
+            skyMidNebula: 'rgba(255, 164, 196, 0.38)',
+            skyDeepVeil: 'rgba(9, 34, 30, 0.68)',
+            beamCore: 'rgba(255, 250, 235, 1)',
+            beamMid: 'rgba(255, 182, 208, 0.88)',
+            beamEdge: 'rgba(255, 224, 130, 0.44)',
+            cometAwakenCore: '#fff9fb',
+            cometAwakenHalo: '#ffb2c9',
+            cometAwakenGold: '#ffe082',
+            trailHelixA: '#ffb2c9',
+            trailHelixB: '#ffe082',
+            ringColorA: '#ffb2c9',
+            ringColorB: '#ffe082',
+            ringColorC: '#ffdce8',
+            petalMid: '#ffb2c9',
+            petalEnd: '#e91e63',
+            isSakura: true
+        },
+        hearts: {
+            skyTopGlow: 'rgba(224, 247, 250, 0.60)',
+            skyMidNebula: 'rgba(244, 143, 177, 0.34)',
+            skyDeepVeil: 'rgba(6, 36, 32, 0.70)',
+            beamCore: 'rgba(255, 255, 255, 1)',
+            beamMid: 'rgba(178, 235, 242, 0.88)',
+            beamEdge: 'rgba(255, 213, 79, 0.48)',
+            cometAwakenCore: '#ffffff',
+            cometAwakenHalo: '#80deea',
+            cometAwakenGold: '#ffd54f',
+            trailHelixA: '#80deea',
+            trailHelixB: '#ffd54f',
+            ringColorA: '#e0f7fa',
+            ringColorB: '#ffd54f',
+            ringColorC: '#ff9ebb',
+            petalMid: '#f8bbd0',
+            petalEnd: '#ec407a',
+            isSakura: false
+        }
+    };
+    const skyTheme = SKY_GACHA_THEMES[cfg.id] || SKY_GACHA_THEMES.bloom;
+
+    // 3 Vòng Tinh Cầu 3D xoay quanh Cổng Trời Thiên Đỉnh (tọa độ thế giới 3D: x=0, y=-420, z=-920)
     const skyZenithRings = [
-        { cx: 0, cy: 0, cz: 0, radius: 74, rx: 1.22, ry: 0.22, rz: 0, vrx: 0.45, vry: 1.5, vrz: 2.7, color: '#fff2a6', glowColor: '#f5c242', lineWidth: 2.2, dashed: false, alpha: 0.92 },
-        { cx: 0, cy: 0, cz: 0, radius: 108, rx: -1.08, ry: 0.65, rz: 0.4, vrx: -1.1, vry: 0.8, vrz: -2.1, color: '#ffb2c9', glowColor: '#d84b7e', lineWidth: 1.8, dashed: true, alpha: 0.85 },
-        { cx: 0, cy: 0, cz: 0, radius: 142, rx: 0.95, ry: -0.85, rz: -0.5, vrx: 0.75, vry: -1.25, vrz: 1.8, color: '#b2ebf2', glowColor: '#4dd0e1', lineWidth: 1.5, dashed: false, alpha: 0.78 }
+        { cx: 0, cy: -420, cz: -920, radius: 135, rx: 1.18, ry: 0.22, rz: 0, vrx: 0.55, vry: 1.65, vrz: 2.8, color: skyTheme.ringColorA, glowColor: '#f5c242', lineWidth: 2.4, dashed: false, alpha: 0.94 },
+        { cx: 0, cy: -420, cz: -920, radius: 195, rx: -1.05, ry: 0.68, rz: 0.4, vrx: -1.2, vry: 0.9, vrz: -2.2, color: skyTheme.ringColorB, glowColor: '#d84b7e', lineWidth: 2.0, dashed: true, alpha: 0.86 },
+        { cx: 0, cy: -420, cz: -920, radius: 255, rx: 0.92, ry: -0.82, rz: -0.5, vrx: 0.85, vry: -1.35, vrz: 1.9, color: skyTheme.ringColorC, glowColor: '#4dd0e1', lineWidth: 1.7, dashed: false, alpha: 0.80 }
     ];
+
+    // Khởi tạo 76 Ngôi Sao Vũ Trụ 3D có chiều sâu Z thật (-1600 -> +320) để khi Camera nghiêng/xoay thấy rõ không gian 3D
+    const skyBgStars = [];
+    for (let s = 0; s < 76; s++) {
+        skyBgStars.push({
+            x: (Math.random() - 0.5) * 2200,
+            y: -950 + Math.random() * 1650,
+            z: -1550 + Math.random() * 1750,
+            size: 1.6 + Math.random() * 3.4,
+            twinklePhase: Math.random() * Math.PI * 2,
+            twinkleSpeed: 2.5 + Math.random() * 4.5,
+            isCross: s % 5 === 0,
+            color: s % 3 === 0 ? skyTheme.ringColorA : (s % 3 === 1 ? '#ffffff' : skyTheme.ringColorB)
+        });
+    }
+
+    // Khởi tạo 14 Tầng Mây Tinh Vân Vũ Trụ 3D (Volumetric 3D Nebula Clouds) trôi lơ lửng ở các độ sâu Z khác nhau
+    const skyClouds3D = [];
+    for (let c = 0; c < 14; c++) {
+        const layerT = c / 13;
+        skyClouds3D.push({
+            x: (c % 2 === 0 ? -1 : 1) * (160 + (c % 4) * 145) + (Math.random() - 0.5) * 120,
+            y: -480 + layerT * 620 + (Math.random() - 0.5) * 70,
+            z: -1180 + layerT * 1260,
+            w: 440 + (c % 3) * 140,
+            h: 260 + (c % 3) * 85,
+            driftSpd: (c % 2 === 0 ? 1 : -1) * (18 + (c % 4) * 7),
+            variant: c % 2 === 0 ? 'primary' : 'gold',
+            alpha: 0.42 + (c % 3) * 0.12
+        });
+    }
+
+    // Khởi tạo 26 Vệt Xé Gió 3D (Genshin Speed-Lines) tạo cảm giác lao xuyên tầng khí quyển ở Shot 2 & Shot 3
+    const skySpeedLines = [];
+    for (let l = 0; l < 26; l++) {
+        const ang = (l / 26) * Math.PI * 2 + (Math.random() - 0.5) * 0.2;
+        const rad = 165 + Math.random() * 340;
+        skySpeedLines.push({
+            ang,
+            rad,
+            zOffset: Math.random() * 1200,
+            speed: 1450 + Math.random() * 900,
+            len: 160 + Math.random() * 220,
+            color: l % 2 === 0 ? skyTheme.trailHelixA : '#fffef0'
+        });
+    }
+
+    // Lưu lịch sử quỹ đạo 3D của Ngôi Sao 5 Sao để vẽ Dải Đuôi Sao Băng Xoắn Kép 3D (3D Double-Helix Comet Wake)
+    const skyMeteorTrailPts = [];
     const skyRipples = [];
+    const skyShockwaves = [];
     let skyRippleAccum = 0.48;
     let skyParticleAccum = 0;
     let hasTriggeredZenithFlash = false;
+    let hasTriggeredAwakeningBoom = false;
+    let hasTriggeredImpactSupernova = false;
     let hasSpawnedSealBreak = false;
     let hasSpawnedMainBurst = false;
     let hasHandedOffCard = false;
@@ -6146,41 +6637,268 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         }, autoOpenDelay);
     }
 
-    // Vẽ Cổng Trời Thiên Hà & 5 Luồng Ánh Sáng Volumetric chiếu từ đỉnh bầu trời xuống tâm sân khấu (Thuần Motion 100%, không dùng chữ)
-    function drawHeavenlySkyBeamsAndPortal(ctxB, ctxF, elapsed, intensity, screenCx, screenCy, vw, vh) {
-        if (intensity <= 0.01) return;
-        const skyCx = screenCx;
-        const skyCy = vh * 0.135;
+    // ====== BỘ PHÉP CHIẾU CAMERA ĐIỆN ẢNH 3D (VIRTUAL 3D CINEMATIC CAMERA RIG) ======
+    // Chuyển đổi tọa độ thực thể 3D (wx, wy, wz) qua góc máy Camera (cam.x, cam.y, cam.z, cam.pitch, cam.yaw, cam.roll, cam.fov)
+    function project3DWithCam(wx, wy, wz, cam, screenCx, screenCy) {
+        let dx = wx - cam.x;
+        let dy = wy - cam.y;
+        let dz = wz - cam.z;
 
-        // 1. Nền vòm trời đêm nhung lụa & 5 luồng sáng thiên sứ (Volumetric God Rays) trên ctxBack
+        // 1. Xoay ngang Camera (Yaw quanh trục Y)
+        if (cam.yaw !== 0) {
+            const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+            const nx = dx * cy - dz * sy;
+            const nz = dx * sy + dz * cy;
+            dx = nx;
+            dz = nz;
+        }
+        // 2. Ngước / Cúi Camera (Pitch quanh trục X)
+        if (cam.pitch !== 0) {
+            const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+            const ny = dy * cp - dz * sp;
+            const nz = dy * sp + dz * cp;
+            dy = ny;
+            dz = nz;
+        }
+        // 3. Nghiêng máy điện ảnh (Dutch Roll quanh trục Z)
+        if (cam.roll !== 0) {
+            const cr = Math.cos(cam.roll), sr = Math.sin(cam.roll);
+            const nx = dx * cr - dy * sr;
+            const ny = dx * sr + dy * cr;
+            dx = nx;
+            dy = ny;
+        }
+
+        const depth = cam.fov - dz;
+        if (depth <= 75) return null;
+        const scale = cam.fov / depth;
+        return {
+            sx: screenCx + dx * scale + (cam.shakeX || 0),
+            sy: screenCy + dy * scale + (cam.shakeY || 0),
+            scale,
+            depth,
+            cz: dz
+        };
+    }
+
+    // Nội suy đường cong Bézier bậc 3 trong không gian 3D
+    function evalCubicBezier3D(p0, p1, p2, p3, t) {
+        const u = 1 - t;
+        const tt = t * t, uu = u * u;
+        const uuu = uu * u, ttt = tt * t;
+        return {
+            x: uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
+            y: uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y,
+            z: uuu * p0.z + 3 * uu * t * p1.z + 3 * u * tt * p2.z + ttt * p3.z
+        };
+    }
+
+    // Tính trạng thái Góc Quay Camera 3D theo thời gian Cutscene (0.00s -> 5.85s)
+    function computeSkyGachaCamera(elapsed) {
+        const cam = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0, fov: 680, shakeX: 0, shakeY: 0 };
+        if (elapsed < 1.40) {
+            // SHOT 1 (0.00s -> 1.40s): Góc quay ngước từ dưới lên Đỉnh Trời (Low-Angle Tilt Up to Celestial Gate)
+            const p = elapsed / 1.40;
+            const ease = p * p * (3 - 2 * p);
+            cam.x = Math.sin(p * Math.PI) * 18;
+            cam.y = -45 * ease;
+            cam.z = 90 - 150 * ease;
+            cam.pitch = -0.04 - 0.28 * ease;
+            cam.yaw = Math.sin(p * Math.PI) * 0.04;
+            cam.roll = -0.03 * Math.sin(p * Math.PI);
+            cam.fov = 680 + 60 * ease;
+        } else if (elapsed < 3.05) {
+            // SHOT 2 (1.40s -> 3.05s): Góc quay Đại Cảnh Vũ Trụ đón Vì Sao Phá Cổng Trời & Thức Tỉnh Vàng 24K
+            const p = (elapsed - 1.40) / 1.65;
+            const ease = p * p * (3 - 2 * p);
+            cam.x = -55 * Math.sin(p * Math.PI);
+            cam.y = -45 * (1 - ease * 0.65);
+            cam.z = -60 + 110 * ease;
+            cam.pitch = -0.32 + 0.22 * ease;
+            cam.yaw = -0.09 * Math.sin(p * Math.PI);
+            cam.roll = -0.11 * Math.sin(p * Math.PI);
+            cam.fov = 740 - 90 * ease;
+            // Rung chấn nhẹ khi Tinh Tú Thức Tỉnh 5 Sao ở t = 2.25s
+            if (elapsed >= 2.22 && elapsed <= 2.52) {
+                const sp = 1 - (elapsed - 2.22) / 0.30;
+                cam.shakeX = Math.sin(elapsed * 95) * 6 * sp;
+                cam.shakeY = Math.cos(elapsed * 82) * 5 * sp;
+            }
+        } else if (elapsed < 4.70) {
+            // SHOT 3 (3.05s -> 4.70s): Góc quay Cận Cảnh Bám Đuổi & Nghiêng Máy Điện Ảnh (15° Dutch Roll Close-up Flyby)
+            const p = (elapsed - 3.05) / 1.65;
+            const ease = p * p * (3 - 2 * p);
+            cam.x = 68 * Math.sin(p * Math.PI);
+            cam.y = -15 + 22 * Math.sin(p * Math.PI);
+            cam.z = 50 + 95 * Math.sin(p * Math.PI);
+            cam.pitch = -0.10 + 0.14 * ease;
+            cam.yaw = 0.12 * Math.sin(p * Math.PI);
+            // Nghiêng máy Dutch Tilt +15 độ khi vì sao lướt sát ống kính rồi trả về 0 trước khi chạm đất
+            cam.roll = 0.26 * Math.sin(p * Math.PI);
+            cam.fov = 650 - 70 * Math.sin(p * Math.PI) + 30 * ease;
+        } else {
+            // SHOT 4 (4.70s -> 5.85s): Cú Đáp Siêu Tân Tinh 3D tại Tâm Sân Khấu & Rung Chấn Điện Ảnh
+            const p = Math.min(1, (elapsed - 4.70) / 1.15);
+            const ease = 1 - Math.pow(1 - p, 3);
+            cam.x = 0;
+            cam.y = 0;
+            cam.z = 50 * (1 - ease);
+            cam.pitch = 0.04 * (1 - ease);
+            cam.yaw = 0;
+            cam.roll = 0;
+            cam.fov = 680;
+            if (elapsed < 5.12) {
+                const damper = Math.pow(1 - (elapsed - 4.70) / 0.42, 2);
+                cam.shakeX = Math.sin(elapsed * 115) * 12 * damper;
+                cam.shakeY = Math.cos(elapsed * 98) * 10 * damper;
+            }
+        }
+        return cam;
+    }
+
+    // Tính vị trí 3D của Vì Tinh Tú 5 Sao trên quỹ đạo cong chữ S xuyên không gian 3D (1.32s -> 4.70s)
+    function computeSkyMeteor3DPos(elapsed) {
+        if (elapsed < 1.32) {
+            return { x: 0, y: -420, z: -920, active: false, phase: 0 };
+        }
+        if (elapsed < 3.05) {
+            // Nửa đầu quỹ đạo (Shot 2: 1.32s -> 3.05s): Lao từ Cổng Trời (0, -420, -920) xoáy sang trái (-235, -135, -310)
+            const u = Math.min(1, (elapsed - 1.32) / 1.73);
+            const easeU = u < 0.25 ? (u / 0.25) * 0.22 : 0.22 + ((u - 0.25) / 0.75) * 0.78;
+            const pos = evalCubicBezier3D(
+                { x: 0,    y: -420, z: -920 },
+                { x: 165,  y: -360, z: -760 },
+                { x: -310, y: -255, z: -520 },
+                { x: -215, y: -125, z: -290 },
+                easeU
+            );
+            return { ...pos, active: true, phase: 1, u };
+        }
+        if (elapsed < 4.70) {
+            // Nửa sau quỹ đạo (Shot 3: 3.05s -> 4.70s): Vòng sát qua trước ống kính Camera (z = +245) rồi lao thẳng vào Tâm Sân Khấu (0, 0, 0)
+            const u = Math.min(1, (elapsed - 3.05) / 1.65);
+            const easeU = u * u * (3 - 2 * u);
+            const pos = evalCubicBezier3D(
+                { x: -215, y: -125, z: -290 },
+                { x: 265,  y: -55,  z: 255 },
+                { x: 145,  y: 65,   z: 185 },
+                { x: 0,    y: 0,    z: 0 },
+                easeU
+            );
+            return { ...pos, active: true, phase: 2, u };
+        }
+        return { x: 0, y: 0, z: 0, active: false, phase: 3 };
+    }
+
+    // Vẽ bầu trời 3D, Mây Tinh Vân Đa Lớp, Cổng Trời Thiên Đỉnh, Sao Vũ Trụ Parallax & Hiện tượng Thiên Văn đặc trưng của 6 Chủ Đề 3D
+    function drawHeavenlySkyBeamsAndPortal(ctxB, ctxF, elapsed, intensity, screenCx, screenCy, vw, vh, camOverride, meteorPosOverride) {
+        if (intensity <= 0.01) return;
+        const atlas = getU3DLuxurySpriteAtlas();
+        const cam = camOverride || { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0, fov: 680, shakeX: 0, shakeY: 0 };
+        const gateProj = project3DWithCam(0, -420, -920, cam, screenCx, screenCy) || { sx: screenCx, sy: vh * 0.14, scale: 0.42 };
+        const skyCx = gateProj.sx;
+        const skyCy = gateProj.sy;
+
+        // 1. Nền vòm trời đêm 3D & tinh vân riêng theo từng chủ đề (ctxBack)
         ctxB.save();
-        const skyVeilGrad = ctxB.createRadialGradient(skyCx, skyCy, 12, skyCx, vh * 0.48, Math.max(vw, vh) * 0.88);
-        skyVeilGrad.addColorStop(0, `rgba(255, 248, 212, ${(0.52 * intensity).toFixed(3)})`);
-        skyVeilGrad.addColorStop(0.24, `rgba(244, 152, 190, ${(0.26 * intensity).toFixed(3)})`);
-        skyVeilGrad.addColorStop(0.62, `rgba(9, 44, 36, ${(0.46 * intensity).toFixed(3)})`);
-        skyVeilGrad.addColorStop(1, `rgba(3, 18, 14, ${(0.62 * intensity).toFixed(3)})`);
+        const skyVeilGrad = ctxB.createRadialGradient(skyCx, skyCy, 14, screenCx, vh * 0.5, Math.max(vw, vh) * 0.92);
+        skyVeilGrad.addColorStop(0, skyTheme.skyTopGlow);
+        skyVeilGrad.addColorStop(0.28, skyTheme.skyMidNebula);
+        skyVeilGrad.addColorStop(0.65, `rgba(7, 42, 33, ${(0.52 * intensity).toFixed(3)})`);
+        skyVeilGrad.addColorStop(1, skyTheme.skyDeepVeil);
+        ctxB.globalAlpha = intensity;
         ctxB.fillStyle = skyVeilGrad;
         ctxB.fillRect(0, 0, vw, vh);
 
+        // 1B. Hiện tượng Bầu Trời Độc Bản có Texture cao cấp theo từng Chủ Đề 3D (6 Chủ Đề như Ông Nội!)
+        if (cfg.id === 'sakura') {
+            // SAKURA: Đĩa Trăng Rằm Hoàng Kim Có Vân Đá Quý (atlas.fullMoon) tỏa sáng phía sau Cổng Trời Kyoto
+            const moonDrawR = Math.min(vw, vh) * 0.26 * (0.82 + gateProj.scale * 0.55);
+            ctxB.save();
+            ctxB.globalAlpha = intensity * 0.95;
+            ctxB.drawImage(atlas.fullMoon, skyCx - moonDrawR, skyCy - moonDrawR * 0.82, moonDrawR * 2, moonDrawR * 2);
+            ctxB.restore();
+        } else if (cfg.id === 'butterflies') {
+            // BUTTERFLIES: Dải Cực Quang Ngọc Lục Bảo & Hoàng Kim (Emerald-Gold Aurora Borealis) uốn lượn đa lớp
+            for (let a = 0; a < 3; a++) {
+                ctxB.save();
+                ctxB.globalAlpha = (0.28 - a * 0.06) * intensity;
+                ctxB.strokeStyle = a % 2 === 0 ? '#34d399' : '#ffd54f';
+                ctxB.lineWidth = (42 - a * 8) * gateProj.scale * 1.8;
+                ctxB.lineCap = 'round';
+                ctxB.beginPath();
+                const baseY = skyCy + (a - 1) * 48;
+                ctxB.moveTo(0, baseY + Math.sin(elapsed * 1.6 + a) * 35);
+                ctxB.bezierCurveTo(
+                    vw * 0.33, baseY - 65 * Math.cos(elapsed * 1.3 + a),
+                    vw * 0.66, baseY + 65 * Math.sin(elapsed * 1.5 + a),
+                    vw, baseY - Math.cos(elapsed * 1.4 + a) * 35
+                );
+                ctxB.stroke();
+                ctxB.restore();
+            }
+        } else if (cfg.id === 'hearts') {
+            // HEARTS: Cung Điện Cột Sáng Pha Lê Kim Cương (Crystal Light Pillars)
+            for (let c = -2; c <= 2; c++) {
+                const px = skyCx + c * vw * 0.14;
+                const pilH = vh * (0.44 - Math.abs(c) * 0.06);
+                const pilW = (20 - Math.abs(c) * 3) * (0.85 + 0.15 * Math.sin(elapsed * 4 + c));
+                const pilGrad = ctxB.createLinearGradient(px, skyCy - 40, px, skyCy + pilH);
+                pilGrad.addColorStop(0, `rgba(224, 247, 250, ${(0.52 * intensity).toFixed(3)})`);
+                pilGrad.addColorStop(0.5, `rgba(255, 192, 218, ${(0.26 * intensity).toFixed(3)})`);
+                pilGrad.addColorStop(1, 'rgba(224, 247, 250, 0)');
+                ctxB.fillStyle = pilGrad;
+                ctxB.fillRect(px - pilW * 0.5, skyCy - 40, pilW, pilH);
+            }
+        }
+
+        // 1C. 14 Tầng Mây Tinh Vân 3D (Volumetric Nebula Clouds) trôi bồng bềnh & rực sáng khi Sao Băng 5 Sao lao qua!
+        const primaryCloudSprite = (cfg.id === 'butterflies') ? atlas.cloudEmerald : ((cfg.id === 'galaxy' || cfg.id === 'hearts') ? atlas.cloudAstral : atlas.cloudRose);
+        for (let c = 0; c < skyClouds3D.length; c++) {
+            const cl = skyClouds3D[c];
+            const curX = cl.x + Math.sin(elapsed * 0.45 + c) * cl.driftSpd;
+            const pr = project3DWithCam(curX, cl.y, cl.z, cam, screenCx, screenCy);
+            if (!pr) continue;
+            const cw = cl.w * pr.scale;
+            const ch = cl.h * pr.scale;
+            if (pr.sx + cw < -40 || pr.sx - cw > vw + 40 || pr.sy + ch < -40 || pr.sy - ch > vh + 40) continue;
+
+            // Tính độ rực sáng (Subsurface Rim Glow) khi Ngôi Sao 5 Sao bay ngang qua đám mây này
+            let meteorBoost = 0;
+            if (meteorPosOverride && meteorPosOverride.active) {
+                const distSq = Math.pow(curX - meteorPosOverride.x, 2) + Math.pow(cl.y - meteorPosOverride.y, 2) + Math.pow(cl.z - meteorPosOverride.z, 2);
+                meteorBoost = Math.max(0, 1 - distSq / (360 * 360)) * 0.55;
+            }
+
+            ctxB.save();
+            ctxB.translate(pr.sx, pr.sy);
+            ctxB.rotate(-cam.roll * 0.75);
+            ctxB.globalAlpha = Math.min(1, (cl.alpha + meteorBoost) * intensity);
+            const sprite = (cl.variant === 'gold' || meteorBoost > 0.18) ? atlas.cloudGold : primaryCloudSprite;
+            ctxB.drawImage(sprite, -cw * 0.5, -ch * 0.5, cw, ch);
+            ctxB.restore();
+        }
+
+        // 1D. 5 Luồng Ánh Sáng Thiên Sứ (Volumetric God Rays) xoay theo góc nghiêng Camera
         const beamConfigs = [
-            { spread: -0.36, topW: 16, botW: vw * 0.34, alpha: 0.20, phase: 0.2 },
-            { spread: -0.17, topW: 22, botW: vw * 0.42, alpha: 0.30, phase: 1.4 },
-            { spread: 0.00,  topW: 32, botW: vw * 0.54, alpha: 0.44, phase: 2.7 },
-            { spread: 0.17,  topW: 22, botW: vw * 0.42, alpha: 0.30, phase: 4.1 },
-            { spread: 0.36,  topW: 16, botW: vw * 0.34, alpha: 0.20, phase: 5.3 }
+            { spread: -0.38, topW: 18, botW: vw * 0.34, alpha: 0.22, phase: 0.2 },
+            { spread: -0.18, topW: 24, botW: vw * 0.44, alpha: 0.32, phase: 1.4 },
+            { spread: 0.00,  topW: 36, botW: vw * 0.56, alpha: 0.46, phase: 2.7 },
+            { spread: 0.18,  topW: 24, botW: vw * 0.44, alpha: 0.32, phase: 4.1 },
+            { spread: 0.38,  topW: 18, botW: vw * 0.34, alpha: 0.22, phase: 5.3 }
         ];
-        const beamEndY = vh * 0.92;
+        const beamEndY = vh * 0.96;
         for (let b = 0; b < beamConfigs.length; b++) {
             const bc = beamConfigs[b];
-            const sway = Math.sin(elapsed * 2.1 + bc.phase) * 0.04;
+            const sway = Math.sin(elapsed * 2.1 + bc.phase) * 0.045 - cam.roll * 0.45;
             const endCx = skyCx + (bc.spread + sway) * vw;
             const breathe = 0.82 + 0.18 * Math.sin(elapsed * 3.4 + bc.phase);
             const bAlpha = bc.alpha * breathe * intensity;
 
             const beamGrad = ctxB.createLinearGradient(skyCx, skyCy - 10, endCx, beamEndY);
-            beamGrad.addColorStop(0, `rgba(255, 250, 218, ${(bAlpha * 1.35).toFixed(3)})`);
-            beamGrad.addColorStop(0.32, `rgba(255, 224, 142, ${(bAlpha * 0.92).toFixed(3)})`);
-            beamGrad.addColorStop(0.68, `rgba(255, 178, 206, ${(bAlpha * 0.45).toFixed(3)})`);
+            beamGrad.addColorStop(0, skyTheme.beamCore.replace('1)', `${Math.min(1, bAlpha * 1.35).toFixed(3)})`));
+            beamGrad.addColorStop(0.34, skyTheme.beamMid.replace(/0\.\d+\)/, `${(bAlpha * 0.92).toFixed(3)})`));
+            beamGrad.addColorStop(0.70, skyTheme.beamEdge.replace(/0\.\d+\)/, `${(bAlpha * 0.48).toFixed(3)})`));
             beamGrad.addColorStop(1, 'rgba(255, 232, 166, 0)');
 
             ctxB.fillStyle = beamGrad;
@@ -6193,49 +6911,79 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             ctxB.fill();
         }
 
-        // Vầng hào quang tiếp nhận thông điệp tại tâm sân khấu (nơi bì thư sắp hạ xuống)
-        const floorPulse = 0.85 + 0.15 * Math.sin(elapsed * 4.2);
-        const floorRx = 148 * floorPulse;
-        const floorRy = 52 * floorPulse;
-        ctxB.save();
-        ctxB.translate(screenCx, screenCy + 16);
-        ctxB.scale(1, floorRy / floorRx);
-        const floorGrad = ctxB.createRadialGradient(0, 0, 4, 0, 0, floorRx);
-        floorGrad.addColorStop(0, `rgba(255, 248, 206, ${(0.42 * intensity).toFixed(3)})`);
-        floorGrad.addColorStop(0.48, `rgba(245, 194, 66, ${(0.20 * intensity).toFixed(3)})`);
-        floorGrad.addColorStop(1, 'rgba(245, 194, 66, 0)');
-        ctxB.fillStyle = floorGrad;
-        ctxB.beginPath();
-        ctxB.arc(0, 0, floorRx, 0, Math.PI * 2);
-        ctxB.fill();
-        ctxB.restore();
+        // 1E. Vẽ 76 Ngôi Sao Vũ Trụ 3D có Parallax thật theo Camera
+        for (let s = 0; s < skyBgStars.length; s++) {
+            const st = skyBgStars[s];
+            const sp = project3DWithCam(st.x, st.y, st.z, cam, screenCx, screenCy);
+            if (!sp || sp.sx < -20 || sp.sx > vw + 20 || sp.sy < -20 || sp.sy > vh + 20) continue;
+            const tw = 0.45 + 0.55 * Math.sin(elapsed * st.twinkleSpeed + st.twinklePhase);
+            const r = Math.max(0.8, st.size * sp.scale * tw);
+            ctxB.globalAlpha = Math.min(1, intensity * tw * 0.9);
+            ctxB.fillStyle = st.color;
+            ctxB.beginPath();
+            ctxB.arc(sp.sx, sp.sy, r, 0, Math.PI * 2);
+            ctxB.fill();
+            if (st.isCross && r > 1.3) {
+                ctxB.strokeStyle = '#ffffff';
+                ctxB.lineWidth = 0.85;
+                ctxB.beginPath();
+                ctxB.moveTo(sp.sx - r * 2.8, sp.sy);
+                ctxB.lineTo(sp.sx + r * 2.8, sp.sy);
+                ctxB.moveTo(sp.sx, sp.sy - r * 2.8);
+                ctxB.lineTo(sp.sx, sp.sy + r * 2.8);
+                ctxB.stroke();
+            }
+        }
         ctxB.restore();
 
-        // 2. Tâm Tinh Cầu Thiên Đỉnh (Zenith Star Core) tỏa sáng trên đỉnh bầu trời ở ctxFront
+        // 2. Tâm Cổng Trời Thiên Đỉnh (Zenith Celestial Gate Core) & Pháp Trận Chủ Đề 3D trên ctxFront
         ctxF.save();
         ctxF.translate(skyCx, skyCy);
-        const corePulse = 1 + 0.14 * Math.sin(elapsed * 5.8);
-        const coronaR = 112 * corePulse;
+        ctxF.rotate(-cam.roll);
+        const corePulse = (1 + 0.14 * Math.sin(elapsed * 5.8)) * (0.75 + gateProj.scale * 0.65);
+        const coronaR = 124 * corePulse;
         const coronaGrad = ctxF.createRadialGradient(0, 0, 3, 0, 0, coronaR);
         coronaGrad.addColorStop(0, `rgba(255, 255, 245, ${(0.98 * intensity).toFixed(3)})`);
-        coronaGrad.addColorStop(0.22, `rgba(255, 232, 148, ${(0.76 * intensity).toFixed(3)})`);
-        coronaGrad.addColorStop(0.55, `rgba(255, 168, 202, ${(0.34 * intensity).toFixed(3)})`);
+        coronaGrad.addColorStop(0.24, `rgba(255, 232, 148, ${(0.78 * intensity).toFixed(3)})`);
+        coronaGrad.addColorStop(0.58, skyTheme.skyMidNebula.replace(/0\.\d+\)/, `${(0.42 * intensity).toFixed(3)})`));
         coronaGrad.addColorStop(1, 'rgba(255, 232, 148, 0)');
         ctxF.fillStyle = coronaGrad;
         ctxF.beginPath();
         ctxF.arc(0, 0, coronaR, 0, Math.PI * 2);
         ctxF.fill();
 
-        // Ngôi sao 8 cánh Bắc Đẩu xoay chậm trên cổng trời
+        // Biểu tượng Pháp Trận Cổng Trời có Texture riêng cho từng chủ đề
         ctxF.save();
+        ctxF.globalAlpha = Math.min(1, intensity * 0.86);
         ctxF.rotate(elapsed * 0.55);
-        ctxF.globalAlpha = Math.min(1, intensity * 0.92);
+        if (cfg.id === 'bloom' || cfg.id === 'sakura') {
+            const pCount = cfg.id === 'sakura' ? 5 : 8;
+            const pSpr = cfg.id === 'sakura' ? atlas.sakuraPetal : atlas.camelliaPetal;
+            const pR = 26 * corePulse;
+            for (let i = 0; i < pCount; i++) {
+                ctxF.save();
+                ctxF.rotate((i / pCount) * Math.PI * 2);
+                ctxF.translate(0, -pR * 0.72);
+                ctxF.drawImage(pSpr, -pR, -pR, pR * 2, pR * 2);
+                ctxF.restore();
+            }
+        } else if (cfg.id === 'hearts') {
+            const dR = 38 * corePulse;
+            ctxF.drawImage(atlas.diamond, -dR, -dR, dR * 2, dR * 2);
+        } else if (cfg.id === 'ribbon') {
+            for (let i = 0; i < 8; i++) {
+                const a = (i / 8) * Math.PI * 2;
+                ctxF.drawImage(atlas.pearl, Math.cos(a) * 34 * corePulse - 7, Math.sin(a) * 34 * corePulse - 7, 14, 14);
+            }
+        }
+
+        // Ngôi sao 8 cánh Bắc Đẩu xoay trên Cổng Trời
         for (let k = 0; k < 2; k++) {
             ctxF.save();
             if (k === 1) ctxF.rotate(Math.PI / 4);
-            const rayLen = (k === 0 ? 54 : 34) * corePulse;
-            const rayW = k === 0 ? 5.5 : 3.6;
-            ctxF.fillStyle = k === 0 ? '#fffef4' : '#ffe484';
+            const rayLen = (k === 0 ? 60 : 38) * corePulse;
+            const rayW = k === 0 ? 5.8 : 3.8;
+            ctxF.fillStyle = k === 0 ? '#fffef4' : skyTheme.ringColorA;
             ctxF.beginPath();
             ctxF.moveTo(0, -rayLen);
             ctxF.quadraticCurveTo(rayW, -rayW, rayLen, 0);
@@ -6250,46 +6998,284 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         ctxF.restore();
     }
 
-    // Sinh các hạt thiên sứ (Hồ điệp vàng, Cánh hoa anh đào/hoa trà, Sao băng, Ngọc trai) bay từ cổng trời xuống dọc theo luồng sáng
-    function spawnSkyOracleDescendingParticle(skyWorldY) {
-        const spreadX = (Math.random() - 0.5) * 90;
+    // Vẽ Vòng Tinh Cầu Khắc Chòm Sao 3D qua Phép Chiếu Camera 3D
+    function drawCamera3DRing(ctxB, ctxF, ring, cam, screenCx, screenCy) {
+        if (ring.alpha <= 0.01) return;
+        const steps = 56;
+        const cosX = Math.cos(ring.rx), sinX = Math.sin(ring.rx);
+        const cosY = Math.cos(ring.ry), sinY = Math.sin(ring.ry);
+        const cosZ = Math.cos(ring.rz), sinZ = Math.sin(ring.rz);
+
+        const projPts = [];
+        for (let i = 0; i <= steps; i++) {
+            const a = (i / steps) * Math.PI * 2;
+            const x0 = Math.cos(a) * ring.radius;
+            const y0 = Math.sin(a) * ring.radius;
+
+            const y1 = y0 * cosX;
+            const z1 = y0 * sinX;
+            const x1 = x0;
+
+            const x2 = x1 * cosY + z1 * sinY;
+            const z2 = -x1 * sinY + z1 * cosY;
+            const y2 = y1;
+
+            const wx = x2 * cosZ - y2 * sinZ + ring.cx;
+            const wy = x2 * sinZ + y2 * cosZ + ring.cy;
+            const wz = z2 + ring.cz;
+
+            const pr = project3DWithCam(wx, wy, wz, cam, screenCx, screenCy);
+            projPts.push(pr);
+        }
+
+        // Vẽ đường cung chỉ vàng khắc thiên văn nối các điểm 3D
+        for (let i = 1; i < projPts.length; i++) {
+            const p0 = projPts[i - 1];
+            const p1 = projPts[i];
+            if (!p0 || !p1) continue;
+            if (ring.dashed && i % 3 === 0) continue;
+            const ctx = p1.cz < ring.cz ? ctxB : ctxF;
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * 0.44));
+            ctx.strokeStyle = ring.color;
+            ctx.lineWidth = Math.max(0.85, ring.lineWidth * p1.scale * 0.85);
+            ctx.beginPath();
+            ctx.moveTo(p0.sx, p0.sy);
+            ctx.lineTo(p1.sx, p1.sy);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // Vẽ các nút tinh tú & kim hoàn trên vành
+        for (let i = 0; i < projPts.length - 1; i += 2) {
+            const pr = projPts[i];
+            if (!pr) continue;
+            const ctx = pr.cz < ring.cz ? ctxB : ctxF;
+            const isMajor = i % 8 === 0;
+            const wave = 0.45 + 0.55 * Math.sin((i / steps) * Math.PI * 4 + ring.rz * 2);
+            const rSize = Math.max(1.2, ring.lineWidth * pr.scale * (isMajor ? 1.85 : 1.25) * (0.65 + 0.55 * wave));
+
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * 0.34 * wave));
+            ctx.fillStyle = ring.glowColor || ring.color;
+            ctx.beginPath();
+            ctx.arc(pr.sx, pr.sy, rSize * 2.3, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * (0.62 + 0.38 * wave)));
+            ctx.fillStyle = isMajor ? '#ffffff' : ring.color;
+            ctx.beginPath();
+            ctx.arc(pr.sx, pr.sy, rSize * 0.92, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    }
+
+    // Vẽ Đầu Sao Băng 5 Sao (Genshin 5-Star Meteor Core) & Hộ Vệ 3D Độc Bản có Texture Kim Hoàn theo từng Chủ Đề (6 Chủ Đề 3D)
+    function drawThemeGachaMeteorCore(ctxF, meteorPos, cam, elapsed, isAwakened5Star, screenCx, screenCy) {
+        const pr = project3DWithCam(meteorPos.x, meteorPos.y, meteorPos.z, cam, screenCx, screenCy);
+        if (!pr) return;
+        const atlas = getU3DLuxurySpriteAtlas();
+
+        // 1. Vẽ Hộ Vệ 3D / Vòng Quỹ Đạo Thiên Văn 3D bay xung quanh Đầu Sao Băng trong không gian 3D thật
+        if (cfg.id === 'butterflies') {
+            // BUTTERFLIES: 4 Đại Hồ Điệp Hoàng Kim 3D (có vân cánh xà cừ & chỉ vàng 24K) vỗ cánh hộ tống quanh Đầu Sao Băng!
+            for (let b = 0; b < 4; b++) {
+                const orbAng = elapsed * 5.2 + (b * Math.PI) / 2;
+                const orbRad = 58 + 14 * Math.sin(elapsed * 3.5 + b);
+                const bx = meteorPos.x + Math.cos(orbAng) * orbRad;
+                const by = meteorPos.y + Math.sin(orbAng * 1.3) * (orbRad * 0.62);
+                const bz = meteorPos.z + Math.sin(orbAng) * orbRad;
+                draw3DProjectedParticle(ctxF, {
+                    type: 'butterfly',
+                    isGold: b % 2 === 0 || isAwakened5Star,
+                    x: bx - cam.x,
+                    y: by - cam.y,
+                    z: bz - cam.z,
+                    vx: -Math.sin(orbAng) * 120,
+                    vy: Math.cos(orbAng) * 120,
+                    phase: elapsed * 4 + b,
+                    flapPhase: elapsed * 38 + b * 1.7,
+                    size: 19 + (b % 2) * 5,
+                    alpha: 0.98
+                }, screenCx + (cam.shakeX || 0), screenCy + (cam.shakeY || 0), cam.fov);
+            }
+        } else {
+            // 2 Vòng Tinh Cầu Astrolabe 3D khắc vạch vàng xoay tít bao quanh Đầu Sao Băng
+            for (let r = 0; r < 2; r++) {
+                drawCamera3DRing(ctxF, ctxF, {
+                    cx: meteorPos.x,
+                    cy: meteorPos.y,
+                    cz: meteorPos.z,
+                    radius: 46 + r * 24,
+                    rx: elapsed * (3.8 - r * 1.4),
+                    ry: elapsed * (2.6 + r * 1.8),
+                    rz: elapsed * 4.2,
+                    color: isAwakened5Star ? '#ffd700' : '#7dd3fc',
+                    glowColor: skyTheme.cometAwakenHalo,
+                    lineWidth: 2.1,
+                    alpha: 0.88
+                }, cam, screenCx, screenCy);
+            }
+        }
+
+        // 2. Vẽ Lõi Sao 5 Sao, Vòng Tán Sắc Quang Học (Chromatic Lens Halo) & Biểu Tượng 3D Textured ngay tại Đầu Sao Băng
+        const s = Math.max(0.48, Math.min(2.75, pr.scale * 1.28));
+        const coreColor = isAwakened5Star ? skyTheme.cometAwakenCore : '#e0f7fa';
+        const midColor = isAwakened5Star ? '#ffd700' : '#38bdf8';
+        const outerColor = isAwakened5Star ? skyTheme.cometAwakenHalo : '#a855f7';
+
+        ctxF.save();
+        ctxF.translate(pr.sx, pr.sy);
+        ctxF.scale(s, s);
+
+        // 2A. Vòng Tán Sắc Thấu Kính Điện Ảnh (Chromatic Aberration Optical Lens Ring)
+        ctxF.save();
+        ctxF.globalAlpha = isAwakened5Star ? 0.42 : 0.28;
+        ctxF.strokeStyle = isAwakened5Star ? '#ffd54f' : '#7dd3fc';
+        ctxF.lineWidth = 2.2;
+        ctxF.beginPath();
+        ctxF.arc(0, 0, isAwakened5Star ? 64 : 48, 0, Math.PI * 2);
+        ctxF.stroke();
+        ctxF.strokeStyle = '#ff80ab';
+        ctxF.lineWidth = 1.2;
+        ctxF.beginPath();
+        ctxF.arc(0, 0, isAwakened5Star ? 67 : 50, 0, Math.PI * 2);
+        ctxF.stroke();
+        ctxF.restore();
+
+        // 2B. Hào quang 3 lớp rực cháy của Tinh Tú 5 Sao
+        const haloR = isAwakened5Star ? 98 : 70;
+        const grad = ctxF.createRadialGradient(0, 0, 4, 0, 0, haloR);
+        grad.addColorStop(0, coreColor);
+        grad.addColorStop(0.22, midColor);
+        grad.addColorStop(0.55, outerColor);
+        grad.addColorStop(1, 'rgba(255, 215, 0, 0)');
+        ctxF.fillStyle = grad;
+        ctxF.beginPath();
+        ctxF.arc(0, 0, haloR, 0, Math.PI * 2);
+        ctxF.fill();
+
+        // 2C. Tia Chớp Ngang Điện Ảnh (Anamorphic Horizontal Gacha Lens Flare) gắn liền với Đầu Sao 5 Sao
+        const flareW = isAwakened5Star ? 225 : 135;
+        const flareH = isAwakened5Star ? 6.8 : 4.2;
+        ctxF.save();
+        ctxF.rotate(-cam.roll * 0.6);
+        ctxF.globalAlpha = isAwakened5Star ? 0.94 : 0.74;
+        ctxF.fillStyle = isAwakened5Star ? '#fff6c4' : '#bae6fd';
+        ctxF.beginPath();
+        ctxF.ellipse(0, 0, flareW, flareH, 0, 0, Math.PI * 2);
+        ctxF.fill();
+        ctxF.beginPath();
+        ctxF.ellipse(0, 0, flareH * 1.1, flareW * 0.44, 0, 0, Math.PI * 2);
+        ctxF.fill();
+        ctxF.restore();
+
+        // 2D. Biểu tượng 3D có Texture Kim Hoàn / Nhung Lụa thật xoay bên trong Lõi Sao Băng
+        ctxF.save();
+        ctxF.rotate(elapsed * 4.6);
+        if (cfg.id === 'bloom' || cfg.id === 'sakura') {
+            // Đóa Đại Hoa Trà 8 cánh nhung đỏ hoặc Hoa Anh Đào 5 cánh pha lê xoay tít ở đầu sao băng
+            const petalCount = cfg.id === 'sakura' ? 5 : 8;
+            const pSprite = cfg.id === 'sakura' ? atlas.sakuraPetal : atlas.camelliaPetal;
+            const pR = 24;
+            for (let i = 0; i < petalCount; i++) {
+                ctxF.save();
+                ctxF.rotate((i / petalCount) * Math.PI * 2);
+                ctxF.translate(0, -16);
+                ctxF.drawImage(pSprite, -pR, -pR, pR * 2, pR * 2);
+                ctxF.restore();
+            }
+        } else if (cfg.id === 'hearts') {
+            // Viên Kim Cương 57 Giác Cắt (atlas.diamond) xoay lấp lánh ở tâm sao băng
+            ctxF.drawImage(atlas.diamond, -38, -38, 76, 76);
+        } else if (cfg.id === 'ribbon') {
+            // Vòng Ngọc Trai Nam Hải (atlas.pearl) & cánh nơ lụa xoay ở tâm sao băng
+            for (let i = 0; i < 6; i++) {
+                const a = (i / 6) * Math.PI * 2;
+                ctxF.drawImage(atlas.pearl, Math.cos(a) * 24 - 8, Math.sin(a) * 24 - 8, 16, 16);
+            }
+            ctxF.drawImage(atlas.pearl, -14, -14, 28, 28);
+        }
+
+        // Ngôi sao 8 cánh Hoàng Kim 24K sắc lẹm ở chính tâm
+        for (let k = 0; k < 2; k++) {
+            ctxF.save();
+            if (k === 1) ctxF.rotate(Math.PI / 4);
+            const rL = k === 0 ? 46 : 28;
+            const rW = k === 0 ? 6.4 : 4.2;
+            ctxF.fillStyle = k === 0 ? '#ffffff' : '#ffd700';
+            ctxF.beginPath();
+            ctxF.moveTo(0, -rL);
+            ctxF.quadraticCurveTo(rW, -rW, rL, 0);
+            ctxF.quadraticCurveTo(rW, rW, 0, rL);
+            ctxF.quadraticCurveTo(-rW, rW, -rL, 0);
+            ctxF.quadraticCurveTo(-rW, -rW, 0, -rL);
+            ctxF.closePath();
+            ctxF.fill();
+            ctxF.restore();
+        }
+        ctxF.restore();
+        ctxF.restore();
+    }
+
+    // Sinh các hạt Tinh Tú 3D (Hồ điệp vàng, Cánh hoa anh đào/hoa trà, Kim cương, Ngọc trai, Sao băng) cuốn theo Đuôi Sao 5 Sao
+    function spawnSkyMeteorWakeParticle(originX, originY, originZ, isAwakened5Star, burstMultiplier = 1) {
         let pType = 'star';
         const r = Math.random();
-        if (r < 0.28) pType = 'butterfly';
-        else if (r < 0.62) pType = 'petal';
-        else if (r < 0.85) pType = 'star';
-        else pType = 'pearl';
+        if (cfg.id === 'butterflies') {
+            pType = r < 0.58 ? 'butterfly' : (r < 0.85 ? 'star' : 'bokeh');
+        } else if (cfg.id === 'bloom') {
+            pType = r < 0.62 ? 'petal' : (r < 0.88 ? 'star' : 'bokeh');
+        } else if (cfg.id === 'sakura') {
+            pType = r < 0.68 ? 'petal' : (r < 0.90 ? 'star' : 'bokeh');
+        } else if (cfg.id === 'ribbon') {
+            pType = r < 0.52 ? 'pearl' : (r < 0.82 ? 'star' : 'petal');
+        } else if (cfg.id === 'hearts') {
+            pType = r < 0.58 ? 'diamond' : (r < 0.86 ? 'star' : 'shard');
+        } else {
+            // galaxy
+            pType = r < 0.58 ? 'star' : (r < 0.82 ? 'shard' : 'bokeh');
+        }
+
+        const spread = 26 * burstMultiplier;
+        const spd = (95 + Math.random() * 145) * burstMultiplier;
+        const ang1 = Math.random() * Math.PI * 2;
+        const ang2 = (Math.random() - 0.5) * Math.PI;
 
         particles.push({
             type: pType,
-            isGold: true,
-            isSakura: Math.random() < 0.5,
+            isGold: isAwakened5Star || Math.random() < 0.65,
+            isSakura: skyTheme.isSakura,
             hasTrail: pType === 'star',
-            x: spreadX,
-            y: skyWorldY + (Math.random() - 0.5) * 18,
-            z: (Math.random() - 0.5) * 200,
-            vx: spreadX * 0.9 + (Math.random() - 0.5) * 55,
-            vy: 155 + Math.random() * 145,
-            vz: (Math.random() - 0.5) * 110,
-            gravity: 38,
-            drag: 0.35,
-            vortex: 1.4,
-            flutter: 75,
+            x: originX + (Math.random() - 0.5) * spread,
+            y: originY + (Math.random() - 0.5) * spread,
+            z: originZ + (Math.random() - 0.5) * spread,
+            vx: Math.cos(ang1) * Math.cos(ang2) * spd,
+            vy: Math.sin(ang2) * spd - 25,
+            vz: Math.sin(ang1) * Math.cos(ang2) * spd,
+            gravity: pType === 'petal' ? 32 : 18,
+            drag: 0.65,
+            vortex: 1.2,
+            flutter: 72,
             phase: Math.random() * 6,
             flapPhase: Math.random() * 6,
-            flapSpeed: 42,
-            size: pType === 'butterfly' ? (13 + Math.random() * 6) : (pType === 'pearl' ? 6 : (8 + Math.random() * 6)),
-            colorMid: '#ffb2c9',
-            colorEnd: '#d83a6f',
+            flapSpeed: 44,
+            size: pType === 'butterfly' ? (14 + Math.random() * 7) : (pType === 'diamond' ? (11 + Math.random() * 6) : (pType === 'pearl' ? (6.5 + Math.random() * 3.5) : (8.5 + Math.random() * 6))),
+            color: isAwakened5Star ? '#ffd700' : '#7dd3fc',
+            colorMid: skyTheme.petalMid,
+            colorEnd: skyTheme.petalEnd,
             tintA: '#e0f7fa',
-            tintB: '#fce4ec',
+            tintB: isAwakened5Star ? '#fff3b8' : '#fce4ec',
+            bokehColor: isAwakened5Star ? 'rgba(255, 230, 128, 0.48)' : 'rgba(125, 211, 252, 0.45)',
             rx: Math.random() * 5, ry: Math.random() * 5, rz: Math.random() * 5,
-            vrx: (Math.random() - 0.5) * 6, vry: (Math.random() - 0.5) * 6, vrz: (Math.random() - 0.5) * 6,
+            vrx: (Math.random() - 0.5) * 7, vry: (Math.random() - 0.5) * 7, vrz: (Math.random() - 0.5) * 7,
             alpha: 1,
             life: 0,
-            maxLife: 1.85 + Math.random() * 0.45
+            maxLife: 1.25 + Math.random() * 0.55
         });
     }
+
 
     // Hàm tạo hạt năng lượng xoáy hội tụ vào tâm trong pha Triệu Hồi (Summoning Prelude)
     function spawnSummonVortexParticle() {
@@ -6679,163 +7665,346 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         const cardInPocketW = baseW * pocketScale;
         const cardInPocketH = baseH * pocketScale;
 
-        // ====== TRẠNG THÁI 0-SKY-A: CHỜ ĐỢI THÔNG ĐIỆP TỪ TRÊN TRỜI (THUẦN MOTION 100%, HẠN CHẾ CHỮ TUYỆT ĐỐI) ======
+        // ====== TRẠNG THÁI 0-SKY-A: ĐẠI CẢNH GACHA 5 SAO 3D (5.85 GIÂY - 4 GÓC QUAY CAMERA ĐIỆN ẢNH GENSHIN IMPACT - 6 CHỦ ĐỀ ĐỘC BẢN) ======
         if (u3dCurrentDirectorState === 'sky_oracle') {
             const summonElapsed = (now - summonStartTime) / 1000;
-            const skyCy = curVh * 0.135;
-            const skyWorldY = skyCy - screenCy;
+            const SKY_ORACLE_TOTAL = 5.85;
+            const atlas = getU3DLuxurySpriteAtlas();
 
             backRig.style.opacity = '0';
             frontRig.style.opacity = '0';
             cardActor.style.opacity = '0';
 
-            // 1. Vẽ Cổng Trời Thiên Hà & 5 Luồng Ánh Sáng Volumetric chiếu từ đỉnh trời xuống sân khấu
-            const portalIntensity = Math.min(1, summonElapsed / 0.45);
-            drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, summonElapsed, portalIntensity, screenCx, screenCy, curVw, curVh);
+            // 1. Tính góc máy Camera 3D (Pitch, Yaw, Dutch Roll, FOV, Shake) & vị trí 3D của Ngôi Sao 5 Sao
+            const cam = computeSkyGachaCamera(summonElapsed);
+            const meteorPos = computeSkyMeteor3DPos(summonElapsed);
+            const isAwakened5Star = summonElapsed >= 2.25;
 
-            // 2. Vẽ 3 Vòng Tinh Cầu 3D xoay quanh Cổng Trời Thiên Đỉnh (skyCy)
+            // 2. Vẽ Bầu Trời 3D, 14 Tầng Mây Tinh Vân 3D, Trăng Rằm/Cực Quang/Cột Pha Lê & Cổng Trời Thiên Đỉnh
+            const portalIntensity = Math.min(1, summonElapsed / 0.42);
+            drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, summonElapsed, portalIntensity, screenCx, screenCy, curVw, curVh, cam, meteorPos);
+
+            // 3. Vẽ 3 Vòng Tinh Cầu Khắc Chòm Sao 3D xoay quanh Cổng Trời Thiên Đỉnh (0, -420, -920)
             for (let r = 0; r < skyZenithRings.length; r++) {
                 const zr = skyZenithRings[r];
-                zr.cy = skyWorldY;
-                zr.rx += zr.vrx * dt;
-                zr.ry += zr.vry * dt;
-                zr.rz += zr.vrz * dt;
-                zr.radius = (68 + r * 30) + Math.sin(summonElapsed * 3.8 + r) * 9;
-                drawSplit3DRing(ctxBack, ctxFront, zr, screenCx, screenCy, focal, 0);
+                const speedBoost = (summonElapsed >= 1.05 && summonElapsed <= 1.85) ? 2.15 : 1.0;
+                zr.rx += zr.vrx * dt * speedBoost;
+                zr.ry += zr.vry * dt * speedBoost;
+                zr.rz += zr.vrz * dt * speedBoost;
+                zr.radius = (128 + r * 56) + Math.sin(summonElapsed * 3.8 + r) * 14;
+                drawCamera3DRing(ctxBack, ctxFront, zr, cam, screenCx, screenCy);
             }
 
-            // 3. Màn 1 (0.00s -> 1.05s): Viên Ngọc Chân Dung của người dùng bay từ giữa màn hình lên Cổng Trời để gửi ước nguyện
-            if (summonElapsed < 1.05) {
-                const p = Math.max(0, Math.min(1, (summonElapsed - 0.10) / 0.92));
+            // 4. SHOT 1 (0.00s -> 1.32s): Viên Ngọc Chân Dung (Khung Huy Chương Chạm Khắc Vàng 24K) bay từ cận cảnh lên Cổng Trời 3D
+            if (summonElapsed < 1.32) {
+                const p = Math.max(0, Math.min(1, (summonElapsed - 0.08) / 1.18));
                 const easeAscend = p * p * (3 - 2 * p);
-                const medX = screenCx + Math.sin(p * Math.PI) * 20;
-                const medY = screenCy + (skyCy - screenCy) * easeAscend;
-                const medScale = (1 - easeAscend * 0.82) * Math.min(1, summonElapsed / 0.20);
-                const medAlpha = p < 0.78 ? Math.min(1, summonElapsed / 0.18) : Math.max(0, (1 - p) / 0.22);
+                const medWx = Math.sin(p * Math.PI * 1.5) * 42 * (1 - easeAscend);
+                const medWy = 95 + (-420 - 95) * easeAscend;
+                const medWz = 140 + (-920 - 140) * easeAscend;
+                const medProj = project3DWithCam(medWx, medWy, medWz, cam, screenCx, screenCy);
+                const medAlpha = p < 0.80 ? Math.min(1, summonElapsed / 0.18) : Math.max(0, (1 - p) / 0.20);
 
-                if (medAlpha > 0.02) {
+                if (medProj && medAlpha > 0.02) {
+                    const medScale = medProj.scale * Math.min(1, summonElapsed / 0.20);
                     ctxFront.save();
+                    ctxFront.translate(medProj.sx, medProj.sy);
                     ctxFront.globalAlpha = medAlpha;
-                    const haloR = 72 * medScale;
-                    const haloGrad = ctxFront.createRadialGradient(medX, medY, 4, medX, medY, Math.max(8, haloR));
-                    haloGrad.addColorStop(0, 'rgba(255, 252, 224, 0.95)');
-                    haloGrad.addColorStop(0.45, 'rgba(245, 194, 66, 0.55)');
+
+                    // Hào quang vàng kim 24K bao quanh Viên Ngọc Chân Dung
+                    const haloR = Math.max(12, 86 * medScale);
+                    const haloGrad = ctxFront.createRadialGradient(0, 0, 4, 0, 0, haloR);
+                    haloGrad.addColorStop(0, 'rgba(255, 253, 230, 0.98)');
+                    haloGrad.addColorStop(0.45, 'rgba(245, 194, 66, 0.62)');
                     haloGrad.addColorStop(1, 'rgba(245, 194, 66, 0)');
                     ctxFront.fillStyle = haloGrad;
                     ctxFront.beginPath();
-                    ctxFront.arc(medX, medY, Math.max(8, haloR), 0, Math.PI * 2);
+                    ctxFront.arc(0, 0, haloR, 0, Math.PI * 2);
                     ctxFront.fill();
 
                     if (window.skyOracleUserThumbCanvas) {
-                        const drawR = 46 * medScale;
-                        ctxFront.drawImage(window.skyOracleUserThumbCanvas, medX - drawR, medY - drawR, drawR * 2, drawR * 2);
+                        const drawR = 52 * medScale;
+                        ctxFront.drawImage(window.skyOracleUserThumbCanvas, -drawR, -drawR, drawR * 2, drawR * 2);
+                        // Viền Khung Huy Chương Ngọc Trai & Vàng 24K quanh ảnh chân dung
+                        ctxFront.strokeStyle = '#ffd700';
+                        ctxFront.lineWidth = Math.max(1.5, 3.2 * medScale);
+                        ctxFront.beginPath();
+                        ctxFront.arc(0, 0, drawR, 0, Math.PI * 2);
+                        ctxFront.stroke();
+                        for (let b = 0; b < 8; b++) {
+                            const ba = (b / 8) * Math.PI * 2 + summonElapsed * 2.5;
+                            const pr = 5.5 * medScale;
+                            ctxFront.drawImage(atlas.pearl, Math.cos(ba) * drawR - pr, Math.sin(ba) * drawR - pr, pr * 2, pr * 2);
+                        }
+                    }
+                    ctxFront.restore();
+
+                    // Đuôi bụi tinh tú cuốn theo Viên Ngọc Chân Dung bay lên Cổng Trời
+                    if (Math.random() < 0.72) {
+                        spawnSkyMeteorWakeParticle(medWx, medWy, medWz, true, 0.45);
+                    }
+                }
+            } else if (!hasTriggeredZenithFlash) {
+                // Khoảnh khắc Viên Ngọc chạm Cổng Trời (t = 1.32s) -> Nổ Chớp Ngang Anamorphic & Phóng Tinh Tú 5 Sao!
+                hasTriggeredZenithFlash = true;
+                for (let k = 0; k < 18; k++) {
+                    spawnSkyMeteorWakeParticle(0, -420, -920, false, 1.35);
+                }
+                skyShockwaves.push({
+                    wx: 0, wy: -420, wz: -920,
+                    rx: 1.15, ry: 0.15, rz: 0,
+                    radius: 25, maxRadius: 460,
+                    life: 0, maxLife: 0.85,
+                    color: '#7dd3fc', glow: '#ffffff'
+                });
+            }
+
+            // Tia Chớp Ngang Điện Ảnh (Anamorphic Zenith Lens Flare) khi Cổng Trời Khai Mở (1.18s -> 1.68s)
+            if (summonElapsed >= 1.18 && summonElapsed <= 1.68) {
+                const fp = (summonElapsed - 1.18) / 0.50;
+                const fAlpha = Math.sin(fp * Math.PI);
+                const gateProj = project3DWithCam(0, -420, -920, cam, screenCx, screenCy);
+                if (gateProj) {
+                    ctxFront.save();
+                    ctxFront.translate(gateProj.sx, gateProj.sy);
+                    ctxFront.rotate(-cam.roll);
+                    ctxFront.globalAlpha = fAlpha * 0.95;
+                    ctxFront.fillStyle = '#ffffff';
+                    ctxFront.beginPath();
+                    ctxFront.ellipse(0, 0, curVw * 0.68 * fAlpha, 9 * (1 - fp * 0.4), 0, 0, Math.PI * 2);
+                    ctxFront.fill();
+                    ctxFront.restore();
+                }
+            }
+
+            // 5. SHOT 2 & SHOT 3 (1.32s -> 4.70s): VÌ TINH TÚ 5 SAO LAO XUYÊN KHÔNG GIAN 3D & THỨC TỈNH HOÀNG KIM 24K
+            if (meteorPos.active) {
+                // Khoảnh khắc Thức Tỉnh 5 Sao Vàng 24K giữa không trung (t = 2.25s) -> Bùng Vòng Sóng Xung Kích Sonic Boom 3D!
+                if (isAwakened5Star && !hasTriggeredAwakeningBoom) {
+                    hasTriggeredAwakeningBoom = true;
+                    for (let k = 0; k < 28; k++) {
+                        spawnSkyMeteorWakeParticle(meteorPos.x, meteorPos.y, meteorPos.z, true, 1.65);
+                    }
+                    skyShockwaves.push({
+                        wx: meteorPos.x, wy: meteorPos.y, wz: meteorPos.z,
+                        rx: 0.85, ry: -0.35, rz: 0.2,
+                        radius: 20, maxRadius: 420,
+                        life: 0, maxLife: 0.82,
+                        color: '#ffd700', glow: skyTheme.cometAwakenHalo
+                    });
+                    skyShockwaves.push({
+                        wx: meteorPos.x, wy: meteorPos.y, wz: meteorPos.z,
+                        rx: -0.75, ry: 0.45, rz: -0.3,
+                        radius: 16, maxRadius: 340,
+                        life: 0, maxLife: 0.72,
+                        color: skyTheme.ringColorB, glow: '#ffffff'
+                    });
+                }
+
+                // 5A. Vẽ 26 Vệt Xé Gió 3D (Genshin Speed-Lines) lao ngược qua ống kính Camera
+                const speedLineIntensity = summonElapsed < 1.65
+                    ? (summonElapsed - 1.32) / 0.33
+                    : (summonElapsed > 4.40 ? Math.max(0, (4.70 - summonElapsed) / 0.30) : 1);
+                if (speedLineIntensity > 0.02) {
+                    ctxFront.save();
+                    ctxFront.lineCap = 'round';
+                    for (let l = 0; l < skySpeedLines.length; l++) {
+                        const sl = skySpeedLines[l];
+                        const curZ = ((sl.zOffset + summonElapsed * sl.speed) % 1400) - 950;
+                        const lx = Math.cos(sl.ang) * sl.rad;
+                        const ly = Math.sin(sl.ang) * sl.rad;
+                        const pHead = project3DWithCam(lx, ly, curZ, cam, screenCx, screenCy);
+                        const pTail = project3DWithCam(lx, ly, curZ - sl.len, cam, screenCx, screenCy);
+                        if (!pHead || !pTail) continue;
+                        ctxFront.globalAlpha = speedLineIntensity * 0.36;
+                        ctxFront.strokeStyle = sl.color;
+                        ctxFront.lineWidth = Math.max(1.0, 2.4 * pHead.scale);
+                        ctxFront.beginPath();
+                        ctxFront.moveTo(pTail.sx, pTail.sy);
+                        ctxFront.lineTo(pHead.sx, pHead.sy);
+                        ctxFront.stroke();
                     }
                     ctxFront.restore();
                 }
 
-                // Đuôi sao vàng bay theo viên ngọc chân dung lên trời
-                if (Math.random() < 0.65) {
-                    particles.push({
-                        type: Math.random() < 0.6 ? 'star' : 'petal',
-                        isGold: true,
-                        isSakura: true,
-                        hasTrail: true,
-                        x: (medX - screenCx) + (Math.random() - 0.5) * 24,
-                        y: (medY - screenCy) + (Math.random() - 0.5) * 18,
-                        z: (Math.random() - 0.5) * 60,
-                        vx: (Math.random() - 0.5) * 55,
-                        vy: -120 - Math.random() * 90,
-                        vz: (Math.random() - 0.5) * 40,
-                        gravity: -30,
-                        drag: 0.9,
-                        vortex: 0,
-                        flutter: 35,
-                        phase: Math.random() * 6,
-                        size: 7 + Math.random() * 5,
-                        colorMid: '#ffb2c9',
-                        colorEnd: '#d83a6f',
-                        rx: 0, ry: 0, rz: Math.random() * 6,
-                        vrx: 3, vry: 3, vrz: 5,
-                        alpha: 1,
-                        life: 0,
-                        maxLife: 0.65
+                // 5B. Ghi lại lịch sử vị trí 3D để vẽ Dải Đuôi Sao Băng Lụa & Plasma Xoắn Kép 3D (3D Double-Helix Comet Wake)
+                skyMeteorTrailPts.push({
+                    x: meteorPos.x,
+                    y: meteorPos.y,
+                    z: meteorPos.z,
+                    t: summonElapsed,
+                    isGold: isAwakened5Star
+                });
+                if (skyMeteorTrailPts.length > 44) {
+                    skyMeteorTrailPts.shift();
+                }
+
+                // Vẽ Đuôi Sao Băng Đa Lớp (Lớp Hào Quang Plasma Mềm + 2 Dải Lụa Xoắn Kép 3D + Ngọc Trai/Cánh Hoa đính dọc đuôi)
+                if (skyMeteorTrailPts.length >= 2) {
+                    ctxBack.save();
+                    ctxFront.save();
+                    ctxBack.lineCap = 'round';
+                    ctxFront.lineCap = 'round';
+                    for (let i = 1; i < skyMeteorTrailPts.length; i++) {
+                        const u = i / (skyMeteorTrailPts.length - 1);
+                        const pt0 = skyMeteorTrailPts[i - 1];
+                        const pt1 = skyMeteorTrailPts[i];
+
+                        // Xoắn kép 3D (Double Helix) quanh trục đường bay của sao băng
+                        const helixAng = pt1.t * 16 + i * 0.38;
+                        const helixRad = (1 - u) * 28 + 4;
+                        const prMain0 = project3DWithCam(pt0.x, pt0.y, pt0.z, cam, screenCx, screenCy);
+                        const prMain1 = project3DWithCam(pt1.x, pt1.y, pt1.z, cam, screenCx, screenCy);
+                        if (!prMain0 || !prMain1) continue;
+
+                        const tCtx = prMain1.cz < 0 ? ctxBack : ctxFront;
+                        // Lớp 1: Luồng Plasma Tinh Vân rộng mềm mại
+                        tCtx.globalAlpha = u * u * 0.34;
+                        tCtx.strokeStyle = pt1.isGold ? skyTheme.trailHelixA : '#38bdf8';
+                        tCtx.lineWidth = Math.max(2, 34 * u * prMain1.scale);
+                        tCtx.beginPath();
+                        tCtx.moveTo(prMain0.sx, prMain0.sy);
+                        tCtx.lineTo(prMain1.sx, prMain1.sy);
+                        tCtx.stroke();
+
+                        // Lớp 2: Lõi Ánh Sáng Hoàng Kim 24K sắc nét ở tâm đuôi sao băng
+                        tCtx.globalAlpha = Math.pow(u, 1.4) * 0.92;
+                        tCtx.strokeStyle = pt1.isGold ? '#fff8d6' : '#e0f7fa';
+                        tCtx.lineWidth = Math.max(1.2, 11 * u * prMain1.scale);
+                        tCtx.beginPath();
+                        tCtx.moveTo(prMain0.sx, prMain0.sy);
+                        tCtx.lineTo(prMain1.sx, prMain1.sy);
+                        tCtx.stroke();
+
+                        // Lớp 3: 2 Sợi Dây Lụa Ánh Sáng Xoắn Kép 3D (Helix Strand A & B)
+                        const hxA = pt1.x + Math.cos(helixAng) * helixRad;
+                        const hyA = pt1.y + Math.sin(helixAng) * helixRad;
+                        const hzA = pt1.z + Math.sin(helixAng * 0.7) * helixRad;
+                        const prA = project3DWithCam(hxA, hyA, hzA, cam, screenCx, screenCy);
+                        if (prA && i % 2 === 0) {
+                            tCtx.globalAlpha = u * 0.85;
+                            tCtx.fillStyle = pt1.isGold ? skyTheme.trailHelixB : '#c084fc';
+                            tCtx.beginPath();
+                            tCtx.arc(prA.sx, prA.sy, Math.max(1.2, 4.2 * u * prA.scale), 0, Math.PI * 2);
+                            tCtx.fill();
+
+                            // Đính Ngọc Trai 3D hoặc Cánh Hoa 3D dọc theo dải xoắn kép cho chủ đề Ribbon / Bloom / Sakura
+                            if (i % 6 === 0 && u > 0.3) {
+                                const spR = Math.max(3, 9.5 * u * prA.scale);
+                                if (cfg.id === 'ribbon') {
+                                    tCtx.drawImage(atlas.pearl, prA.sx - spR, prA.sy - spR, spR * 2, spR * 2);
+                                } else if (cfg.id === 'bloom' || cfg.id === 'sakura') {
+                                    const pSpr = cfg.id === 'sakura' ? atlas.sakuraPetal : atlas.camelliaPetal;
+                                    tCtx.drawImage(pSpr, prA.sx - spR * 1.2, prA.sy - spR * 1.2, spR * 2.4, spR * 2.4);
+                                }
+                            }
+                        }
+                    }
+                    ctxBack.restore();
+                    ctxFront.restore();
+                }
+
+                // 5C. Phun các thực thể 3D (Hồ điệp vàng, Cánh hoa nhung, Anh đào, Kim cương, Ngọc trai) bay theo Sao Băng
+                skyParticleAccum += dt;
+                if (skyParticleAccum >= 0.028) {
+                    skyParticleAccum = 0;
+                    spawnSkyMeteorWakeParticle(meteorPos.x, meteorPos.y, meteorPos.z, isAwakened5Star, 1.0);
+                    if (summonElapsed >= 2.95) {
+                        // Ở Shot 3 (Cận cảnh Flyby), tăng mật độ hạt 3D để nhìn rõ từng cánh bướm/cánh hoa/kim cương lướt qua ống kính!
+                        spawnSkyMeteorWakeParticle(meteorPos.x, meteorPos.y, meteorPos.z, true, 1.15);
+                    }
+                }
+
+                // 5D. Vẽ Đầu Sao Băng 5 Sao & Hộ Vệ 3D Độc Bản theo từng Chủ Đề
+                drawThemeGachaMeteorCore(ctxFront, meteorPos, cam, summonElapsed, isAwakened5Star, screenCx, screenCy);
+            }
+
+            // 6. SHOT 4 (4.70s -> 5.85s): CÚ ĐÁP SIÊU TÂN TINH 3D TẠI TÂM SÂN KHẤU & ĐẠI PHÁP TRẬN CHỦ ĐỀ 3D
+            if (summonElapsed >= 4.70) {
+                if (!hasTriggeredImpactSupernova) {
+                    hasTriggeredImpactSupernova = true;
+                    skyMeteorTrailPts.length = 0;
+                    // Đại bùng nổ 42 thực thể 3D đặc trưng của Chủ Đề tại tâm sân khấu (0, 0, 0)
+                    for (let k = 0; k < 42; k++) {
+                        spawnSkyMeteorWakeParticle(0, 0, 0, true, 2.15);
+                    }
+                    // 3 Vòng Sóng Xung Kích 3D nghiêng góc chéo (3D Tilted Supernova Shockwave Rings)
+                    skyShockwaves.push({
+                        wx: 0, wy: 0, wz: 0,
+                        rx: 1.12, ry: 0.18, rz: 0,
+                        radius: 24, maxRadius: 480,
+                        life: 0, maxLife: 1.05,
+                        color: skyTheme.ringColorA, glow: '#ffffff'
+                    });
+                    skyShockwaves.push({
+                        wx: 0, wy: 0, wz: 0,
+                        rx: -0.95, ry: 0.52, rz: 0.4,
+                        radius: 18, maxRadius: 390,
+                        life: 0, maxLife: 0.92,
+                        color: skyTheme.ringColorB, glow: '#ffd700'
+                    });
+                    skyShockwaves.push({
+                        wx: 0, wy: 0, wz: 0,
+                        rx: 0.35, ry: -1.05, rz: -0.3,
+                        radius: 14, maxRadius: 330,
+                        life: 0, maxLife: 0.84,
+                        color: skyTheme.ringColorC, glow: '#ffd700'
                     });
                 }
-            } else if (!hasTriggeredZenithFlash) {
-                // Khoảnh khắc viên ngọc chạm Cổng Trời (t = 1.05s) -> Bùng sáng & phát sóng tín hiệu đầu tiên từ bầu trời xuống!
-                hasTriggeredZenithFlash = true;
-                spawnSealBreakExplosion(skyWorldY);
-                skyRipples.push({
-                    y: skyCy,
-                    targetY: screenCy + 85,
-                    rx: 32,
-                    ry: 12,
-                    life: 0,
-                    maxLife: 1.25,
-                    color: '#ffe898'
-                });
+
+                // Ánh chớp Siêu Tân Tinh (Impact Anamorphic Cross-Flash) tại t = 4.70s -> 5.18s
+                if (summonElapsed < 5.18) {
+                    const ip = (summonElapsed - 4.70) / 0.48;
+                    const iAlpha = Math.pow(1 - ip, 1.8);
+                    ctxFront.save();
+                    ctxFront.translate(screenCx + (cam.shakeX || 0), screenCy + (cam.shakeY || 0));
+                    const flashGrad = ctxFront.createRadialGradient(0, 0, 6, 0, 0, Math.max(curVw, curVh) * 0.55);
+                    flashGrad.addColorStop(0, `rgba(255, 255, 245, ${(iAlpha * 0.95).toFixed(3)})`);
+                    flashGrad.addColorStop(0.28, `rgba(255, 224, 115, ${(iAlpha * 0.65).toFixed(3)})`);
+                    flashGrad.addColorStop(1, 'rgba(255, 224, 115, 0)');
+                    ctxFront.fillStyle = flashGrad;
+                    ctxFront.beginPath();
+                    ctxFront.arc(0, 0, Math.max(curVw, curVh) * 0.55, 0, Math.PI * 2);
+                    ctxFront.fill();
+
+                    // Tia chớp chữ thập kim hoàn ngang màn hình
+                    ctxFront.globalAlpha = iAlpha * 0.92;
+                    ctxFront.fillStyle = '#ffffff';
+                    ctxFront.beginPath();
+                    ctxFront.ellipse(0, 0, curVw * 0.65 * (0.5 + 0.5 * ip), 10 * (1 - ip), 0, 0, Math.PI * 2);
+                    ctxFront.fill();
+                    ctxFront.restore();
+                }
+
+                // Kết tinh Đại Pháp Trận Kim Hoàn 3D của Chủ Đề tại tâm sân khấu (4.70s -> 5.85s) trước khi Bì Thư bước ra
+                drawSummonCenterMotif(ctxFront, cfg.id, summonElapsed - 4.70, screenCx + (cam.shakeX || 0), screenCy + (cam.shakeY || 0));
             }
 
-            // 4. Màn 2 (0.45s -> 2.85s): Sóng Tín Hiệu Thiên Hà (Sky Signal Ripples) lan truyền từ bầu trời xuống + Các Sứ Giả Ánh Sao bay xuống
-            skyRippleAccum += dt;
-            if (skyRippleAccum >= 0.54) {
-                skyRippleAccum = 0;
-                skyRipples.push({
-                    y: skyCy + 6,
-                    targetY: screenCy + 95,
-                    rx: 28,
-                    ry: 10,
-                    life: 0,
-                    maxLife: 1.28,
-                    color: skyRipples.length % 2 === 0 ? '#ffe898' : '#ffb2c9'
-                });
-            }
-
-            for (let wIdx = skyRipples.length - 1; wIdx >= 0; wIdx--) {
-                const rp = skyRipples[wIdx];
-                rp.life += dt;
-                if (rp.life >= rp.maxLife) {
-                    skyRipples.splice(wIdx, 1);
+            // 7. Cập nhật & Vẽ các Vòng Sóng Xung Kích 3D (skyShockwaves)
+            for (let sIdx = skyShockwaves.length - 1; sIdx >= 0; sIdx--) {
+                const sw = skyShockwaves[sIdx];
+                sw.life += dt;
+                if (sw.life >= sw.maxLife) {
+                    skyShockwaves.splice(sIdx, 1);
                     continue;
                 }
-                const prog = rp.life / rp.maxLife;
-                const easeP = 1 - Math.pow(1 - prog, 2.2);
-                const curY = rp.y + (rp.targetY - rp.y) * easeP;
-                const curRx = 30 + easeP * 168;
-                const curRy = 11 + easeP * 54;
-                const wAlpha = prog < 0.2 ? (prog / 0.2) : Math.max(0, (1 - prog) / 0.8);
-
-                ctxFront.save();
-                ctxFront.globalAlpha = wAlpha * 0.78;
-                ctxFront.strokeStyle = rp.color;
-                ctxFront.lineWidth = 2.0 * (1 - prog * 0.45);
-                ctxFront.beginPath();
-                ctxFront.ellipse(screenCx, curY, curRx, curRy, 0, 0, Math.PI * 2);
-                ctxFront.stroke();
-
-                // 4 hạt sao sáng chạy trên vành sóng tín hiệu từ trời giáng xuống
-                for (let s = 0; s < 4; s++) {
-                    const sa = prog * Math.PI * 2.5 + (s * Math.PI) / 2;
-                    const sx = screenCx + Math.cos(sa) * curRx;
-                    const sy = curY + Math.sin(sa) * curRy;
-                    ctxFront.fillStyle = '#fffef4';
-                    ctxFront.beginPath();
-                    ctxFront.arc(sx, sy, 2.6, 0, Math.PI * 2);
-                    ctxFront.fill();
-                }
-                ctxFront.restore();
+                const prog = sw.life / sw.maxLife;
+                const easeSw = 1 - Math.pow(1 - prog, 2.6);
+                sw.radius = 22 + (sw.maxRadius - 22) * easeSw;
+                sw.rz += dt * 2.4;
+                drawCamera3DRing(ctxBack, ctxFront, {
+                    cx: sw.wx, cy: sw.wy, cz: sw.wz,
+                    radius: sw.radius,
+                    rx: sw.rx, ry: sw.ry, rz: sw.rz,
+                    color: sw.color,
+                    glowColor: sw.glow,
+                    lineWidth: 3.2 * (1 - prog * 0.65),
+                    dashed: false,
+                    alpha: (1 - prog) * 0.95
+                }, cam, screenCx, screenCy);
             }
 
-            // Phun các hạt Hồ Điệp Vàng, Cánh Hoa, Sao Băng từ Cổng Trời bay dọc luồng sáng xuống sân khấu
-            skyParticleAccum += dt;
-            if (skyParticleAccum >= 0.042) {
-                skyParticleAccum = 0;
-                spawnSkyOracleDescendingParticle(skyWorldY);
-                if (summonElapsed > 0.9) {
-                    spawnSkyOracleDescendingParticle(skyWorldY);
-                }
-            }
-
+            // 8. Cập nhật & Vẽ toàn bộ Hạt Vật Lý 3D có Texture Kim Hoàn qua Phép Chiếu Camera 3D
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.life += dt;
@@ -6860,17 +8029,23 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 p.ry += p.vry * dt;
                 p.rz += p.vrz * dt;
                 const lr = p.life / p.maxLife;
-                p.alpha = lr < 0.16 ? lr / 0.16 : (lr > 0.72 ? (1 - lr) / 0.28 : 1);
-                draw3DProjectedParticle(p.z < 0 ? ctxBack : ctxFront, p, screenCx, screenCy, focal);
+                p.alpha = lr < 0.14 ? lr / 0.14 : (lr > 0.72 ? (1 - lr) / 0.28 : 1);
+
+                // Chiếu hạt qua góc máy Camera 3D (cam)
+                const pr = project3DWithCam(p.x, p.y, p.z, cam, screenCx, screenCy);
+                if (pr) {
+                    const fakeP = {
+                        ...p,
+                        x: (pr.sx - screenCx) / pr.scale,
+                        y: (pr.sy - screenCy) / pr.scale,
+                        z: cam.fov - cam.fov / pr.scale
+                    };
+                    draw3DProjectedParticle(pr.cz < 0 ? ctxBack : ctxFront, fakeP, screenCx, screenCy, cam.fov);
+                }
             }
 
-            // Từ 1.75s -> 2.85s: Kết tinh Biểu Tượng Ánh Sáng 3D của thông điệp tại tâm sân khấu
-            if (summonElapsed >= 1.75) {
-                drawSummonCenterMotif(ctxFront, cfg.id, summonElapsed - 1.75, screenCx, screenCy);
-            }
-
-            // Khi hoàn tất 2.85s nghi thức chờ đợi thông điệp từ bầu trời & ảnh thiệp ngẫu nhiên đã kết xuất xong 100% -> Bì thư từ cổng trời hạ xuống!
-            if (window.isRecipientCardImageReady && summonElapsed >= 2.85) {
+            // Khi hoàn tất trọn vẹn 5.85 giây Đại Cảnh Gacha 5 Sao 3D & ảnh thiệp đã kết xuất xong 100% -> Chuyển sang Pha Bì Thư Kết Tinh!
+            if (window.isRecipientCardImageReady && summonElapsed >= SKY_ORACLE_TOTAL) {
                 if (cardImg && finalResultImg && finalResultImg.src) {
                     cardImg.src = finalResultImg.src;
                 }
@@ -6878,38 +8053,27 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 arriveStartTime = now;
                 stage.classList.remove('is-summoning');
                 stage.classList.add('is-arriving');
-                skyRipples.push({
-                    y: skyCy,
-                    targetY: screenCy + 60,
-                    rx: 38,
-                    ry: 15,
-                    life: 0,
-                    maxLife: 0.95,
-                    color: '#fff2a6'
-                });
             }
 
             u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
             return;
         }
 
-        // ====== TRẠNG THÁI 0-SKY-B: BÌ THƯ 3D TỪ CỔNG TRỜI LƯỚT THEO LUỒNG SÁNG HẠ XUỐNG ĐỂ NGƯỜI DÙNG CHẠM MỞ ======
+        // ====== TRẠNG THÁI 0-SKY-B: PHONG BÌ 3D KẾT TINH TỪ TÂM SIÊU TÂN TINH & ĐÓNG DẤU SÁP VÀNG 24K (1.18 GIÂY) ======
         if (u3dCurrentDirectorState === 'sky_descending') {
             const arriveElapsed = (now - arriveStartTime) / 1000;
-            const SKY_DESCEND_TOTAL = 1.12;
-            const skyCy = curVh * 0.135;
-            const skyOffsetY = skyCy - screenCy;
+            const SKY_DESCEND_TOTAL = 1.18;
 
-            // Giữ các luồng sáng từ bầu trời chiếu rọi theo bì thư rồi dịu dần khi bì thư đáp vào giữa màn hình
-            const beamFade = Math.max(0, 1 - Math.pow(arriveElapsed / SKY_DESCEND_TOTAL, 1.65));
-            drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, 2.85 + arriveElapsed, beamFade, screenCx, screenCy, curVw, curVh);
+            // Giữ nền trời 3D dịu dần mượt mà khi Phong Bì 3D hiện ra ở chính tâm sân khấu
+            const beamFade = Math.max(0, 1 - Math.pow(arriveElapsed / SKY_DESCEND_TOTAL, 1.55));
+            drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, 5.85 + arriveElapsed, beamFade, screenCx, screenCy, curVw, curVh);
 
-            // Pha 1 (0.00s -> 0.82s): Bì thư 3D xuất hiện từ chính tâm Cổng Trời (skyCy) và lượn êm xuống giữa sân khấu
-            const envP = Math.min(1, arriveElapsed / 0.82);
+            // Pha 1 (0.00s -> 0.84s): Phong bì 3D kết tinh từ tâm ánh sáng Siêu Tân Tinh và xoay 3D uyển chuyển vào giữa màn hình
+            const envP = Math.min(1, arriveElapsed / 0.84);
             const easeEnv = 1 - Math.pow(1 - envP, 3);
 
-            // Pha 2 (0.64s -> 1.12s): Phong Ấn Vàng 24K từ bầu trời giáng xuống đóng dấu lên nắp phong bì
-            const sealP = Math.max(0, Math.min(1, (arriveElapsed - 0.64) / 0.48));
+            // Pha 2 (0.66s -> 1.18s): Phong Ấn Vàng 24K từ trên giáng xuống đóng dấu lên nắp phong bì
+            const sealP = Math.max(0, Math.min(1, (arriveElapsed - 0.66) / 0.52));
             let sealScale = 2.5;
             let sealTy = -56;
             let sealOp = 0;
@@ -6937,13 +8101,13 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 }
             }
 
-            const envScale = 0.22 + 0.78 * easeEnv;
-            const envTx = Math.sin(envP * Math.PI) * 18 * (1 - easeEnv);
-            const envTy = skyOffsetY * (1 - easeEnv) + envRecoilY;
-            const envRx = 52 * (1 - easeEnv) + 6;
-            const envRy = -20 * (1 - easeEnv);
-            const envRz = 10 * (1 - easeEnv);
-            const envOp = Math.min(1, envP * 2.1);
+            const envScale = 0.26 + 0.74 * easeEnv;
+            const envTx = Math.sin(envP * Math.PI) * 16 * (1 - easeEnv);
+            const envTy = -64 * (1 - easeEnv) + envRecoilY;
+            const envRx = 38 * (1 - easeEnv) + 6;
+            const envRy = -24 * (1 - easeEnv);
+            const envRz = 8 * (1 - easeEnv);
+            const envOp = Math.min(1, envP * 2.2);
 
             const envTransform = `perspective(1400px) translate3d(${envTx.toFixed(1)}px, ${envTy.toFixed(1)}px, 0px) scale(${envScale.toFixed(3)}) rotateX(${envRx.toFixed(2)}deg) rotateY(${envRy.toFixed(2)}deg) rotateZ(${envRz.toFixed(2)}deg)`;
             backRig.style.transform = envTransform;
@@ -6963,33 +8127,9 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
             cardActor.style.opacity = '0';
 
-            // Hạt sao vàng & cánh hoa tỏa ra dọc đường bì thư hạ xuống từ trời
-            if (envP < 0.82 && Math.random() < 0.7) {
-                particles.push({
-                    type: Math.random() < 0.55 ? 'star' : 'petal',
-                    isGold: true,
-                    isSakura: cfg.id === 'sakura',
-                    hasTrail: false,
-                    x: envTx + (Math.random() - 0.5) * 140 * envScale,
-                    y: envTy + (Math.random() - 0.5) * 60 * envScale,
-                    z: (Math.random() - 0.5) * 120,
-                    vx: (Math.random() - 0.5) * 90,
-                    vy: -60 - Math.random() * 80,
-                    vz: (Math.random() - 0.5) * 80,
-                    gravity: 40,
-                    drag: 0.9,
-                    vortex: 0,
-                    flutter: 50,
-                    phase: Math.random() * 6,
-                    size: 7 + Math.random() * 5,
-                    colorMid: '#ffb2c9',
-                    colorEnd: '#d83a6f',
-                    rx: Math.random() * 5, ry: Math.random() * 5, rz: Math.random() * 5,
-                    vrx: 4, vry: 4, vrz: 4,
-                    alpha: 1,
-                    life: 0,
-                    maxLife: 0.85
-                });
+            // Hạt kim hoàn tỏa ra xung quanh phong bì khi kết tinh
+            if (envP < 0.84 && Math.random() < 0.72) {
+                spawnSkyMeteorWakeParticle(envTx + (Math.random() - 0.5) * 140 * envScale, envTy + (Math.random() - 0.5) * 60 * envScale, (Math.random() - 0.5) * 120, true, 0.75);
             }
 
             for (let i = particles.length - 1; i >= 0; i--) {
@@ -7030,6 +8170,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
             return;
         }
+
 
         // ====== TRẠNG THÁI 0A: TRIỆU HỒI THIỆP BẰNG MOTION 3D (KHI ĐANG TẢI ẢNH TỪ LINK - KHÔNG DÙNG CHỮ LOADING!) ======
         if (u3dCurrentDirectorState === 'summoning') {
