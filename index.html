@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title></title>
 
-    <link rel="stylesheet" href="style.css?v=17.0">
+    <link rel="stylesheet" href="style.css?v=18.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
@@ -224,7 +224,7 @@
             <div id="u3d-card-inner" class="u3d-card-inner">
                 <!-- Mặt trước tấm thiệp (Ảnh thật chất lượng gốc + Ánh kim phản quang theo góc nghiêng 3D) -->
                 <div class="u3d-card-face u3d-card-front">
-                    <img id="u3d-card-img" alt="Thiệp 3D 20/10" draggable="false" />
+                    <img id="u3d-card-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" draggable="false" />
                     <div id="u3d-card-specular" class="u3d-card-specular"></div>
                     <div class="u3d-card-gold-rim"></div>
                 </div>
@@ -716,7 +716,6 @@
                             <span class="hint-icon">👆</span>
                             <span>Kéo & phóng to/thu nhỏ ảnh</span>
                         </div>
-                        <div id="card-floating-badge" class="card-floating-badge" aria-hidden="true">✨ 01/20 • Vòm Lụa</div>
                     </div>
 
                     <!-- 25.92% dưới: Hộp lời chúc trực tiếp (Hiển thị Phong ấn Bất ngờ hoặc Lời chúc Tự soạn) -->
@@ -866,28 +865,32 @@
                         <button type="button" class="motion-chip" data-motion="sakura">🌸 Anh Đào</button>
                         <button type="button" class="motion-chip" data-motion="hearts">💎 Kim Cương</button>
                     </div>
-                    <div class="deck-actions-grid">
-                        <button type="button" id="step2-preview-motion-btn" class="deck-action-btn primary-pill">
+                    <div class="deck-actions-grid deck-actions-single">
+                        <button type="button" id="step2-preview-motion-btn" class="deck-action-btn primary-pill" style="grid-column: 1 / -1;">
                             👁️ Xem thử mở 3D
-                        </button>
-                        <button type="button" id="step2-preset-link-btn" class="deck-action-btn secondary-pill">
-                            🏷️ Đặt tên Thiệp/Link
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Nút Tạo Thiệp 20/10 chính (Kích hoạt Hiệu ứng 3D Motion đã chọn & Tinh tú xoay) -->
+            <!-- Nút Tạo Thiệp chính -->
             <div class="action-buttons">
                 <button id="generate-final-btn" class="btn-primary btn-shimmer">
-                    <span class="icon">✨</span> Tạo thiệp 3D 20/10 <span class="create-btn-sub" id="create-btn-sub">(Mở lời chúc bất ngờ 🌸)</span>
+                    Tạo thiệp
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Bước 3: Sân Khấu Trình Bày Thành Phẩm Lung Linh (Grand Masterpiece Showcase) -->
-    <div id="step-3" class="screen screen-result">
+    <div id="step-3" class="screen screen-result" data-motion="bloom">
+        <!-- Không Gian Nền Nghệ Thuật 3D Động Riêng Biệt Theo Từng Chủ Đề Motion (6 Thế Giới Sống Động Sau Khi Mở Thiệp) -->
+        <div id="showcase-motion-sanctuary" class="showcase-motion-sanctuary" data-motion="bloom" aria-hidden="true">
+            <div class="sanctuary-aura-beam"></div>
+            <div class="sanctuary-sacred-wheel" id="sanctuary-sacred-wheel"></div>
+            <canvas id="showcase-bg-canvas" class="showcase-bg-canvas"></canvas>
+        </div>
+
         <div class="glass-container result-card-container">
             <!-- Thanh điều hướng cân xứng 3 cột trên cùng (Tự động đổi sang chế độ Người Nhận khi mở từ Link) -->
             <div class="result-topbar" id="creator-topbar">
@@ -923,7 +926,7 @@
 
                 <div id="card-showcase" class="card-showcase">
                     <canvas id="final-result-canvas" width="1024" height="2060" style="display: none;"></canvas>
-                    <img id="final-result-img" alt="Thiệp 20/10 của bạn" draggable="false">
+                    <img id="final-result-img" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="" draggable="false">
                     <div class="card-foil-glint" id="card-foil-glint" aria-hidden="true"></div>
                     <div class="card-glass-shine" aria-hidden="true"></div>
                     <span class="showcase-corner-star star-tl" aria-hidden="true">✦</span>
@@ -975,9 +978,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=17.0"></script>
-    <script src="script.js?v=17.0"></script>
-    <script src="intro.js?v=17.0"></script>
+    <script src="wishes.js?v=18.0"></script>
+    <script src="script.js?v=18.0"></script>
+    <script src="intro.js?v=18.0"></script>
 </body>
 
 </html>

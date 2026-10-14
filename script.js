@@ -2216,8 +2216,8 @@ const TOPIC_LABELS_MAP = {
 let floatingBadgeTimer = null;
 
 function showCardFloatingBadge(text) {
-    const activeBadgeId = (step3 && step3.classList.contains('active')) ? 'step3-floating-badge' : 'card-floating-badge';
-    const badge = document.getElementById(activeBadgeId) || document.getElementById('card-floating-badge');
+    if (!step3 || !step3.classList.contains('active')) return;
+    const badge = document.getElementById('step3-floating-badge');
     if (!badge) return;
     badge.textContent = text;
     badge.classList.add('visible');
@@ -2270,8 +2270,8 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // 1. Dòng tiêu đề trên cùng lớn rõ (Hiển thị Tên người nhận nếu đã nhập, hoặc dòng chữ Điều Bất Ngờ Tháng 10)
-    const topTitle = (recipientName || '').trim() || '🌸 Điều Bất Ngờ Tháng 10 🌸';
+    // 1. Dòng tiêu đề trên cùng lớn rõ (Hiển thị Tên người nhận nếu đã nhập, hoặc dòng chữ Dành Cho Bạn)
+    const topTitle = (recipientName || '').trim() || '🌸 Dành Cho Bạn 🌸';
     const titleFontPx = Math.floor(62 * scale);
     ctx.font = recipientFont(titleFontPx);
     ctx.fillStyle = theme.recipientColor;
@@ -2297,17 +2297,21 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     drawFourPointStarPath(ctx, centerX, divY, 9 * scale);
     ctx.fill();
 
-    // 3. Dòng thông điệp bí mật cỡ lớn ở trung tâm hộp chữ
-    const bodyFontPx = Math.floor(48 * scale);
+    // 3. Dòng thông điệp bí mật ở trung tâm hộp chữ: "Lời chúc bất ngờ nhân dịp 20.10 từ BTLMVN"
+    const surpriseLine = 'Lời chúc bất ngờ nhân dịp 20.10 từ BTLMVN';
+    let bodyFontPx = Math.floor(46 * scale);
     ctx.font = quoteFont(bodyFontPx);
-    const textGrad = ctx.createLinearGradient(0, boxY + boxH * 0.42, 0, boxY + boxH * 0.76);
+    while (bodyFontPx > Math.floor(30 * scale) && ctx.measureText(surpriseLine).width > boxW * 0.88) {
+        bodyFontPx -= 1;
+        ctx.font = quoteFont(bodyFontPx);
+    }
+    const textGrad = ctx.createLinearGradient(0, boxY + boxH * 0.46, 0, boxY + boxH * 0.74);
     textGrad.addColorStop(0, theme.textTop);
     textGrad.addColorStop(0.5, theme.textMid);
     textGrad.addColorStop(1, theme.textBottom);
     ctx.fillStyle = textGrad;
 
-    ctx.fillText('Lời chúc 20/10 ngẫu nhiên từ hệ thống', centerX, boxY + boxH * 0.53, boxW * 0.90);
-    ctx.fillText('sẽ mở ra khi bạn bấm “Tạo thiệp” 🌸', centerX, boxY + boxH * 0.68, boxW * 0.90);
+    ctx.fillText(surpriseLine, centerX, boxY + boxH * 0.60, boxW * 0.90);
 
     // 4. Dòng ghi chú phía dưới báo Chủ đề & hướng dẫn chạm để tự viết (cỡ chữ rõ ràng dễ đọc)
     const topicLabel = TOPIC_LABELS_MAP[currentTopic] || 'Ngẫu nhiên';
@@ -2481,10 +2485,6 @@ function selectFrameById(frameId, shouldAnimate = false, slideDir = 0, autoHarmo
         } else {
             triggerCardPulse();
         }
-        if (cfg) {
-            const harmony = CONCEPT_HARMONY_MAP[cfg.concept];
-            showCardFloatingBadge(harmony ? `✨ ${cfg.fullLabel} • ${harmony.label}` : `✨ ${cfg.fullLabel}`);
-        }
     }
 }
 
@@ -2595,20 +2595,21 @@ async function handleImageInput(e) {
         syncColorSwatchesUI(currentColorTheme, false);
     }
 
+    // Căn chuẩn kích thước sân khấu thiệp ngay lập tức (Frame 0) để hiệu ứng FLIP Morph lấy đúng tọa độ đích không bị lệch/giật
+    updateFrameOverlay();
+    fitPreviewAreaToStage();
+    renderStep2WishPreview();
+
     const reader = new FileReader();
     reader.onload = function (event) {
         originalImgSrc = event.target.result;
         requestAnimationFrame(() => {
             fitPreviewAreaToStage();
+            initCropper();
             renderStep2WishPreview();
-            setTimeout(() => {
-                fitPreviewAreaToStage();
-                initCropper();
-                renderStep2WishPreview();
-                initScrollHints();
-                const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
-                if (activeChip) scrollChipIntoCenter(activeChip);
-            }, 60);
+            initScrollHints();
+            const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
+            if (activeChip) scrollChipIntoCenter(activeChip);
         });
     };
     reader.readAsDataURL(file);

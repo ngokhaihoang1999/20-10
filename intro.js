@@ -1321,134 +1321,141 @@
         });
     }
 
-    let activeMorphCleanupTimer = null;
+    let activeMorphCleanupTimers = [];
+
+    function clearActiveMorphTimers() {
+        activeMorphCleanupTimers.forEach((t) => clearTimeout(t));
+        activeMorphCleanupTimers = [];
+    }
 
     function runPhotoMorphToStep2(file) {
         if (!file || !step2El) return;
 
-        // Dọn dẹp actor cũ nếu người dùng thao tác liên tiếp
+        // Dọn dẹp actor & bộ đếm cũ nếu người dùng thao tác liên tiếp
         const oldActor = document.querySelector('.step2-photo-morph-actor');
         if (oldActor) {
             oldActor.remove();
         }
-        if (activeMorphCleanupTimer) {
-            clearTimeout(activeMorphCleanupTimer);
-            activeMorphCleanupTimer = null;
-        }
+        clearActiveMorphTimers();
 
-        // Lấy tọa độ xuất phát ngay tại khu vực trung tâm 3 tấm thiệp mẫu trước khi Bước 1 ẩn đi
+        // Đo tọa độ tâm của tấm thiệp mẫu giữa ở Bước 1 trước khi chuyển sang Bước 2
         let originCx = window.innerWidth / 2;
-        let originCy = window.innerHeight * 0.46;
-        let startW = Math.min(window.innerWidth * 0.56, 210);
-        let startH = startW;
+        let originCy = window.innerHeight * 0.44;
+        let originW = Math.min(window.innerWidth * 0.48, 190);
 
         const centerCard = activeFanSlots[1] || heroFanShowcase;
         if (centerCard) {
             const cRect = centerCard.getBoundingClientRect();
             if (cRect.width > 20 && cRect.height > 20) {
                 originCx = cRect.left + cRect.width / 2;
-                originCy = cRect.top + cRect.height * 0.45;
-                startW = Math.max(cRect.width * 1.18, 176);
-                startH = startW;
+                originCy = cRect.top + cRect.height * 0.44;
+                originW = Math.max(cRect.width * 1.08, 160);
             }
         }
 
-        const startLeft = originCx - startW / 2;
-        const startTop = originCy - startH / 2;
-
-        // Chuẩn bị trạng thái ẩn tạm các thanh công cụ Bước 2 để chờ tấm hình morph vào đúng khung
-        step2El.classList.remove('step2-ui-revealing');
+        // Đặt Bước 2 vào trạng thái chuẩn bị FLIP Morph & Liquid Cascade
+        step2El.classList.remove('step2-ui-revealing', 'step2-preview-ready');
         step2El.classList.add('step2-morph-active', 'step2-ui-hidden');
 
         const blobUrl = URL.createObjectURL(file);
-        const actor = document.createElement('div');
-        actor.className = 'step2-photo-morph-actor';
-        actor.style.left = `${startLeft}px`;
-        actor.style.top = `${startTop}px`;
-        actor.style.width = `${startW}px`;
-        actor.style.height = `${startH}px`;
-        actor.style.borderRadius = '22px';
-        actor.style.transform = 'translate3d(0, 12px, 0) scale(0.84) rotate(-2deg)';
-
-        const img = document.createElement('img');
-        img.src = blobUrl;
-        img.alt = '';
-        actor.appendChild(img);
-        document.body.appendChild(actor);
-
-        // Nhịp 1: Tấm hình vừa chọn nổi bật lên mượt mà ở trung tâm
-        requestAnimationFrame(() => {
-            actor.style.transform = 'translate3d(0, 0, 0) scale(1.03) rotate(0deg)';
-        });
-
-        const morphStartTime = performance.now();
         let pollingFrames = 0;
 
-        function waitForStep2AndGlide() {
+        function startGpuFlipWhenStep2Ready() {
             pollingFrames++;
             const previewAreaWrap = document.getElementById('preview-area-wrap');
             const isStep2Active = step2El.classList.contains('active');
             const destRect = previewAreaWrap ? previewAreaWrap.getBoundingClientRect() : null;
 
-            if (isStep2Active && destRect && destRect.width > 30 && destRect.height > 30) {
-                const elapsed = performance.now() - morphStartTime;
-                const holdDelay = Math.max(0, 95 - elapsed);
+            if (isStep2Active && destRect && destRect.width > 40 && destRect.height > 40) {
+                const actor = document.createElement('div');
+                actor.className = 'step2-photo-morph-actor';
+                actor.style.left = `${destRect.left}px`;
+                actor.style.top = `${destRect.top}px`;
+                actor.style.width = `${destRect.width}px`;
+                actor.style.height = `${destRect.height}px`;
 
-                setTimeout(() => {
-                    // Đọc lại tọa độ đích chính xác của khung hình Bước 2 và morph tấm ảnh về đúng vị trí đó
-                    const finalRect = previewAreaWrap.getBoundingClientRect();
-                    if (finalRect.width > 30 && finalRect.height > 30) {
-                        actor.style.left = `${finalRect.left}px`;
-                        actor.style.top = `${finalRect.top}px`;
-                        actor.style.width = `${finalRect.width}px`;
-                        actor.style.height = `${finalRect.height}px`;
-                        actor.style.borderRadius = '12px';
-                        actor.style.transform = 'translate3d(0, 0, 0) scale(1) rotate(0deg)';
+                const photoImg = document.createElement('img');
+                photoImg.className = 'morph-actor-photo';
+                photoImg.src = blobUrl;
+                photoImg.alt = '';
+                actor.appendChild(photoImg);
+
+                const liveFrameOverlay = document.getElementById('frame-overlay');
+                if (liveFrameOverlay && liveFrameOverlay.src) {
+                    const frameImg = document.createElement('img');
+                    frameImg.className = 'morph-actor-frame';
+                    frameImg.src = liveFrameOverlay.src;
+                    frameImg.alt = '';
+                    actor.appendChild(frameImg);
+                }
+
+                // Tính vector độ lệch FLIP từ vị trí trung tâm Bước 1 về khung #preview-area-wrap Bước 2
+                const destCx = destRect.left + destRect.width / 2;
+                const destCy = destRect.top + destRect.height / 2;
+                const dx = originCx - destCx;
+                const dy = originCy - destCy;
+                const startScale = Math.max(0.54, Math.min(0.86, originW / destRect.width));
+
+                actor.style.transition = 'none';
+                actor.style.borderRadius = '24px';
+                actor.style.opacity = '0.18';
+                actor.style.transform = `translate3d(${dx}px, ${dy + 14}px, 0) scale(${startScale})`;
+
+                document.body.appendChild(actor);
+                void actor.offsetWidth;
+
+                // Bắt đầu đường bay GPU 60fps liền mạch duy nhất (translate3d + scale) về đúng khung ảnh Bước 2
+                requestAnimationFrame(() => {
+                    actor.classList.add('morph-gliding');
+                    actor.style.transition =
+                        'transform 0.78s cubic-bezier(0.16, 1, 0.3, 1), ' +
+                        'border-radius 0.78s cubic-bezier(0.16, 1, 0.3, 1), ' +
+                        'box-shadow 0.78s ease, ' +
+                        'opacity 0.32s ease';
+                    actor.style.opacity = '1';
+                    actor.style.borderRadius = '12px 12px 0 0';
+                    actor.style.transform = 'translate3d(0, 0, 0) scale(1)';
+                });
+
+                // Ngay khi tấm ảnh đang lướt gần về đích (160ms) -> Mở dần hộp lời chúc & các thanh công cụ theo làn sóng mượt mắt
+                activeMorphCleanupTimers.push(setTimeout(() => {
+                    step2El.classList.remove('step2-ui-hidden');
+                    step2El.classList.add('step2-ui-revealing');
+                }, 160));
+
+                // Khi tấm hình đã đáp êm vào vị trí đích (700ms) -> Bật hiển thị #preview-area-wrap ngay bên dưới actor
+                activeMorphCleanupTimers.push(setTimeout(() => {
+                    step2El.classList.add('step2-preview-ready');
+                    if (typeof spawnTouchSparkle === 'function') {
+                        spawnTouchSparkle(destCx, destCy, 7);
                     }
+                }, 700));
 
-                    // Khi tấm hình vừa đáp vào đúng khung -> hiện khung thiệp & các thanh công cụ edit xung quanh lên mượt mà
-                    setTimeout(() => {
-                        step2El.classList.remove('step2-ui-hidden');
-                        step2El.classList.add('step2-ui-revealing');
-                        actor.classList.add('morph-fade-out');
+                // Sau khi #preview-area-wrap bên dưới đã rõ 100% (820ms) -> Tan nhẹ lớp actor để bàn giao sang Cropper không chớp giật
+                activeMorphCleanupTimers.push(setTimeout(() => {
+                    actor.classList.add('morph-fade-out');
+                }, 820));
 
-                        if (typeof spawnTouchSparkle === 'function' && finalRect.width > 0) {
-                            spawnTouchSparkle(
-                                finalRect.left + finalRect.width / 2,
-                                finalRect.top + finalRect.height / 2,
-                                8
-                            );
-                        }
-                    }, 430);
-
-                    setTimeout(() => {
-                        if (actor.parentNode) {
-                            actor.remove();
-                        }
-                        URL.revokeObjectURL(blobUrl);
-                    }, 720);
-
-                    activeMorphCleanupTimer = setTimeout(() => {
-                        step2El.classList.remove('step2-morph-active', 'step2-ui-revealing');
-                        activeMorphCleanupTimer = null;
-                    }, 1050);
-                }, holdDelay);
+                // Dọn dẹp hoàn toàn sau khi chuỗi chuyển cảnh kết thúc
+                activeMorphCleanupTimers.push(setTimeout(() => {
+                    if (actor.parentNode) {
+                        actor.remove();
+                    }
+                    URL.revokeObjectURL(blobUrl);
+                    step2El.classList.remove('step2-morph-active', 'step2-ui-revealing', 'step2-preview-ready');
+                }, 1160));
                 return;
             }
 
-            if (pollingFrames < 90) {
-                requestAnimationFrame(waitForStep2AndGlide);
+            if (pollingFrames < 60) {
+                requestAnimationFrame(startGpuFlipWhenStep2Ready);
             } else {
-                // Phòng hờ quá thời gian chờ thì trả lại giao diện Bước 2 bình thường
-                step2El.classList.remove('step2-ui-hidden', 'step2-morph-active', 'step2-ui-revealing');
-                if (actor.parentNode) {
-                    actor.remove();
-                }
+                step2El.classList.remove('step2-ui-hidden', 'step2-morph-active', 'step2-ui-revealing', 'step2-preview-ready');
                 URL.revokeObjectURL(blobUrl);
             }
         }
 
-        requestAnimationFrame(waitForStep2AndGlide);
+        requestAnimationFrame(startGpuFlipWhenStep2Ready);
     }
 
     const selfieInputEl = document.getElementById('selfie-btn');
