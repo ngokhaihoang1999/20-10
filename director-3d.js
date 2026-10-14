@@ -2232,9 +2232,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const ctxFront = canvasFront.getContext('2d');
 
     // Lớp Canvas Thế Giới (z: 2 — nằm DƯỚI phong bì) cho Đại cảnh One-Shot "Nụ Hoa Ước Nguyện"
-    const canvasWorld = document.getElementById('u3d-canvas-world');
+    let canvasWorld = document.getElementById('u3d-canvas-world');
+    if (!canvasWorld && stage) {
+        canvasWorld = document.createElement('canvas');
+        canvasWorld.id = 'u3d-canvas-world';
+        canvasWorld.className = 'u3d-physics-canvas u3d-canvas-world';
+        stage.insertBefore(canvasWorld, backRig);
+    }
     const ctxWorld = canvasWorld ? canvasWorld.getContext('2d') : null;
-    if (canvasWorld) {
+    if (canvasWorld && ctxWorld) {
         canvasWorld.width = Math.round(curVw * dpr);
         canvasWorld.height = Math.round(curVh * dpr);
         canvasWorld.style.opacity = '1';

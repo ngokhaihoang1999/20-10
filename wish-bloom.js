@@ -1,17 +1,18 @@
 /* =====================================================================================
- * wish-bloom.js — ĐẠI CẢNH ONE-SHOT "NỤ HOA ƯỚC NGUYỆN" (Luồng "Lời chúc dành cho bạn")
+ * wish-bloom.js — ĐẠI CẢNH ONE-SHOT 3D "NỤ HOA ƯỚC NGUYỆN" (AAA Botanical & Water Engine)
  * -------------------------------------------------------------------------------------
- * Ánh sáng ước nguyện rơi xuống mặt hồ gương -> gợn sóng làm cả khu vườn bừng nở ->
- * một nụ hoa khổng lồ trồi lên & nở từng lớp cánh -> trong lòng hoa là bức thư ->
- * bức thư được nâng lên dâng tặng người xem.
- *
- * - Một đường máy quay liền mạch duy nhất (Hermite spline) + đường cong thời gian
- *   (speed-ramp / bullet-time) => không bao giờ "cắt cảnh" giật cục.
- * - Mọi chuyển động là hàm thuần của thời gian kể chuyện (tau) => khung hình rơi
- *   cũng không lệch nhịp, bỏ qua (skip) tức thì mà vẫn đúng trạng thái.
- * - Mọi texture (cánh hoa, quầng sáng, hàng cây, tia sáng...) được vẽ sẵn 1 lần.
- * - Cánh hoa là bề mặt 3D thật: mỗi cánh = 2 đoạn cong, chiếu phối cảnh + chiếu sáng
- *   theo pháp tuyến, phân lớp trước/sau phong bì DOM để phong bì "nằm trong lòng hoa".
+ * Cốt truyện liền mạch (One-Shot Camera Spline + Bullet-Time Speed-Ramp):
+ *   1. Đêm/Bình minh tĩnh lặng trên Hồ Gương 3D (núi mờ sương khóa chuẩn chân trời,
+ *      mây khối 3D, sóng phản quang Fresnel, cầu ánh trăng/mặt trời lấp lánh trên nước).
+ *   2. Đốm sáng ước nguyện hoá sao băng lao xuống chạm mặt hồ (tau = 1.60s) -> Bullet-time
+ *      slow-mo, cột sáng & sóng thuỷ tinh 3D lan toả đánh thức cả khu vườn hoa trên mặt hồ.
+ *   3. Mỗi đoá hoa trong vườn nở 3D thật trên đài lá sen/lá súng nổi trên mặt nước (kèm
+ *      vòng nước & bóng phản chiếu).
+ *   4. Giữa tâm hồ, Đại Đoá Hoa Chủ Đạo vươn thân 3D liền mạch, lá & đài hoa 3D, sương mai
+ *      đọng trên cánh, từng tầng cánh cong Bezier 3D tròn đầy bung nở với chiều sâu Ambient
+ *      Occlusion (AO), tán xạ dưới bề mặt (SSS) và vương miện 42 nhụy vàng 3D.
+ *   5. Phong bì 3D DOM (#u3d-env-back-rig & #u3d-env-front-rig) kết tinh êm ái trên đài hoa
+ *      kèm bóng tiếp xúc vật lý, được nâng lên dâng tặng vào giữa màn hình để đóng ấn sáp 24K.
  * ===================================================================================== */
 (function () {
     'use strict';
@@ -36,10 +37,24 @@
         };
     }
 
-    function hexToRgb(hex) {
+    function hexToRgbArr(hex) {
         const h = hex.replace('#', '');
         const n = parseInt(h.length === 3 ? h.split('').map((c) => c + c).join('') : h, 16);
-        return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+
+    function hexToRgb(hex) {
+        const a = hexToRgbArr(hex);
+        return `${a[0]},${a[1]},${a[2]}`;
+    }
+
+    function mixHex(hexA, hexB, t) {
+        const a = hexToRgbArr(hexA), b = hexToRgbArr(hexB);
+        const u = clamp01(t);
+        const r = Math.round(a[0] + (b[0] - a[0]) * u);
+        const g = Math.round(a[1] + (b[1] - a[1]) * u);
+        const bl = Math.round(a[2] + (b[2] - a[2]) * u);
+        return `rgb(${r},${g},${bl})`;
     }
 
     function makeCanvas(w, h) {
@@ -50,21 +65,20 @@
     }
 
     // ---------------------------------------------------------------------------------
-    // MỐC THỜI GIAN KỂ CHUYỆN (tau) — thời gian thực được co giãn bởi speedAt(tau)
+    // MỐC THỜI GIAN KỂ CHUYỆN (tau)
     // ---------------------------------------------------------------------------------
     const T = {
         FALL: 0.70,     // đốm sáng bắt đầu rơi
-        IMPACT: 1.60,   // chạm mặt hồ
-        BUD: 1.95,      // nụ hoa trồi lên
-        OPEN: 2.50,     // cánh hoa bắt đầu nở
-        HEART: 3.05,    // lòng hoa mở rộng đón bức thư
-        ENV_IN: 3.55,   // bức thư kết tinh trên vương miện hoa (khi các cánh đã mở hết)
-        LIFT: 4.45,     // bức thư được nâng lên
-        LAND: 5.45,     // bức thư dừng đúng tâm màn hình
+        IMPACT: 1.60,   // chạm mặt hồ gương
+        BUD: 1.95,      // nụ hoa 3D trồi lên từ mặt nước
+        OPEN: 2.50,     // cánh hoa bắt đầu bung nở từng lớp
+        HEART: 3.05,    // lòng hoa & vương miện nhụy vàng 3D toả sáng
+        ENV_IN: 3.55,   // phong bì 3D kết tinh trên đài hoa
+        LIFT: 4.45,     // đài hoa nâng phong bì tiến về phía người xem
+        LAND: 5.45,     // phong bì dừng đúng tâm màn hình
         END: 5.60
     };
 
-    // Speed-ramp: nhanh khi rơi, bullet-time khi chạm, chậm & ấm khi dâng tặng
     function speedAt(t) {
         if (t < 0.70) return 1.0;
         if (t < 1.50) return lerp(1.0, 1.75, smooth((t - 0.70) / 0.80));
@@ -85,12 +99,12 @@
         [1.25, -0.98, 610, 105, 125],
         [1.60, -0.90, 540, 62, 24],
         [1.95, -0.80, 500, 52, 36],
-        [2.60, -0.52, 470, 88, 72],
-        [3.20, -0.24, 430, 175, 88],
-        [3.75, -0.06, 330, 300, 96],
-        [4.40, 0.00, 215, 360, 96],
-        [5.00, 0.00, 262, 300, 100],
-        [5.60, 0.00, 310, 248, 104]
+        [2.60, -0.52, 465, 96, 70],
+        [3.20, -0.24, 415, 185, 86],
+        [3.75, -0.06, 330, 298, 96],
+        [4.40, 0.00, 218, 354, 96],
+        [5.00, 0.00, 264, 298, 100],
+        [5.60, 0.00, 312, 246, 104]
     ];
     const CAM_TAN = CAM_KEYS.map((k, i) => {
         const out = [0, 0, 0, 0, 0];
@@ -118,737 +132,690 @@
     }
 
     // ---------------------------------------------------------------------------------
-    // 6 THẾ GIỚI CONCEPT (giữ khóa nội bộ tương thích link cũ)
+    // 6 THẾ GIỚI CONCEPT (Bảng màu vật lý có AO sâu, SSS, Rim & Bóng nước)
     // ---------------------------------------------------------------------------------
     const THEMES = {
-        // 🌺 Đại Hoa Trà — đêm hồng mận, hoa trà nhiều tầng
+        // 🌺 Đại Hoa Trà — Đêm Nhung Hồng Mận & Hồ Gương Ánh Trăng
         bloom: {
-            veil: '#0c0612', skyTop: '#0b0614', skyMid: '#2a0d2b', horizon: '#8f3a63', horizonGlow: '#ffa3bb',
-            lakeFar: '#3a1434', lakeNear: '#120818', shore: '#12081a', mist: '255,190,210',
-            mote: [255, 196, 214], accent: '#ffd36e', ripple: '255,205,222', firefly: '#ffe39a',
-            celestial: { dir: [0.72, 0.40, -0.56], size: 92, color: '#fff3ea', glow: '255,214,206', kind: 'moon' },
-            stars: 90, stem: '#1d4d34', stemHi: '#6fbf8a', leaf: ['#123d29', '#4a9a66'],
-            petal: { shape: 'round', base: '#a10f48', mid: '#ff5c8a', tip: '#ffd8e2', rim: '#fff3f6', back0: '#7c0c38', back1: '#e0517f', shade: '#22040f', vein: '#7a0a34' },
-            center: 'stamen', ground: 'rosette', groundPetals: 8, groundCount: 38,
-            drift: 'petal', driftCount: 26, fireflies: 44,
+            veil: '#08030e',
+            skyTop: '#070310', skyMid: '#1f0926', horizon: '#6b234b', horizonGlow: '#ff9ebb',
+            lakeHorizon: '#4e193d', lakeMid: '#1e0922', lakeDeep: '#07020c',
+            waterSubsurface: '255,105,155', waterSpec: '255,230,210',
+            mountainFar: '#240b2c', mountainNear: '#14051b', mist: '255,182,210',
+            mote: [255, 200, 218], accent: '#ffd875', ripple: '255,200,220', firefly: '#ffe699',
+            celestial: { dir: [0.68, 0.38, -0.62], size: 96, color: '#fff6ee', glow: '255,210,205', kind: 'moon' },
+            stars: 95, stem: '#143d29', stemHi: '#58b37c', leaf: ['#0b291b', '#276b46', '#7ad49c'],
+            pad: ['#0d2e20', '#1f5c3e', '#5cb883'],
+            petal: {
+                shape: 'camellia',
+                ao: '#360316',       // bóng sâu trong hốc hoa
+                base: '#a80c45',     // gốc cánh nhung đậm
+                mid: '#f55686',      // bụng cánh tán xạ hồng tươi
+                tip: '#ffd0de',      // đầu cánh phấn hồng
+                rim: '#fff7fa',      // viền bắt sáng ngọc trai
+                backAo: '#24020f',   // mặt lưng khi khép nụ
+                backBase: '#780832',
+                backTip: '#df5280',
+                vein: '255,235,242',
+                roundness: 0.72      // độ tròn đầy của đầu cánh
+            },
+            center: 'stamen', groundCount: 34, driftCount: 28, fireflies: 46,
             hero: {
-                H: 72, envLift: 26, layers: [
-                    { n: 9, len: 118, wid: 70, a0: 12, a1: 82, a2: 86, curl: 12, rb: 16, delay: 0.00, off: 0.00 },
-                    { n: 8, len: 98, wid: 62, a0: 9, a1: 64, a2: 78, curl: 14, rb: 12, delay: 0.12, off: 0.35 },
-                    { n: 7, len: 76, wid: 52, a0: 6, a1: 44, a2: 66, curl: 16, rb: 8, delay: 0.24, off: 0.15 },
-                    { n: 5, len: 54, wid: 42, a0: 4, a1: 26, a2: 56, curl: 18, rb: 4, delay: 0.36, off: 0.60 }
+                H: 16, envLift: 80,
+                layers: [
+                    { n: 10, len: 126, wid: 86, a0: 14, a1: 66, a2: 72, curl: -14, cup: 0.36, rb: 16, delay: 0.00, off: 0.00 },
+                    { n: 9,  len: 108, wid: 76, a0: 11, a1: 52, a2: 60, curl: -16, cup: 0.40, rb: 12, delay: 0.10, off: 0.33 },
+                    { n: 8,  len: 90,  wid: 66, a0: 8,  a1: 38, a2: 46, curl: -16, cup: 0.44, rb: 9,  delay: 0.20, off: 0.16 },
+                    { n: 7,  len: 72,  wid: 54, a0: 5,  a1: 26, a2: 34, curl: -14, cup: 0.48, rb: 6,  delay: 0.30, off: 0.52 },
+                    { n: 6,  len: 54,  wid: 42, a0: 3,  a1: 16, a2: 24, curl: -12, cup: 0.52, rb: 3,  delay: 0.38, off: 0.25 }
                 ]
             }
         },
-        // 🦋 Hồ Điệp — rừng ngọc lục bảo, đóa sen kết từ cánh bướm vàng
+        // 🦋 Hồ Điệp — Rừng Ngọc Lục Bảo & Đoá Sen Hoàng Kim Hồ Điệp
         butterflies: {
-            veil: '#04100c', skyTop: '#030b0a', skyMid: '#0b2a24', horizon: '#2f6f57', horizonGlow: '#ffe08a',
-            lakeFar: '#123a30', lakeNear: '#04110d', shore: '#04100c', mist: '200,255,225',
-            mote: [255, 228, 130], accent: '#ffe27a', ripple: '255,236,160', firefly: '#b6ffcf',
-            celestial: { dir: [0.70, 0.45, -0.55], size: 90, color: '#fffbe6', glow: '255,240,190', kind: 'moon' },
-            stars: 100, stem: '#174a33', stemHi: '#6fd29a', leaf: ['#0f3a28', '#3f9a68'],
-            petal: { shape: 'wing', base: '#05523c', mid: '#d9a521', tip: '#fff0a0', rim: '#fffbe0', back0: '#033d2c', back1: '#9a7f14', shade: '#03120c', vein: '#2e2104' },
-            center: 'orb', ground: 'lotus', groundPetals: 9, groundCount: 34,
-            drift: 'sparkle', driftCount: 30, fireflies: 56, butterflies: true,
+            veil: '#030b08',
+            skyTop: '#020807', skyMid: '#07221d', horizon: '#1f5e48', horizonGlow: '#ffe082',
+            lakeHorizon: '#164a39', lakeMid: '#08221b', lakeDeep: '#020a07',
+            waterSubsurface: '80,235,180', waterSpec: '255,240,175',
+            mountainFar: '#0a2921', mountainNear: '#051712', mist: '185,255,220',
+            mote: [255, 230, 132], accent: '#ffe57f', ripple: '255,235,155', firefly: '#a8ffcb',
+            celestial: { dir: [0.66, 0.42, -0.62], size: 94, color: '#fffce8', glow: '255,240,185', kind: 'moon' },
+            stars: 105, stem: '#113d29', stemHi: '#5cd692', leaf: ['#09261a', '#1e6343', '#6ee0a1'],
+            pad: ['#08291c', '#16593d', '#58c98e'],
+            petal: {
+                shape: 'lotus_wing',
+                ao: '#261402',
+                base: '#9e5e06',
+                mid: '#f2bd29',
+                tip: '#fff4ba',
+                rim: '#fffff2',
+                backAo: '#2b1602',
+                backBase: '#b86b08',
+                backTip: '#f5c838',
+                vein: '255,250,210',
+                roundness: 0.62
+            },
+            center: 'orb', groundCount: 32, driftCount: 30, fireflies: 58, butterflies: true,
             hero: {
-                H: 70, envLift: 24, layers: [
-                    { n: 8, len: 128, wid: 98, a0: 10, a1: 74, a2: 80, curl: -6, rb: 14, delay: 0.00, off: 0.00 },
-                    { n: 6, len: 96, wid: 76, a0: 6, a1: 52, a2: 68, curl: -4, rb: 8, delay: 0.15, off: 0.40 }
+                H: 16, envLift: 80,
+                layers: [
+                    { n: 9, len: 128, wid: 86, a0: 14, a1: 64, a2: 70, curl: -12, cup: 0.36, rb: 16, delay: 0.00, off: 0.00 },
+                    { n: 8, len: 108, wid: 74, a0: 10, a1: 50, a2: 58, curl: -14, cup: 0.40, rb: 12, delay: 0.12, off: 0.38 },
+                    { n: 7, len: 86,  wid: 60, a0: 7,  a1: 36, a2: 44, curl: -14, cup: 0.44, rb: 8,  delay: 0.24, off: 0.18 },
+                    { n: 6, len: 64,  wid: 48, a0: 4,  a1: 22, a2: 30, curl: -12, cup: 0.48, rb: 4,  delay: 0.34, off: 0.55 }
                 ]
             }
         },
-        // 🎀 Ruy-băng — khán phòng lụa, đóa nơ lụa satin khổng lồ & ngọc trai
+        // 🎀 Ruy-băng — Mẫu Đơn Lụa Satin Pháp & Ngọc Trai Nam Hải
         ribbon: {
-            veil: '#0e0710', skyTop: '#0d0712', skyMid: '#2c1230', horizon: '#a8527a', horizonGlow: '#ffd7a8',
-            lakeFar: '#3a1838', lakeNear: '#13081a', shore: '#11070f', mist: '255,215,230',
-            mote: [255, 214, 232], accent: '#ffe1a8', ripple: '255,222,236', firefly: '#ffe9c4',
-            celestial: { dir: [0.70, 0.42, -0.58], size: 90, color: '#fff6ee', glow: '255,226,214', kind: 'moon' },
-            stars: 80, stem: '#d8a64a', stemHi: '#fff0c2', leaf: null, silkStem: true,
-            petal: { shape: 'ribbon', base: '#a3164f', mid: '#f27aa6', tip: '#ffe9f1', rim: '#fffafc', back0: '#7d103c', back1: '#d0628d', shade: '#25050f', vein: '#ffffff' },
-            center: 'pearls', ground: 'pearl', groundCount: 34,
-            drift: 'sparkle', driftCount: 28, fireflies: 40,
+            veil: '#0a040d',
+            skyTop: '#09040e', skyMid: '#240d29', horizon: '#8c3b64', horizonGlow: '#ffd8ae',
+            lakeHorizon: '#4f1e3f', lakeMid: '#1f0a21', lakeDeep: '#09030b',
+            waterSubsurface: '255,165,205', waterSpec: '255,238,215',
+            mountainFar: '#240c2b', mountainNear: '#140519', mist: '255,210,228',
+            mote: [255, 216, 232], accent: '#ffe4ad', ripple: '255,220,235', firefly: '#ffebc2',
+            celestial: { dir: [0.66, 0.40, -0.63], size: 92, color: '#fff8f0', glow: '255,228,215', kind: 'moon' },
+            stars: 85, stem: '#b8862d', stemHi: '#fff0be', leaf: ['#4a2e1b', '#8c5a32', '#e6c280'],
+            pad: ['#2e1628', '#5e2b4c', '#b86b95'],
+            petal: {
+                shape: 'peony_silk',
+                ao: '#330519',
+                base: '#a81652',
+                mid: '#f576a6',
+                tip: '#ffe8f1',
+                rim: '#ffffff',
+                backAo: '#240211',
+                backBase: '#780e3a',
+                backTip: '#e06392',
+                vein: '255,245,250',
+                roundness: 0.78
+            },
+            center: 'pearls', groundCount: 32, driftCount: 28, fireflies: 42,
             hero: {
-                H: 70, envLift: 24, layers: [
-                    { n: 10, len: 146, wid: 58, a0: 10, a1: 78, a2: 82, curl: 46, rb: 14, delay: 0.00, off: 0.00 },
-                    { n: 8, len: 110, wid: 52, a0: 8, a1: 58, a2: 72, curl: 42, rb: 10, delay: 0.14, off: 0.30 },
-                    { n: 6, len: 72, wid: 42, a0: 6, a1: 34, a2: 58, curl: 32, rb: 6, delay: 0.28, off: 0.10 }
+                H: 16, envLift: 80,
+                layers: [
+                    { n: 10, len: 130, wid: 84, a0: 12, a1: 64, a2: 70, curl: -16, cup: 0.38, rb: 16, delay: 0.00, off: 0.00 },
+                    { n: 8,  len: 108, wid: 72, a0: 9,  a1: 50, a2: 58, curl: -18, cup: 0.42, rb: 12, delay: 0.12, off: 0.32 },
+                    { n: 7,  len: 84,  wid: 60, a0: 6,  a1: 36, a2: 44, curl: -16, cup: 0.46, rb: 8,  delay: 0.24, off: 0.14 },
+                    { n: 6,  len: 62,  wid: 48, a0: 4,  a1: 22, a2: 30, curl: -14, cup: 0.50, rb: 4,  delay: 0.34, off: 0.50 }
                 ]
             }
         },
-        // 🌹 Hồng Pháp — đêm rượu vang, hồng nhung xoắn ốc tỉ lệ vàng
+        // 🌹 Hồng Pháp — Đêm Rượu Vang Bordeaux & Đại Đoá Hồng Nhung Centifolia
         galaxy: {
-            veil: '#0d0306', skyTop: '#0b0307', skyMid: '#2d0716', horizon: '#83223a', horizonGlow: '#ffb38a',
-            lakeFar: '#3a0c1a', lakeNear: '#11040a', shore: '#0f0306', mist: '255,180,190',
-            mote: [255, 170, 182], accent: '#ffd27a', ripple: '255,196,206', firefly: '#ffd9a0',
-            celestial: { dir: [0.72, 0.40, -0.56], size: 92, color: '#fff1ea', glow: '255,206,196', kind: 'moon' },
-            stars: 90, stem: '#1a4026', stemHi: '#5fa274', leaf: ['#0f3320', '#3f8552'],
-            petal: { shape: 'rose', base: '#3a000e', mid: '#9a0626', tip: '#e0193f', rim: '#ff8da0', back0: '#2c000a', back1: '#7a0820', shade: '#0e0002', vein: '#2a0008' },
-            center: 'none', ground: 'rosette', groundPetals: 7, groundRose: true, groundCount: 36,
-            drift: 'petal', driftCount: 24, fireflies: 44,
-            hero: { H: 74, envLift: 28, spiral: { n: 22 } }
-        },
-        // 🌸 Anh Đào — đêm trăng tím, đóa anh đào khổng lồ & mưa cánh hoa
-        sakura: {
-            veil: '#070612', skyTop: '#060614', skyMid: '#1b1638', horizon: '#64508a', horizonGlow: '#ffc8de',
-            lakeFar: '#241c3e', lakeNear: '#0a0816', shore: '#080714', mist: '230,220,255',
-            mote: [255, 205, 226], accent: '#fff0f6', ripple: '255,220,236', firefly: '#ffe6f0',
-            celestial: { dir: [0.62, 0.50, -0.60], size: 150, color: '#fffaf2', glow: '255,230,240', kind: 'moon' },
-            stars: 110, stem: '#3b2a2a', stemHi: '#8a6a60', leaf: ['#2a4a30', '#5c9a6a'],
-            petal: { shape: 'sakura', base: '#ff7aa6', mid: '#ffc2d6', tip: '#fff6f9', rim: '#ffffff', back0: '#f28bb0', back1: '#ffd3e2', shade: '#2a0d1c', vein: '#e86a96' },
-            center: 'stamen-pink', ground: 'rosette', groundPetals: 5, groundCount: 40,
-            drift: 'petal', driftCount: 56, fireflies: 36,
+            veil: '#090204',
+            skyTop: '#080205', skyMid: '#240511', horizon: '#751930', horizonGlow: '#ffb088',
+            lakeHorizon: '#470d1f', lakeMid: '#1c040d', lakeDeep: '#070104',
+            waterSubsurface: '245,55,95', waterSpec: '255,220,185',
+            mountainFar: '#240610', mountainNear: '#120208', mist: '255,155,175',
+            mote: [255, 165, 185], accent: '#ffd86b', ripple: '255,175,190', firefly: '#ffd97d',
+            celestial: { dir: [0.68, 0.38, -0.62], size: 92, color: '#fff3e6', glow: '255,195,175', kind: 'moon' },
+            stars: 95, stem: '#163822', stemHi: '#529e68', leaf: ['#0c2415', '#1f5432', '#62b87c'],
+            pad: ['#14291b', '#265235', '#63a678'],
+            petal: {
+                shape: 'rose',
+                ao: '#260109',
+                base: '#7d0620',
+                mid: '#e61947',
+                tip: '#ff96ad',
+                rim: '#ffe0e7',
+                backAo: '#170005',
+                backBase: '#520313',
+                backTip: '#ab1034',
+                vein: '255,195,210',
+                roundness: 0.80
+            },
+            center: 'stamen', groundCount: 34, driftCount: 28, fireflies: 46,
             hero: {
-                H: 70, envLift: 24, layers: [
-                    { n: 5, len: 112, wid: 100, a0: 10, a1: 80, a2: 86, curl: 10, rb: 10, delay: 0.00, off: 0.00 },
-                    { n: 5, len: 86, wid: 80, a0: 7, a1: 60, a2: 74, curl: 12, rb: 6, delay: 0.16, off: TAU / 10 }
+                H: 16, envLift: 80,
+                layers: [
+                    { n: 9, len: 124, wid: 88, a0: 15, a1: 64, a2: 70, curl: -16, cup: 0.40, rb: 16, delay: 0.00, off: 0.00 },
+                    { n: 8, len: 106, wid: 78, a0: 12, a1: 50, a2: 58, curl: -18, cup: 0.44, rb: 12, delay: 0.10, off: 0.38 },
+                    { n: 8, len: 88,  wid: 66, a0: 9,  a1: 38, a2: 46, curl: -18, cup: 0.48, rb: 9,  delay: 0.20, off: 0.62 },
+                    { n: 7, len: 70,  wid: 54, a0: 6,  a1: 26, a2: 34, curl: -16, cup: 0.52, rb: 6,  delay: 0.30, off: 0.24 },
+                    { n: 6, len: 52,  wid: 42, a0: 3,  a1: 16, a2: 24, curl: -14, cup: 0.56, rb: 3,  delay: 0.38, off: 0.76 }
                 ]
             }
         },
-        // 🌷 Tulip — bình minh đào cam, tulip hoàng gia đón nắng
-        hearts: {
-            veil: '#0b0710', skyTop: '#120b26', skyMid: '#4a2a52', horizon: '#e0805e', horizonGlow: '#ffd59a',
-            lakeFar: '#6b3a4a', lakeNear: '#170c18', shore: '#1a0d18', mist: '255,215,190',
-            mote: [255, 206, 150], accent: '#ffd166', ripple: '255,220,180', firefly: '#fff1b8',
-            celestial: { dir: [0.55, 0.06, -0.83], size: 120, color: '#fff4dc', glow: '255,190,120', kind: 'sun' },
-            stars: 30, stem: '#2a6a3a', stemHi: '#7cc48a', leaf: ['#1f5a30', '#62b070'],
-            petal: { shape: 'tulip', base: '#ffd36a', mid: '#ff9473', tip: '#ff6a88', rim: '#fff4dc', back0: '#ff8a5c', back1: '#ffb8a0', shade: '#4a1a0c', vein: '#e0684a' },
-            center: 'stamen', ground: 'tulip', groundCount: 34,
-            drift: 'pollen', driftCount: 30, fireflies: 32,
+        // 🌸 Anh Đào — Đêm Trăng Kyoto & Đoá Anh Đào Hoàng Gia
+        sakura: {
+            veil: '#060612',
+            skyTop: '#050613', skyMid: '#161838', horizon: '#6b3e6e', horizonGlow: '#ffc4dc',
+            lakeHorizon: '#3d244a', lakeMid: '#15122b', lakeDeep: '#050510',
+            waterSubsurface: '255,175,215', waterSpec: '255,240,250',
+            mountainFar: '#191736', mountainNear: '#0d0c21', mist: '255,205,230',
+            mote: [255, 205, 228], accent: '#ffe49e', ripple: '255,210,232', firefly: '#ffe8a3',
+            celestial: { dir: [0.64, 0.42, -0.64], size: 112, color: '#fff9f5', glow: '255,225,235', kind: 'moon' },
+            stars: 110, stem: '#2b1d28', stemHi: '#7d566a', leaf: ['#172e24', '#2e634a', '#78c79e'],
+            pad: ['#142b24', '#265747', '#6cc4a4'],
+            petal: {
+                shape: 'sakura',
+                ao: '#3d0a22',
+                base: '#cf2d6d',
+                mid: '#ff91bd',
+                tip: '#ffe8f2',
+                rim: '#ffffff',
+                backAo: '#290617',
+                backBase: '#961f50',
+                backTip: '#f77ead',
+                vein: '255,245,250',
+                roundness: 0.68
+            },
+            center: 'stamen', groundCount: 36, driftCount: 38, fireflies: 48,
             hero: {
-                H: 96, envLift: 40, layers: [
-                    { n: 3, len: 132, wid: 104, a0: 6, a1: 30, a2: 62, curl: -8, rb: 10, delay: 0.00, off: 0.00 },
-                    { n: 3, len: 122, wid: 96, a0: 4, a1: 20, a2: 52, curl: -6, rb: 6, delay: 0.12, off: TAU / 6 }
+                H: 16, envLift: 80,
+                layers: [
+                    { n: 6, len: 126, wid: 90, a0: 14, a1: 64, a2: 70, curl: -12, cup: 0.34, rb: 15, delay: 0.00, off: 0.00 },
+                    { n: 6, len: 106, wid: 76, a0: 10, a1: 50, a2: 58, curl: -14, cup: 0.38, rb: 11, delay: 0.12, off: 0.50 },
+                    { n: 6, len: 84,  wid: 62, a0: 7,  a1: 36, a2: 44, curl: -14, cup: 0.42, rb: 7,  delay: 0.24, off: 0.25 },
+                    { n: 6, len: 62,  wid: 48, a0: 4,  a1: 22, a2: 30, curl: -12, cup: 0.46, rb: 4,  delay: 0.34, off: 0.75 }
+                ]
+            }
+        },
+        // 🌷 Tulip Nắng Mai — Bình Minh Vàng Mật Ong & Đại Đoá Tulip Hoàng Gia
+        hearts: {
+            veil: '#0d060a',
+            skyTop: '#120817', skyMid: '#42162b', horizon: '#c9564c', horizonGlow: '#ffe596',
+            lakeHorizon: '#7a2e38', lakeMid: '#2b0e1d', lakeDeep: '#0c040a',
+            waterSubsurface: '255,155,115', waterSpec: '255,242,185',
+            mountainFar: '#301122', mountainNear: '#1a0813', mist: '255,215,175',
+            mote: [255, 222, 145], accent: '#ffe57f', ripple: '255,215,155', firefly: '#fff0a8',
+            celestial: { dir: [0.66, 0.34, -0.66], size: 108, color: '#fffbe6', glow: '255,220,145', kind: 'sun' },
+            stars: 60, stem: '#1b4f2e', stemHi: '#78d68a', leaf: ['#123820', '#2b7a46', '#82e096'],
+            pad: ['#143822', '#286b40', '#70c989'],
+            petal: {
+                shape: 'tulip',
+                ao: '#380716',
+                base: '#c21f52',
+                mid: '#ff707f',
+                tip: '#ffd9ab',
+                rim: '#fff9de',
+                backAo: '#26040e',
+                backBase: '#8a1239',
+                backTip: '#f55b6f',
+                vein: '255,240,210',
+                roundness: 0.68
+            },
+            center: 'stamen', groundCount: 34, driftCount: 28, fireflies: 42,
+            hero: {
+                H: 16, envLift: 80,
+                layers: [
+                    { n: 6, len: 126, wid: 88, a0: 8, a1: 56, a2: 62, curl: -14, cup: 0.44, rb: 15, delay: 0.00, off: 0.00 },
+                    { n: 6, len: 108, wid: 76, a0: 5, a1: 42, a2: 50, curl: -16, cup: 0.48, rb: 11, delay: 0.14, off: 0.50 },
+                    { n: 6, len: 88,  wid: 64, a0: 3, a1: 28, a2: 36, curl: -14, cup: 0.52, rb: 7,  delay: 0.28, off: 0.25 }
                 ]
             }
         }
     };
 
+    // ---------------------------------------------------------------------------------
+    // DANH SÁCH CÁNH HOA CHỦ ĐẠO 3D (KÈM GIỌT SƯƠNG MAI 3D TRÊN CÁNH)
+    // ---------------------------------------------------------------------------------
     function buildPetalList(th) {
         const list = [];
-        const toneR = rng(13);
-        if (th.hero.spiral) {
-            const n = th.hero.spiral.n;
-            for (let i = 0; i < n; i++) {
-                const t = i / (n - 1);
-                const a1 = 6 + 70 * Math.pow(t, 1.25);
+        const layers = th.hero.layers;
+        const L = layers.length;
+        let idx = 0;
+        layers.forEach((ly, li) => {
+            const ld = L > 1 ? li / (L - 1) : 0; // 0 = ngoài cùng, 1 = tâm hoa
+            for (let k = 0; k < ly.n; k++) {
+                const az = ((k + ly.off) / ly.n) * TAU + ((idx % 3) - 1) * 0.018;
+                const hasDew = (li <= 1 && (k % 3 === 0));
                 list.push({
-                    phi: i * 137.508 * DEG,
-                    len: 42 + 86 * t, wid: 42 + 48 * t,
-                    a0: 2 + 8 * t, a1, a2: Math.max(a1 + 4, 34 + 46 * t),
-                    curl: 20 + 12 * t, rb: 2 + 10 * t,
-                    delay: (1 - t) * 0.42, tone: toneR() - 0.5, ld: 1 - t
+                    li,
+                    ld,
+                    az,
+                    len: ly.len * (0.97 + (idx % 5) * 0.015),
+                    wid: ly.wid * (0.97 + (idx % 4) * 0.018),
+                    a0: ly.a0,
+                    a1: ly.a1,
+                    a2: ly.a2,
+                    curl: ly.curl,
+                    cup: ly.cup || 0.34,
+                    rb: ly.rb,
+                    delay: ly.delay + (k % 3) * 0.025,
+                    hasDew,
+                    dewU: 0.56 + (k % 2) * 0.12,
+                    dewV: (k % 2 === 0 ? 0.32 : -0.32),
+                    dewR: 3.6 + (k % 3) * 0.8
                 });
-            }
-            return list;
-        }
-        th.hero.layers.forEach((L, li, arr) => {
-            for (let i = 0; i < L.n; i++) {
-                list.push({
-                    phi: L.off + (i / L.n) * TAU,
-                    len: L.len, wid: L.wid, a0: L.a0, a1: L.a1, a2: L.a2,
-                    curl: L.curl, rb: L.rb, delay: L.delay, tone: toneR() - 0.5,
-                    ld: arr.length > 1 ? li / (arr.length - 1) : 0
-                });
+                idx++;
             }
         });
         return list;
     }
 
     // ---------------------------------------------------------------------------------
-    // TEXTURE VẼ SẴN (Pre-baked) — mỗi concept build đúng 1 lần
+    // BỘ TEXTURE KHÍ QUYỂN & ÁNH SÁNG DỰNG SẴN (PRE-BAKED ATMOSPHERIC SPRITES)
     // ---------------------------------------------------------------------------------
-    const PW = 128, PH = 256;
+    const spriteCache = {};
 
-    function petalPath(shape, w = PW, h = PH) {
-        const sx = w / PW, sy = h / PH;
-        const p = new Path2D();
-        const M = (x, y) => p.moveTo(x * sx, y * sy);
-        const L = (x, y) => p.lineTo(x * sx, y * sy);
-        const Cb = (a, b, c, d, e, f) => p.bezierCurveTo(a * sx, b * sy, c * sx, d * sy, e * sx, f * sy);
-        switch (shape) {
-            case 'rose':
-                M(64, 254); Cb(16, 222, 0, 124, 8, 56); Cb(14, 16, 42, 6, 64, 20); Cb(86, 6, 114, 16, 120, 56); Cb(128, 124, 112, 222, 64, 254);
-                break;
-            case 'tulip':
-                M(64, 254); Cb(12, 226, 4, 112, 24, 46); Cb(36, 16, 54, 4, 64, 0); Cb(74, 4, 92, 16, 104, 46); Cb(124, 112, 116, 226, 64, 254);
-                break;
-            case 'sakura':
-                M(64, 254); Cb(14, 214, 2, 110, 20, 40); Cb(28, 14, 50, 8, 58, 22); L(64, 42); L(70, 22); Cb(78, 8, 100, 14, 108, 40); Cb(126, 110, 114, 214, 64, 254);
-                break;
-            case 'wing':
-                M(64, 254); Cb(18, 230, 0, 150, 10, 82); Cb(18, 22, 70, 0, 102, 24); Cb(128, 46, 122, 122, 98, 170); Cb(86, 202, 76, 232, 64, 254);
-                break;
-            case 'ribbon':
-                M(46, 256); Cb(40, 180, 26, 110, 30, 56); Cb(32, 12, 96, 12, 98, 56); Cb(102, 110, 88, 180, 82, 256);
-                break;
-            default: // round (hoa trà)
-                M(64, 254); Cb(8, 210, -4, 92, 28, 30); Cb(46, 2, 82, 2, 100, 30); Cb(132, 92, 120, 210, 64, 254);
-        }
-        p.closePath();
-        return p;
-    }
-
-    function buildPetalSprites(pal) {
-        const path = petalPath(pal.shape);
-        const front = makeCanvas(PW, PH), back = makeCanvas(PW, PH), shade = makeCanvas(PW, PH);
-
-        // Mặt trong (rực rỡ)
-        let g = front.getContext('2d');
-        let lg = g.createLinearGradient(0, PH, 0, 0);
-        lg.addColorStop(0, pal.base);
-        lg.addColorStop(0.48, pal.mid);
-        lg.addColorStop(1, pal.tip);
-        g.fillStyle = lg;
-        g.fill(path);
-        g.save();
-        g.clip(path);
-        const cup = g.createLinearGradient(0, 0, PW, 0);
-        cup.addColorStop(0, 'rgba(0,0,0,0.24)');
-        cup.addColorStop(0.32, 'rgba(0,0,0,0)');
-        cup.addColorStop(0.68, 'rgba(0,0,0,0)');
-        cup.addColorStop(1, 'rgba(0,0,0,0.24)');
-        g.fillStyle = cup;
-        g.fillRect(0, 0, PW, PH);
-        const baseSh = g.createLinearGradient(0, PH, 0, PH * 0.5);
-        baseSh.addColorStop(0, 'rgba(0,0,0,0.36)');
-        baseSh.addColorStop(1, 'rgba(0,0,0,0)');
-        g.fillStyle = baseSh;
-        g.fillRect(0, 0, PW, PH);
-        const hl = g.createRadialGradient(PW * 0.42, PH * 0.30, 4, PW * 0.42, PH * 0.30, PW * 0.72);
-        hl.addColorStop(0, 'rgba(255,255,255,0.42)');
-        hl.addColorStop(1, 'rgba(255,255,255,0)');
-        g.fillStyle = hl;
-        g.fillRect(0, 0, PW, PH);
-
-        if (pal.shape === 'ribbon') {
-            // Vân satin bóng loáng chạy dọc dải lụa
-            const sat = g.createLinearGradient(0, 0, PW, 0);
-            sat.addColorStop(0.0, 'rgba(255,255,255,0)');
-            sat.addColorStop(0.30, 'rgba(255,255,255,0.0)');
-            sat.addColorStop(0.38, 'rgba(255,255,255,0.55)');
-            sat.addColorStop(0.46, 'rgba(255,255,255,0.0)');
-            sat.addColorStop(0.66, 'rgba(120,0,40,0.18)');
-            sat.addColorStop(1.0, 'rgba(255,255,255,0)');
-            g.fillStyle = sat;
-            g.fillRect(0, 0, PW, PH);
-            g.strokeStyle = 'rgba(255,240,200,0.75)';
-            g.lineWidth = 2;
-            g.stroke(path);
+    function buildGlow(rgb, hardCore) {
+        const c = makeCanvas(128, 128), g = c.getContext('2d');
+        const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+        if (hardCore) {
+            gr.addColorStop(0.00, 'rgba(255,255,255,1)');
+            gr.addColorStop(0.16, `rgba(${rgb},0.92)`);
+            gr.addColorStop(0.45, `rgba(${rgb},0.34)`);
+            gr.addColorStop(1.00, `rgba(${rgb},0)`);
         } else {
-            g.strokeStyle = pal.vein;
-            g.globalAlpha = 0.2;
-            g.lineWidth = 1.3;
-            for (let i = -3; i <= 3; i++) {
-                g.beginPath();
-                g.moveTo(PW / 2, PH);
-                g.quadraticCurveTo(PW / 2 + i * 9, PH * 0.56, PW / 2 + i * 16, PH * 0.12);
-                g.stroke();
-            }
-            g.globalAlpha = 1;
+            gr.addColorStop(0.00, `rgba(${rgb},0.78)`);
+            gr.addColorStop(0.42, `rgba(${rgb},0.26)`);
+            gr.addColorStop(1.00, `rgba(${rgb},0)`);
         }
-
-        if (pal.shape === 'wing') {
-            // Viền cánh bướm sẫm + đốm mắt ngọc trai
-            g.lineWidth = 18;
-            g.strokeStyle = 'rgba(30,18,2,0.55)';
-            g.stroke(path);
-            g.fillStyle = 'rgba(255,252,230,0.9)';
-            [[30, 70, 5], [44, 46, 4], [66, 34, 4.5], [88, 44, 4], [100, 96, 4.5], [92, 140, 3.5]].forEach(([x, y, r]) => {
-                g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
-            });
-            const iri = g.createLinearGradient(0, PH * 0.2, PW, PH * 0.7);
-            iri.addColorStop(0, 'rgba(120,255,210,0.0)');
-            iri.addColorStop(0.5, 'rgba(160,255,220,0.22)');
-            iri.addColorStop(1, 'rgba(255,220,120,0.0)');
-            g.fillStyle = iri;
-            g.fillRect(0, 0, PW, PH);
-        }
-
-        g.lineWidth = 7;
-        g.strokeStyle = pal.rim;
-        g.globalAlpha = 0.5;
-        g.stroke(path);
-        g.globalAlpha = 1;
-        g.restore();
-
-        // Mặt ngoài (trầm hơn)
-        g = back.getContext('2d');
-        lg = g.createLinearGradient(0, PH, 0, 0);
-        lg.addColorStop(0, pal.back0);
-        lg.addColorStop(1, pal.back1);
-        g.fillStyle = lg;
-        g.fill(path);
-        g.save();
-        g.clip(path);
-        const cup2 = g.createLinearGradient(0, 0, PW, 0);
-        cup2.addColorStop(0, 'rgba(255,255,255,0.10)');
-        cup2.addColorStop(0.5, 'rgba(0,0,0,0.16)');
-        cup2.addColorStop(1, 'rgba(255,255,255,0.10)');
-        g.fillStyle = cup2;
-        g.fillRect(0, 0, PW, PH);
-        g.lineWidth = 6;
-        g.strokeStyle = pal.rim;
-        g.globalAlpha = 0.28;
-        g.stroke(path);
-        g.restore();
-
-        // Lớp bóng đổ để chiếu sáng theo pháp tuyến
-        g = shade.getContext('2d');
-        g.fillStyle = pal.shade;
-        g.fill(path);
-        return { front, back, shade };
-    }
-
-    function buildLeafSprite(colors) {
-        if (!colors) return null;
-        const w = 64, h = 160;
-        const c = makeCanvas(w, h), g = c.getContext('2d');
-        const p = new Path2D();
-        p.moveTo(32, 160);
-        p.bezierCurveTo(2, 118, 2, 46, 32, 0);
-        p.bezierCurveTo(62, 46, 62, 118, 32, 160);
-        p.closePath();
-        const lg = g.createLinearGradient(0, h, 0, 0);
-        lg.addColorStop(0, colors[0]);
-        lg.addColorStop(1, colors[1]);
-        g.fillStyle = lg;
-        g.fill(p);
-        g.save();
-        g.clip(p);
-        g.strokeStyle = 'rgba(255,255,255,0.28)';
-        g.lineWidth = 1.6;
-        g.beginPath(); g.moveTo(32, 158); g.lineTo(32, 8); g.stroke();
-        g.lineWidth = 1;
-        for (let i = 1; i < 7; i++) {
-            const y = 150 - i * 20;
-            g.beginPath(); g.moveTo(32, y); g.lineTo(10, y - 16); g.moveTo(32, y); g.lineTo(54, y - 16); g.stroke();
-        }
-        const sh = g.createLinearGradient(0, 0, w, 0);
-        sh.addColorStop(0, 'rgba(0,0,0,0.25)');
-        sh.addColorStop(0.5, 'rgba(0,0,0,0)');
-        sh.addColorStop(1, 'rgba(255,255,255,0.12)');
-        g.fillStyle = sh;
-        g.fillRect(0, 0, w, h);
-        g.restore();
+        g.fillStyle = gr;
+        g.fillRect(0, 0, 128, 128);
         return c;
     }
 
-    function buildGlow(rgb, core) {
-        const s = 128, c = makeCanvas(s, s), g = c.getContext('2d');
-        const rg = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-        if (core) {
-            rg.addColorStop(0, 'rgba(255,255,255,1)');
-            rg.addColorStop(0.09, 'rgba(255,255,255,0.95)');
-            rg.addColorStop(0.22, `rgba(${rgb},0.72)`);
-            rg.addColorStop(0.5, `rgba(${rgb},0.2)`);
-            rg.addColorStop(1, `rgba(${rgb},0)`);
-        } else {
-            rg.addColorStop(0, `rgba(${rgb},0.62)`);
-            rg.addColorStop(0.42, `rgba(${rgb},0.2)`);
-            rg.addColorStop(1, `rgba(${rgb},0)`);
-        }
-        g.fillStyle = rg;
-        g.fillRect(0, 0, s, s);
-        return c;
-    }
-
-    function buildFlare() {
-        const s = 256, c = makeCanvas(s, s), g = c.getContext('2d');
-        g.globalCompositeOperation = 'lighter';
-        const streak = (rot, len, thick, a) => {
+    function buildStarFlare() {
+        const c = makeCanvas(160, 160), g = c.getContext('2d');
+        g.translate(80, 80);
+        const r0 = g.createRadialGradient(0, 0, 0, 0, 0, 74);
+        r0.addColorStop(0, 'rgba(255,255,255,0.95)');
+        r0.addColorStop(0.2, 'rgba(255,248,225,0.45)');
+        r0.addColorStop(1, 'rgba(255,248,225,0)');
+        g.fillStyle = r0;
+        g.beginPath(); g.arc(0, 0, 74, 0, TAU); g.fill();
+        for (let i = 0; i < 4; i++) {
             g.save();
-            g.translate(128, 128);
-            g.rotate(rot);
-            g.scale(1, thick);
-            const rg = g.createRadialGradient(0, 0, 0, 0, 0, len);
-            rg.addColorStop(0, `rgba(255,255,255,${a})`);
-            rg.addColorStop(0.28, `rgba(255,250,236,${a * 0.38})`);
-            rg.addColorStop(1, 'rgba(255,240,220,0)');
-            g.fillStyle = rg;
-            g.beginPath(); g.arc(0, 0, len, 0, TAU); g.fill();
+            g.rotate((i * Math.PI) / 4);
+            const len = i % 2 === 0 ? 76 : 44;
+            const wid = i % 2 === 0 ? 3.2 : 2.0;
+            const gr = g.createLinearGradient(-len, 0, len, 0);
+            gr.addColorStop(0, 'rgba(255,255,255,0)');
+            gr.addColorStop(0.5, 'rgba(255,255,255,0.95)');
+            gr.addColorStop(1, 'rgba(255,255,255,0)');
+            g.fillStyle = gr;
+            g.beginPath();
+            g.ellipse(0, 0, len, wid, 0, 0, TAU);
+            g.fill();
             g.restore();
-        };
-        streak(0, 128, 0.05, 1);
-        streak(Math.PI / 2, 128, 0.05, 1);
-        streak(Math.PI / 4, 76, 0.04, 0.5);
-        streak(-Math.PI / 4, 76, 0.04, 0.5);
+        }
         return c;
     }
 
-    function buildRays(rgb) {
-        const s = 512, c = makeCanvas(s, s), g = c.getContext('2d');
-        const R = rng(77);
-        const rg = g.createRadialGradient(256, 256, 0, 256, 256, 256);
-        rg.addColorStop(0, `rgba(${rgb},0.6)`);
-        rg.addColorStop(0.3, `rgba(${rgb},0.24)`);
-        rg.addColorStop(1, `rgba(${rgb},0)`);
-        g.fillStyle = rg;
-        g.globalCompositeOperation = 'lighter';
-        for (let i = 0; i < 18; i++) {
-            const ang = (i / 18) * TAU + R() * 0.2;
-            const half = 0.022 + R() * 0.05;
-            const len = 170 + R() * 86;
-            g.beginPath();
-            g.moveTo(256, 256);
-            g.arc(256, 256, len, ang - half, ang + half);
-            g.closePath();
-            g.fill();
-        }
+    // Luồng sáng elip mềm 100% không có cạnh cắt đa giác
+    function buildVolumetricPlume(rgb) {
+        const c = makeCanvas(256, 256), g = c.getContext('2d');
+        g.save();
+        g.translate(128, 148);
+        g.scale(0.82, 1.15);
+        const gr = g.createRadialGradient(0, 20, 4, 0, 0, 110);
+        gr.addColorStop(0.00, 'rgba(255,255,255,0.82)');
+        gr.addColorStop(0.28, `rgba(${rgb},0.46)`);
+        gr.addColorStop(0.62, `rgba(${rgb},0.14)`);
+        gr.addColorStop(1.00, `rgba(${rgb},0)`);
+        g.fillStyle = gr;
+        g.beginPath();
+        g.arc(0, 0, 110, 0, TAU);
+        g.fill();
+        g.restore();
         return c;
     }
 
     function buildPillar(rgb) {
-        const w = 64, h = 512, c = makeCanvas(w, h), g = c.getContext('2d');
-        const hg = g.createLinearGradient(0, 0, w, 0);
-        hg.addColorStop(0, `rgba(${rgb},0)`);
-        hg.addColorStop(0.32, `rgba(${rgb},0.45)`);
-        hg.addColorStop(0.5, 'rgba(255,255,255,1)');
-        hg.addColorStop(0.68, `rgba(${rgb},0.45)`);
-        hg.addColorStop(1, `rgba(${rgb},0)`);
-        g.fillStyle = hg;
-        g.fillRect(0, 0, w, h);
+        const c = makeCanvas(128, 512), g = c.getContext('2d');
+        const gx = g.createLinearGradient(0, 0, 128, 0);
+        gx.addColorStop(0.00, `rgba(${rgb},0)`);
+        gx.addColorStop(0.32, `rgba(${rgb},0.35)`);
+        gx.addColorStop(0.50, 'rgba(255,255,255,0.98)');
+        gx.addColorStop(0.68, `rgba(${rgb},0.35)`);
+        gx.addColorStop(1.00, `rgba(${rgb},0)`);
+        g.fillStyle = gx;
+        g.fillRect(0, 0, 128, 512);
         g.globalCompositeOperation = 'destination-in';
-        const vg = g.createLinearGradient(0, h, 0, 0);
-        vg.addColorStop(0, 'rgba(0,0,0,1)');
-        vg.addColorStop(0.55, 'rgba(0,0,0,0.42)');
-        vg.addColorStop(1, 'rgba(0,0,0,0)');
-        g.fillStyle = vg;
-        g.fillRect(0, 0, w, h);
+        const gy = g.createLinearGradient(0, 0, 0, 512);
+        gy.addColorStop(0.00, 'rgba(0,0,0,0)');
+        gy.addColorStop(0.25, 'rgba(0,0,0,0.85)');
+        gy.addColorStop(0.92, 'rgba(0,0,0,1)');
+        gy.addColorStop(1.00, 'rgba(0,0,0,0)');
+        g.fillStyle = gy;
+        g.fillRect(0, 0, 128, 512);
         return c;
     }
 
-    function buildHedge(th, seed) {
-        const w = 512, h = 180, c = makeCanvas(w, h), g = c.getContext('2d');
-        const R = rng(seed * 131 + 17);
-        g.fillStyle = th.shore;
-        for (let i = 0; i < 11; i++) {
-            const x = R() * w, r = 28 + R() * 42;
-            g.beginPath(); g.arc(x, h - r * 0.5, r, 0, TAU); g.fill();
-        }
-        for (let i = 0; i < 3; i++) {
-            const x = 40 + R() * (w - 80);
-            const ry = 44 + R() * 40;
-            g.beginPath(); g.ellipse(x, h - 20 - ry * 0.85, 20 + R() * 14, ry, 0, 0, TAU); g.fill();
-        }
-        g.fillRect(0, h - 22, w, 22);
-        g.globalCompositeOperation = 'source-atop';
-        const rim = g.createLinearGradient(0, 0, 0, h);
-        rim.addColorStop(0, `rgba(${hexToRgb(th.horizonGlow)},0.3)`);
-        rim.addColorStop(0.4, `rgba(${hexToRgb(th.horizonGlow)},0.05)`);
-        rim.addColorStop(1, 'rgba(0,0,0,0)');
-        g.fillStyle = rim;
-        g.fillRect(0, 0, w, h);
-        const acc = hexToRgb(th.accent);
-        for (let i = 0; i < 6; i++) {
-            const x = R() * w, y = 110 + R() * 60, r = 3 + R() * 4;
-            const lg = g.createRadialGradient(x, y, 0, x, y, r * 3);
-            lg.addColorStop(0, `rgba(${acc},0.95)`);
-            lg.addColorStop(1, `rgba(${acc},0)`);
-            g.fillStyle = lg;
-            g.fillRect(x - r * 3, y - r * 3, r * 6, r * 6);
-        }
-        return c;
-    }
-
-    function buildBand(rgb) {
-        const c = makeCanvas(8, 128), g = c.getContext('2d');
-        const lg = g.createLinearGradient(0, 0, 0, 128);
-        lg.addColorStop(0, `rgba(${rgb},0)`);
-        lg.addColorStop(0.5, `rgba(${rgb},0.55)`);
-        lg.addColorStop(1, `rgba(${rgb},0)`);
-        g.fillStyle = lg;
-        g.fillRect(0, 0, 8, 128);
-        return c;
-    }
-
-    function buildMist(rgb) {
-        const c = makeCanvas(256, 64), g = c.getContext('2d');
-        g.translate(128, 32);
-        g.scale(1, 0.25);
-        const rg = g.createRadialGradient(0, 0, 0, 0, 0, 128);
-        rg.addColorStop(0, `rgba(${rgb},0.5)`);
-        rg.addColorStop(1, `rgba(${rgb},0)`);
-        g.fillStyle = rg;
-        g.beginPath(); g.arc(0, 0, 128, 0, TAU); g.fill();
-        return c;
-    }
-
-    function buildPearl() {
-        const c = makeCanvas(64, 64), g = c.getContext('2d');
-        const rg = g.createRadialGradient(24, 22, 2, 32, 32, 30);
-        rg.addColorStop(0, '#ffffff');
-        rg.addColorStop(0.35, '#fff4f8');
-        rg.addColorStop(0.8, '#e8c6d4');
-        rg.addColorStop(1, '#b4869c');
-        g.fillStyle = rg;
-        g.beginPath(); g.arc(32, 32, 28, 0, TAU); g.fill();
-        g.strokeStyle = 'rgba(255,236,200,0.6)';
-        g.lineWidth = 1.5;
-        g.stroke();
-        return c;
-    }
-
-    function buildGroundSprite(th, P) {
-        if (th.ground === 'pearl') return { img: buildPearl(), mode: 'sphere' };
-        if (th.ground === 'tulip') {
-            const w = 96, h = 160, c = makeCanvas(w, h), g = c.getContext('2d');
-            g.strokeStyle = th.stem;
-            g.lineWidth = 5;
-            g.lineCap = 'round';
-            g.beginPath(); g.moveTo(48, 160); g.quadraticCurveTo(44, 112, 48, 74); g.stroke();
-            const leaf = buildLeafSprite(th.leaf);
-            g.save(); g.translate(46, 150); g.rotate(-0.5); g.drawImage(leaf, -14, -78, 28, 78); g.restore();
-            g.save(); g.translate(50, 156); g.rotate(0.42); g.drawImage(leaf, -12, -64, 24, 64); g.restore();
-            g.save(); g.translate(48, 86); g.rotate(-0.34); g.drawImage(P.back, -21, -70, 42, 72); g.restore();
-            g.save(); g.translate(48, 86); g.rotate(0.34); g.drawImage(P.back, -21, -70, 42, 72); g.restore();
-            g.drawImage(P.front, 48 - 23, 86 - 72, 46, 74);
-            return { img: c, mode: 'upright', aspect: h / w };
-        }
-        let PP = P;
-        if (th.ground === 'lotus') {
-            PP = buildPetalSprites({ shape: 'tulip', base: '#0e6a50', mid: '#f2cf63', tip: '#fff6c8', rim: '#ffffff', back0: '#0b5040', back1: '#c9a63c', shade: '#03140e', vein: '#6b5a12' });
-        }
-        const s = 128, c = makeCanvas(s, s), g = c.getContext('2d');
-        g.translate(64, 64);
-        const n = th.groundPetals || 8;
-        const layers = th.groundRose ? [[n, 60, 40, 0], [n - 1, 46, 34, 0.4], [n - 2, 32, 28, 0.9], [4, 20, 20, 1.3]] : [[n, 60, 36, 0], [n, 44, 30, Math.PI / n], [Math.max(4, n - 3), 28, 22, 0.2]];
-        layers.forEach(([cnt, len, wid, off]) => {
-            for (let i = 0; i < cnt; i++) {
-                g.save();
-                g.rotate(off + (i / cnt) * TAU);
-                g.drawImage(PP.front, -wid / 2, -len, wid, len);
-                g.restore();
-            }
-        });
-        const dk = g.createRadialGradient(0, 0, 0, 0, 0, 34);
-        dk.addColorStop(0, 'rgba(0,0,0,0.28)');
-        dk.addColorStop(1, 'rgba(0,0,0,0)');
-        g.globalCompositeOperation = 'source-atop';
-        g.fillStyle = dk;
-        g.fillRect(-64, -64, 128, 128);
-        g.globalCompositeOperation = 'source-over';
-        if (!th.groundRose) {
-            g.fillStyle = th.accent;
-            for (let i = 0; i < 10; i++) {
-                const a = (i / 10) * TAU;
-                g.beginPath(); g.arc(Math.cos(a) * 7, Math.sin(a) * 7, 2.2, 0, TAU); g.fill();
-            }
-            g.beginPath(); g.arc(0, 0, 4, 0, TAU); g.fill();
-        }
-        return { img: c, mode: 'flat' };
-    }
-
-    function buildCenterSprite(th) {
-        if (th.center === 'none' || th.center === 'pearls') return null;
-        const s = 128, c = makeCanvas(s, s), g = c.getContext('2d');
-        const acc = hexToRgb(th.accent);
-        const glow = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-        glow.addColorStop(0, `rgba(${acc},0.95)`);
-        glow.addColorStop(0.35, `rgba(${acc},0.35)`);
-        glow.addColorStop(1, `rgba(${acc},0)`);
-        g.fillStyle = glow;
-        g.fillRect(0, 0, s, s);
-        if (th.center === 'orb') {
-            const core = g.createRadialGradient(64, 64, 0, 64, 64, 22);
-            core.addColorStop(0, '#ffffff');
-            core.addColorStop(1, 'rgba(255,240,180,0)');
-            g.fillStyle = core;
-            g.beginPath(); g.arc(64, 64, 22, 0, TAU); g.fill();
-            return c;
-        }
-        const R = rng(5);
-        const fil = th.center === 'stamen-pink' ? '#ffb3cc' : '#ffe39a';
-        g.lineCap = 'round';
-        for (let i = 0; i < 30; i++) {
-            const a = (i / 30) * TAU + R() * 0.15;
-            const len = 26 + R() * 24;
-            const x = 64 + Math.cos(a) * len, y = 64 + Math.sin(a) * len;
-            g.strokeStyle = fil;
-            g.lineWidth = 1.6;
-            g.beginPath(); g.moveTo(64, 64); g.lineTo(x, y); g.stroke();
-            g.fillStyle = '#ffcf3d';
-            g.beginPath(); g.arc(x, y, 3.2, 0, TAU); g.fill();
-            g.fillStyle = 'rgba(255,255,255,0.8)';
-            g.beginPath(); g.arc(x - 1, y - 1, 1.1, 0, TAU); g.fill();
-        }
-        const disc = g.createRadialGradient(60, 60, 1, 64, 64, 13);
-        disc.addColorStop(0, '#fff7cf');
-        disc.addColorStop(1, '#d99a1e');
-        g.fillStyle = disc;
-        g.beginPath(); g.arc(64, 64, 12, 0, TAU); g.fill();
-        return c;
-    }
-
-    function buildShadow() {
-        const s = 128, c = makeCanvas(s, s), g = c.getContext('2d');
-        const rg = g.createRadialGradient(64, 64, 0, 64, 64, 64);
-        rg.addColorStop(0, 'rgba(8,2,6,0.85)');
-        rg.addColorStop(0.55, 'rgba(8,2,6,0.45)');
-        rg.addColorStop(1, 'rgba(8,2,6,0)');
-        g.fillStyle = rg;
-        g.fillRect(0, 0, s, s);
-        return c;
-    }
-
-    function buildDisc(ce) {
-        const s = 128, c = makeCanvas(s, s), g = c.getContext('2d');
-        const rg = g.createRadialGradient(54, 52, 4, 64, 64, 62);
-        rg.addColorStop(0, '#ffffff');
-        rg.addColorStop(0.55, ce.color);
-        rg.addColorStop(0.92, `rgba(${ce.glow},0.95)`);
-        rg.addColorStop(1, `rgba(${ce.glow},0)`);
-        g.fillStyle = rg;
-        g.beginPath(); g.arc(64, 64, 62, 0, TAU); g.fill();
-        if (ce.kind === 'moon') {
-            g.globalAlpha = 0.07;
-            g.fillStyle = '#6a5a70';
-            [[48, 50, 12], [78, 72, 9], [62, 88, 7], [86, 46, 6]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); });
-        }
-        return c;
-    }
-
-    function buildFlyWing(pal) {
-        const w = 64, h = 96, c = makeCanvas(w, h), g = c.getContext('2d');
-        const p = new Path2D();
-        p.moveTo(64, 46); p.bezierCurveTo(40, 0, 0, 4, 6, 34); p.bezierCurveTo(10, 48, 36, 52, 64, 52);
-        p.moveTo(64, 52); p.bezierCurveTo(30, 60, 14, 92, 40, 92); p.bezierCurveTo(54, 92, 62, 70, 64, 56);
-        const lg = g.createLinearGradient(64, 48, 0, 20);
-        lg.addColorStop(0, pal.base);
-        lg.addColorStop(0.45, pal.mid);
-        lg.addColorStop(1, pal.tip);
-        g.fillStyle = lg;
-        g.fill(p);
+    function buildMistSprite(rgb) {
+        const c = makeCanvas(320, 120), g = c.getContext('2d');
+        const gr = g.createRadialGradient(160, 60, 8, 160, 60, 155);
+        gr.addColorStop(0.00, `rgba(${rgb},0.38)`);
+        gr.addColorStop(0.55, `rgba(${rgb},0.14)`);
+        gr.addColorStop(1.00, `rgba(${rgb},0)`);
+        g.fillStyle = gr;
         g.save();
-        g.clip(p);
-        g.lineWidth = 7;
-        g.strokeStyle = 'rgba(30,18,2,0.6)';
-        g.stroke(p);
-        g.fillStyle = 'rgba(255,252,230,0.95)';
-        [[12, 30, 2.4], [22, 18, 2], [34, 82, 2.2]].forEach(([x, y, r]) => { g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill(); });
+        g.translate(160, 60);
+        g.scale(1, 0.36);
+        g.beginPath(); g.arc(0, 0, 150, 0, TAU); g.fill();
         g.restore();
         return c;
     }
 
-    const spriteCache = {};
+    function buildCloudSprite(topHex, glowHex) {
+        const c = makeCanvas(360, 140), g = c.getContext('2d');
+        const puffs = [
+            [-95, 18, 68, 34], [-42, -6, 84, 44], [24, -4, 88, 46],
+            [88, 16, 72, 36], [-12, 18, 96, 38]
+        ];
+        const rgbTop = hexToRgb(topHex);
+        const rgbGlow = hexToRgb(glowHex);
+        puffs.forEach(([ox, oy, rx, ry]) => {
+            const cx = 180 + ox, cy = 76 + oy;
+            const gr = g.createRadialGradient(cx, cy, 4, cx, cy, rx);
+            gr.addColorStop(0.0, `rgba(${rgbGlow},0.34)`);
+            gr.addColorStop(0.55, `rgba(${rgbTop},0.18)`);
+            gr.addColorStop(1.0, `rgba(${rgbTop},0)`);
+            g.fillStyle = gr;
+            g.save();
+            g.translate(cx, cy);
+            g.scale(1, ry / rx);
+            g.beginPath();
+            g.arc(0, 0, rx, 0, TAU);
+            g.fill();
+            g.restore();
+        });
+        return c;
+    }
+
+    function buildCelestialDisc(cel) {
+        const c = makeCanvas(256, 256), g = c.getContext('2d');
+        const cx = 128, cy = 128;
+        const outer = g.createRadialGradient(cx, cy, 24, cx, cy, 124);
+        outer.addColorStop(0.00, 'rgba(255,255,255,0.95)');
+        outer.addColorStop(0.28, `rgba(${cel.glow},0.62)`);
+        outer.addColorStop(0.62, `rgba(${cel.glow},0.18)`);
+        outer.addColorStop(1.00, `rgba(${cel.glow},0)`);
+        g.fillStyle = outer;
+        g.beginPath(); g.arc(cx, cy, 124, 0, TAU); g.fill();
+
+        const discR = 42;
+        const body = g.createRadialGradient(cx - 10, cy - 10, 4, cx, cy, discR);
+        body.addColorStop(0.00, '#ffffff');
+        body.addColorStop(0.75, cel.color);
+        body.addColorStop(1.00, `rgba(${cel.glow},0.92)`);
+        g.fillStyle = body;
+        g.beginPath(); g.arc(cx, cy, discR, 0, TAU); g.fill();
+
+        if (cel.kind === 'moon') {
+            g.fillStyle = 'rgba(180,165,195,0.13)';
+            g.beginPath(); g.ellipse(cx - 12, cy - 6, 13, 9, -0.3, 0, TAU); g.fill();
+            g.beginPath(); g.ellipse(cx + 8, cy - 12, 10, 8, 0.4, 0, TAU); g.fill();
+            g.beginPath(); g.ellipse(cx + 6, cy + 10, 14, 8, -0.2, 0, TAU); g.fill();
+        }
+        return c;
+    }
+
+    function buildPearlSprite() {
+        const c = makeCanvas(64, 64), g = c.getContext('2d');
+        const gr = g.createRadialGradient(24, 22, 2, 32, 32, 26);
+        gr.addColorStop(0.00, '#ffffff');
+        gr.addColorStop(0.32, '#fff9ee');
+        gr.addColorStop(0.68, '#f5d4c2');
+        gr.addColorStop(0.92, '#c48b76');
+        gr.addColorStop(1.00, '#ffe3a8');
+        g.fillStyle = gr;
+        g.beginPath(); g.arc(32, 32, 26, 0, TAU); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.92)';
+        g.beginPath(); g.ellipse(23, 21, 6, 3.8, -0.6, 0, TAU); g.fill();
+        return c;
+    }
+
+    function buildContactShadow() {
+        const c = makeCanvas(256, 128), g = c.getContext('2d');
+        g.save();
+        g.translate(128, 64);
+        g.scale(1, 0.48);
+        const gr = g.createRadialGradient(0, 0, 6, 0, 0, 120);
+        gr.addColorStop(0.00, 'rgba(6, 1, 10, 0.85)');
+        gr.addColorStop(0.45, 'rgba(12, 2, 18, 0.48)');
+        gr.addColorStop(0.78, 'rgba(12, 2, 18, 0.14)');
+        gr.addColorStop(1.00, 'rgba(0, 0, 0, 0)');
+        g.fillStyle = gr;
+        g.beginPath(); g.arc(0, 0, 120, 0, TAU); g.fill();
+        g.restore();
+        return c;
+    }
+
     function buildThemeSprites(id) {
         if (spriteCache[id]) return spriteCache[id];
-        const th = THEMES[id];
-        const S = {};
-        S.petal = buildPetalSprites(th.petal);
-        S.leaf = buildLeafSprite(th.leaf);
-        S.glowMote = buildGlow(th.mote.join(','), true);
-        S.glowAccent = buildGlow(hexToRgb(th.accent), true);
-        S.softAccent = buildGlow(hexToRgb(th.accent), false);
-        S.softRipple = buildGlow(th.ripple, false);
-        S.softCelestial = buildGlow(th.celestial.glow, false);
-        S.flare = buildFlare();
-        S.rays = buildRays(th.ripple);
-        S.pillar = buildPillar(th.mote.join(','));
-        S.hedges = [buildHedge(th, 1), buildHedge(th, 2), buildHedge(th, 3)];
-        S.band = buildBand(hexToRgb(th.horizonGlow));
-        S.mist = buildMist(th.mist);
-        S.ground = buildGroundSprite(th, S.petal);
-        S.center = buildCenterSprite(th);
-        S.pearl = buildPearl();
-        S.wing = th.butterflies ? buildFlyWing(th.petal) : null;
-        S.disc = buildDisc(th.celestial);
-        S.shadow = buildShadow();
+        const th = THEMES[id] || THEMES.bloom;
+        const S = {
+            glowMote: buildGlow(th.mote.join(','), true),
+            glowFirefly: buildGlow(hexToRgb(th.firefly), true),
+            glowAccent: buildGlow(hexToRgb(th.accent), true),
+            softAccent: buildGlow(hexToRgb(th.accent), false),
+            softRipple: buildGlow(th.ripple, false),
+            softSubsurface: buildGlow(th.waterSubsurface, false),
+            flare: buildStarFlare(),
+            plume: buildVolumetricPlume(th.ripple),
+            pillar: buildPillar(th.mote.join(',')),
+            mist: buildMistSprite(th.mist),
+            cloud: buildCloudSprite(th.horizon, th.horizonGlow),
+            disc: buildCelestialDisc(th.celestial),
+            pearl: buildPearlSprite(),
+            shadow: buildContactShadow()
+        };
         spriteCache[id] = S;
         return S;
     }
 
-    // Xuất các phần dùng chung cho phần 2 (scene) trong cùng file
-    window.__WishBloomCore = {
-        TAU, DEG, clamp01, lerp, smooth, easeOutCubic, easeInOutCubic, easeOutBack, rng, hexToRgb, makeCanvas,
-        T, speedAt, sampleCam, THEMES, buildPetalList, buildThemeSprites
-    };
-})();
-
-/* ====================== PHẦN 2: ĐẠO DIỄN CẢNH & KẾT XUẤT TỪNG KHUNG HÌNH ====================== */
-(function () {
-    'use strict';
-    const C = window.__WishBloomCore;
-    if (!C) return;
-    const { TAU, DEG, clamp01, lerp, smooth, easeOutCubic, easeInOutCubic, easeOutBack, rng, makeCanvas, T, speedAt, sampleCam, THEMES, buildPetalList, buildThemeSprites } = C;
-
-    const ENV_W = 128;           // bề ngang bức thư trong thế giới 3D
-    const L_DIR = (() => { const x = -0.35, y = 0.82, z = 0.45, l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; })();
-    const SEG1_SY = 256 * 0.44, SEG1_SH = 256 * 0.56, SEG2_SH = 256 * 0.44 + 6, SEG2_DH = 1 + 6 / (256 * 0.44);
+    // ---------------------------------------------------------------------------------
+    // DỰNG CẢNH & KẾT XUẤT 3D MỖI KHUNG HÌNH
+    // ---------------------------------------------------------------------------------
+    const ENV_W = 128;
+    const L_DIR = (() => {
+        const x = -0.34, y = 0.80, z = 0.49;
+        const l = Math.hypot(x, y, z);
+        return [x / l, y / l, z / l];
+    })();
 
     function createScene(motionId, stageEl) {
         const id = THEMES[motionId] ? motionId : 'bloom';
         const th = THEMES[id];
         const S = buildThemeSprites(id);
         const petals = buildPetalList(th);
-        const R = rng(911 + id.length * 7919 + id.charCodeAt(0) * 31);
+        const R = rng(1337 + id.length * 4099 + id.charCodeAt(0) * 97);
         const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
         const rgbRipple = th.ripple;
+        const rgbSpec = th.waterSpec;
 
-        // ---------- Dựng thế giới (tất cả tất định theo seed) ----------
-        const ground = [];
-        for (let i = 0; i < th.groundCount; i++) {
-            const r = 195 + 500 * Math.sqrt(R());
-            const a = R() * TAU;
-            ground.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, born: T.IMPACT + (r - 40) / 330, size: 36 + R() * 26, rot: R() * TAU, spin: (R() - 0.5) * 0.35, bob: R() * TAU, sx: 0, sy: 0, sz: 0, k: 0, sinE: 1, vis: false });
+        // 1. Hai tầng núi mờ sương khóa chuẩn trên đường chân trời (Horizon-locked directional mountains)
+        const mountainLayers = [
+            { elBase: 0.042, amp1: 0.028, amp2: 0.014, freq1: 3, freq2: 7, phase: 0.4, color: th.mountainFar, mistA: 0.48 },
+            { elBase: 0.024, amp1: 0.018, amp2: 0.009, freq1: 5, freq2: 11, phase: 2.1, color: th.mountainNear, mistA: 0.25 }
+        ];
+
+        // Đèn hoa đăng bờ xa
+        const shoreLights = [];
+        for (let i = 0; i < 26; i++) {
+            const a = (i / 26) * TAU + (R() - 0.5) * 0.08;
+            const dist = 1220 + R() * 160;
+            shoreLights.push({
+                x: Math.cos(a) * dist,
+                z: Math.sin(a) * dist,
+                y: 4 + R() * 14,
+                sz: 0.8 + R() * 0.8,
+                ph: R() * TAU
+            });
         }
-        const flies = [];
-        for (let i = 0; i < th.fireflies; i++) {
-            const r = 185 + 600 * Math.sqrt(R()), a = R() * TAU;
-            flies.push({ x: Math.cos(a) * r, z: Math.sin(a) * r, y: 14 + R() * 150, p1: R() * TAU, p2: R() * TAU, p3: R() * TAU, s: 0.6 + R() * 0.8 });
+
+        // Mây khối 3D
+        const skyClouds = [];
+        for (let i = 0; i < 12; i++) {
+            const az = (i / 12) * TAU + (R() - 0.5) * 0.2;
+            const el = (9 + (i % 4) * 6 + R() * 5) * DEG;
+            skyClouds.push({
+                az,
+                el,
+                scale: 0.75 + R() * 0.65,
+                spd: (i % 2 === 0 ? 1 : -1) * (0.004 + R() * 0.005),
+                alpha: 0.34 + R() * 0.24
+            });
         }
-        const drift = [];
-        for (let i = 0; i < th.driftCount; i++) {
-            const dr = 190 + 420 * Math.sqrt(R()), da = R() * TAU;
-            drift.push({ x0: Math.cos(da) * dr, z0: Math.sin(da) * dr, sp: 22 + R() * 26, ph: R(), rs: (R() - 0.5) * 3, fs: 1.5 + R() * 2.5, sz: 0.7 + R() * 0.6 });
-        }
+
+        // Bầu trời sao
         const stars = [];
         for (let i = 0; i < th.stars; i++) {
-            const az = R() * TAU, el = (4 + Math.pow(R(), 0.7) * 70) * DEG;
-            stars.push({ dx: Math.cos(el) * Math.cos(az), dy: Math.sin(el), dz: Math.cos(el) * Math.sin(az), s: R() < 0.12 ? 2.2 : 1 + R() * 0.8, tw: R() * TAU, sp: 1 + R() * 2.5 });
+            const az = R() * TAU;
+            const el = (5 + Math.pow(R(), 0.72) * 68) * DEG;
+            stars.push({
+                dx: Math.cos(el) * Math.cos(az),
+                dy: Math.sin(el),
+                dz: Math.cos(el) * Math.sin(az),
+                s: R() < 0.16 ? 2.4 : 0.9 + R() * 1.1,
+                tw: R() * TAU,
+                sp: 1.4 + R() * 2.8
+            });
         }
-        const hedges = [];
-        for (let i = 0; i < 26; i++) {
-            const a = (i / 26) * TAU + R() * 0.12;
-            hedges.push({ x: Math.cos(a) * 1500, z: Math.sin(a) * 1500, sc: 0.6 + R() * 0.5, v: i % 3 });
+
+        // Vảy sóng phản quang phối cảnh trên mặt nước
+        const waterFacets = [];
+        for (let i = 0; i < 130; i++) {
+            const spread = (R() - 0.5) * 1100;
+            const depth = -1250 + R() * 1750;
+            waterFacets.push({
+                x: spread,
+                z: depth,
+                len: 12 + R() * 26,
+                ph: R() * TAU,
+                spd: 2.2 + R() * 2.8
+            });
         }
-        const shimmer = [];
-        for (let i = 0; i < 64; i++) shimmer.push({ x: (R() - 0.5) * 1600, z: (R() - 0.5) * 1600, ph: R() * TAU, w: 6 + R() * 12 });
-        const splash = [];
-        for (let i = 0; i < 26; i++) splash.push({ v: 260 + R() * 300, el: (52 + R() * 34) * DEG, az: R() * TAU });
-        const sparks = [];
-        for (let i = 0; i < 14; i++) sparks.push({ jx: (R() - 0.5) * 30, jz: (R() - 0.5) * 30 });
-        const burst = [];
-        for (let i = 0; i < 22; i++) {
-            const az = R() * TAU, el = (10 + R() * 70) * DEG;
-            burst.push({ dx: Math.cos(el) * Math.cos(az), dy: Math.sin(el), dz: Math.cos(el) * Math.sin(az), d: 0.6 + R() * 0.6 });
+
+        // Sương mù mặt hồ
+        const lakeMists = [];
+        for (let i = 0; i < 16; i++) {
+            const a = (i / 16) * TAU + R() * 0.3;
+            const r = 340 + R() * 760;
+            lakeMists.push({
+                x: Math.cos(a) * r,
+                z: Math.sin(a) * r,
+                y: 10 + R() * 22,
+                w: 260 + R() * 200,
+                ph: R() * TAU
+            });
         }
+
+        // Khu vườn hoa 3D trên mặt hồ
+        const ground = [];
+        for (let i = 0; i < th.groundCount; i++) {
+            const t = i / th.groundCount;
+            const r = 185 + 560 * Math.pow(t, 0.62) + (R() - 0.5) * 28;
+            const a = i * 2.39996 + (R() - 0.5) * 0.22;
+            ground.push({
+                x: Math.cos(a) * r,
+                z: Math.sin(a) * r,
+                r,
+                born: T.IMPACT + (r - 45) / 335,
+                size: 30 + R() * 18,
+                padSize: 44 + R() * 26,
+                stemH: 7 + R() * 12,
+                rot: R() * TAU,
+                notchRot: R() * TAU,
+                bob: R() * TAU,
+                petalsCount: th.petal.shape === 'sakura' ? 5 : (th.petal.shape === 'tulip' ? 6 : 7),
+                vis: false,
+                sx: 0, sy: 0, sz: 0, k: 0, bloom: 0
+            });
+        }
+
+        // Đom đóm
+        const flies = [];
+        for (let i = 0; i < th.fireflies; i++) {
+            const r = 140 + 620 * Math.sqrt(R()), a = R() * TAU;
+            flies.push({
+                x: Math.cos(a) * r,
+                z: Math.sin(a) * r,
+                y: 16 + R() * 165,
+                p1: R() * TAU, p2: R() * TAU, p3: R() * TAU,
+                s: 0.65 + R() * 0.85
+            });
+        }
+
+        // Cánh hoa 3D xoay lượn trong gió
+        const drift = [];
+        for (let i = 0; i < th.driftCount; i++) {
+            const dr = 110 + 440 * Math.sqrt(R()), da = R() * TAU;
+            drift.push({
+                x0: Math.cos(da) * dr,
+                z0: Math.sin(da) * dr,
+                sp: 20 + R() * 26,
+                ph: R(),
+                rx: R() * TAU, ry: R() * TAU, rz: R() * TAU,
+                vrx: (R() - 0.5) * 3.2, vry: (R() - 0.5) * 3.2,
+                fs: 1.4 + R() * 2.2,
+                sz: 0.75 + R() * 0.65
+            });
+        }
+
+        // Đàn bướm 3D
         const flyers = [];
-        if (th.butterflies) {
-            for (let i = 0; i < 14; i++) {
-                const fromHeart = i >= 6;
-                flyers.push({
-                    born: fromHeart ? 4.05 + (i - 6) * 0.04 : T.IMPACT + 0.35 + R() * 0.45,
-                    fromHeart, ox: (R() - 0.5) * 700, oz: (R() - 0.5) * 600,
-                    rad: fromHeart ? 175 + R() * 130 : 120 + R() * 180, h: 60 + R() * 170, dir: R() < 0.5 ? -1 : 1, ph: R() * TAU, sz: 22 + R() * 12, fp: R() * TAU
+        const flyerCount = th.butterflies ? 16 : 5;
+        for (let i = 0; i < flyerCount; i++) {
+            const fromHeart = i >= Math.floor(flyerCount * 0.45);
+            flyers.push({
+                born: fromHeart ? 3.85 + (i % 6) * 0.06 : T.IMPACT + 0.35 + R() * 0.45,
+                fromHeart,
+                ox: (R() - 0.5) * 620,
+                oz: (R() - 0.5) * 520,
+                rad: fromHeart ? 145 + R() * 125 : 110 + R() * 175,
+                h: 56 + R() * 155,
+                dir: R() < 0.5 ? -1 : 1,
+                ph: R() * TAU,
+                sz: (th.butterflies ? 20 : 15) + R() * 9,
+                fp: R() * TAU
+            });
+        }
+
+        // Vương miện 42 sợi nhụy vàng 3D
+        const stamens = [];
+        for (let ring = 0; ring < 3; ring++) {
+            const count = ring === 0 ? 18 : (ring === 1 ? 14 : 10);
+            for (let k = 0; k < count; k++) {
+                const az = ((k + (ring % 2) * 0.5) / count) * TAU;
+                stamens.push({
+                    ring,
+                    az,
+                    len: 28 - ring * 5 + (k % 3) * 2,
+                    spread: (46 - ring * 13) * DEG,
+                    rb: 11 - ring * 3.2,
+                    ph: k * 0.7 + ring
                 });
             }
         }
 
-        // Độ cao vương miện hoa khi đã nở trọn vẹn (để bức thư luôn đậu PHÍA TRÊN mọi cánh hoa)
+        const splash = [];
+        for (let i = 0; i < 28; i++) {
+            splash.push({ v: 250 + R() * 310, el: (50 + R() * 34) * DEG, az: R() * TAU });
+        }
+        const sparks = [];
+        for (let i = 0; i < 16; i++) sparks.push({ jx: (R() - 0.5) * 28, jz: (R() - 0.5) * 28 });
+        const burst = [];
+        for (let i = 0; i < 24; i++) {
+            const az = R() * TAU, el = (12 + R() * 68) * DEG;
+            burst.push({ dx: Math.cos(el) * Math.cos(az), dy: Math.sin(el), dz: Math.cos(el) * Math.sin(az), d: 0.6 + R() * 0.65 });
+        }
+
         let finalCrown = 0;
         petals.forEach((p) => {
             const a = p.a2 * DEG, c = p.curl * DEG;
-            const hm = Math.cos(a) * p.len * 0.56;
-            finalCrown = Math.max(finalCrown, hm, hm + Math.cos(a + c) * p.len * 0.44);
+            const hm = Math.cos(a) * p.len * 0.55;
+            finalCrown = Math.max(finalCrown, hm, hm + Math.cos(a + c) * p.len * 0.45);
         });
 
         const sc = {
-            tau: reduced ? 4.25 : 0, clock: 0, impactClock: -1, skipFlash: 0, finished: false,
-            quality: 1, frameAvg: 1 / 60, skipped: reduced, vw: 0, vh: 0, M0: null,
-            skyGrad: null, lakeGrad: null, vignette: null, gradCtx: null
+            tau: reduced ? 4.25 : 0,
+            clock: 0,
+            impactClock: -1,
+            skipFlash: 0,
+            finished: false,
+            quality: 1,
+            frameAvg: 1 / 60,
+            skipped: reduced,
+            vw: 0, vh: 0,
+            M0: null,
+            vignette: null
         };
 
-        // ---------- Nút Bỏ qua (kiểu game) ----------
         let skipBtn = null;
         if (stageEl) {
             skipBtn = document.createElement('button');
@@ -859,7 +826,7 @@
             stageEl.appendChild(skipBtn);
         }
 
-        // ---------- Máy quay ----------
+        // ---------- Hệ thống Máy quay 3D ----------
         const cam = { x: 0, y: 0, z: 0, fx: 0, fy: 0, fz: 0, rx: 0, rz: 0, ux: 0, uy: 0, uz: 0, f: 600, cx: 0, cy: 0, yaw: 0, hy: 0 };
         const KS = [0, 0, 0, 0, 0];
 
@@ -893,9 +860,9 @@
             if (sc.impactClock >= 0) {
                 const e = sc.clock - sc.impactClock;
                 if (e < 1.4) {
-                    const amp = 8 * Math.exp(-e * 5);
-                    px += Math.sin(e * 63) * amp;
-                    py += Math.cos(e * 51) * amp * 0.6;
+                    const amp = 7.5 * Math.exp(-e * 5.2);
+                    px += Math.sin(e * 62) * amp;
+                    py += Math.cos(e * 50) * amp * 0.6;
                 }
             }
             cam.yaw = yaw;
@@ -912,6 +879,7 @@
             o.z = zc; o.k = k; o.v = true;
             return true;
         }
+
         function projectDir(dx, dy, dz, o) {
             const zc = dx * cam.fx + dy * cam.fy + dz * cam.fz;
             if (zc < 0.04) { o.v = false; return false; }
@@ -922,9 +890,9 @@
             return true;
         }
 
-        const A = { x: 0, y: 0, z: 0, k: 0, v: false }, B = { ...A }, Cc = { ...A }, D = { ...A }, Q = { ...A }, Q2 = { ...A };
+        const P0 = { x: 0, y: 0, z: 0, k: 0, v: false };
+        const P1 = { ...P0 }, P2 = { ...P0 }, P2L = { ...P0 }, P3 = { ...P0 }, P4 = { ...P0 }, P4R = { ...P0 }, P5 = { ...P0 }, P6 = { ...P0 }, PTL = { ...P0 }, PTR = { ...P0 }, Q = { ...P0 }, Q2 = { ...P0 };
 
-        // Vị trí khởi đầu của đốm sáng: khớp 100% với đốm sáng của màn chuyển cảnh CSS (50%, 26%)
         function computeM0(vw, vh) {
             sampleCam(0, KS);
             const yaw = KS[1];
@@ -939,22 +907,13 @@
             };
         }
 
-        function rebuildViewCaches(g, vw, vh) {
+        function rebuildViewCaches(vw, vh) {
             sc.vw = vw; sc.vh = vh;
             sc.M0 = computeM0(vw, vh);
-            sc.gradCtx = g;
-            sc.skyGrad = g.createLinearGradient(0, -vh * 1.25, 0, 0);
-            sc.skyGrad.addColorStop(0, th.skyTop);
-            sc.skyGrad.addColorStop(0.55, th.skyMid);
-            sc.skyGrad.addColorStop(0.9, th.horizon);
-            sc.skyGrad.addColorStop(1, th.horizonGlow);
-            sc.lakeGrad = g.createLinearGradient(0, 0, 0, vh * 0.7);
-            sc.lakeGrad.addColorStop(0, th.lakeFar);
-            sc.lakeGrad.addColorStop(1, th.lakeNear);
             const vg = makeCanvas(vw, vh), vgg = vg.getContext('2d');
-            const rg = vgg.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.32, vw / 2, vh / 2, Math.max(vw, vh) * 0.78);
+            const rg = vgg.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.34, vw / 2, vh / 2, Math.max(vw, vh) * 0.78);
             rg.addColorStop(0, 'rgba(0,0,0,0)');
-            rg.addColorStop(1, 'rgba(0,0,0,0.58)');
+            rg.addColorStop(1, 'rgba(0,0,0,0.50)');
             vgg.fillStyle = rg;
             vgg.fillRect(0, 0, vw, vh);
             sc.vignette = vg;
@@ -967,696 +926,1478 @@
                 return;
             }
             const p = clamp01((tau - T.FALL) / (T.IMPACT - T.FALL));
-            const s = Math.pow(p, 2.1);
-            bez(s, o);
+            bez(Math.pow(p, 2.1), o);
         }
+
         function bez(s, o) {
             const M0 = sc.M0;
             const cx = M0.x * 0.35, cy = M0.y * 0.55, cz = M0.z * 0.35;
-            const a = (1 - s) * (1 - s), b = 2 * (1 - s) * s, c = s * s;
+            const a = (1 - s) * (1 - s), b = 2 * (1 - s) * s;
             o.x = a * M0.x + b * cx;
             o.y = a * M0.y + b * cy;
             o.z = a * M0.z + b * cz;
-            void c;
         }
 
-        // ---------- Hoa chủ (cánh hoa 3D thật) ----------
-        const segPool = [];
-        const segList = [];
-        let segUsed = 0;
-        function newSeg() {
-            if (segUsed >= segPool.length) segPool.push({});
-            const s = segPool[segUsed++];
-            segList.push(s);
-            return s;
+        // Luôn bảo toàn globalAlpha = 1 sau khi vẽ Additive để không bao giờ làm mờ các vật thể vẽ sau!
+        function drawAdditive(g, img, x, y, w, h, a) {
+            if (a <= 0.004) return;
+            const prevA = g.globalAlpha;
+            g.globalAlpha = a > 1 ? 1 : a;
+            g.drawImage(img, x - w * 0.5, y - h * 0.5, w, h);
+            g.globalAlpha = prevA;
         }
 
-        function addPetalSeg(x0, y0, z0, x1, y1, z1, wx, wz, sa, ca, cp, sp, part, ms, open, tone) {
-            const mx = (x0 + x1) * 0.5, my = (y0 + y1) * 0.5, mz = (z0 + z1) * 0.5;
-            if (!project(x0, y0 * ms, z0, A) || !project(x1, y1 * ms, z1, B) || !project(mx + wx, my * ms, mz + wz, Cc) || !project(mx - wx, my * ms, mz - wz, D)) return;
-            const s = newSeg();
-            s.kind = 0;
-            s.e = A.x; s.f = A.y;
-            s.c = -(B.x - A.x); s.d = -(B.y - A.y);
-            s.a = (Cc.x - D.x) * 0.5; s.b = (Cc.y - D.y) * 0.5;
-            s.z = (A.z + B.z) * 0.5;
-            s.part = part;
-            // Pháp tuyến n = W x d (hướng về mặt trong của cánh)
-            const dx = sa * cp, dy = ca, dz = sa * sp;
-            let nx = -wz * dy, ny = (wz * dx - wx * dz) * ms, nz = wx * dy;
-            const nl = Math.hypot(nx, ny, nz) || 1;
-            nx /= nl; ny /= nl; nz /= nl;
-            const facing = nx * (cam.x - mx) + ny * (cam.y - my * ms) + nz * (cam.z - mz);
-            const sgn = facing >= 0 ? 1 : -1;
-            const diff = Math.max(0, (nx * L_DIR[0] + ny * L_DIR[1] + nz * L_DIR[2]) * sgn);
-            const bright = 0.46 + 0.56 * diff + 0.14 * open;
-            s.shade = clamp01(clamp01(1 - bright) * 0.66 + (ms < 0 ? 0.18 : 0) + (tone || 0) * 0.14);
-            s.img = facing >= 0 ? S.petal.front : S.petal.back;
-        }
+        // =================================================================================
+        // 1. VẼ BẦU TRỜI, MÂY KHỐI 3D, NÚI MỜ SƯƠNG KHÓA CHÂN TRỜI & MẶT HỒ FRESNEL
+        // =================================================================================
+        function drawAtmosphereAndLake(g, vw, vh, hy, wake) {
+            const skyEnd = Math.max(2, Math.min(vh, hy + 2));
 
-        function addLeafSeg(bx, by, bz, phi, al, len, wid, ms) {
-            const cp = Math.cos(phi), sp = Math.sin(phi);
-            const tx = bx + Math.sin(al) * cp * len, ty = by + Math.cos(al) * len, tz = bz + Math.sin(al) * sp * len;
-            const wx = -sp * wid * 0.5, wz = cp * wid * 0.5;
-            const mx = (bx + tx) * 0.5, my = (by + ty) * 0.5, mz = (bz + tz) * 0.5;
-            if (!project(bx, by * ms, bz, A) || !project(tx, ty * ms, tz, B) || !project(mx + wx, my * ms, mz + wz, Cc) || !project(mx - wx, my * ms, mz - wz, D)) return;
-            const s = newSeg();
-            s.kind = 2;
-            s.e = A.x; s.f = A.y;
-            s.c = -(B.x - A.x); s.d = -(B.y - A.y);
-            s.a = (Cc.x - D.x) * 0.5; s.b = (Cc.y - D.y) * 0.5;
-            s.z = (A.z + B.z) * 0.5;
-            s.shade = ms < 0 ? 0.3 : 0;
-        }
+            // 1A. Bầu trời đa tầng chiều sâu
+            const skyG = g.createLinearGradient(0, 0, 0, skyEnd);
+            skyG.addColorStop(0.00, th.skyTop);
+            skyG.addColorStop(0.52, th.skyMid);
+            skyG.addColorStop(0.86, th.horizon);
+            skyG.addColorStop(1.00, th.horizonGlow);
+            g.fillStyle = skyG;
+            g.fillRect(0, 0, vw, skyEnd);
 
-        function heroState() {
-            const grow = clamp01((sc.tau - T.BUD) / 0.8);
-            return {
-                visible: sc.tau >= T.BUD,
-                H: th.hero.H * easeOutCubic(grow),
-                bud: 0.22 + 0.78 * easeOutCubic(clamp01((sc.tau - T.BUD) / 0.7)),
-                sway: Math.sin(sc.clock * 0.8) * 0.06
-            };
-        }
+            // 1B. Mặt hồ Fresnel (Xa sáng màu trời phản chiếu -> Gần sâu thẳm trong vắt)
+            const lakeStart = Math.max(0, hy - 1);
+            const lakeH = Math.max(4, vh - lakeStart);
+            const lakeG = g.createLinearGradient(0, lakeStart, 0, vh);
+            lakeG.addColorStop(0.00, th.horizonGlow);
+            lakeG.addColorStop(0.05, th.lakeHorizon);
+            lakeG.addColorStop(0.32, th.lakeMid);
+            lakeG.addColorStop(0.75, th.lakeDeep);
+            lakeG.addColorStop(1.00, th.veil);
+            g.fillStyle = lakeG;
+            g.fillRect(0, lakeStart, vw, lakeH);
 
-        // Thứ tự vẽ đúng vật lý cho hoa nhiều tầng cánh:
-        // - Nhìn ngang: cánh gần ống kính che cánh xa (theo chiều sâu z).
-        // - Nhìn từ trên xuống: tầng cánh bên trong luôn nằm TRÊN tầng ngoài (dù tầng ngoài gần ống kính hơn),
-        //   nên cộng thêm "độ sâu tầng" theo mức độ nhìn từ trên (topness) => không bao giờ thấy cánh xuyên qua nhau.
-        let heroCrownTop = 0;
-        function tagKeys(from, ld, topBias) {
-            for (let k = from; k < segList.length; k++) segList[k].key = segList[k].z - ld * topBias;
-        }
-
-        function buildHero(hs, ms) {
-            segList.length = 0;
-            segUsed = 0;
-            const H = hs.H, bud = hs.bud, tau = sc.tau, clock = sc.clock;
-            const isWing = th.petal.shape === 'wing';
-            let topBias = 0;
-            if (ms > 0) {
-                const dist = Math.hypot(cam.x, cam.y - H, cam.z) || 1;
-                const elev = Math.asin(Math.max(-1, Math.min(1, (cam.y - H) / dist))) / DEG;
-                topBias = 320 * smooth((elev - 16) / 24);
-            }
-            let crownTop = 0;
-            for (let i = 0; i < petals.length; i++) {
-                const p = petals[i];
-                const open = easeOutCubic((tau - (T.OPEN + p.delay)) / 0.95);
-                const heart = easeInOutCubic((tau - (T.HEART + p.delay * 0.25)) / 0.6);
-                const alStill = p.a0 + (p.a1 - p.a0) * open + (p.a2 - p.a1) * heart;
-                let al = alStill + Math.sin(clock * 1.35 + p.phi * 2.0) * 1.3 * open;
-                if (isWing) al += Math.sin(clock * 5.2 + p.phi * 3) * 4.5 * open;
-                al *= DEG;
-                const phi = p.phi + 0.6 * (1 - open) + hs.sway * 0.4;
-                const len = p.len * bud * (0.8 + 0.2 * open);
-                const wid = p.wid * bud * (0.66 + 0.34 * open);
-                const curl = p.curl * DEG * (0.35 + 0.65 * open);
-                // Đỉnh cao nhất của vương miện hoa (dùng tư thế tĩnh, không lẫn nhịp thở -> bức thư không rung)
-                const hMid = Math.cos(alStill * DEG) * len * 0.56;
-                const hTip = hMid + Math.cos(alStill * DEG + curl) * len * 0.44;
-                if (hMid > crownTop) crownTop = hMid;
-                if (hTip > crownTop) crownTop = hTip;
-
-                const cp = Math.cos(phi), sp = Math.sin(phi);
-                const bx = cp * p.rb * bud + hs.sway * 3, by = H, bz = sp * p.rb * bud;
-                const s1 = Math.sin(al), c1 = Math.cos(al);
-                const mx = bx + s1 * cp * len * 0.56, my = by + c1 * len * 0.56, mz = bz + s1 * sp * len * 0.56;
-                const a2 = al + curl;
-                const s2 = Math.sin(a2), c2 = Math.cos(a2);
-                const tx = mx + s2 * cp * len * 0.44, ty = my + c2 * len * 0.44, tz = mz + s2 * sp * len * 0.44;
-                const wx = -sp * wid * 0.5, wz = cp * wid * 0.5;
-                const from = segList.length;
-                addPetalSeg(bx, by, bz, mx, my, mz, wx, wz, s1, c1, cp, sp, 1, ms, open, p.tone);
-                addPetalSeg(mx, my, mz, tx, ty, tz, wx, wz, s2, c2, cp, sp, 2, ms, open, p.tone);
-                tagKeys(from, p.ld, topBias);
-            }
-            if (ms > 0) heroCrownTop = crownTop;
-            // Lá xanh ôm thân khi nụ vừa trồi lên (luôn nằm dưới mọi tầng cánh)
-            if (S.leaf && H > 4) {
-                const lb = hs.bud;
-                const from = segList.length;
-                addLeafSeg(4, H * 0.3, 0, 0.9, 54 * DEG, 96 * lb, 48 * lb, ms);
-                addLeafSeg(-4, H * 0.22, 0, 0.9 + Math.PI, 60 * DEG, 88 * lb, 44 * lb, ms);
-                tagKeys(from, -0.6, topBias);
-            }
-            // Nhụy / ngọc trai trung tâm (nằm sâu nhất trong lòng hoa)
-            const openC = easeOutCubic((tau - (T.OPEN + 0.2)) / 0.9);
-            if (openC > 0.01) {
-                const from = segList.length;
-                if (th.center === 'pearls') {
-                    for (let i = 0; i < 10; i++) {
-                        const a = (i / 10) * TAU + clock * 0.2;
-                        const r = 22 * bud;
-                        if (!project(Math.cos(a) * r + hs.sway * 3, (H + 8) * ms, Math.sin(a) * r, Q)) continue;
-                        const s = newSeg();
-                        s.kind = 1; s.img = S.pearl; s.x = Q.x; s.y = Q.y; s.w = 13 * Q.k * openC; s.h = s.w; s.z = Q.z; s.alpha = ms < 0 ? 0.5 : 1;
-                    }
-                } else if (S.center && project(hs.sway * 3, (H + 6) * ms, 0, Q)) {
-                    const sinE = clamp01((cam.y - (H + 6) * ms) / (Math.hypot(cam.x, cam.y - (H + 6) * ms, cam.z) || 1));
-                    const s = newSeg();
-                    s.kind = 1; s.img = S.center; s.x = Q.x; s.y = Q.y; s.w = 58 * bud * Q.k * openC; s.h = s.w * Math.max(0.35, sinE); s.z = Q.z - 1; s.alpha = ms < 0 ? 0.45 : 1;
-                }
-                tagKeys(from, 1.15, topBias);
-            }
-            segList.sort((a, b) => b.key - a.key);
-        }
-
-        function drawSegs(g, dpr, alpha) {
-            for (let i = 0; i < segList.length; i++) {
-                const s = segList[i];
-                if (s.kind === 1) {
-                    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-                    g.globalAlpha = alpha * s.alpha;
-                    g.drawImage(s.img, s.x - s.w / 2, s.y - s.h / 2, s.w, s.h);
-                    continue;
-                }
-                g.setTransform(dpr * s.a, dpr * s.b, dpr * s.c, dpr * s.d, dpr * s.e, dpr * s.f);
-                g.globalAlpha = alpha;
-                if (s.kind === 2) {
-                    g.drawImage(S.leaf, -1, -1, 2, 1);
-                    if (s.shade > 0.02) { g.globalAlpha = alpha * s.shade; g.drawImage(S.petal.shade, 0, 0, 128, 256, -1, -1, 2, 1); }
-                    continue;
-                }
-                if (s.part === 1) g.drawImage(s.img, 0, SEG1_SY, 128, SEG1_SH, -1, -1, 2, 1);
-                else g.drawImage(s.img, 0, 0, 128, SEG2_SH, -1, -1, 2, SEG2_DH);
-                if (s.shade > 0.03) {
-                    g.globalAlpha = alpha * s.shade;
-                    if (s.part === 1) g.drawImage(S.petal.shade, 0, SEG1_SY, 128, SEG1_SH, -1, -1, 2, 1);
-                    else g.drawImage(S.petal.shade, 0, 0, 128, SEG2_SH, -1, -1, 2, SEG2_DH);
-                }
-            }
-            g.setTransform(dpr, 0, 0, dpr, 0, 0);
-            g.globalAlpha = 1;
-        }
-
-        // ---------- Bức thư thật (DOM) đặt trong thế giới 3D ----------
-        // Bức thư nằm NGANG trên đỉnh vương miện hoa (cao hơn mọi cánh + khoảng hở an toàn),
-        // khi cánh hoa mở rộng thì bức thư từ từ hạ xuống đậu êm vào lòng hoa => không bao giờ xuyên qua cánh.
-        function computeEnvPose(view, hs, crownTop) {
-            const env = { visible: false, opacity: 0, tx: 0, ty: 0, scale: 1, rotX: 6, rotY: 0, rotZ: 0, depth: -1, worldY: 0, nestP: 0, nestX: 0, nestY: 0, nestK: 0, nestRx: 0, nestRz: 0 };
-            const tau = sc.tau;
-            if (tau < T.ENV_IN) return env;
-            const vw = view.vw, vh = view.vh;
-            const envWpx = Math.max(120, view.envW);
-            const ex = hs.sway * 3;
-            const envY = hs.H + Math.max(8, finalCrown, crownTop) + 12;
-            project(ex, envY, 0, Q);
-            const dist = Math.hypot(cam.x - ex, cam.y - envY, cam.z) || 1;
-            const elev = Math.asin(Math.max(-1, Math.min(1, (cam.y - envY) / dist))) / DEG;
-            const nestS = (ENV_W * Q.k) / envWpx;
-            const nestRx = Math.max(10, Math.min(64, 90 - elev));
-            const nestRz = -cam.yaw / DEG;
-            const p = easeInOutCubic((tau - T.LIFT) / (T.LAND - T.LIFT));
-            const fy = vh / 2 + (view.idleY || 0);
-            const x = lerp(Q.x, vw / 2, p);
-            const y = lerp(Q.y, fy, p) - Math.sin(p * Math.PI) * vh * 0.045;
-            const s = Math.exp(lerp(Math.log(Math.max(0.05, nestS)), 0, p));
-            env.visible = true;
-            env.opacity = smooth((tau - T.ENV_IN) / 0.3);
-            env.tx = x - vw / 2;
-            env.ty = y - vh / 2;
-            env.scale = s;
-            env.rotX = lerp(nestRx, 6, easeOutCubic(p));
-            env.rotY = -Math.sin(p * Math.PI) * 12;
-            env.rotZ = lerp(nestRz, view.idleRotZ || 0, p) + Math.sin(p * Math.PI) * 4;
-            // Khoảng cách bức thư tới ống kính (để biết hạt nào bay TRƯỚC hay SAU bức thư)
-            env.depth = cam.f * ENV_W / (envWpx * s);
-            env.worldY = envY;
-            env.nestP = p;
-            return env;
-        }
-
-        // Bóng đổ mềm của bức thư lên lòng hoa (tạo cảm giác bức thư có khối & thực sự nằm trên hoa)
-        function drawEnvContactShadow(g, env, hs) {
-            const a = 0.5 * env.opacity * (1 - smooth(env.nestP * 2.2));
-            if (a < 0.01) return;
-            const sy = hs.H + Math.max(0, heroCrownTop) * 0.55;
-            if (!project(hs.sway * 3, sy, 0, Q)) return;
-            const dist = Math.hypot(cam.x, cam.y - sy, cam.z) || 1;
-            const sinE = Math.max(0.2, (cam.y - sy) / dist);
-            const spread = 1 + env.nestP * 0.8;
-            const w = ENV_W * 1.12 * Q.k * spread, h = ENV_W * 0.72 * Q.k * sinE * spread;
-            g.save();
-            g.translate(Q.x, Q.y);
-            g.globalAlpha = a;
-            g.drawImage(S.shadow, -w / 2, -h / 2, w, h);
-            g.restore();
-            g.globalAlpha = 1;
-        }
-
-        // Đom đóm, bướm, cánh hoa bay: chia 2 lượt quanh hoa chủ & bức thư theo đúng chiều sâu
-        function drawLiving(gW, gF, pass, heroZ, envZ, hs, wake) {
-            const clock = sc.clock, tau = sc.tau;
-            const pick = (z) => {
-                const behind = z >= heroZ;
-                if ((pass === 0) !== behind) return null;
-                return (pass === 1 && envZ > 0 && z < envZ) ? gF : gW;
-            };
-            // Đom đóm
-            const nf = sc.quality > 0 ? flies.length : (flies.length >> 1);
-            for (let i = 0; i < nf; i++) {
-                const f = flies[i];
-                const x = f.x + Math.sin(clock * 0.6 + f.p1) * 26;
-                const y = f.y + Math.sin(clock * 0.9 + f.p2) * 12;
-                const z = f.z + Math.cos(clock * 0.5 + f.p3) * 26;
-                if (!project(x, y, z, Q)) continue;
-                const g = pick(Q.z);
-                if (!g) continue;
-                const tw = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(clock * 2.6 + f.p1 * 3), 2);
-                const w = 26 * f.s * Q.k;
-                g.globalCompositeOperation = 'lighter';
-                drawAdditive(g, S.glowAccent, Q.x, Q.y, w, w, tw * wake * 0.85 * clamp01((2.4 - Q.k) / 0.8));
-                g.globalCompositeOperation = 'source-over';
-                g.globalAlpha = 1;
-            }
-            // Bướm vàng (Hồ Điệp): đàn bướm thức giấc + đàn bướm bay ra từ VÀNH NGOÀI cánh hoa (không xuyên bức thư)
-            for (let i = 0; i < flyers.length; i++) {
-                const b = flyers[i];
-                const ap = smooth((tau - b.born) / 0.55);
-                if (ap <= 0.01) continue;
-                const th0 = b.ph + clock * 0.55 * b.dir;
-                const rr = b.fromHeart ? lerp(118, b.rad, ap) : b.rad;
-                const baseX = b.fromHeart ? 0 : b.ox, baseZ = b.fromHeart ? 0 : b.oz;
-                const y = b.fromHeart ? lerp(hs.H + 6, b.h + 40, ap) : b.h * 0.6 + Math.sin(clock * 0.7 + b.ph) * 30;
-                const x = baseX + Math.cos(th0) * rr, z = baseZ + Math.sin(th0) * rr;
-                if (!project(x, y + Math.sin(clock * 2.3 + b.fp) * 8, z, Q) || Q.k > 2.2) continue;
-                const g = pick(Q.z);
-                if (!g) continue;
-                const x2 = baseX + Math.cos(th0 + 0.05 * b.dir) * rr, z2 = baseZ + Math.sin(th0 + 0.05 * b.dir) * rr;
-                project(x2, y, z2, Q2);
-                const head = Math.atan2(Q2.y - Q.y, Q2.x - Q.x);
-                const w = b.sz * Q.k, h = w * 1.5;
-                const flap = 0.25 + 0.75 * Math.abs(Math.cos(clock * 13 + b.fp));
-                const sx = Q.x, sy = Q.y;
+            // 1C. Ánh sáng tán xạ dưới lòng hồ (Subsurface Water Glow) nơi hoa trồi lên
+            if (project(0, 0, 0, Q)) {
+                const subPulse = 0.35 + 0.65 * smooth((sc.tau - 1.55) / 1.2);
+                const subW = Math.min(vw * 1.25, 580 * Q.k);
+                const subH = subW * 0.52;
                 g.save();
-                g.translate(sx, sy);
-                g.rotate(head + Math.PI / 2);
-                g.globalAlpha = ap;
-                g.save(); g.scale(flap, 1); g.drawImage(S.wing, -w, -h / 2, w, h); g.restore();
-                g.save(); g.scale(-flap, 1); g.drawImage(S.wing, -w, -h / 2, w, h); g.restore();
+                g.globalCompositeOperation = 'lighter';
+                drawAdditive(g, S.softSubsurface, Q.x, Q.y, subW, subH, 0.52 * subPulse);
+                drawAdditive(g, S.softRipple, Q.x, Q.y, subW * 0.55, subH * 0.48, 0.38 * subPulse);
                 g.restore();
-                g.globalCompositeOperation = 'lighter';
-                drawAdditive(g, S.softAccent, sx, sy, w * 2.4, w * 2.4, ap * 0.35);
-                g.globalCompositeOperation = 'source-over';
-                g.globalAlpha = 1;
             }
-            // Cánh hoa / phấn nắng / lấp lánh trôi trong không khí
-            const nd = sc.quality > 0 ? drift.length : (drift.length >> 1);
-            for (let i = 0; i < nd; i++) {
-                const d = drift[i];
-                const y = 320 - ((clock * d.sp + d.ph * 360) % 360);
-                if (y < 2) continue;
-                const x = d.x0 + Math.sin(clock * 0.7 + d.ph * 6) * 40;
-                const z = d.z0 + Math.cos(clock * 0.5 + d.ph * 5) * 30;
-                if (!project(x, y, z, Q)) continue;
-                const g = pick(Q.z);
-                if (!g) continue;
-                const a = wake * Math.min(1, y / 40) * clamp01((2.1 - Q.k) / 0.7);
-                if (a < 0.01) continue;
-                if (th.drift === 'petal') {
-                    const hh = 18 * d.sz * Q.k, ww = hh * 0.55;
-                    g.save();
-                    g.translate(Q.x, Q.y);
-                    g.rotate(clock * d.rs + d.ph * 6);
-                    g.scale(1, Math.cos(clock * d.fs + d.ph * 9));
-                    g.globalAlpha = a * 0.92;
-                    g.drawImage(S.petal.front, -ww / 2, -hh / 2, ww, hh);
-                    g.restore();
-                } else {
-                    g.globalCompositeOperation = 'lighter';
-                    const w = (th.drift === 'pollen' ? 14 : 24) * d.sz * Q.k;
-                    drawAdditive(g, th.drift === 'pollen' ? S.glowAccent : S.flare, Q.x, Q.y, w, w, a * (0.5 + 0.5 * Math.sin(clock * 3 + d.ph * 20)));
-                    g.globalCompositeOperation = 'source-over';
-                }
-                g.globalAlpha = 1;
-            }
-        }
 
-        function drawStem(g, hs, ms, alpha) {
-            if (hs.H < 2) return;
-            if (!project(0, 0, 0, A) || !project(hs.sway * 3, hs.H * ms, 0, B) || !project(hs.sway * 18, hs.H * 0.5 * ms, 0, Cc)) return;
-            const kAvg = (A.k + B.k) * 0.5;
-            g.globalAlpha = alpha;
-            g.lineCap = 'round';
-            g.strokeStyle = th.stem;
-            g.lineWidth = Math.max(1.5, (th.silkStem ? 10 : 7) * kAvg);
-            g.beginPath(); g.moveTo(A.x, A.y); g.quadraticCurveTo(Cc.x, Cc.y, B.x, B.y); g.stroke();
-            g.strokeStyle = th.stemHi;
-            g.globalAlpha = alpha * 0.55;
-            g.lineWidth = Math.max(0.8, 2.2 * kAvg);
-            g.beginPath(); g.moveTo(A.x - 1.5 * kAvg, A.y); g.quadraticCurveTo(Cc.x - 1.5 * kAvg, Cc.y, B.x - 1.5 * kAvg, B.y); g.stroke();
+            // 1D. Bầu trời sao
+            g.fillStyle = '#ffffff';
+            for (let i = 0; i < stars.length; i++) {
+                const st = stars[i];
+                if (!projectDir(st.dx, st.dy, st.dz, Q)) continue;
+                if (Q.x < -10 || Q.x > vw + 10 || Q.y < -10 || Q.y > hy) continue;
+                const tw = 0.32 + 0.68 * (0.5 + 0.5 * Math.sin(sc.clock * st.sp + st.tw));
+                g.globalAlpha = tw * 0.88;
+                g.fillRect(Q.x - st.s * 0.5, Q.y - st.s * 0.5, st.s, st.s);
+                if (st.s > 2.0) {
+                    drawAdditive(g, S.flare, Q.x, Q.y, st.s * 7.5, st.s * 7.5, tw * 0.45);
+                }
+            }
             g.globalAlpha = 1;
-        }
 
-        // ---------- Các lớp môi trường ----------
-        function drawGroundCircle(g, r, y) {
-            let started = false;
-            for (let i = 0; i <= 56; i++) {
-                const a = (i / 56) * TAU;
-                if (!project(Math.cos(a) * r, y, Math.sin(a) * r, Q)) { started = false; continue; }
-                if (!started) { g.moveTo(Q.x, Q.y); started = true; } else g.lineTo(Q.x, Q.y);
-            }
-        }
-
-        function drawSkyAndLake(g, vw, vh) {
-            const hy = cam.hy;
-            if (hy > 0) {
-                g.save(); g.translate(0, hy); g.fillStyle = sc.skyGrad; g.fillRect(0, -hy - 2, vw, hy + 3); g.restore();
-            }
-            if (hy < vh) {
-                const top = Math.max(0, hy);
-                g.save(); g.translate(0, hy); g.fillStyle = sc.lakeGrad; g.fillRect(0, top - hy - 1, vw, vh - top + 2); g.restore();
-            }
-            // Sao trời
-            if (hy > 0 && stars.length) {
-                g.fillStyle = '#ffffff';
-                for (let i = 0; i < stars.length; i++) {
-                    const st = stars[i];
-                    if (!projectDir(st.dx, st.dy, st.dz, Q) || Q.y > hy || Q.x < -4 || Q.x > vw + 4 || Q.y < -4) continue;
-                    const tw = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(sc.clock * st.sp + st.tw), 2);
-                    g.globalAlpha = tw * 0.9;
-                    g.fillRect(Q.x, Q.y, st.s, st.s);
-                }
-                g.globalAlpha = 1;
-            }
-            // Trăng / Mặt trời + phản chiếu trên mặt hồ
-            const ce = th.celestial;
-            const cl = Math.hypot(ce.dir[0], ce.dir[1], ce.dir[2]);
-            const cdx = ce.dir[0] / cl, cdy = ce.dir[1] / cl, cdz = ce.dir[2] / cl;
-            if (projectDir(cdx, cdy, cdz, Q)) {
-                const sz = ce.size * cam.f / 600;
+            // 1E. Mặt trăng / Mặt trời bình minh & cột ánh sáng phản chiếu dài trên mặt hồ
+            const cd = th.celestial.dir;
+            let celScreenX = vw * 0.72;
+            let celVis = false;
+            if (projectDir(cd[0], cd[1], cd[2], Q)) {
+                celScreenX = Q.x;
+                celVis = true;
+                const sz = th.celestial.size * 2.2;
+                g.save();
                 g.globalCompositeOperation = 'lighter';
-                g.globalAlpha = ce.kind === 'sun' ? 0.95 : 0.7;
-                g.drawImage(S.softCelestial, Q.x - sz * 2.6, Q.y - sz * 2.6, sz * 5.2, sz * 5.2);
-                g.globalCompositeOperation = 'source-over';
-                g.globalAlpha = 1;
-                g.drawImage(S.disc, Q.x - sz * 0.34, Q.y - sz * 0.34, sz * 0.68, sz * 0.68);
-                if (projectDir(cdx, -cdy, cdz, Q2)) {
-                    g.globalCompositeOperation = 'lighter';
-                    g.globalAlpha = 0.32;
-                    g.drawImage(S.softCelestial, Q2.x - sz * 0.9, Q2.y - sz * 2.6, sz * 1.8, sz * 5.2);
-                    g.globalCompositeOperation = 'source-over';
-                    g.globalAlpha = 1;
-                }
+                drawAdditive(g, S.softAccent, Q.x, Q.y, sz * 2.4, sz * 2.4, 0.38);
+                g.restore();
+                g.drawImage(S.disc, Q.x - sz * 0.5, Q.y - sz * 0.5, sz, sz);
             }
-            // Dải sáng chân trời
-            if (hy > -vh * 0.2 && hy < vh * 1.2) {
+            if (celVis && hy < vh && hy > -80) {
+                g.save();
                 g.globalCompositeOperation = 'lighter';
-                g.globalAlpha = 0.55;
-                g.drawImage(S.band, 0, hy - vh * 0.12, vw, vh * 0.24);
-                g.globalCompositeOperation = 'source-over';
-                g.globalAlpha = 1;
+                const colH = (vh - Math.max(0, hy)) * 0.88;
+                const colW = th.celestial.size * 2.6;
+                drawAdditive(g, S.softAccent, celScreenX, Math.max(0, hy) + colH * 0.28, colW, colH, 0.30);
+                g.fillStyle = `rgba(${rgbSpec}, 0.44)`;
+                for (let s = 0; s < 38; s++) {
+                    const p = s / 38;
+                    const sy = Math.max(0, hy) + 5 + Math.pow(p, 1.52) * colH * 0.80;
+                    if (sy > vh) break;
+                    const waveX = celScreenX + Math.sin(s * 1.9 + sc.clock * 2.5) * (5 + p * 20);
+                    const w = (16 + Math.sin(s * 3.1 - sc.clock * 3.0) * 9) * (1 - p * 0.32) * (0.55 + p * 0.95);
+                    const h = 0.8 + p * 1.3;
+                    g.globalAlpha = (1 - p * 0.72) * (0.28 + 0.34 * Math.sin(s * 2.3 + sc.clock * 3.8));
+                    g.beginPath();
+                    g.ellipse(waveX, sy, w * 0.5, h, 0, 0, TAU);
+                    g.fill();
+                }
+                g.restore();
             }
-        }
 
-        function drawShore(g, vw, vh) {
-            const hy = cam.hy;
-            if (hy < -vh * 0.3 || hy > vh * 1.3) return;
-            for (let i = 0; i < hedges.length; i++) {
-                const hd = hedges[i];
-                if (!project(hd.x, 0, hd.z, Q)) continue;
-                const w = 560 * hd.sc * Q.k, h = 180 * hd.sc * Q.k;
-                if (Q.x + w / 2 < 0 || Q.x - w / 2 > vw) continue;
-                g.drawImage(S.hedges[hd.v], Q.x - w / 2, Q.y - h + 2, w, h);
-                if (sc.quality > 0) {
+            // 1F. Mây khối 3D trôi nhẹ trên bầu trời
+            for (let i = 0; i < skyClouds.length; i++) {
+                const cl = skyClouds[i];
+                const az = cl.az + sc.clock * cl.spd;
+                const dx = Math.cos(cl.el) * Math.cos(az);
+                const dy = Math.sin(cl.el);
+                const dz = Math.cos(cl.el) * Math.sin(az);
+                if (!projectDir(dx, dy, dz, Q)) continue;
+                if (Q.y > hy + 10 || Q.x < -220 || Q.x > vw + 220) continue;
+                const cw = 310 * cl.scale, ch = 118 * cl.scale;
+                g.globalAlpha = cl.alpha;
+                g.drawImage(S.cloud, Q.x - cw * 0.5, Q.y - ch * 0.5, cw, ch);
+            }
+            g.globalAlpha = 1;
+
+            // 1G. Dãy núi mờ sương khóa chuẩn trên đường chân trời hy
+            if (hy > 0 && hy < vh + 40) {
+                for (let m = 0; m < mountainLayers.length; m++) {
+                    const ml = mountainLayers[m];
+                    const steps = 48;
                     g.save();
-                    g.globalAlpha = 0.28;
-                    g.translate(Q.x, Q.y + 2);
-                    g.scale(1, -0.8);
-                    g.drawImage(S.hedges[hd.v], -w / 2, -h, w, h);
+                    g.beginPath();
+                    g.moveTo(-10, hy + 1);
+                    for (let s = 0; s <= steps; s++) {
+                        const sx = -10 + (vw + 20) * (s / steps);
+                        const uAngle = cam.yaw + ((sx - cam.cx) / cam.f);
+                        const el = Math.max(0.002, ml.elBase
+                            + Math.sin(uAngle * ml.freq1 + ml.phase) * ml.amp1
+                            + Math.cos(uAngle * ml.freq2 - ml.phase * 0.7) * ml.amp2);
+                        const sy = hy - cam.f * Math.tan(el);
+                        g.lineTo(sx, sy);
+                    }
+                    g.lineTo(vw + 10, hy + 1);
+                    g.closePath();
+                    const peakH = cam.f * (ml.elBase + ml.amp1 + ml.amp2);
+                    const mg = g.createLinearGradient(0, hy - peakH, 0, hy + 1);
+                    mg.addColorStop(0.0, ml.color);
+                    mg.addColorStop(1.0, mixHex(ml.color, th.horizonGlow, ml.mistA));
+                    g.fillStyle = mg;
+                    g.fill();
                     g.restore();
                 }
             }
-            // Sương mù chân trời trôi chậm
+
+            // 1H. Sương mù chân trời & đèn hoa đăng bờ xa
+            g.save();
             g.globalCompositeOperation = 'lighter';
-            for (let i = 0; i < 3; i++) {
-                const off = ((sc.clock * (8 + i * 5) + i * 300) % (vw * 1.6)) - vw * 0.3;
-                g.globalAlpha = 0.16;
-                g.drawImage(S.mist, off - vw * 0.6, hy - vh * 0.05 + i * vh * 0.02, vw * 1.2, vh * 0.12);
-            }
-            g.globalCompositeOperation = 'source-over';
-            g.globalAlpha = 1;
-        }
+            const bandH = Math.max(42, vh * 0.09);
+            const bandGrad = g.createLinearGradient(0, hy - bandH, 0, hy + bandH);
+            bandGrad.addColorStop(0.0, `rgba(${th.mist}, 0)`);
+            bandGrad.addColorStop(0.5, `rgba(${th.mist}, 0.25)`);
+            bandGrad.addColorStop(1.0, `rgba(${th.mist}, 0)`);
+            g.fillStyle = bandGrad;
+            g.fillRect(0, hy - bandH, vw, bandH * 2);
 
-        function drawShimmer(g) {
-            const n = sc.quality > 0 ? shimmer.length : 24;
-            g.fillStyle = `rgb(${rgbRipple})`;
-            for (let i = 0; i < n; i++) {
-                const p = shimmer[i];
-                if (!project(p.x, 0, p.z, Q)) continue;
-                const a = Math.max(0, Math.sin(sc.clock * 2.1 + p.ph));
-                if (a < 0.05) continue;
-                g.globalAlpha = a * 0.42;
-                const w = p.w * Q.k;
-                g.fillRect(Q.x - w / 2, Q.y, w, Math.max(1, 1.3 * Q.k));
-            }
-            g.globalAlpha = 1;
-        }
-
-        function drawRipples(g, hs) {
-            const tau = sc.tau;
-            g.lineCap = 'round';
-            // Sóng xung kích lúc chạm
-            if (tau >= T.IMPACT && tau < T.IMPACT + 0.7) {
-                const p = (tau - T.IMPACT) / 0.7;
-                const r = 30 + 900 * easeOutCubic(p);
-                const a = Math.pow(1 - p, 1.5);
-                g.strokeStyle = `rgba(${rgbRipple},${(a * 0.35).toFixed(3)})`;
-                g.lineWidth = 14 * (1 - p) + 2;
-                g.beginPath(); drawGroundCircle(g, r, 0.5); g.stroke();
-                g.strokeStyle = `rgba(255,255,255,${(a * 0.85).toFixed(3)})`;
-                g.lineWidth = 2;
-                g.beginPath(); drawGroundCircle(g, r, 0.5); g.stroke();
-            }
-            // Gợn sóng lan tỏa làm khu vườn bừng nở
-            const births = [T.IMPACT, T.IMPACT + 0.12, T.IMPACT + 0.26, T.IMPACT + 0.44, T.BUD];
-            for (let j = 0; j < births.length; j++) {
-                const age = tau - births[j];
-                if (age <= 0) continue;
-                const r = 330 * age + 10;
-                if (r > 760) continue;
-                const a = 0.55 * (1 - r / 760) * Math.min(1, age / 0.05);
-                g.strokeStyle = `rgba(${rgbRipple},${a.toFixed(3)})`;
-                g.lineWidth = 1.6;
-                g.beginPath(); drawGroundCircle(g, r, 0.4); g.stroke();
-            }
-            // Gợn sóng dịu quanh thân hoa (vô tận)
-            if (hs.visible) {
-                for (let j = 0; j < 3; j++) {
-                    const r = ((sc.clock * 34 + j * 62) % 186) + 26;
-                    const a = 0.22 * (1 - (r - 26) / 186) * smooth((tau - T.BUD) / 0.6);
-                    if (a < 0.01) continue;
-                    g.strokeStyle = `rgba(${rgbRipple},${a.toFixed(3)})`;
-                    g.lineWidth = 1.2;
-                    g.beginPath(); drawGroundCircle(g, r, 0.3); g.stroke();
+            for (let i = 0; i < shoreLights.length; i++) {
+                const sl = shoreLights[i];
+                if (!project(sl.x, sl.y, sl.z, Q)) continue;
+                if (Q.x < -20 || Q.x > vw + 20) continue;
+                const pulse = (0.45 + 0.55 * Math.sin(sc.clock * 2.4 + sl.ph)) * (0.25 + 0.75 * wake);
+                const r = Math.max(8, 22 * Q.k * sl.sz);
+                drawAdditive(g, S.glowFirefly, Q.x, Q.y, r, r, pulse * 0.75);
+                if (project(sl.x, -sl.y * 0.6, sl.z, Q2)) {
+                    drawAdditive(g, S.glowFirefly, Q2.x, Q2.y + 4, r * 0.65, r * 2.8, pulse * 0.42);
                 }
             }
+            g.restore();
+
+            // 1I. Sương mù trôi là là trên mặt hồ
+            for (let i = 0; i < lakeMists.length; i++) {
+                const lm = lakeMists[i];
+                if (!project(lm.x, lm.y, lm.z, Q)) continue;
+                if (Q.x < -200 || Q.x > vw + 200) continue;
+                const w = lm.w * Q.k, h = w * 0.34;
+                const a = (0.16 + 0.14 * wake) * (0.65 + 0.35 * Math.sin(sc.clock * 0.7 + lm.ph));
+                g.globalAlpha = a;
+                g.drawImage(S.mist, Q.x - w * 0.5, Q.y - h * 0.5, w, h);
+            }
+            g.globalAlpha = 1;
+
+            // 1J. Gợn sóng lăn tăn 3D hữu cơ trên mặt hồ (Có hõm sóng tối & đỉnh sóng cong lấp lánh, không dùng fillRect!)
+            g.save();
+            for (let i = 0; i < waterFacets.length; i++) {
+                const wf = waterFacets[i];
+                if (!project(wf.x, 0, wf.z, Q)) continue;
+                if (Q.y < hy + 3 || Q.y > vh + 10 || Q.x < -30 || Q.x > vw + 30) continue;
+                const wave = Math.sin(wf.z * 0.045 - sc.clock * wf.spd + wf.ph);
+                if (wave < 0.12) continue;
+                const intensity = Math.pow((wave - 0.12) / 0.88, 1.7);
+                const distToCel = Math.abs(Q.x - celScreenX) / (vw * 0.38);
+                const celBoost = Math.max(0.26, Math.exp(-distToCel * distToCel));
+                const alpha = intensity * celBoost * (0.28 + 0.44 * wake);
+                if (alpha < 0.025) continue;
+
+                const w = Math.max(4, wf.len * Q.k * (0.65 + 0.55 * intensity));
+                const h = Math.max(0.9, 1.9 * Q.k);
+                const bend = Math.sin(wf.ph + sc.clock * 1.6) * h * 0.9;
+
+                // Hõm sóng tối tạo chiều sâu mặt nước thật
+                g.fillStyle = `rgba(4, 2, 10, ${(alpha * 0.42).toFixed(3)})`;
+                g.beginPath();
+                g.moveTo(Q.x - w * 0.5, Q.y + h * 0.55);
+                g.quadraticCurveTo(Q.x, Q.y + h * 1.45 + bend, Q.x + w * 0.5, Q.y + h * 0.55);
+                g.quadraticCurveTo(Q.x, Q.y + h * 0.25 + bend * 0.5, Q.x - w * 0.5, Q.y + h * 0.55);
+                g.fill();
+
+                // Đỉnh sóng cong bắt sáng mượt hai đầu
+                g.fillStyle = `rgba(${rgbSpec}, ${Math.min(0.76, alpha).toFixed(3)})`;
+                g.beginPath();
+                g.moveTo(Q.x - w * 0.5, Q.y);
+                g.quadraticCurveTo(Q.x, Q.y - h + bend, Q.x + w * 0.5, Q.y);
+                g.quadraticCurveTo(Q.x, Q.y + h * 0.35 + bend, Q.x - w * 0.5, Q.y);
+                g.fill();
+            }
+            g.restore();
         }
 
-        function prepGround() {
+        // =================================================================================
+        // 2. SÓNG NƯỚC 3D CÓ HÕM SÓNG TỐI, ĐỈNH SÓNG BẮT SÁNG THEO GÓC FRESNEL & TÁN XẠ
+        // =================================================================================
+        const ripples = [
+            { t0: T.IMPACT + 0.00, v: 335, life: 3.1, w: 3.0, main: true },
+            { t0: T.IMPACT + 0.18, v: 270, life: 2.8, w: 2.2, main: false },
+            { t0: T.IMPACT + 0.40, v: 215, life: 2.5, w: 1.7, main: false },
+            { t0: T.IMPACT + 0.70, v: 165, life: 2.2, w: 1.3, main: false },
+            { t0: T.BUD + 0.10,    v: 135, life: 2.2, w: 1.4, main: false },
+            { t0: T.OPEN + 0.20,   v: 115, life: 2.0, w: 1.2, main: false }
+        ];
+
+        function drawWaterRipples3D(g, tau) {
+            if (tau < T.IMPACT) return;
+            g.save();
+            g.lineCap = 'round';
+            g.lineJoin = 'round';
+
+            for (let idx = 0; idx < ripples.length; idx++) {
+                const rp = ripples[idx];
+                const dt = tau - rp.t0;
+                if (dt <= 0 || dt >= rp.life) continue;
+                const p = dt / rp.life;
+                const r = rp.v * dt;
+                const fade = (1 - p) * (1 - p * 0.58);
+                const centerK = project(0, 0, 0, Q2) ? Q2.k : 1;
+
+                // 2A. Hõm sóng tối (Wave Trough) tạo khối nước lồi lõm 3D thật sự (không phải vòng neon phẳng)
+                const segs = 48;
+                g.beginPath();
+                let valid = 0;
+                for (let s = 0; s <= segs; s++) {
+                    const a = (s / segs) * TAU;
+                    const rTrough = r * 0.965;
+                    if (project(Math.cos(a) * rTrough, -1.2, Math.sin(a) * rTrough, Q)) {
+                        if (valid === 0) g.moveTo(Q.x, Q.y);
+                        else g.lineTo(Q.x, Q.y);
+                        valid++;
+                    }
+                }
+                if (valid > 12) {
+                    g.strokeStyle = `rgba(3, 1, 8, ${(fade * 0.36).toFixed(3)})`;
+                    g.lineWidth = Math.max(2.2, rp.w * 3.4 * centerK);
+                    g.stroke();
+                }
+
+                // 2B. Đỉnh sóng bắt sáng biến thiên tự nhiên theo góc nhìn Fresnel (mạnh ở phía trước/sau, dịu nhẹ ở hai bên)
+                g.save();
+                g.globalCompositeOperation = 'lighter';
+                const arcCount = 16;
+                for (let ac = 0; ac < arcCount; ac++) {
+                    const a0 = (ac / arcCount) * TAU;
+                    const a1 = ((ac + 0.82) / arcCount) * TAU;
+                    const aMid = (a0 + a1) * 0.5;
+                    // Sóng nước bắt sáng mạnh hơn ở trục phản chiếu trước-sau và gợn lăn tăn tự nhiên
+                    const fresnelMod = 0.22 + 0.78 * Math.pow(Math.sin(aMid), 2);
+                    const waveMod = 0.55 + 0.45 * Math.sin(aMid * 4.0 + dt * 3.5 + idx * 1.7);
+                    const localFade = fade * fresnelMod * waveMod;
+                    if (localFade < 0.03) continue;
+
+                    g.beginPath();
+                    let pts = 0;
+                    for (let step = 0; step <= 4; step++) {
+                        const a = lerp(a0, a1, step / 4);
+                        const rWobble = r + Math.sin(a * 6 + dt * 4) * 1.8;
+                        if (project(Math.cos(a) * rWobble, 0.4, Math.sin(a) * rWobble, Q)) {
+                            if (pts === 0) g.moveTo(Q.x, Q.y);
+                            else g.lineTo(Q.x, Q.y);
+                            pts++;
+                        }
+                    }
+                    if (pts > 1) {
+                        g.strokeStyle = `rgba(${th.waterSubsurface}, ${(localFade * 0.24).toFixed(3)})`;
+                        g.lineWidth = Math.max(2.0, rp.w * 3.6 * centerK);
+                        g.stroke();
+
+                        g.strokeStyle = `rgba(${rgbRipple}, ${(localFade * 0.46).toFixed(3)})`;
+                        g.lineWidth = Math.max(1.1, rp.w * 1.45 * centerK);
+                        g.stroke();
+
+                        if (localFade > 0.16) {
+                            g.strokeStyle = `rgba(255, 255, 255, ${(localFade * 0.62).toFixed(3)})`;
+                            g.lineWidth = Math.max(0.6, rp.w * 0.52 * centerK);
+                            g.stroke();
+                        }
+                    }
+                }
+
+                if (rp.main && fade > 0.14) {
+                    const sparkCount = 14;
+                    for (let k = 0; k < sparkCount; k++) {
+                        const a = (k / sparkCount) * TAU + dt * 0.45;
+                        if (project(Math.cos(a) * r, 1.2, Math.sin(a) * r, Q)) {
+                            const sz = Math.max(5, 16 * Q.k);
+                            drawAdditive(g, S.glowMote, Q.x, Q.y, sz, sz, fade * 0.65);
+                        }
+                    }
+                }
+                g.restore();
+            }
+
+            g.restore();
+        }
+
+        // =================================================================================
+        // 3. HOA 3D TRONG KHU VƯỜN MẶT HỒ (ĐÀI LÁ SEN CÓ GÂN LÁ + CÁNH 3D + VƯƠNG MIỆN NHỤY VÀNG 3D)
+        // =================================================================================
+        function prepareGardenFlowers(tau) {
             for (let i = 0; i < ground.length; i++) {
-                const gi = ground[i];
-                gi.vis = false;
-                if (sc.tau < gi.born) continue;
-                const y = 1.5 * Math.sin(sc.clock * 1.2 + gi.bob);
-                if (!project(gi.x, y, gi.z, Q)) continue;
-                gi.vis = true;
-                gi.sx = Q.x; gi.sy = Q.y; gi.sz = Q.z; gi.k = Q.k;
-                const dist = Math.hypot(cam.x - gi.x, cam.y - y, cam.z - gi.z) || 1;
-                gi.sinE = (cam.y - y) / dist;
+                const gf = ground[i];
+                const age = tau - gf.born;
+                if (age <= 0) { gf.vis = false; continue; }
+                const bloom = easeOutBack(clamp01(age / 0.68));
+                const wy = Math.sin(sc.clock * 1.9 + gf.bob) * 1.5;
+                if (!project(gf.x, wy, gf.z, Q)) { gf.vis = false; continue; }
+                gf.vis = true;
+                gf.sx = Q.x; gf.sy = Q.y; gf.sz = Q.z; gf.k = Q.k;
+                gf.bloom = bloom;
             }
             ground.sort((a, b) => b.sz - a.sz);
         }
 
-        function drawGroundItem(g, gi) {
-            const grow = easeOutBack((sc.tau - gi.born) / 0.45);
-            if (grow <= 0.01) return;
-            const w = gi.size * grow * gi.k;
-            const mode = S.ground.mode;
-            if (mode === 'flat') {
-                g.globalCompositeOperation = 'lighter';
-                g.globalAlpha = 0.28;
-                g.drawImage(S.softAccent, gi.sx - w * 0.8, gi.sy - w * 0.3, w * 1.6, w * 0.6);
-                g.globalCompositeOperation = 'source-over';
-                g.globalAlpha = 1;
-                g.save();
-                g.translate(gi.sx, gi.sy);
-                g.scale(1, Math.max(0.24, gi.sinE));
-                g.rotate(gi.rot + sc.clock * gi.spin);
-                g.drawImage(S.ground.img, -w / 2, -w / 2, w, w);
-                g.restore();
-            } else if (mode === 'upright') {
-                const h = w * S.ground.aspect;
-                g.save();
-                g.translate(gi.sx, gi.sy);
-                g.rotate(Math.sin(sc.clock * 1.3 + gi.bob) * 0.06);
-                g.drawImage(S.ground.img, -w / 2, -h, w, h);
-                g.globalAlpha = 0.22;
-                g.scale(1, -0.7);
-                g.drawImage(S.ground.img, -w / 2, -h, w, h);
-                g.restore();
-                g.globalAlpha = 1;
-            } else {
-                const ww = w * 0.55;
-                g.globalCompositeOperation = 'lighter';
-                g.globalAlpha = 0.4;
-                g.drawImage(S.softRipple, gi.sx - ww * 1.4, gi.sy - ww * 0.9, ww * 2.8, ww * 1.8);
-                g.globalCompositeOperation = 'source-over';
-                g.globalAlpha = 1;
-                g.drawImage(S.ground.img, gi.sx - ww / 2, gi.sy - ww, ww, ww);
-            }
-        }
+        function drawGardenFlower3D(g, gf) {
+            if (!gf.vis || gf.bloom <= 0.01) return;
+            const k = gf.k;
+            const scale = gf.bloom;
+            const padR = gf.padSize * 0.56 * k * scale;
+            const flwR = gf.size * 0.60 * k * scale;
+            if (padR < 1.8) return;
 
-        function drawAdditive(g, img, x, y, w, h, a) {
-            if (a <= 0.003 || w <= 0.5) return;
-            g.globalAlpha = Math.min(1, a);
-            g.drawImage(img, x - w / 2, y - h / 2, w, h);
-        }
+            const dx = gf.x - cam.x, dy = -cam.y, dz = gf.z - cam.z;
+            const dist = Math.hypot(dx, dy, dz) || 1;
+            const sinElev = clamp01(Math.max(0.22, Math.abs(dy / dist)));
+            const stemPx = gf.stemH * 0.45 * k * scale * (0.45 + 0.55 * (1 - sinElev));
 
-        // ---------- KẾT XUẤT TOÀN CẢNH ----------
-        function render(gW, gF, view) {
-            const vw = view.vw, vh = view.vh, dpr = view.dpr;
-            if (vw !== sc.vw || vh !== sc.vh || sc.gradCtx !== gW) rebuildViewCaches(gW, vw, vh);
-            updateCamera(vw, vh);
-            const tau = sc.tau, clock = sc.clock;
-            const hs = heroState();
-            const wake = 0.3 + 0.7 * smooth((tau - T.IMPACT) / 0.9);
+            g.save();
+            g.translate(gf.sx, gf.sy);
+            g.lineJoin = 'round';
+            g.lineCap = 'round';
 
-            gW.setTransform(dpr, 0, 0, dpr, 0, 0);
-            gW.globalAlpha = 1;
-            gW.globalCompositeOperation = 'source-over';
+            // 3A. Bóng tối tiếp xúc mặt nước dưới lá sen & vòng gợn nước mỏng
+            g.fillStyle = 'rgba(3, 1, 8, 0.45)';
+            g.beginPath();
+            g.ellipse(0, 2.2 * k, padR * 1.06, padR * 1.06 * sinElev, 0, 0, TAU);
+            g.fill();
 
-            // ===== 1. Trời, hồ gương, bờ vườn =====
-            drawSkyAndLake(gW, vw, vh);
-            drawShore(gW, vw, vh);
-            drawShimmer(gW);
+            g.strokeStyle = `rgba(${rgbRipple}, 0.24)`;
+            g.lineWidth = Math.max(0.6, 0.95 * k);
+            g.beginPath();
+            g.ellipse(0, 1.8 * k, padR * 1.24, padR * 1.24 * sinElev, 0, 0, TAU);
+            g.stroke();
 
-            // ===== 2. Ánh sáng loang trên mặt nước =====
-            const bloomP = smooth((tau - T.OPEN) / 1.2);
-            gW.globalCompositeOperation = 'lighter';
-            if (hs.visible && project(0, 0, 0, Q)) {
-                const sinE = clamp01((cam.y) / (Math.hypot(cam.x, cam.y, cam.z) || 1));
-                const w = 520 * Q.k;
-                drawAdditive(gW, S.softAccent, Q.x, Q.y, w, w * Math.max(0.25, sinE), 0.42 * (0.4 + 0.6 * bloomP));
-            }
-            if (tau >= T.IMPACT && tau < T.IMPACT + 0.9 && project(0, 0, 0, Q)) {
-                const p = (tau - T.IMPACT) / 0.9;
-                const w = (200 + 700 * easeOutCubic(p)) * Q.k;
-                drawAdditive(gW, S.softRipple, Q.x, Q.y, w, w * 0.35, (1 - p) * 0.9);
-            }
-            gW.globalCompositeOperation = 'source-over';
-            gW.globalAlpha = 1;
+            // 3B. Bóng phản chiếu mờ của đoá hoa dưới mặt nước
+            g.save();
+            g.translate(0, 3.5 * k + stemPx * 0.4);
+            g.scale(1, -sinElev * 0.62);
+            g.globalAlpha = 0.20;
+            g.fillStyle = th.petal.base;
+            g.beginPath();
+            g.arc(0, 0, flwR * 0.88, 0, TAU);
+            g.fill();
+            g.restore();
 
-            // ===== 3. Phản chiếu của hoa trên hồ gương (nhìn từ dưới mặt nước) =====
-            if (hs.visible && sc.quality > 0) {
-                drawStem(gW, hs, -1, 0.32);
-                buildHero(hs, -1);
-                drawSegs(gW, dpr, 0.3);
-            }
+            // 3C. Đài lá sen / lá súng 3D nổi trên mặt nước (Có khe chữ V & gân lá toả tròn)
+            g.save();
+            g.scale(1, sinElev);
+            g.rotate(gf.notchRot);
+            const padGrad = g.createRadialGradient(0, 0, padR * 0.08, 0, 0, padR);
+            padGrad.addColorStop(0.0, th.pad[0]);
+            padGrad.addColorStop(0.68, th.pad[1]);
+            padGrad.addColorStop(1.0, th.pad[2]);
+            g.fillStyle = padGrad;
+            g.beginPath();
+            g.moveTo(0, 0);
+            g.arc(0, 0, padR, 0.20, TAU - 0.20);
+            g.closePath();
+            g.fill();
+            g.strokeStyle = th.pad[2];
+            g.lineWidth = Math.max(0.6, 0.85 * k);
+            g.stroke();
 
-            // ===== 4. Gợn sóng =====
-            drawRipples(gW, hs);
-
-            // ===== 5. Dựng hình học hoa chủ trước -> biết đỉnh cánh cao nhất -> đặt bức thư NẰM TRÊN vương miện hoa =====
-            //      (bức thư luôn cao hơn mọi cánh hoa => tuyệt đối không có cánh hoa nào xuyên qua bức thư)
-            prepGround();
-            const heroZ = project(0, hs.H * 0.5, 0, Q) ? Q.z : 1e9;
-            if (hs.visible) buildHero(hs, 1);
-            const env = computeEnvPose(view, hs, hs.visible ? heroCrownTop : 0);
-            const envZ = env.visible ? env.depth : -1;
-
-            // Vườn hoa phía xa -> sinh vật phía sau hoa -> thân + hoa -> bóng đổ của bức thư lên hoa -> vườn phía gần
-            let gi = 0;
-            for (; gi < ground.length; gi++) {
-                if (!ground[gi].vis) continue;
-                if (ground[gi].sz < heroZ) break;
-                drawGroundItem(gW, ground[gi]);
-            }
-            drawLiving(gW, gF, 0, heroZ, envZ, hs, wake);
-            if (hs.visible) {
-                drawStem(gW, hs, 1, 1);
-                drawSegs(gW, dpr, 1);
-            }
-            if (env.visible) drawEnvContactShadow(gW, env, hs);
-            for (; gi < ground.length; gi++) {
-                if (ground[gi].vis) drawGroundItem(gW, ground[gi]);
-            }
-
-            // ===== 6. Hào quang lòng hoa, tia sáng thần thánh, bức thư kết tinh =====
-            gW.globalCompositeOperation = 'lighter';
-            if (hs.visible && project(hs.sway * 3, hs.H + 10, 0, Q)) {
-                const glowI = smooth((tau - 2.7) / 0.8);
-                const matFlash = Math.exp(-Math.pow((tau - (T.ENV_IN + 0.12)) / 0.14, 2));
-                drawAdditive(gW, S.glowAccent, Q.x, Q.y, (150 + 160 * matFlash) * Q.k, (150 + 160 * matFlash) * Q.k, glowI * 0.55 + matFlash * 0.9);
-                const raysA = 0.55 * smooth((tau - 2.9) / 0.6) * (1 - 0.45 * smooth((tau - 4.6) / 0.8));
-                if (raysA > 0.01) {
-                    const sz = 560 * Q.k;
-                    gW.save();
-                    gW.translate(Q.x, Q.y);
-                    gW.rotate(clock * 0.12);
-                    gW.globalAlpha = raysA;
-                    gW.drawImage(S.rays, -sz / 2, -sz / 2, sz, sz);
-                    gW.restore();
+            // Gân lá sen 3D
+            if (padR > 6) {
+                g.strokeStyle = 'rgba(210, 255, 225, 0.22)';
+                g.lineWidth = Math.max(0.4, 0.55 * k);
+                for (let v = 1; v <= 7; v++) {
+                    const va = 0.35 + (v / 8) * (TAU - 0.70);
+                    g.beginPath();
+                    g.moveTo(0, 0);
+                    g.lineTo(Math.cos(va) * padR * 0.88, Math.sin(va) * padR * 0.88);
+                    g.stroke();
                 }
-                // Tia lấp lánh bung ra khi bức thư kết tinh (toả ra từ chính vị trí bức thư)
-                const bt = (tau - T.ENV_IN) / 0.7;
-                if (bt > 0 && bt < 1 && env.visible) {
-                    for (let i = 0; i < burst.length; i++) {
-                        const b = burst[i];
-                        const d = 70 + 120 * b.d * easeOutCubic(bt);
-                        if (!project(b.dx * d, env.worldY + b.dy * d * 0.6, b.dz * d, Q2)) continue;
-                        const w = 46 * Q2.k * (1 - bt * 0.5);
-                        drawAdditive(gW, S.flare, Q2.x, Q2.y, w, w, (1 - bt));
+            }
+            g.restore();
+
+            // 3D. Đoá hoa 3D 3 lớp cánh khum tròn đầy hướng lên trên
+            g.translate(0, -stemPx);
+            const nPetals = gf.petalsCount;
+            const openAmt = clamp01((gf.bloom - 0.12) / 0.88);
+
+            for (let ring = 0; ring < 3; ring++) {
+                const rScale = ring === 0 ? 1.0 : (ring === 1 ? 0.74 : 0.48);
+                const pLen = flwR * (0.68 + 0.50 * openAmt) * rScale;
+                const pWid = pLen * (ring === 2 ? 0.70 : 0.62);
+                const ringLift = ring === 0 ? 0.12 : (ring === 1 ? 0.32 : 0.58);
+                for (let p = 0; p < nPetals; p++) {
+                    const ang = gf.rot + (p + ring * 0.38) * (TAU / nPetals);
+                    const ca = Math.cos(ang), sa = Math.sin(ang);
+                    const spread = (1 - ringLift * 0.55) * pLen * 0.46;
+                    const px = ca * spread;
+                    const py = sa * spread * sinElev - ringLift * pLen * 0.45 - (1 - openAmt) * pLen * 0.30;
+                    g.save();
+                    g.translate(px, py);
+                    g.rotate(Math.atan2(sa * sinElev, ca) + Math.PI * 0.5);
+                    const pg = g.createLinearGradient(0, pLen * 0.42, 0, -pLen * 0.58);
+                    pg.addColorStop(0.0, th.petal.ao);
+                    pg.addColorStop(0.32, ring === 0 ? th.petal.base : th.petal.mid);
+                    pg.addColorStop(0.82, th.petal.tip);
+                    pg.addColorStop(1.0, th.petal.rim);
+                    g.fillStyle = pg;
+                    g.beginPath();
+                    g.moveTo(0, pLen * 0.38);
+                    g.bezierCurveTo(-pWid, pLen * 0.14, -pWid * 0.92, -pLen * 0.50, 0, -pLen * 0.56);
+                    g.bezierCurveTo(pWid * 0.92, -pLen * 0.50, pWid, pLen * 0.14, 0, pLen * 0.38);
+                    g.closePath();
+                    g.fill();
+                    g.restore();
+                }
+            }
+
+            // 3E. Vương miện nhụy vàng 3D ở tâm hoa nhỏ (Không dùng hình tròn vàng phẳng!)
+            const coreR = Math.max(1.4, flwR * 0.20);
+            const coreY = -flwR * 0.14;
+            const cg = g.createRadialGradient(0, coreY, coreR * 0.1, 0, coreY, coreR * 1.25);
+            cg.addColorStop(0.0, '#fffef4');
+            cg.addColorStop(0.45, th.accent);
+            cg.addColorStop(0.85, th.petal.base);
+            cg.addColorStop(1.0, th.petal.ao);
+            g.fillStyle = cg;
+            g.beginPath();
+            g.ellipse(0, coreY, coreR * 1.1, coreR * (0.65 + 0.35 * sinElev), 0, 0, TAU);
+            g.fill();
+
+            if (flwR > 5) {
+                const stCount = 8;
+                g.strokeStyle = th.accent;
+                g.lineWidth = Math.max(0.5, 0.7 * k);
+                g.fillStyle = '#fffbe0';
+                for (let s = 0; s < stCount; s++) {
+                    const sa = (s / stCount) * TAU + gf.rot;
+                    const sx = Math.cos(sa) * coreR * 1.25;
+                    const sy = coreY + Math.sin(sa) * coreR * 0.95 * sinElev - coreR * 0.45;
+                    g.beginPath();
+                    g.moveTo(sx * 0.3, coreY);
+                    g.lineTo(sx, sy);
+                    g.stroke();
+                    g.beginPath();
+                    g.arc(sx, sy, Math.max(0.6, coreR * 0.24), 0, TAU);
+                    g.fill();
+                }
+            }
+            g.restore();
+
+            drawAdditive(g, S.softAccent, gf.sx, gf.sy - stemPx, flwR * 2.4, flwR * 1.8, 0.22 * gf.bloom);
+        }
+
+        // =================================================================================
+        // 4. ĐẠI ĐOÁ HOA CHỦ ĐẠO 3D (ĐÀI LÁ SEN HOÀNG GIA + CÁNH HOA KHUM CHÉN NGỌC 3D + SƯƠNG MAI & NHỤY 3D)
+        // =================================================================================
+        const drawQueue = [];
+        const roundness = th.petal.roundness || 0.72;
+
+        // Đánh giá điểm 3D trên bề mặt cong của cánh hoa:
+        // u in [0..1] (từ gốc tới đỉnh cánh), v in [-1..1] (từ mép trái qua sống giữa tới mép phải)
+        function evalHeroPetalPoint(p, hs, u, v, out) {
+            const open = hs.open;
+            const cup = p.cup * (0.72 + 0.28 * open);
+            const baseTheta = p.theta;
+            // Bụng cánh căng đầy ở giữa (bellyArch > 0) và đầu cánh khum vòng lên bầu trời (p.curlRad < 0) tạo dáng chén ngọc 3D!
+            const bellyArch = Math.sin(u * Math.PI) * (0.14 + 0.08 * open);
+            const localTheta = Math.max(0.05, baseTheta + bellyArch + p.curlRad * Math.pow(u, 1.55));
+            const sa = Math.sin(localTheta), ca = Math.cos(localTheta);
+
+            const sDist = u * p.len * hs.scale;
+            // Hàm bề rộng liên tục C-infinity từ gốc tới đỉnh (Không có điểm nhảy tại u = 1.0!)
+            const shapeProfile = Math.sin(Math.pow(u, 0.62) * Math.PI * 0.86) * (0.85 + 0.15 * roundness);
+            const halfW = p.wid * 0.5 * hs.scale * shapeProfile;
+
+            // Độ khum lòng chảo 3D (Transverse Cupping: hai mép cánh ôm cong lên trên tạo chiều sâu khối)
+            const cupLift = (v * v) * halfW * cup * Math.sin(u * Math.PI * 0.90);
+            const lateral = v * halfW * (1 - 0.12 * cup * v * v);
+
+            const radDist = p.rb * hs.scale + sa * sDist - ca * cupLift;
+            const heightY = hs.H + ca * sDist + sa * cupLift;
+
+            const cp = p.cp, sp = p.sp;
+            const rx = -sp, rz = cp;
+            const swayFactor = clamp01(heightY / Math.max(1, hs.H));
+            out.x = hs.sway * swayFactor + cp * radDist + rx * lateral;
+            out.y = heightY;
+            out.z = sp * radDist + rz * lateral;
+        }
+
+        const W0 = { x: 0, y: 0, z: 0 }, W1 = { ...W0 }, W2 = { ...W0 }, W2L = { ...W0 }, W3 = { ...W0 }, W4 = { ...W0 }, W4R = { ...W0 }, W5 = { ...W0 }, W6 = { ...W0 }, WTL = { ...W0 }, WTR = { ...W0 };
+
+        function computeHeroState(tau) {
+            const grow = clamp01((tau - T.BUD) / 1.05);
+            if (grow <= 0) return { visible: false, H: 0, scale: 0, open: 0, sway: 0, crownTop: 0 };
+            const H = th.hero.H * easeOutCubic(grow);
+            const scale = 0.28 + 0.72 * easeOutBack(clamp01((tau - T.BUD) / 1.25));
+            const open = clamp01((tau - (T.BUD + 0.18)) / 1.45);
+            const sway = Math.sin(sc.clock * 1.05) * 2.2 * grow;
+            const breathe = Math.sin(sc.clock * 1.65) * 1.4 * smooth((tau - 3.6) / 0.8);
+
+            let crownTop = 0;
+            for (let i = 0; i < petals.length; i++) {
+                const p = petals[i];
+                const u = clamp01((open - p.delay) / Math.max(0.22, 0.88 - p.delay));
+                let deg;
+                if (u < 0.65) deg = lerp(p.a0, p.a1, easeInOutCubic(u / 0.65));
+                else deg = lerp(p.a1, p.a2, easeOutCubic((u - 0.65) / 0.35));
+                deg += breathe * (0.4 + 0.6 * (1 - p.ld));
+                p.theta = deg * DEG;
+                p.curlRad = p.curl * DEG * easeOutCubic(u);
+                p.uOpen = u;
+                const phi = p.az + sc.clock * 0.018;
+                p.cp = Math.cos(phi);
+                p.sp = Math.sin(phi);
+
+                evalHeroPetalPoint(p, { H, scale, open, sway }, 0.65, 0, W0);
+                evalHeroPetalPoint(p, { H, scale, open, sway }, 1.00, 0, W1);
+                crownTop = Math.max(crownTop, W0.y - H, W1.y - H);
+            }
+
+            return { visible: true, grow, H, scale, open, sway, crownTop };
+        }
+
+        function queueHeroFlower3D(hs, ms) {
+            drawQueue.length = 0;
+            if (!hs.visible) return;
+
+            const isRefl = ms < 0;
+            const elev = Math.atan2(cam.y - hs.H, Math.hypot(cam.x, cam.z));
+            const centerZ = project(hs.sway, hs.H * ms, 0, P0) ? P0.z : 400;
+            const hdx = cam.x - hs.sway, hdz = cam.z;
+            const hLen = Math.hypot(hdx, hdz) || 1;
+            const vx = hdx / hLen, vz = hdz / hLen;
+
+            // 4A. Đài Lá Sen Hoàng Gia 3D (Royal Lotus Leaf Pad) nổi trên mặt nước ngay dưới chân Đại Đoá Hoa
+            if (!isRefl && hs.grow > 0.05) {
+                const padScale = easeOutBack(clamp01(hs.grow / 0.85)) * hs.scale;
+                const padWorldR = 98 * padScale;
+                const padPts = [];
+                const nSegs = 32;
+                const notchAz = 0.85; // Khe chữ V duyên dáng phía bên phải
+                for (let s = 0; s <= nSegs; s++) {
+                    const a = notchAz + 0.20 + (s / nSegs) * (TAU - 0.40);
+                    const waveR = padWorldR * (1 + 0.03 * Math.sin(a * 6 + sc.clock * 1.2));
+                    const waveY = 0.8 + Math.sin(a * 5 + sc.clock * 1.5) * 1.2;
+                    if (project(Math.cos(a) * waveR, waveY, Math.sin(a) * waveR, Q)) {
+                        padPts.push({ x: Q.x, y: Q.y });
+                    }
+                }
+                if (padPts.length > 10 && project(0, 0.8, 0, P0)) {
+                    drawQueue.push({
+                        kind: 'hero_pad',
+                        key: centerZ + 220, // Luôn vẽ dưới đáy hoa và trên mặt nước
+                        cx: P0.x,
+                        cy: P0.y,
+                        k: P0.k,
+                        rPx: padWorldR * P0.k,
+                        pts: padPts
+                    });
+                }
+            }
+
+            // 4B. Cuống hoa 3D ngắn thanh thoát nối từ tâm Đài Lá Sen Hoàng Gia lên Đế Hoa
+            if (project(0, 0.8 * ms, 0, P0) &&
+                project(hs.sway * 0.25, hs.H * 0.36 * ms, 0, P1) &&
+                project(hs.sway * 0.65, hs.H * 0.72 * ms, 0, P2) &&
+                project(hs.sway, hs.H * ms, 0, P3)) {
+                drawQueue.push({
+                    kind: 'stem_curve',
+                    key: centerZ + 180,
+                    x0: P0.x, y0: P0.y,
+                    x1: P1.x, y1: P1.y,
+                    x2: P2.x, y2: P2.y,
+                    x3: P3.x, y3: P3.y,
+                    wBase: 8.0 * P0.k * hs.scale,
+                    wTop: 6.5 * P3.k * hs.scale,
+                    refl: isRefl
+                });
+            }
+
+            // 4C. Lá non 3D & Đài hoa 6 cánh xanh ngọc ôm sát chân đoá hoa
+            if (th.leaf && hs.grow > 0.20) {
+                const leafGrow = easeOutBack(clamp01((hs.grow - 0.20) / 0.65));
+                for (let side = -1; side <= 1; side += 2) {
+                    const ly = hs.H * (side < 0 ? 0.62 : 0.78);
+                    const lx = hs.sway * (side < 0 ? 0.25 : 0.45);
+                    const phi = side * 1.12 + Math.sin(sc.clock * 1.4 + side) * 0.08;
+                    const len = 62 * leafGrow * hs.scale;
+                    const wid = 28 * leafGrow * hs.scale;
+                    const cp = Math.cos(phi), sp = Math.sin(phi);
+                    const rx = -sp * wid * 0.5, rz = cp * wid * 0.5;
+                    const mx = lx + cp * len * 0.52, my = ly + 10 * leafGrow;
+                    const mz = sp * len * 0.52;
+                    const tx = lx + cp * len, ty = ly + 4 * leafGrow, tz = sp * len;
+                    if (project(lx, ly * ms, 0, P0) &&
+                        project(mx - rx, (my + 4) * ms, mz - rz, P1) &&
+                        project(tx, ty * ms, tz, P2) &&
+                        project(mx + rx, (my - 2) * ms, mz + rz, P3)) {
+                        drawQueue.push({
+                            kind: 'leaf',
+                            key: centerZ + 145,
+                            bx: P0.x, by: P0.y,
+                            lx: P1.x, ly: P1.y,
+                            tx: P2.x, ty: P2.y,
+                            rx: P3.x, ry: P3.y,
+                            refl: isRefl
+                        });
                     }
                 }
             }
-            gW.globalCompositeOperation = 'source-over';
-            gW.globalAlpha = 1;
 
-            // ===== 7. Sinh vật phía trước hoa (hạt nào gần ống kính hơn bức thư thì vẽ ĐÈ LÊN bức thư) =====
-            drawLiving(gW, gF, 1, heroZ, envZ, hs, wake);
+            if (!isRefl && hs.grow > 0.25) {
+                for (let s = 0; s < 6; s++) {
+                    const az = (s / 6) * TAU + 0.25;
+                    const cp = Math.cos(az), sp = Math.sin(az);
+                    const sLen = 48 * hs.scale;
+                    const sWid = 22 * hs.scale;
+                    const bx = hs.sway + cp * 8 * hs.scale, by = hs.H - 1 * hs.scale, bz = sp * 8 * hs.scale;
+                    const tx = hs.sway + cp * sLen, ty = hs.H + 5 * hs.scale, tz = sp * sLen;
+                    const mx = (bx + tx) * 0.5, my = hs.H - 3 * hs.scale, mz = (bz + tz) * 0.5;
+                    const rx = -sp * sWid * 0.5, rz = cp * sWid * 0.5;
+                    if (project(bx, by, bz, P0) && project(mx - rx, my, mz - rz, P1) && project(tx, ty, tz, P2) && project(mx + rx, my, mz + rz, P3)) {
+                        drawQueue.push({
+                            kind: 'sepal',
+                            key: centerZ + 125,
+                            bx: P0.x, by: P0.y,
+                            lx: P1.x, ly: P1.y,
+                            tx: P2.x, ty: P2.y,
+                            rx: P3.x, ry: P3.y
+                        });
+                    }
+                }
+            }
 
-            // Bụi nước ánh sáng bắn lên khi chạm (lúc này chưa có hoa & bức thư)
-            gW.globalCompositeOperation = 'lighter';
-            if (tau >= T.IMPACT && tau < T.IMPACT + 0.62) {
+            // 4D. Các cánh hoa 3D cong Bezier tròn đầy (Sắp xếp theo hình học vỏ trụ lồng nhau Nested Cylindrical Shells!)
+            const highViewMix = !isRefl ? smooth((elev - 34 * DEG) / (16 * DEG)) : 0;
+            for (let i = 0; i < petals.length; i++) {
+                const p = petals[i];
+                evalHeroPetalPoint(p, hs, 0.00,  0.00, W0);  // Q0: Gốc cánh
+                evalHeroPetalPoint(p, hs, 0.26, -0.92, W1);  // Q1: Bụng dưới trái
+                evalHeroPetalPoint(p, hs, 0.54, -1.00, W2L); // Q2: Bụng giữa trái
+                evalHeroPetalPoint(p, hs, 0.80, -0.86, W2);  // Q3: Vai trên trái
+                evalHeroPetalPoint(p, hs, 0.96, -0.46, WTL); // Q4: Vòm đỉnh trái
+                evalHeroPetalPoint(p, hs, 1.00,  0.00, W3);  // Q5: Đỉnh giữa cánh
+                evalHeroPetalPoint(p, hs, 0.96,  0.46, WTR); // Q6: Vòm đỉnh phải
+                evalHeroPetalPoint(p, hs, 0.80,  0.86, W4);  // Q7: Vai trên phải
+                evalHeroPetalPoint(p, hs, 0.54,  1.00, W4R); // Q8: Bụng giữa phải
+                evalHeroPetalPoint(p, hs, 0.26,  0.92, W5);  // Q9: Bụng dưới phải
+                evalHeroPetalPoint(p, hs, 0.52,  0.00, W6);  // Tâm lòng cánh
+
+                if (!project(W0.x, W0.y * ms, W0.z, P0) ||
+                    !project(W1.x, W1.y * ms, W1.z, P1) ||
+                    !project(W2L.x, W2L.y * ms, W2L.z, P2L) ||
+                    !project(W2.x, W2.y * ms, W2.z, P2) ||
+                    !project(WTL.x, WTL.y * ms, WTL.z, PTL) ||
+                    !project(W3.x, W3.y * ms, W3.z, P3) ||
+                    !project(WTR.x, WTR.y * ms, WTR.z, PTR) ||
+                    !project(W4.x, W4.y * ms, W4.z, P4) ||
+                    !project(W4R.x, W4R.y * ms, W4R.z, P4R) ||
+                    !project(W5.x, W5.y * ms, W5.z, P5) ||
+                    !project(W6.x, W6.y * ms, W6.z, P6)) continue;
+
+                const frontCos = p.cp * vx + p.sp * vz; // +1 = phía trước đối diện camera, -1 = phía sau
+                const sa = Math.sin(p.theta), ca = Math.cos(p.theta);
+                const nx = -ca * p.cp, ny = sa * ms, nz = -ca * p.sp;
+                const vdx = cam.x - W6.x, vdy = cam.y - W6.y * ms, vdz = cam.z - W6.z;
+                const vLen = Math.hypot(vdx, vdy, vdz) || 1;
+                const viewDot = (nx * vdx + ny * vdy + nz * vdz) / vLen;
+                // Khi hoa đã bung nở (uOpen > 0.35), luôn hiển thị sắc cánh nhung rực rỡ thay vì mảng tối mặt lưng
+                const isFrontFace = viewDot >= -0.06 || p.uOpen > 0.32;
+
+                const ndl = nx * L_DIR[0] + ny * L_DIR[1] + nz * L_DIR[2];
+                const lightVal = clamp01(0.54 + 0.36 * ndl + 0.16 * hs.open);
+                const sideLight = (-p.sp * L_DIR[0] + p.cp * L_DIR[2]);
+
+                let dewScreen = null;
+                // Chỉ đọng sương trên các cánh lớp ngoài hướng về phía người xem/hai bên để không bị lấp lửng ở đáy hoa
+                if (!isRefl && p.hasDew && hs.open > 0.42 && frontCos > -0.25 && frontCos < 0.78) {
+                    evalHeroPetalPoint(p, hs, 0.68, p.dewV, W0);
+                    if (project(W0.x, W0.y + 1.8, W0.z, Q)) {
+                        dewScreen = { x: Q.x, y: Q.y, r: Math.max(2.4, p.dewR * Q.k * hs.scale) };
+                    }
+                }
+
+                // Định lý vỏ trụ lồng nhau (Nested Cylindrical Shell Depth):
+                // - Nửa trước (frontCos > 0): Lớp ngoài (li=0, shellR=92) có key nhỏ nhất -> luôn vẽ SAU CÙNG, ôm trọn lớp trong (li=1..4) và nhụy!
+                // - Nửa sau (frontCos < 0): Lớp ngoài (li=0, shellR=92) có key lớn nhất -> luôn vẽ ĐẦU TIÊN, nằm phía sau lớp trong và nhụy!
+                const shellR = 92 - p.li * 16;
+                const lateralWrap = (1 - p.ld) * 8 * (1 - highViewMix) - p.ld * 14 * highViewMix;
+                const shellKey = centerZ - frontCos * shellR - lateralWrap;
+
+                drawQueue.push({
+                    kind: 'petal',
+                    key: shellKey,
+                    p0x: P0.x, p0y: P0.y,
+                    p1x: P1.x, p1y: P1.y,
+                    p2lx: P2L.x, p2ly: P2L.y,
+                    p2x: P2.x, p2y: P2.y,
+                    tlx: PTL.x, tly: PTL.y,
+                    p3x: P3.x, p3y: P3.y,
+                    trx: PTR.x, try: PTR.y,
+                    p4x: P4.x, p4y: P4.y,
+                    p4rx: P4R.x, p4ry: P4R.y,
+                    p5x: P5.x, p5y: P5.y,
+                    p6x: P6.x, p6y: P6.y,
+                    k: P6.k,
+                    ld: p.ld,
+                    li: p.li,
+                    uOpen: p.uOpen,
+                    isFrontFace,
+                    lightVal,
+                    sideLight,
+                    shape: th.petal.shape,
+                    dew: dewScreen,
+                    refl: isRefl
+                });
+            }
+
+            // 4E. Vương miện 42 sợi nhụy vàng 3D & Đế nhuỵ (Receptacle) nằm đúng trong lòng chén hoa (shellR = 0..14 < 26)
+            if (!isRefl && hs.open > 0.25) {
+                const stOpen = clamp01((hs.open - 0.25) / 0.65);
+                if (project(hs.sway, hs.H + 8 * hs.scale, 0, P0)) {
+                    drawQueue.push({
+                        kind: 'receptacle',
+                        key: centerZ + 2 - 22 * highViewMix,
+                        x: P0.x, y: P0.y,
+                        r: 16 * hs.scale * P0.k * stOpen
+                    });
+                }
+                for (let i = 0; i < stamens.length; i++) {
+                    const st = stamens[i];
+                    const cp = Math.cos(st.az + sc.clock * 0.02), sp = Math.sin(st.az + sc.clock * 0.02);
+                    const stFrontCos = cp * vx + sp * vz;
+                    const ang = st.spread * stOpen + Math.sin(sc.clock * 2.2 + st.ph) * 0.05;
+                    const sa = Math.sin(ang), ca = Math.cos(ang);
+                    const len = (st.len + 10) * hs.scale * stOpen;
+                    const bx = hs.sway + cp * st.rb * hs.scale;
+                    const by = hs.H + 6 * hs.scale;
+                    const bz = sp * st.rb * hs.scale;
+                    const mx = bx + cp * sa * len * 0.45;
+                    const my = by + ca * len * 0.58;
+                    const mz = bz + sp * sa * len * 0.45;
+                    const tx = bx + cp * sa * len;
+                    const ty = by + ca * len;
+                    const tz = bz + sp * sa * len;
+                    if (project(bx, by, bz, P0) && project(mx, my, mz, P1) && project(tx, ty, tz, P2)) {
+                        const stShellR = 14 - st.ring * 3;
+                        drawQueue.push({
+                            kind: 'stamen',
+                            key: centerZ - stFrontCos * stShellR - 24 * highViewMix,
+                            bx: P0.x, by: P0.y,
+                            mx: P1.x, my: P1.y,
+                            tx: P2.x, ty: P2.y,
+                            k: P2.k,
+                            ring: st.ring
+                        });
+                    }
+                }
+            }
+
+            drawQueue.sort((a, b) => b.key - a.key);
+        }
+
+        // Đường bao cánh hoa B-Spline bậc 2 qua trung điểm (Liên tục C1 tuyệt đối 100% tại mọi điểm, không bao giờ có góc gãy ở vai hay đỉnh!)
+        function traceHeroPetalPath(g, s) {
+            const tipX = s.shape === 'sakura' ? lerp(s.p6x, s.p3x, 0.84) : s.p3x;
+            const tipY = s.shape === 'sakura' ? lerp(s.p6y, s.p3y, 0.84) : s.p3y;
+            const kx = [s.p1x, s.p2lx, s.p2x, s.tlx, tipX, s.trx, s.p4x, s.p4rx, s.p5x];
+            const ky = [s.p1y, s.p2ly, s.p2y, s.tly, tipY, s.try, s.p4y, s.p4ry, s.p5y];
+
+            g.beginPath();
+            g.moveTo(s.p0x, s.p0y);
+            for (let k = 0; k < 8; k++) {
+                const mx = (kx[k] + kx[k + 1]) * 0.5;
+                const my = (ky[k] + ky[k + 1]) * 0.5;
+                g.quadraticCurveTo(kx[k], ky[k], mx, my);
+            }
+            g.quadraticCurveTo(kx[8], ky[8], s.p0x, s.p0y);
+            g.closePath();
+        }
+
+        // Đường bao mượt B-Spline bậc 2 cho Đài Lá Sen Hoàng Gia 3D
+        function traceLotusPadPath(g, cx, cy, pts) {
+            g.beginPath();
+            g.moveTo(cx, cy);
+            g.lineTo(pts[0].x, pts[0].y);
+            for (let p = 1; p < pts.length - 1; p++) {
+                const mx = (pts[p].x + pts[p + 1].x) * 0.5;
+                const my = (pts[p].y + pts[p + 1].y) * 0.5;
+                g.quadraticCurveTo(pts[p].x, pts[p].y, mx, my);
+            }
+            const last = pts[pts.length - 1];
+            g.lineTo(last.x, last.y);
+            g.closePath();
+        }
+
+        function renderHeroFlower3D(g, hs, isRefl) {
+            if (!hs.visible) return;
+            queueHeroFlower3D(hs, isRefl ? -1 : 1);
+
+            g.save();
+            g.globalAlpha = isRefl ? 0.22 : 1.0;
+            g.lineJoin = 'round';
+            g.lineCap = 'round';
+
+            for (let i = 0; i < drawQueue.length; i++) {
+                const it = drawQueue[i];
+
+                if (it.kind === 'hero_pad') {
+                    // Đài Lá Sen Hoàng Gia 3D nổi trên mặt nước ngay dưới chân Đại Đoá Hoa
+                    const pts = it.pts;
+                    // 1. Bóng tối tiếp xúc mặt nước dưới đài lá
+                    g.save();
+                    g.translate(0, 3.5 * it.k);
+                    g.fillStyle = 'rgba(2, 1, 6, 0.52)';
+                    traceLotusPadPath(g, it.cx, it.cy, pts);
+                    g.fill();
+                    g.restore();
+
+                    // 2. Bề mặt lá sen 3D với Gradient toả tròn từ tâm
+                    const padG = g.createRadialGradient(it.cx, it.cy, it.rPx * 0.06, it.cx, it.cy, it.rPx * 1.05);
+                    padG.addColorStop(0.00, th.pad[0]);
+                    padG.addColorStop(0.62, th.pad[1]);
+                    padG.addColorStop(0.92, th.pad[2]);
+                    padG.addColorStop(1.00, th.stemHi);
+                    g.fillStyle = padG;
+                    traceLotusPadPath(g, it.cx, it.cy, pts);
+                    g.fill();
+
+                    // 3. Viền mép lá bắt sáng & gân lá sen toả tròn
+                    g.strokeStyle = th.pad[2];
+                    g.lineWidth = Math.max(1.0, 1.4 * it.k);
+                    g.stroke();
+
+                    g.strokeStyle = 'rgba(215, 255, 230, 0.22)';
+                    g.lineWidth = Math.max(0.7, 0.95 * it.k);
+                    for (let p = 2; p < pts.length - 2; p += 4) {
+                        g.beginPath();
+                        g.moveTo(it.cx, it.cy);
+                        const mx = (it.cx + pts[p].x) * 0.5;
+                        const my = (it.cy + pts[p].y) * 0.5 - 1.8 * it.k;
+                        g.quadraticCurveTo(mx, my, lerp(it.cx, pts[p].x, 0.92), lerp(it.cy, pts[p].y, 0.92));
+                        g.stroke();
+                    }
+                    continue;
+                }
+
+                if (it.kind === 'stem_curve') {
+                    // Cuống hoa 3D thanh thoát hoà vào tâm Đài Lá Sen
+                    const wMid = Math.max(2.0, (it.wBase + it.wTop) * 0.5);
+                    g.strokeStyle = th.pad[0];
+                    g.lineWidth = wMid;
+                    g.beginPath();
+                    g.moveTo(it.x0, it.y0);
+                    g.bezierCurveTo(it.x1, it.y1, it.x2, it.y2, it.x3, it.y3);
+                    g.stroke();
+
+                    g.strokeStyle = th.stem;
+                    g.lineWidth = wMid * 0.76;
+                    g.beginPath();
+                    g.moveTo(it.x0 - wMid * 0.06, it.y0);
+                    g.bezierCurveTo(it.x1 - wMid * 0.06, it.y1, it.x2 - wMid * 0.06, it.y2, it.x3 - wMid * 0.06, it.y3);
+                    g.stroke();
+
+                    if (!isRefl) {
+                        g.strokeStyle = th.stemHi;
+                        g.lineWidth = wMid * 0.30;
+                        g.beginPath();
+                        g.moveTo(it.x0 - wMid * 0.16, it.y0);
+                        g.bezierCurveTo(it.x1 - wMid * 0.16, it.y1, it.x2 - wMid * 0.16, it.y2, it.x3 - wMid * 0.16, it.y3);
+                        g.stroke();
+                    }
+                    continue;
+                }
+
+                if (it.kind === 'leaf' || it.kind === 'sepal') {
+                    const lg = g.createLinearGradient(it.bx, it.by, it.tx, it.ty);
+                    lg.addColorStop(0.0, th.leaf ? th.leaf[0] : '#0b291b');
+                    lg.addColorStop(0.55, th.leaf ? th.leaf[1] : '#276b46');
+                    lg.addColorStop(1.0, th.leaf ? th.leaf[2] : '#7ad49c');
+                    g.fillStyle = lg;
+                    g.beginPath();
+                    g.moveTo(it.bx, it.by);
+                    g.quadraticCurveTo(it.lx, it.ly, it.tx, it.ty);
+                    g.quadraticCurveTo(it.rx, it.ry, it.bx, it.by);
+                    g.closePath();
+                    g.fill();
+                    if (!isRefl) {
+                        g.strokeStyle = 'rgba(255, 248, 215, 0.36)';
+                        g.lineWidth = 0.9;
+                        g.beginPath();
+                        g.moveTo(it.bx, it.by);
+                        g.quadraticCurveTo((it.lx + it.rx) * 0.5, (it.ly + it.ry) * 0.5, it.tx, it.ty);
+                        g.stroke();
+                    }
+                    continue;
+                }
+
+                if (it.kind === 'petal') {
+                    const pt = th.petal;
+
+                    // Bóng đổ lớp cánh trên xuống lớp cánh dưới (Inter-petal 3D Drop Shadow)
+                    if (!isRefl && it.li > 0) {
+                        g.save();
+                        g.translate(0, 3.2 * it.k);
+                        traceHeroPetalPath(g, it);
+                        g.fillStyle = 'rgba(12, 1, 8, 0.28)';
+                        g.fill();
+                        g.restore();
+                    }
+
+                    traceHeroPetalPath(g, it);
+
+                    // 1. Gradient dọc từ gốc cánh (Ambient Occlusion sâu) ra tới đỉnh cánh (Rim)
+                    const pg = g.createLinearGradient(it.p0x, it.p0y, it.p3x, it.p3y);
+                    if (it.isFrontFace) {
+                        const aoStop = clamp01(0.16 + (1 - it.uOpen) * 0.14 + it.ld * 0.08);
+                        pg.addColorStop(0.00, pt.ao);
+                        pg.addColorStop(aoStop, mixHex(pt.ao, pt.base, it.lightVal * 0.88));
+                        pg.addColorStop(0.55, mixHex(pt.base, pt.mid, clamp01(it.lightVal * 1.08)));
+                        pg.addColorStop(0.85, mixHex(pt.mid, pt.tip, clamp01(0.68 + it.lightVal * 0.32)));
+                        pg.addColorStop(1.00, pt.rim);
+                    } else {
+                        pg.addColorStop(0.00, pt.backAo);
+                        pg.addColorStop(0.45, pt.backBase);
+                        pg.addColorStop(0.88, pt.backTip);
+                        pg.addColorStop(1.00, pt.tip);
+                    }
+                    g.fillStyle = pg;
+                    g.fill();
+
+                    if (!isRefl) {
+                        // 2. Đổ bóng chiều sâu ngang (Lateral 3D Cup Curvature Shading)
+                        g.save();
+                        g.clip();
+                        const latGrad = g.createLinearGradient(it.p2lx, it.p2ly, it.p4rx, it.p4ry);
+                        const leftBright = it.sideLight > 0;
+                        latGrad.addColorStop(0.00, leftBright ? 'rgba(255,255,255,0.20)' : 'rgba(18,2,10,0.24)');
+                        latGrad.addColorStop(0.50, 'rgba(0,0,0,0)');
+                        latGrad.addColorStop(1.00, leftBright ? 'rgba(18,2,10,0.24)' : 'rgba(255,255,255,0.20)');
+                        g.fillStyle = latGrad;
+                        const minX = Math.min(it.p0x, it.p2lx, it.p2x, it.p3x, it.p4x, it.p4rx) - 6;
+                        const maxX = Math.max(it.p0x, it.p2lx, it.p2x, it.p3x, it.p4x, it.p4rx) + 6;
+                        const minY = Math.min(it.p0y, it.p2ly, it.p2y, it.p3y, it.p4y, it.p4ry) - 6;
+                        const maxY = Math.max(it.p0y, it.p2ly, it.p2y, it.p3y, it.p4y, it.p4ry) + 6;
+                        g.fillRect(minX, minY, maxX - minX, maxY - minY);
+
+                        // 3. Vân lụa hữu cơ uốn cong mềm theo lòng cánh
+                        g.strokeStyle = `rgba(${pt.vein}, 0.14)`;
+                        g.lineWidth = Math.max(0.5, 0.85 * it.k);
+                        for (let v = -2; v <= 2; v++) {
+                            const vf = v * 0.28;
+                            const cx = lerp(it.p6x, vf < 0 ? it.p2lx : it.p4rx, Math.abs(vf));
+                            const cy = lerp(it.p6y, vf < 0 ? it.p2ly : it.p4ry, Math.abs(vf));
+                            const ex = lerp(it.p3x, vf < 0 ? it.p2x : it.p4x, Math.abs(vf) * 0.85);
+                            const ey = lerp(it.p3y, vf < 0 ? it.p2y : it.p4y, Math.abs(vf) * 0.85);
+                            g.beginPath();
+                            g.moveTo(it.p0x, it.p0y);
+                            g.quadraticCurveTo(cx, cy, ex, ey);
+                            g.stroke();
+                        }
+                        g.restore();
+
+                        // 4. Viền bắt sáng Fresnel chuyển sắc mượt dọc toàn bộ chu vi cánh (Không có điểm cắt đột ngột!)
+                        const rimGrad = g.createLinearGradient(it.p0x, it.p0y, it.p3x, it.p3y);
+                        rimGrad.addColorStop(0.00, 'rgba(255, 255, 255, 0)');
+                        rimGrad.addColorStop(0.50, 'rgba(255, 250, 245, 0.05)');
+                        rimGrad.addColorStop(0.80, it.isFrontFace ? 'rgba(255, 250, 245, 0.28)' : 'rgba(255, 235, 220, 0.16)');
+                        rimGrad.addColorStop(1.00, it.isFrontFace ? 'rgba(255, 252, 248, 0.56)' : 'rgba(255, 235, 220, 0.30)');
+                        g.strokeStyle = rimGrad;
+                        g.lineWidth = Math.max(0.7, 1.15 * it.k);
+                        traceHeroPetalPath(g, it);
+                        g.stroke();
+
+                        // 5. Giọt sương mai pha lê 3D đọng trên cánh hoa
+                        if (it.dew) {
+                            const dw = it.dew;
+                            g.fillStyle = 'rgba(20, 2, 12, 0.38)';
+                            g.beginPath();
+                            g.ellipse(dw.x + dw.r * 0.2, dw.y + dw.r * 0.35, dw.r * 0.95, dw.r * 0.65, 0, 0, TAU);
+                            g.fill();
+                            const dg = g.createRadialGradient(dw.x - dw.r * 0.3, dw.y - dw.r * 0.3, dw.r * 0.1, dw.x, dw.y, dw.r);
+                            dg.addColorStop(0.0, '#ffffff');
+                            dg.addColorStop(0.45, 'rgba(255, 245, 250, 0.85)');
+                            dg.addColorStop(0.85, pt.mid);
+                            dg.addColorStop(1.0, 'rgba(255, 255, 255, 0.92)');
+                            g.fillStyle = dg;
+                            g.beginPath();
+                            g.arc(dw.x, dw.y, dw.r, 0, TAU);
+                            g.fill();
+                            g.fillStyle = '#ffffff';
+                            g.beginPath();
+                            g.arc(dw.x - dw.r * 0.32, dw.y - dw.r * 0.32, dw.r * 0.28, 0, TAU);
+                            g.fill();
+                        }
+                    }
+                    continue;
+                }
+
+                if (it.kind === 'receptacle') {
+                    const rg = g.createRadialGradient(it.x, it.y, 1, it.x, it.y, Math.max(4, it.r * 1.4));
+                    rg.addColorStop(0.0, '#fffef2');
+                    rg.addColorStop(0.45, th.accent);
+                    rg.addColorStop(1.0, 'rgba(255, 180, 90, 0)');
+                    g.fillStyle = rg;
+                    g.beginPath();
+                    g.arc(it.x, it.y, Math.max(4, it.r * 1.4), 0, TAU);
+                    g.fill();
+                    continue;
+                }
+
+                if (it.kind === 'stamen') {
+                    const sg = g.createLinearGradient(it.bx, it.by, it.tx, it.ty);
+                    sg.addColorStop(0.0, th.petal.base);
+                    sg.addColorStop(0.5, '#f5b942');
+                    sg.addColorStop(1.0, '#fff6c2');
+                    g.strokeStyle = sg;
+                    g.lineWidth = Math.max(0.9, (1.6 - it.ring * 0.25) * it.k);
+                    g.beginPath();
+                    g.moveTo(it.bx, it.by);
+                    g.quadraticCurveTo(it.mx, it.my, it.tx, it.ty);
+                    g.stroke();
+
+                    if (th.center === 'pearls') {
+                        const pr = Math.max(3.5, (7.5 - it.ring * 1.2) * it.k);
+                        g.drawImage(S.pearl, it.tx - pr, it.ty - pr, pr * 2, pr * 2);
+                    } else {
+                        const ar = Math.max(1.8, (3.4 - it.ring * 0.4) * it.k);
+                        g.fillStyle = '#fff9d6';
+                        g.beginPath();
+                        g.arc(it.tx, it.ty, ar, 0, TAU);
+                        g.fill();
+                    }
+                }
+            }
+
+            g.restore();
+        }
+
+        // =================================================================================
+        // 5. BƯỚM 3D CÁNH LỤA TRONG SUỐT CÓ GÂN CÁNH & ĐỐM NGỌC, CÁNH HOA BAY 3D & BOKEH
+        // =================================================================================
+        function drawButterfly3D(g, x, y, k, size, flap, yawAngle) {
+            const s = size * k;
+            if (s < 2) return;
+            const wingFold = 0.20 + 0.80 * Math.abs(Math.cos(flap));
+            g.save();
+            g.translate(x, y);
+            g.rotate(Math.sin(yawAngle) * 0.25);
+            g.lineJoin = 'round';
+            g.lineCap = 'round';
+
+            drawAdditive(g, S.softAccent, 0, 0, s * 3.4, s * 3.4, 0.34);
+
+            for (let side = -1; side <= 1; side += 2) {
+                g.save();
+                g.scale(side * wingFold, 1);
+                g.globalAlpha = 0.90;
+
+                // Cánh trên (Forewing) chuyển sắc ngũ sắc lụa mỏng
+                const fg = g.createLinearGradient(0, 0, s * 1.15, -s * 0.85);
+                fg.addColorStop(0.00, th.petal.ao);
+                fg.addColorStop(0.28, th.petal.base);
+                fg.addColorStop(0.62, th.petal.mid);
+                fg.addColorStop(0.88, th.accent);
+                fg.addColorStop(1.00, '#ffffff');
+                g.fillStyle = fg;
+                g.beginPath();
+                g.moveTo(0, -s * 0.08);
+                g.bezierCurveTo(s * 0.42, -s * 1.08, s * 1.28, -s * 0.88, s * 1.06, -s * 0.10);
+                g.bezierCurveTo(s * 0.86, s * 0.18, s * 0.35, s * 0.14, 0, 0);
+                g.closePath();
+                g.fill();
+
+                g.strokeStyle = 'rgba(255, 250, 230, 0.38)';
+                g.lineWidth = Math.max(0.4, 0.55 * k);
+                g.stroke();
+
+                // Cánh dưới đuôi én (Hindwing)
+                const hg = g.createLinearGradient(0, 0, s * 0.75, s * 1.05);
+                hg.addColorStop(0.00, th.petal.ao);
+                hg.addColorStop(0.45, th.petal.base);
+                hg.addColorStop(0.82, th.petal.mid);
+                hg.addColorStop(1.00, th.accent);
+                g.fillStyle = hg;
+                g.beginPath();
+                g.moveTo(0, 0);
+                g.bezierCurveTo(s * 0.45, s * 0.10, s * 0.92, s * 0.55, s * 0.58, s * 0.94);
+                g.quadraticCurveTo(s * 0.45, s * 1.22, s * 0.38, s * 1.18);
+                g.quadraticCurveTo(s * 0.35, s * 0.95, s * 0.28, s * 0.88);
+                g.bezierCurveTo(s * 0.12, s * 0.74, s * 0.04, s * 0.35, 0, s * 0.12);
+                g.closePath();
+                g.fill();
+                g.stroke();
+
+                // Gân cánh lụa & đốm ngọc phát sáng ở mép cánh (tách từng arc để không có đường nối!)
+                if (s > 6) {
+                    g.strokeStyle = 'rgba(255, 248, 225, 0.28)';
+                    g.lineWidth = Math.max(0.35, 0.45 * k);
+                    g.beginPath();
+                    g.moveTo(0, -s * 0.04);
+                    g.quadraticCurveTo(s * 0.45, -s * 0.48, s * 0.92, -s * 0.42);
+                    g.moveTo(s * 0.35, -s * 0.34);
+                    g.lineTo(s * 0.82, -s * 0.18);
+                    g.moveTo(0, s * 0.04);
+                    g.quadraticCurveTo(s * 0.35, s * 0.38, s * 0.52, s * 0.82);
+                    g.stroke();
+
+                    g.fillStyle = 'rgba(255, 253, 240, 0.82)';
+                    const r1 = Math.max(0.6, s * 0.055);
+                    const r2 = Math.max(0.5, s * 0.042);
+                    const r3 = Math.max(0.5, s * 0.045);
+                    g.beginPath();
+                    g.arc(s * 0.88, -s * 0.46, r1, 0, TAU);
+                    g.moveTo(s * 0.86 + r2, -s * 0.24);
+                    g.arc(s * 0.86, -s * 0.24, r2, 0, TAU);
+                    g.moveTo(s * 0.56 + r3, s * 0.68);
+                    g.arc(s * 0.56, s * 0.68, r3, 0, TAU);
+                    g.fill();
+                }
+                g.restore();
+            }
+
+            // Thân bướm & 2 râu mảnh
+            g.fillStyle = '#fff6d6';
+            g.beginPath();
+            g.ellipse(0, 0, Math.max(0.9, s * 0.065), Math.max(2.2, s * 0.38), 0, 0, TAU);
+            g.fill();
+            if (s > 6) {
+                g.strokeStyle = 'rgba(255, 248, 220, 0.65)';
+                g.lineWidth = Math.max(0.35, 0.45 * k);
+                g.beginPath();
+                g.moveTo(-s * 0.02, -s * 0.32);
+                g.quadraticCurveTo(-s * 0.16, -s * 0.58, -s * 0.28, -s * 0.54);
+                g.moveTo(s * 0.02, -s * 0.32);
+                g.quadraticCurveTo(s * 0.16, -s * 0.58, s * 0.28, -s * 0.54);
+                g.stroke();
+            }
+            g.restore();
+        }
+
+        function drawDriftingPetal3D(g, x, y, k, sz, rx, ry, rz, alpha) {
+            const r = 11 * sz * k;
+            if (r < 1.2) return;
+            g.save();
+            g.translate(x, y);
+            g.rotate(rz);
+            const squeeze = Math.max(0.28, Math.abs(Math.cos(rx)));
+            g.scale(1, squeeze);
+            g.globalAlpha = alpha;
+            const pg = g.createLinearGradient(0, r, 0, -r);
+            pg.addColorStop(0.0, th.petal.base);
+            pg.addColorStop(0.6, th.petal.mid);
+            pg.addColorStop(1.0, th.petal.rim);
+            g.fillStyle = pg;
+            g.beginPath();
+            g.moveTo(0, r);
+            g.bezierCurveTo(-r * 0.85, r * 0.2, -r * 0.75, -r * 0.85, 0, -r);
+            g.bezierCurveTo(r * 0.75, -r * 0.85, r * 0.85, r * 0.2, 0, r);
+            g.closePath();
+            g.fill();
+            g.restore();
+        }
+
+        function drawLivingEntities(gW, gF, pass, heroZ, envZ, hs, wake) {
+            const tau = sc.tau, clock = sc.clock;
+            if (wake <= 0.01) return;
+
+            const nFlies = sc.quality ? flies.length : (flies.length >> 1);
+            for (let i = 0; i < nFlies; i++) {
+                const f = flies[i];
+                const x = f.x + Math.sin(clock * 0.9 + f.p1) * 18;
+                const y = f.y + Math.sin(clock * 1.4 + f.p2) * 12;
+                const z = f.z + Math.cos(clock * 0.8 + f.p3) * 18;
+                if (!project(x, y, z, Q)) continue;
+                const isBehind = Q.z >= heroZ;
+                if ((pass === 0) !== isBehind) continue;
+                const tw = 0.28 + 0.72 * (0.5 + 0.5 * Math.sin(clock * 3.1 + f.p1));
+                const a = wake * tw;
+                const isBokeh = Q.z < 175;
+                const sz = Math.max(8, (isBokeh ? 42 : 24) * f.s * Q.k);
+                const target = (pass === 1 && Q.z < envZ) ? gF : gW;
+                target.save();
+                target.globalCompositeOperation = 'lighter';
+                drawAdditive(target, S.glowFirefly, Q.x, Q.y, sz, sz, isBokeh ? a * 0.45 : a);
+                target.restore();
+            }
+
+            if (tau > T.IMPACT + 0.25) {
+                const dWake = smooth((tau - (T.IMPACT + 0.25)) / 0.8);
+                const nDrift = sc.quality ? drift.length : (drift.length >> 1);
+                for (let i = 0; i < nDrift; i++) {
+                    const d = drift[i];
+                    const cyc = (clock * 0.09 + d.ph) % 1;
+                    const y = 8 + cyc * 240;
+                    const fade = Math.sin(cyc * Math.PI) * dWake;
+                    const sw = Math.sin(clock * d.fs + d.ph * 9) * 24;
+                    const x = d.x0 + sw;
+                    const z = d.z0 + Math.cos(clock * d.fs * 0.8 + d.ph * 6) * 20;
+                    if (!project(x, y, z, Q)) continue;
+                    const isBehind = Q.z >= heroZ;
+                    if ((pass === 0) !== isBehind) continue;
+                    const target = (pass === 1 && Q.z < envZ) ? gF : gW;
+                    drawDriftingPetal3D(
+                        target,
+                        Q.x, Q.y, Q.k, d.sz,
+                        d.rx + clock * d.vrx,
+                        d.ry + clock * d.vry,
+                        d.rz + clock * 0.9,
+                        fade * 0.88
+                    );
+                }
+            }
+
+            for (let i = 0; i < flyers.length; i++) {
+                const bf = flyers[i];
+                const age = tau - bf.born;
+                if (age <= 0) continue;
+                const u = clamp01(age / 1.35);
+                const a = bf.ph + age * 2.1 * bf.dir;
+                let x, y, z;
+                if (bf.fromHeart) {
+                    const r = easeOutCubic(u) * bf.rad;
+                    x = Math.cos(a) * r;
+                    z = Math.sin(a) * r;
+                    y = hs.H + 14 + easeOutCubic(u) * bf.h + Math.sin(age * 4.2 + bf.ph) * 8;
+                } else {
+                    const r = lerp(bf.rad * 1.4, bf.rad, easeOutCubic(u));
+                    x = lerp(bf.ox, Math.cos(a) * r, easeOutCubic(u));
+                    z = lerp(bf.oz, Math.sin(a) * r, easeOutCubic(u));
+                    y = lerp(14, bf.h, easeOutCubic(u)) + Math.sin(age * 4 + bf.ph) * 8;
+                }
+                if (!project(x, y, z, Q)) continue;
+                const isBehind = Q.z >= heroZ;
+                if ((pass === 0) !== isBehind) continue;
+                const target = (pass === 1 && Q.z < envZ) ? gF : gW;
+                drawButterfly3D(target, Q.x, Q.y, Q.k, bf.sz, sc.clock * 15 + bf.fp, a);
+            }
+        }
+
+        // =================================================================================
+        // 6. TÍNH TOÁN VỊ TRÍ & MA TRẬN 3D CỦA PHONG BÌ DOM TRÊN ĐÀI HOA
+        // =================================================================================
+        function computeEnvelope(tau, hs, vw, vh, envBaseW, idleY, idleRotZ) {
+            if (tau < T.ENV_IN) return { visible: false, depth: 1e9 };
+            const mat = easeOutBack(clamp01((tau - T.ENV_IN) / 0.65));
+            const lift = easeInOutCubic(clamp01((tau - T.LIFT) / (T.LAND - T.LIFT)));
+            const envY = hs.H + Math.max(10, finalCrown, hs.crownTop) + 12 + th.hero.envLift * smooth((tau - 3.95) / 0.55);
+            const envX = hs.sway * 1.15 * (1 - lift);
+            project(envX, envY, 0, P0);
+            project(envX - cam.rx * ENV_W * 0.5, envY, -cam.rz * ENV_W * 0.5, P1);
+            project(envX + cam.rx * ENV_W * 0.5, envY,  cam.rz * ENV_W * 0.5, P2);
+            const cradleW = Math.hypot(P2.x - P1.x, P2.y - P1.y);
+            const cradleScale = clamp01(cradleW / Math.max(200, envBaseW)) * (0.48 + 0.52 * mat);
+            const cradleTx = P0.x - vw * 0.5;
+            const cradleTy = P0.y - vh * 0.5;
+            const elev = Math.atan2(cam.y - envY, Math.hypot(cam.x, cam.z)) / DEG;
+            const cradleRx = Math.max(8, Math.min(54, elev * 0.82));
+            const cradleRy = Math.sin(sc.clock * 1.4) * 3.5;
+            const cradleRz = -cam.yaw * 10;
+
+            return {
+                visible: true,
+                opacity: clamp01((tau - T.ENV_IN) / 0.35),
+                tx: lerp(cradleTx, 0, lift),
+                ty: lerp(cradleTy, idleY || 0, lift),
+                scale: lerp(cradleScale, 1, lift),
+                rotX: lerp(cradleRx, 6, lift),
+                rotY: lerp(cradleRy, 0, lift),
+                rotZ: lerp(cradleRz, idleRotZ || 0, lift),
+                depth: lerp(P0.z, 120, lift),
+                lift,
+                worldY: envY
+            };
+        }
+
+        function drawEnvContactShadow(g, env, hs) {
+            if (!env.visible) return;
+            const a = env.opacity * (1 - env.lift * 0.88) * 0.82;
+            if (a <= 0.01) return;
+            if (!project(hs.sway, hs.H + 10, 0, Q)) return;
+            const w = ENV_W * 1.5 * Q.k, h = w * 0.52;
+            g.save();
+            g.globalAlpha = a;
+            g.drawImage(S.shadow, Q.x - w * 0.5, Q.y - h * 0.5, w, h);
+            g.restore();
+        }
+
+        // =================================================================================
+        // 7. VÒNG LẶP KẾT XUẤT CHÍNH (RENDER FRAME)
+        // =================================================================================
+        function render(gW, gF, info) {
+            const vw = info.vw, vh = info.vh, dpr = info.dpr || 1;
+            const envBaseW = info.envW || 340;
+            if (vw !== sc.vw || vh !== sc.vh || !sc.M0) rebuildViewCaches(vw, vh);
+
+            const tau = sc.tau, clock = sc.clock;
+            const wake = smooth((tau - T.IMPACT) / 1.15);
+
+            updateCamera(vw, vh);
+            const hy = cam.hy;
+
+            gW.setTransform(dpr, 0, 0, dpr, 0, 0);
+            gW.clearRect(0, 0, vw, vh);
+            gF.setTransform(dpr, 0, 0, dpr, 0, 0);
+            gF.clearRect(0, 0, vw, vh);
+
+            // 1. Bầu trời, mây khối, núi mờ sương & mặt hồ phản quang Fresnel
+            drawAtmosphereAndLake(gW, vw, vh, hy, wake);
+
+            // 2. Tính trạng thái Đại Đoá Hoa Chủ Đạo & chuẩn bị vườn hoa 3D trên mặt hồ
+            const hs = computeHeroState(tau);
+            prepareGardenFlowers(tau);
+            const heroZ = project(0, hs.H * 0.5, 0, Q) ? Q.z : 500;
+            const env = computeEnvelope(tau, hs, vw, vh, envBaseW, info.idleY, info.idleRotZ);
+            const envZ = env.visible ? env.depth : 1e9;
+
+            // 3. Bóng phản chiếu của Đại Đoá Hoa Chủ Đạo dưới mặt nước
+            if (hs.visible) {
+                renderHeroFlower3D(gW, hs, true);
+            }
+
+            // 4. Sóng nước 3D lan toả trên mặt hồ
+            drawWaterRipples3D(gW, tau);
+
+            // 5. Các đoá hoa trong vườn ở phía xa hơn Đại Đoá Hoa Chủ Đạo
+            let gi = 0;
+            while (gi < ground.length && ground[gi].sz >= heroZ) {
+                if (ground[gi].vis) drawGardenFlower3D(gW, ground[gi]);
+                gi++;
+            }
+
+            // 6. Sinh vật bay phía sau Đại Đoá Hoa Chủ Đạo
+            drawLivingEntities(gW, gF, 0, heroZ, envZ, hs, wake);
+
+            // 7. Quầng sáng elip mềm mại toả lên từ lòng hoa trước khi vẽ cánh hoa
+            if (hs.visible && project(hs.sway, hs.H + 8, 0, Q)) {
+                const plumeA = 0.46 * smooth((tau - 2.65) / 0.7) * (1 - 0.45 * smooth((tau - 4.6) / 0.8));
+                if (plumeA > 0.01) {
+                    const pw = 320 * Q.k, ph = 360 * Q.k;
+                    gW.save();
+                    gW.globalCompositeOperation = 'lighter';
+                    drawAdditive(gW, S.plume, Q.x, Q.y - ph * 0.28, pw, ph, plumeA);
+                    gW.restore();
+                }
+            }
+
+            // 8. Đại Đoá Hoa Chủ Đạo 3D (Thân Bezier liền mạch, Lá, Đài hoa, Cánh cong Bezier 3D tròn đầy, Sương mai, Nhụy vàng 3D)
+            if (hs.visible) {
+                renderHeroFlower3D(gW, hs, false);
+            }
+
+            // 9. Bóng tiếp xúc vật lý của Phong bì trên đài hoa
+            if (env.visible) {
+                drawEnvContactShadow(gW, env, hs);
+            }
+
+            // 10. Các đoá hoa trong vườn ở phía gần ống kính hơn Đại Đoá Hoa Chủ Đạo
+            for (; gi < ground.length; gi++) {
+                if (ground[gi].vis) drawGardenFlower3D(gW, ground[gi]);
+            }
+
+            // 11. Hào quang kết tinh bức thư trong lòng hoa
+            if (hs.visible && project(hs.sway * 2, hs.H + 14, 0, Q)) {
+                gW.save();
+                gW.globalCompositeOperation = 'lighter';
+                const glowI = smooth((tau - 2.65) / 0.75);
+                const matFlash = Math.exp(-Math.pow((tau - (T.ENV_IN + 0.12)) / 0.15, 2));
+                drawAdditive(gW, S.glowAccent, Q.x, Q.y, (130 + 150 * matFlash) * Q.k, (130 + 150 * matFlash) * Q.k, glowI * 0.42 + matFlash * 0.85);
+
+                const bt = (tau - T.ENV_IN) / 0.72;
+                if (bt > 0 && bt < 1 && env.visible) {
+                    for (let i = 0; i < burst.length; i++) {
+                        const b = burst[i];
+                        const d = 68 + 125 * b.d * easeOutCubic(bt);
+                        if (!project(b.dx * d, env.worldY + b.dy * d * 0.6, b.dz * d, Q2)) continue;
+                        const w = 44 * Q2.k * (1 - bt * 0.5);
+                        drawAdditive(gW, S.flare, Q2.x, Q2.y, w, w, 1 - bt);
+                    }
+                }
+                gW.restore();
+            }
+
+            // 12. Sinh vật bay phía trước hoa
+            drawLivingEntities(gW, gF, 1, heroZ, envZ, hs, wake);
+
+            // 13. Giọt nước ánh sáng bắn tung lên khi sao băng chạm mặt hồ (tau = 1.60s)
+            if (tau >= T.IMPACT && tau < T.IMPACT + 0.64) {
+                gW.save();
+                gW.globalCompositeOperation = 'lighter';
                 const t = tau - T.IMPACT;
-                const fade = 1 - t / 0.62;
-                gW.strokeStyle = `rgba(${rgbRipple},${(fade * 0.8).toFixed(3)})`;
+                const fade = 1 - t / 0.64;
+                gW.strokeStyle = `rgba(${rgbRipple}, ${(fade * 0.82).toFixed(3)})`;
                 for (let i = 0; i < splash.length; i++) {
                     const sp = splash[i];
                     const ch = Math.cos(sp.el) * sp.v, cv = Math.sin(sp.el) * sp.v;
-                    const y = cv * t - 650 * t * t;
+                    const y = cv * t - 640 * t * t;
                     if (y < 0) continue;
                     const r = ch * t;
                     if (!project(Math.cos(sp.az) * r, y, Math.sin(sp.az) * r, Q)) continue;
                     const t0 = Math.max(0, t - 0.03);
-                    const y0 = cv * t0 - 650 * t0 * t0, r0 = ch * t0;
+                    const y0 = cv * t0 - 640 * t0 * t0, r0 = ch * t0;
                     if (project(Math.cos(sp.az) * r0, Math.max(0, y0), Math.sin(sp.az) * r0, Q2)) {
                         gW.globalAlpha = 1;
                         gW.lineWidth = Math.max(1, 2.2 * Q.k);
-                        gW.beginPath(); gW.moveTo(Q2.x, Q2.y); gW.lineTo(Q.x, Q.y); gW.stroke();
+                        gW.beginPath(); gW.moveTo(Q2.x, Q2.y); gW.lineTo(Q.x, Q.y); g.stroke();
                     }
                     drawAdditive(gW, S.glowMote, Q.x, Q.y, 18 * Q.k, 18 * Q.k, fade);
                 }
+                gW.restore();
             }
-            // Cột sáng thiên đỉnh tại điểm chạm
-            const pillarA = smooth((tau - 1.585) / 0.03) * (1 - smooth((tau - 1.62) / 0.4));
+
+            // Cột sáng thiên đỉnh tại khoảnh khắc chạm mặt hồ
+            const pillarA = smooth((tau - 1.585) / 0.03) * (1 - smooth((tau - 1.62) / 0.42));
             if (pillarA > 0.01 && project(0, 0, 0, Q)) {
-                const w = 80 * Q.k, h = 700 * Q.k;
+                gW.save();
+                gW.globalCompositeOperation = 'lighter';
+                const w = 84 * Q.k, h = 720 * Q.k;
                 gW.globalAlpha = pillarA;
-                gW.drawImage(S.pillar, Q.x - w / 2, Q.y - h, w, h);
-                gW.globalAlpha = pillarA * 0.35;
-                gW.save(); gW.translate(Q.x, Q.y); gW.scale(1, -0.6); gW.drawImage(S.pillar, -w / 2, -h, w, h); gW.restore();
+                gW.drawImage(S.pillar, Q.x - w * 0.5, Q.y - h, w, h);
+                gW.globalAlpha = pillarA * 0.38;
+                gW.translate(Q.x, Q.y);
+                gW.scale(1, -0.6);
+                gW.drawImage(S.pillar, -w * 0.5, -h, w, h);
+                gW.restore();
             }
-            gW.globalCompositeOperation = 'source-over';
-            gW.globalAlpha = 1;
 
-            // ===== 8. Viền tối điện ảnh =====
-            gW.drawImage(sc.vignette, 0, 0, vw, vh);
-
-            // ===== 9. Màn tối mở đầu (khớp với lớp chuyển cảnh CSS) =====
-            const veil = 1 - smooth(tau / 0.6);
+            // 14. Viền tối điện ảnh (Vignette) & màn tối mở đầu
+            if (sc.vignette) gW.drawImage(sc.vignette, 0, 0, vw, vh);
+            const veil = 1 - smooth(tau / 0.58);
             if (veil > 0.002) {
                 gW.globalAlpha = veil;
                 gW.fillStyle = th.veil;
@@ -1664,12 +2405,12 @@
                 gW.globalAlpha = 1;
             }
 
-            // ===== 10. Đốm sáng ước nguyện & vệt sao băng =====
+            // 15. Đốm sáng ước nguyện & đuôi sao băng (tau < 1.62s)
             if (tau < T.IMPACT + 0.02) {
+                gW.save();
                 gW.globalCompositeOperation = 'lighter';
                 const p = clamp01((tau - T.FALL) / (T.IMPACT - T.FALL));
                 const s = Math.pow(p, 2.1);
-                // Bụi sáng rơi rớt dọc đường bay
                 for (let j = 0; j < sparks.length; j++) {
                     const sj = (j + 0.5) / sparks.length;
                     const tj = T.FALL + Math.pow(sj, 1 / 2.1) * (T.IMPACT - T.FALL);
@@ -1679,7 +2420,6 @@
                     if (!project(Q2.x + sparks[j].jx * age * 3, Q2.y - 60 * age, Q2.z + sparks[j].jz * age * 3, Q)) continue;
                     drawAdditive(gW, S.glowMote, Q.x, Q.y, 22 * Q.k, 22 * Q.k, 1 - age / 0.6);
                 }
-                // Đuôi sao băng
                 if (p > 0) {
                     for (let i = 18; i >= 1; i--) {
                         const si = s - i * 0.026 * (0.45 + s);
@@ -1687,50 +2427,49 @@
                         bez(si, Q2);
                         if (!project(Q2.x, Q2.y, Q2.z, Q)) continue;
                         const f = 1 - i / 19;
-                        const w = Math.max(30, 120 * Q.k) * (0.35 + 0.65 * f);
-                        drawAdditive(gW, S.glowMote, Q.x, Q.y, w, w, 0.6 * f * f);
+                        const w = Math.max(30, 122 * Q.k) * (0.35 + 0.65 * f);
+                        drawAdditive(gW, S.glowMote, Q.x, Q.y, w, w, 0.62 * f * f);
                     }
                 }
                 motePos(tau, Q2);
                 if (project(Q2.x, Q2.y, Q2.z, Q)) {
                     const tw = 0.88 + 0.12 * Math.sin(clock * 6);
-                    const G = Math.max(78, 150 * Q.k) * tw;
+                    const G = Math.max(78, 152 * Q.k) * tw;
                     drawAdditive(gW, S.glowMote, Q.x, Q.y, G, G, 1);
                     gW.save();
                     gW.translate(Q.x, Q.y);
                     gW.rotate(clock * 0.4);
-                    gW.globalAlpha = 0.85;
+                    gW.globalAlpha = 0.88;
                     gW.drawImage(S.flare, -G * 0.95, -G * 0.95, G * 1.9, G * 1.9);
                     gW.restore();
-                    // Phản chiếu đốm sáng trên mặt hồ
                     if (project(Q2.x, -Q2.y, Q2.z, Q)) {
-                        drawAdditive(gW, S.glowMote, Q.x, Q.y, G * 0.8, G * 1.3, 0.3 * (1 - veil));
+                        drawAdditive(gW, S.glowMote, Q.x, Q.y, G * 0.82, G * 1.35, 0.34 * (1 - veil));
                     }
                 }
-                gW.globalCompositeOperation = 'source-over';
-                gW.globalAlpha = 1;
+                gW.restore();
             }
 
-            // ===== Lớp trước (trên phong bì): khung điện ảnh & chớp sáng =====
+            // 16. Lớp trước (canvasFront): Chớp sáng & Letterbox điện ảnh
             const flash = sc.impactClock >= 0 && !sc.skipped ? Math.exp(-(clock - sc.impactClock) * 7.5) : 0;
             if (flash > 0.01 || sc.skipFlash > 0.01) {
+                gF.save();
                 gF.globalCompositeOperation = 'lighter';
                 if (flash > 0.01 && project(0, 0, 0, Q)) {
                     const w = Math.max(vw, vh) * 1.5;
-                    drawAdditive(gF, S.glowMote, Q.x, Q.y, w, w, flash * 0.75);
-                    gF.globalAlpha = flash * 0.18;
+                    drawAdditive(gF, S.glowMote, Q.x, Q.y, w, w, flash * 0.72);
+                    gF.globalAlpha = flash * 0.16;
                     gF.fillStyle = `rgb(${th.mote.join(',')})`;
                     gF.fillRect(0, 0, vw, vh);
                 }
                 if (sc.skipFlash > 0.01) {
-                    gF.globalAlpha = sc.skipFlash * 0.7;
+                    gF.globalAlpha = sc.skipFlash * 0.68;
                     gF.fillStyle = `rgb(${th.mote.join(',')})`;
                     gF.fillRect(0, 0, vw, vh);
                 }
-                gF.globalCompositeOperation = 'source-over';
-                gF.globalAlpha = 1;
+                gF.restore();
             }
-            const lb = vh * 0.072 * clamp01(smooth(tau / 0.35) - smooth((tau - 4.7) / 0.7));
+
+            const lb = vh * 0.068 * clamp01(smooth(tau / 0.35) - smooth((tau - 4.7) / 0.7));
             if (lb > 0.5) {
                 gF.fillStyle = '#040206';
                 gF.fillRect(0, 0, vw, lb);
@@ -1740,7 +2479,6 @@
             return env;
         }
 
-        // ---------- Bước thời gian ----------
         function step(dt) {
             dt = Math.min(0.05, Math.max(0, dt));
             sc.clock += dt;
@@ -1786,8 +2524,7 @@
     }
 
     // ---------------------------------------------------------------------------------
-    // MÀN CHUYỂN CẢNH TỨC THÌ KHI BẤM "NHẬN LỜI CHÚC" (chạy trên GPU compositor)
-    // -> Kể cả khi luồng chính đang bận kết xuất ảnh thiệp, màn tối & đốm sáng vẫn mượt.
+    // MÀN CHUYỂN CẢNH TỨC THÌ KHI BẤM "NHẬN LỜI CHÚC" (GPU COMPOSITOR PRELUDE)
     // ---------------------------------------------------------------------------------
     let preludeEl = null;
     function beginPrelude(motionId) {
@@ -1804,6 +2541,7 @@
         requestAnimationFrame(() => el.classList.add('is-on'));
         return new Promise((resolve) => setTimeout(resolve, 520));
     }
+
     function endPrelude() {
         const el = preludeEl;
         if (!el) return;
@@ -1812,6 +2550,7 @@
         el.classList.add('is-off');
         setTimeout(() => { if (el.parentNode) el.parentNode.removeChild(el); }, 320);
     }
+
     function endPreludeImmediate() {
         if (preludeEl && preludeEl.parentNode) preludeEl.parentNode.removeChild(preludeEl);
         preludeEl = null;
@@ -1819,7 +2558,9 @@
 
     window.WishBloomCutscene = {
         T,
-        prepare(motionId) { try { buildThemeSprites(THEMES[motionId] ? motionId : 'bloom'); } catch (e) { console.warn('WishBloom prepare', e); } },
+        prepare(motionId) {
+            try { buildThemeSprites(THEMES[motionId] ? motionId : 'bloom'); } catch (e) { console.warn('WishBloom prepare', e); }
+        },
         create: createScene,
         beginPrelude,
         endPrelude,
