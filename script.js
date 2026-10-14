@@ -2582,9 +2582,9 @@ async function handleImageInput(e) {
     currentScaleX = 1;
     hasGeneratedQuoteOnce = false;
 
-    // Giữ Bước 1 hiển thị ổn định trong ~40ms lúc Bước 2 dựng ngầm Cropper + Canvas phía dưới (không bao giờ chớp trắng màn hình)
-    step2.classList.remove('step2-ui-revealing');
-    step2.classList.add('active', 'step2-preloading', 'step2-morph-active', 'step2-ui-hidden');
+    // Giữ Bước 1 hiển thị ổn định trong ~35ms lúc Bước 2 dựng ngầm Cropper + Canvas phía dưới (không bao giờ chớp màn hình)
+    step2.classList.remove('step2-morph-from', 'step2-morph-to', 'step2-morph-active', 'step2-ui-hidden', 'step2-ui-revealing');
+    step2.classList.add('active', 'step2-preloading');
 
     // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
     const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
@@ -2650,7 +2650,7 @@ function initCropper() {
                 window.onStep2CropperReadyForMorph();
             } else {
                 step1.classList.remove('active');
-                step2.classList.remove('step2-preloading', 'step2-morph-active', 'step2-ui-hidden');
+                step2.classList.remove('step2-preloading');
             }
         }
     });
@@ -2668,7 +2668,7 @@ document.getElementById('upload-btn').addEventListener('change', handleImageInpu
 document.getElementById('selfie-btn').addEventListener('change', handleImageInput);
 
 document.getElementById('cancel-btn').addEventListener('click', () => {
-    step2.classList.remove('active');
+    step2.classList.remove('active', 'step2-preloading', 'step2-morph-from', 'step2-morph-to');
     step1.classList.add('active');
     document.getElementById('upload-btn').value = '';
     document.getElementById('selfie-btn').value = '';

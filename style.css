@@ -1362,14 +1362,41 @@ input[type="file"] {
 
 /* ====== STEP 2: ALL-IN-ONE STUDIO (XƯỞNG THIẾT KẾ TỔNG HỢP & HIỆU ỨNG MORPH TỪ BƯỚC 1) ====== */
 .main-container {
+    position: relative;
     height: 100%;
     max-height: 98dvh;
     justify-content: space-between;
     padding: 9px 11px;
     gap: 5px;
+    /* Tắt vĩnh viễn animation fadeInPop và backdrop-filter trên .main-container để tuyệt đối không bao giờ bị chớp màn hình */
+    animation: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
-/* Giai đoạn dựng ngầm Cropper + Canvas (~40ms) phía dưới Bước 1: giữ Bước 1 nguyên vẹn trên màn hình để không bao giờ chớp trắng */
+/* Tách mặt nền trắng của khung Step 2 ra lớp ::before riêng biệt để khi co giãn Morph từ khung Step 1 không làm méo tỷ lệ tấm ảnh bên trong */
+.main-container::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(255, 255, 255, 1);
+    box-shadow: 0 12px 35px rgba(216, 27, 96, 0.14);
+    z-index: 0;
+    pointer-events: none;
+    transform-origin: center center;
+}
+
+.main-container > * {
+    position: relative;
+    z-index: 2;
+}
+
+/* Giai đoạn dựng ngầm Cropper + Canvas (~35ms) phía dưới Bước 1: giữ Bước 1 nguyên vẹn trên màn hình */
 #step-2.step2-preloading {
     opacity: 0 !important;
     pointer-events: none !important;
@@ -1377,125 +1404,153 @@ input[type="file"] {
     z-index: 1 !important;
 }
 
-/* Khi bắt đầu FLIP Morph: Bước 2 hiện tức thì ở độ đục 100% (không bị hụt alpha giữa 2 màn hình gây chớp) và tắt backdrop-filter nặng GPU */
-#step-2.step2-morph-active:not(.step2-preloading) {
+/* Giữ độ đục màn hình Bước 2 ở 100% khi bắt đầu Morph để không bị hụt alpha giữa 2 màn hình */
+#step-2.step2-morph-from,
+#step-2.step2-morph-to {
     opacity: 1 !important;
     transition: none !important;
     z-index: 5 !important;
 }
 
-#step-2.step2-morph-active .main-container {
-    animation: none !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    background: rgba(255, 255, 255, 0.98);
-}
-
-#step-2.step2-morph-active .preview-stage,
-#step-2.step2-morph-active #step2-full-card-preview {
+#step-2.step2-morph-from .preview-stage,
+#step-2.step2-morph-from #step2-full-card-preview {
     overflow: visible;
     z-index: 30;
 }
 
-#step-2.step2-morph-active #preview-area-wrap {
+/* --- PHA KHỞI ĐẦU MORPH (Frame 0, transition: none): Khung nền, tấm ảnh và các thanh công cụ thu gọn tại tâm thiệp Bước 1 --- */
+#step-2.step2-morph-from .main-container::before {
+    transition: none !important;
+    transform: translate3d(0, var(--morph-box-dy, 0px), 0) scaleX(var(--morph-box-sx, 0.94)) scaleY(var(--morph-box-sy, 0.74));
+}
+
+#step-2.step2-morph-from #preview-area-wrap {
     position: relative;
     z-index: 40;
-    transform-origin: center center;
-    will-change: transform;
-    backface-visibility: hidden;
-    -webkit-backface-visibility: hidden;
+    transition: none !important;
+    border-radius: 18px;
+    box-shadow: 0 18px 42px rgba(7, 71, 56, 0.24);
+    transform: translate3d(var(--morph-img-dx, 0px), var(--morph-img-dy, 0px), 0) scale(var(--morph-img-scale, 0.68));
 }
 
-/* Trạng thái khởi đầu của các thành phần xung quanh trước khi trượt mở (Thuần 100% GPU transform + opacity, KHÔNG dùng filter: blur tránh tụt FPS) */
-#step-2.step2-ui-hidden #step2-full-card-preview {
-    box-shadow: 0 8px 24px rgba(11, 79, 62, 0);
+#step-2.step2-morph-from #step2-full-card-preview {
+    transition: none !important;
+    box-shadow: 0 8px 24px rgba(15, 123, 95, 0);
 }
 
-#step-2.step2-ui-hidden #step2-wish-area {
+#step-2.step2-morph-from #step2-wish-area {
+    transition: none !important;
     opacity: 0;
-    transform: translate3d(0, -14px, 0);
-    will-change: transform, opacity;
+    transform-origin: top center;
+    transform: translate3d(0, -48px, 0) scale(0.82);
 }
 
-#step-2.step2-ui-hidden .step2-header-row {
+#step-2.step2-morph-from .step2-header-row {
+    transition: none !important;
     opacity: 0;
-    transform: translate3d(0, -12px, 0);
+    transform-origin: bottom center;
+    transform: translate3d(0, 42px, 0) scale(0.78);
     pointer-events: none;
-    will-change: transform, opacity;
 }
 
-#step-2.step2-ui-hidden .card-nav-prev {
+#step-2.step2-morph-from .card-nav-prev {
+    transition: none !important;
     opacity: 0;
-    transform: translate3d(10px, -50%, 0) scale(0.85);
+    transform: translate3d(28px, -50%, 0) scale(0.35);
     pointer-events: none;
-    will-change: transform, opacity;
 }
 
-#step-2.step2-ui-hidden .card-nav-next {
+#step-2.step2-morph-from .card-nav-next {
+    transition: none !important;
     opacity: 0;
-    transform: translate3d(-10px, -50%, 0) scale(0.85);
+    transform: translate3d(-28px, -50%, 0) scale(0.35);
     pointer-events: none;
-    will-change: transform, opacity;
 }
 
-#step-2.step2-ui-hidden #step2-control-deck {
+#step-2.step2-morph-from #step2-control-deck {
+    transition: none !important;
     opacity: 0;
-    transform: translate3d(0, 16px, 0);
+    transform-origin: top center;
+    transform: translate3d(0, -56px, 0) scale(0.80);
     pointer-events: none;
-    will-change: transform, opacity;
 }
 
-#step-2.step2-ui-hidden .action-buttons {
+#step-2.step2-morph-from .action-buttons {
+    transition: none !important;
     opacity: 0;
-    transform: translate3d(0, 18px, 0);
+    transform-origin: top center;
+    transform: translate3d(0, -48px, 0) scale(0.80);
     pointer-events: none;
-    will-change: transform, opacity;
 }
 
-/* Làn sóng xuất hiện mượt 60fps của các thành phần chỉnh sửa ngay khi tấm hình lướt về đúng khung */
-#step-2.step2-ui-revealing #step2-full-card-preview {
-    transition: box-shadow 0.56s ease 0.12s;
+/* --- PHA BUNG MORPH MƯỢT MẮT (Giữ nguyên trạng thái .step2-morph-to suốt phiên chỉnh sửa, KHÔNG bao giờ gỡ class gây chớp) --- */
+#step-2.step2-morph-to .main-container::before {
+    transform: translate3d(0, 0, 0) scaleX(1) scaleY(1);
+    transition: transform 0.62s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-#step-2.step2-ui-revealing #step2-wish-area {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
+#step-2.step2-morph-to #preview-area-wrap {
+    position: relative;
+    z-index: 10;
+    border-radius: 10px 10px 0 0;
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    transform: translate3d(0, 0, 0) scale(1);
     transition:
-        opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.10s,
-        transform 0.56s cubic-bezier(0.22, 1, 0.36, 1) 0.10s;
+        transform 0.64s cubic-bezier(0.22, 1, 0.36, 1),
+        border-radius 0.64s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.64s ease;
 }
 
-#step-2.step2-ui-revealing .step2-header-row {
+#step-2.step2-morph-to #step2-full-card-preview {
+    box-shadow:
+        0 8px 24px rgba(15, 123, 95, 0.2),
+        0 0 0 1.5px rgba(255, 255, 255, 0.94);
+    transition: box-shadow 0.58s ease 0.14s;
+}
+
+#step-2.step2-morph-to #step2-wish-area {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform-origin: top center;
+    transform: translate3d(0, 0, 0) scale(1);
     transition:
-        opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.16s,
-        transform 0.56s cubic-bezier(0.22, 1, 0.36, 1) 0.16s;
+        opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.08s,
+        transform 0.60s cubic-bezier(0.22, 1, 0.36, 1) 0.08s;
 }
 
-#step-2.step2-ui-revealing .card-nav-prev,
-#step-2.step2-ui-revealing .card-nav-next {
+#step-2.step2-morph-to .step2-header-row {
+    opacity: 1;
+    transform-origin: bottom center;
+    transform: translate3d(0, 0, 0) scale(1);
+    transition:
+        opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.12s,
+        transform 0.60s cubic-bezier(0.22, 1, 0.36, 1) 0.12s;
+}
+
+#step-2.step2-morph-to .card-nav-prev,
+#step-2.step2-morph-to .card-nav-next {
     opacity: 1;
     transform: translate3d(0, -50%, 0) scale(1);
     transition:
-        opacity 0.48s cubic-bezier(0.22, 1, 0.36, 1) 0.22s,
-        transform 0.54s cubic-bezier(0.22, 1, 0.36, 1) 0.22s;
+        opacity 0.48s cubic-bezier(0.22, 1, 0.36, 1) 0.18s,
+        transform 0.58s cubic-bezier(0.34, 1.45, 0.64, 1) 0.18s;
 }
 
-#step-2.step2-ui-revealing #step2-control-deck {
+#step-2.step2-morph-to #step2-control-deck {
     opacity: 1;
-    transform: translate3d(0, 0, 0);
+    transform-origin: top center;
+    transform: translate3d(0, 0, 0) scale(1);
+    transition:
+        opacity 0.54s cubic-bezier(0.22, 1, 0.36, 1) 0.18s,
+        transform 0.62s cubic-bezier(0.22, 1, 0.36, 1) 0.18s;
+}
+
+#step-2.step2-morph-to .action-buttons {
+    opacity: 1;
+    transform-origin: top center;
+    transform: translate3d(0, 0, 0) scale(1);
     transition:
         opacity 0.54s cubic-bezier(0.22, 1, 0.36, 1) 0.24s,
-        transform 0.58s cubic-bezier(0.22, 1, 0.36, 1) 0.24s;
-}
-
-#step-2.step2-ui-revealing .action-buttons {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-    transition:
-        opacity 0.54s cubic-bezier(0.22, 1, 0.36, 1) 0.30s,
-        transform 0.58s cubic-bezier(0.22, 1, 0.36, 1) 0.30s;
+        transform 0.62s cubic-bezier(0.22, 1, 0.36, 1) 0.24s;
 }
 
 .step2-header-row {
