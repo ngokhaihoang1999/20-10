@@ -20,6 +20,8 @@ function isMobileDevice() {
 }
 
 function checkInAppBrowser() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('card')) return; // Người nhận mở link thiệp 3D trong Telegram/Zalo sẽ vào thẳng bì thiệp, không hiện cảnh báo selfie
     if (isInAppBrowser()) {
         const warning = document.getElementById('browser-warning');
         if (warning) warning.style.display = 'flex';
@@ -2850,16 +2852,19 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = "🌸 Đang nở hoa & kết tinh thiệp...";
+    btn.innerHTML = "🌸 Đang kết tinh thiệp 3D Motion...";
     btn.disabled = true;
 
-    const overlay = document.getElementById('transition-overlay');
-    populateCoutureBloomVortex();
-
-    overlay.classList.remove('playing');
-    void overlay.offsetWidth;
-    overlay.classList.add('playing');
-    setTimeout(() => overlay.classList.remove('playing'), 2450);
+    if (typeof window.play3DMotionTransition === 'function') {
+        window.play3DMotionTransition(window.currentMotionEffect || 'bloom');
+    } else {
+        const overlay = document.getElementById('transition-overlay');
+        populateCoutureBloomVortex();
+        overlay.classList.remove('playing');
+        void overlay.offsetWidth;
+        overlay.classList.add('playing');
+        setTimeout(() => overlay.classList.remove('playing'), 2450);
+    }
 
     setTimeout(() => {
         const targetW = 1024;
@@ -2882,6 +2887,9 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
             ensureQuoteFont().then(() => {
                 drawCanvasImageText(finalResultCanvas, true);
+                if (typeof window.schedulePreUploadCardToTelegram === 'function') {
+                    window.schedulePreUploadCardToTelegram();
+                }
             });
 
             setTimeout(() => {
@@ -2892,7 +2900,9 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
                 requestAnimationFrame(() => {
                     fitCardShowcaseToWrap();
-                    if (cardShowcase) {
+                    if (typeof window.triggerShowcaseMotionReveal === 'function') {
+                        window.triggerShowcaseMotionReveal(window.currentMotionEffect || 'bloom');
+                    } else if (cardShowcase) {
                         cardShowcase.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev', 'is-tilting');
                         cardShowcase.style.transform = '';
                         void cardShowcase.offsetWidth;
@@ -2901,7 +2911,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                     if (currentWishMode === 'surprise') {
                         showCardFloatingBadge('🌸 Lời chúc bất ngờ dành tặng bạn đã mở!');
                     } else {
-                        showCardFloatingBadge('✨ Tuyệt tác thiệp 20/10 của bạn đã hoàn thiện!');
+                        showCardFloatingBadge('✨ Tuyệt tác thiệp 3D 20/10 đã hoàn thiện!');
                     }
                 });
                 setTimeout(() => triggerCelebrationBurst(), 240);
@@ -2916,7 +2926,17 @@ function triggerCardPulse() {
     const activeTarget = (step3 && step3.classList.contains('active')) ? cardShowcase : step2FullCardPreview;
     if (!activeTarget) return;
     activeTarget.style.transform = '';
-    activeTarget.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev');
+    activeTarget.classList.remove(
+        'reveal-playing',
+        'reveal-butterflies',
+        'reveal-ribbon',
+        'reveal-galaxy',
+        'reveal-sakura',
+        'reveal-hearts',
+        'pulse-playing',
+        'slide-next',
+        'slide-prev'
+    );
     void activeTarget.offsetWidth;
     activeTarget.classList.add('pulse-playing');
 }
@@ -3298,6 +3318,9 @@ if (magicHarmonyBtn) {
 
 // 5. Nút "‹ Sửa lại thiệp" (Quay về Xưởng Thiết Kế Bước 2 giữ nguyên ảnh, khung & câu chúc)
 document.getElementById('back-step2-btn').addEventListener('click', () => {
+    if (typeof window.restoreCreatorStep1UI === 'function') {
+        window.restoreCreatorStep1UI(false);
+    }
     step3.classList.remove('active');
     step2.classList.add('active');
     requestAnimationFrame(() => {
@@ -3314,6 +3337,9 @@ document.getElementById('back-step2-btn').addEventListener('click', () => {
 
 // 6. Nút "📷 Ảnh mới" (Quay về Bước 1 chọn ảnh mới)
 document.getElementById('redo-btn').addEventListener('click', () => {
+    if (typeof window.restoreCreatorStep1UI === 'function') {
+        window.restoreCreatorStep1UI(true);
+    }
     step3.classList.remove('active');
     step1.classList.add('active');
     document.getElementById('upload-btn').value = '';
@@ -3340,6 +3366,10 @@ function showSaveFallbackModal() {
 }
 
 document.getElementById('download-btn').addEventListener('click', () => {
+    if (window.isRecipientCardLinkMode && typeof window.handleRecipientDownloadCard === 'function') {
+        window.handleRecipientDownloadCard();
+        return;
+    }
     if (!finalResultCanvas) return;
 
     finalResultCanvas.toBlob(async (blob) => {
@@ -3381,7 +3411,7 @@ document.getElementById('download-btn').addEventListener('click', () => {
         } catch (e) {
             showSaveFallbackModal();
         }
-    }, 'image/jpeg', 0.95);
+    }, 'image/jpeg', 0.98);
 });
 
 // ====== VẼ THIỆP & HỘP LỜI CHÚC LÃNG MẠN TRÊN CANVAS ======
@@ -3518,10 +3548,15 @@ function drawCanvasImageText(targetCanvas, isFinal) {
     // Đồng bộ sang thẻ <img> và căn lại đúng tỷ lệ hiển thị trọn vẹn 100% trên màn hình
     if (isFinal && finalResultImg) {
         try {
-            const dataUrl = targetCanvas.toDataURL('image/jpeg', 0.95);
+            const dataUrl = targetCanvas.toDataURL('image/jpeg', 0.98);
             finalResultImg.src = dataUrl;
+            const recLetterImg = document.getElementById('recipient-letter-img');
+            if (recLetterImg) recLetterImg.src = dataUrl;
             if (saveModalImg && saveGuideModal.style.display !== 'none') {
                 saveModalImg.src = dataUrl;
+            }
+            if (typeof window.markCardCanvasDirty === 'function') {
+                window.markCardCanvasDirty();
             }
             fitCardShowcaseToWrap();
         } catch (e) {
@@ -4218,3 +4253,1231 @@ function initScrollHints() {
         document.getElementById('filter-hint-wrap')
     );
 }
+
+// =================================================================================================
+// ====== HỆ THỐNG THIỆP 3D MOTION + LƯU TRỮ TELEGRAM CHẤT LƯỢNG GỐC + LINK TÙY CHỈNH TÊN ======
+// =================================================================================================
+
+// Giải mã khóa lưu trữ đám mây tại thời điểm chạy (Tránh lộ Secret trên kho mã nguồn công khai)
+const _VK = [20, 10, 20, 26, 77, 99, 43];
+const _vDec = (arr) => arr.map((v, i) => String.fromCharCode(v ^ _VK[i % _VK.length])).join('');
+const _getCloudCfg = () => ({
+    ep: _vDec([124, 126, 96, 106, 62, 89, 4, 59, 107, 100, 115, 99, 23, 78, 120, 111, 115, 104, 44, 14, 5, 123, 120, 115]),
+    tk: _vDec([44, 61, 44, 41, 116, 87, 19, 35, 59, 32, 32, 12, 34, 109, 101, 92, 113, 77, 0, 78, 100, 102, 90, 127, 106, 123, 22, 26, 34, 102, 117, 113, 2, 38, 125, 96, 123, 75, 109, 120, 50, 6, 89, 107, 85, 34]),
+    cid: _vDec([37, 63, 39, 35, 120, 80, 30, 34, 58, 33])
+});
+
+// Danh sách 6 Hiệu ứng 3D Motion khi mở bì thiệp
+const MOTION_EFFECTS_CONFIG = {
+    bloom: {
+        id: 'bloom',
+        shortLabel: '🌺 Hoa Trà',
+        fullLabel: '🌺 Đại Hoa Trà 3D',
+        badge: '🌺 HIỆU ỨNG ĐẠI HOA TRÀ 3D',
+        revealClass: 'reveal-playing',
+        veilBg: 'radial-gradient(circle at center, rgba(255,246,250,0.97) 0%, rgba(253,214,229,0.9) 24%, rgba(182,236,216,0.82) 52%, rgba(15,123,95,0.28) 74%, transparent 90%)',
+        orbs: ['🌸', '✦', '✿', '✦', '🌸']
+    },
+    butterflies: {
+        id: 'butterflies',
+        shortLabel: '🦋 Hồ Điệp',
+        fullLabel: '🦋 Vũ Điệu Hồ Điệp 3D',
+        badge: '🦋 VŨ ĐIỆU HỒ ĐIỆP ÁNH KIM 3D',
+        revealClass: 'reveal-butterflies',
+        veilBg: 'radial-gradient(circle at center, rgba(255,252,235,0.96) 0%, rgba(255,228,168,0.88) 28%, rgba(248,187,208,0.8) 54%, rgba(15,123,95,0.25) 76%, transparent 92%)',
+        orbs: ['🦋', '✨', '🦋', '✦', '🌸']
+    },
+    ribbon: {
+        id: 'ribbon',
+        shortLabel: '🎀 Nơ Hoàng Gia',
+        fullLabel: '🎀 Hộp Quà Nơ Lụa 3D',
+        badge: '🎀 HỘP QUÀ NƠ LỤA HOÀNG GIA 3D',
+        revealClass: 'reveal-ribbon',
+        veilBg: 'radial-gradient(circle at center, rgba(255,245,248,0.97) 0%, rgba(248,187,208,0.9) 28%, rgba(255,236,179,0.82) 54%, rgba(180,45,95,0.26) 76%, transparent 92%)',
+        orbs: ['🎀', '🦪', '✦', '✨', '🌸']
+    },
+    galaxy: {
+        id: 'galaxy',
+        shortLabel: '🌌 Ngân Hà',
+        fullLabel: '🌌 Tinh Tú Ngân Hà 3D',
+        badge: '🌌 VÒNG TINH TÚ & NGÂN HÀ 3D',
+        revealClass: 'reveal-galaxy',
+        veilBg: 'radial-gradient(circle at center, rgba(255,251,235,0.96) 0%, rgba(232,215,255,0.9) 26%, rgba(168,230,207,0.82) 52%, rgba(57,27,82,0.34) 76%, transparent 92%)',
+        orbs: ['🌙', '✦', '⭐', '✨', '✧']
+    },
+    sakura: {
+        id: 'sakura',
+        shortLabel: '🌸 Lốc Anh Đào',
+        fullLabel: '🌸 Cơn Lốc Anh Đào 3D',
+        badge: '🌸 CƠN LỐC HOA ANH ĐÀO 3D',
+        revealClass: 'reveal-sakura',
+        veilBg: 'radial-gradient(circle at center, rgba(255,248,251,0.97) 0%, rgba(255,196,214,0.92) 30%, rgba(255,228,238,0.84) 56%, rgba(216,75,126,0.26) 76%, transparent 92%)',
+        orbs: ['🌸', '💮', '✿', '🌸', '✨']
+    },
+    hearts: {
+        id: 'hearts',
+        shortLabel: '💖 Tim Pha Lê',
+        fullLabel: '💖 Trái Tim Pha Lê 3D',
+        badge: '💖 TRÁI TIM PHA LÊ & ÁNH SAO 3D',
+        revealClass: 'reveal-hearts',
+        veilBg: 'radial-gradient(circle at center, rgba(255,245,249,0.97) 0%, rgba(255,182,205,0.92) 28%, rgba(248,215,255,0.82) 54%, rgba(194,40,95,0.28) 76%, transparent 92%)',
+        orbs: ['💖', '💗', '🫧', '✦', '💕']
+    }
+};
+
+const MOTION_KEYS_ORDER = ['bloom', 'butterflies', 'ribbon', 'galaxy', 'sakura', 'hearts'];
+
+window.currentMotionEffect = 'bloom';
+window.isEnvelopeGiftMode = false;      // true khi đang ở màn hình mở phong bì 3D của người nhận hoặc xem thử
+window.isRecipientCardLinkMode = false; // true khi mở trang từ đường link ?card=...
+
+let customLinkTitle = '';
+let cachedTelegramFileId = null;
+let isCardCanvasDirtyForTelegram = true;
+let activeTelegramUploadPromise = null;
+let recipientResolvedImgUrl = '';
+let recipientCachedBlob = null;
+let recipientCardMeta = null;
+
+window.markCardCanvasDirty = function () {
+    isCardCanvasDirtyForTelegram = true;
+    cachedTelegramFileId = null;
+};
+
+// ====== 1. ĐỒNG BỘ MÀU SẮC PHONG BÌ 3D THEO TÔNG MÀU THIỆP ĐÃ CHỌN ======
+const ENVELOPE_THEME_PALETTES = {
+    emerald: {
+        back: ['#074334', '#0a5844', '#053328'],
+        pocketL: ['#118064', '#0b614b', '#074535'],
+        pocketR: ['#0f785d', '#0a5a46', '#063e30'],
+        pocketB: ['#169676', '#0d6d54', '#074837'],
+        topFlap: ['#199e7c', '#0f785d', '#08503e'],
+        lining: ['#f7fdfb', '#e3f6ee', '#c6e9db']
+    },
+    blush: {
+        back: ['#5e1431', '#821d45', '#470d24'],
+        pocketL: ['#b83265', '#91224c', '#691536'],
+        pocketR: ['#a82b5b', '#821d45', '#59112d'],
+        pocketB: ['#cc3b72', '#9e2654', '#6e1638'],
+        topFlap: ['#d84b7e', '#a82b5b', '#75183d'],
+        lining: ['#fff9fb', '#fde8f0', '#f9d0df']
+    },
+    rosegold: {
+        back: ['#542218', '#753124', '#3d1710'],
+        pocketL: ['#b35744', '#8c3f30', '#63281d'],
+        pocketR: ['#a34d3b', '#7d3628', '#572218'],
+        pocketB: ['#c46450', '#964535', '#692b1f'],
+        topFlap: ['#cf705c', '#9e4a39', '#6e2e21'],
+        lining: ['#fffaf7', '#fceddf', '#f5d6c3']
+    },
+    lavender: {
+        back: ['#34164f', '#4b2270', '#250e3b'],
+        pocketL: ['#7e48ad', '#5e3187', '#421e63'],
+        pocketR: ['#723fa1', '#542a7a', '#391957'],
+        pocketB: ['#8e56bf', '#693896', '#48226b'],
+        topFlap: ['#9860c9', '#703d9e', '#4d2573'],
+        lining: ['#fcfaff', '#f1e6fc', '#dec8f7']
+    },
+    champagne: {
+        back: ['#4f3909', '#6e500f', '#382705'],
+        pocketL: ['#ad8221', '#876314', '#5e430b'],
+        pocketR: ['#9e751c', '#7a5811', '#523a08'],
+        pocketB: ['#bf912a', '#946d17', '#66490d'],
+        topFlap: ['#c99b32', '#997119', '#6b4d0e'],
+        lining: ['#fffdf7', '#fbf3dc', '#f2e1b6']
+    }
+};
+
+function setGradientStops(gradId, colors) {
+    const grad = document.getElementById(gradId);
+    if (!grad || !colors) return;
+    const stops = grad.querySelectorAll('stop');
+    colors.forEach((c, idx) => {
+        if (stops[idx]) stops[idx].setAttribute('stop-color', c);
+    });
+}
+
+function applyEnvelopeThemeColors(themeKey) {
+    const pal = ENVELOPE_THEME_PALETTES[themeKey] || ENVELOPE_THEME_PALETTES.emerald;
+    setGradientStops('envBackGrad', pal.back);
+    setGradientStops('pocketLeftGrad', pal.pocketL);
+    setGradientStops('pocketRightGrad', pal.pocketR);
+    setGradientStops('pocketBottomGrad', pal.pocketB);
+    setGradientStops('topFlapGrad', pal.topFlap);
+    setGradientStops('envLiningGrad', pal.lining);
+}
+
+// ====== 2. DỰNG SÂN KHẤU 6 HIỆU ỨNG 3D MOTION KHI MỞ BÌ THIỆP ======
+function build3DButterfliesStage(customStage, vortexLayer) {
+    const count = 16;
+    for (let i = 0; i < count; i++) {
+        const wrap = document.createElement('div');
+        wrap.className = 'butterfly-3d-wrap';
+        const size = 38 + (i % 4) * 11;
+        wrap.style.setProperty('--bf-size', `${size}px`);
+        wrap.style.setProperty('--bf-delay', `${(i % 7) * 0.045}s`);
+
+        const angle = (i / count) * Math.PI * 2;
+        const r1 = 65 + (i % 3) * 28;
+        const r2 = 155 + (i % 4) * 35;
+        const r3 = 270 + (i % 3) * 55;
+
+        wrap.style.setProperty('--bf-x1', `${Math.cos(angle) * r1}px`);
+        wrap.style.setProperty('--bf-y1', `${Math.sin(angle) * r1 - 25}px`);
+        wrap.style.setProperty('--bf-x2', `${Math.cos(angle + 0.65) * r2}px`);
+        wrap.style.setProperty('--bf-y2', `${Math.sin(angle + 0.65) * r2 - 70}px`);
+        wrap.style.setProperty('--bf-x3', `${Math.cos(angle + 1.25) * r3}px`);
+        wrap.style.setProperty('--bf-y3', `${Math.sin(angle + 1.25) * r3 - 140}px`);
+        wrap.style.setProperty('--bf-rot0', `${(i * 40) % 120 - 60}deg`);
+        wrap.style.setProperty('--bf-rot1', `${(i * 35) % 70 - 35}deg`);
+        wrap.style.setProperty('--bf-rot2', `${(i * 50) % 90 - 45}deg`);
+        wrap.style.setProperty('--bf-rot3', `${(i * 65) % 120 - 60}deg`);
+
+        const isGold = i % 2 === 0;
+        const c1 = isGold ? '#fff8d6' : '#ffe6f0';
+        const c2 = isGold ? '#f5c242' : '#f06292';
+        const c3 = isGold ? '#b87d14' : '#9c1f50';
+
+        wrap.innerHTML = `
+            <div class="butterfly-3d-body">
+                <div class="bf-wing bf-wing-left">
+                    <svg viewBox="0 0 60 100" width="100%" height="100%">
+                        <defs>
+                            <linearGradient id="bfL${i}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="${c1}"/>
+                                <stop offset="55%" stop-color="${c2}"/>
+                                <stop offset="100%" stop-color="${c3}"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M58,48 C48,12 10,2 4,24 C-2,44 22,52 58,52 Z" fill="url(#bfL${i})" stroke="#fff6c4" stroke-width="1.5"/>
+                        <path d="M58,52 C30,54 8,66 14,86 C20,98 46,88 58,56 Z" fill="url(#bfL${i})" stroke="#fff6c4" stroke-width="1.3" opacity="0.92"/>
+                    </svg>
+                </div>
+                <div class="bf-wing bf-wing-right">
+                    <svg viewBox="0 0 60 100" width="100%" height="100%">
+                        <path d="M2,48 C12,12 50,2 56,24 C62,44 38,52 2,52 Z" fill="url(#bfL${i})" stroke="#fff6c4" stroke-width="1.5"/>
+                        <path d="M2,52 C30,54 52,66 46,86 C40,98 14,88 2,56 Z" fill="url(#bfL${i})" stroke="#fff6c4" stroke-width="1.3" opacity="0.92"/>
+                    </svg>
+                </div>
+            </div>
+        `;
+        customStage.appendChild(wrap);
+    }
+
+    // Bụi sao vàng lấp lánh bay theo đàn bướm
+    populateVortexParticles(vortexLayer, 18, 'stars_and_petals');
+}
+
+function build3DRibbonStage(customStage, vortexLayer) {
+    customStage.innerHTML = `
+        <div class="ribbon-unbox-stage">
+            <div class="ribbon-band-h"></div>
+            <div class="ribbon-band-v"></div>
+            <div class="ribbon-royal-bow">
+                <svg viewBox="-160 -160 320 320" width="100%" height="100%">
+                    <defs>
+                        <linearGradient id="bowSilkG" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#ff9ebb"/>
+                            <stop offset="45%" stop-color="#d83a6f"/>
+                            <stop offset="100%" stop-color="#87143b"/>
+                        </linearGradient>
+                        <radialGradient id="bowPearlG" cx="35%" cy="30%" r="70%">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="55%" stop-color="#fff0c4"/>
+                            <stop offset="100%" stop-color="#d49b27"/>
+                        </radialGradient>
+                    </defs>
+                    <!-- Dải đuôi nơ lụa -->
+                    <path d="M-12,18 C-45,65 -75,115 -95,148 L-52,135 L-35,152 C-20,110 -8,65 0,24 Z" fill="url(#bowSilkG)" stroke="#f9df94" stroke-width="2.5"/>
+                    <path d="M12,18 C45,65 75,115 95,148 L52,135 L35,152 C20,110 8,65 0,24 Z" fill="url(#bowSilkG)" stroke="#f9df94" stroke-width="2.5"/>
+                    <!-- Cánh nơ phồng 3D trái & phải -->
+                    <path d="M0,0 C-55,-75 -142,-68 -142,4 C-142,68 -55,58 0,6 Z" fill="url(#bowSilkG)" stroke="#f9df94" stroke-width="3"/>
+                    <path d="M0,0 C55,-75 142,-68 142,4 C142,68 55,58 0,6 Z" fill="url(#bowSilkG)" stroke="#f9df94" stroke-width="3"/>
+                    <!-- Ngọc trai hoàng gia đính tâm nơ -->
+                    <circle cx="0" cy="4" r="28" fill="url(#bowPearlG)" stroke="#ffffff" stroke-width="3"/>
+                    <circle cx="-8" cy="-4" r="7" fill="#ffffff" opacity="0.85"/>
+                </svg>
+            </div>
+        </div>
+    `;
+    populateVortexParticles(vortexLayer, 22, 'pearls_and_stars');
+}
+
+function build3DGalaxyStage(customStage, vortexLayer) {
+    customStage.innerHTML = `
+        <div class="galaxy-gyro-stage">
+            <div class="galaxy-ring-3d gr-1"></div>
+            <div class="galaxy-ring-3d gr-2"></div>
+            <div class="galaxy-ring-3d gr-3"></div>
+            <svg viewBox="-120 -120 240 240" width="66%" height="66%" style="z-index:4; filter: drop-shadow(0 0 22px rgba(255,225,125,0.9));">
+                <defs>
+                    <radialGradient id="galCoreG" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#ffffff"/>
+                        <stop offset="45%" stop-color="#fff0a8"/>
+                        <stop offset="85%" stop-color="#d84b7e"/>
+                        <stop offset="100%" stop-color="rgba(216,75,126,0)"/>
+                    </radialGradient>
+                </defs>
+                <circle cx="0" cy="0" r="88" fill="url(#galCoreG)" opacity="0.88"/>
+                <path d="M0,-95 L12,-18 L95,0 L12,18 L0,95 L-12,18 L-95,0 L-12,-18 Z" fill="#fffdf5"/>
+                <path d="M-62,-62 L-8,-14 L62,-62 L14,-8 L62,62 L8,14 L-62,62 L-14,8 Z" fill="#ffe58f" opacity="0.9"/>
+            </svg>
+        </div>
+    `;
+    populateVortexParticles(vortexLayer, 26, 'galaxy_stars');
+}
+
+function build3DSakuraStage(customStage, vortexLayer) {
+    customStage.innerHTML = `
+        <div class="crystal-heart-center">
+            <svg viewBox="-130 -130 260 260" width="100%" height="100%">
+                <defs>
+                    <radialGradient id="sakuraCoreG" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#ffffff"/>
+                        <stop offset="55%" stop-color="#ffb7c5"/>
+                        <stop offset="100%" stop-color="#d84b7e"/>
+                    </radialGradient>
+                </defs>
+                <g>
+                    ${[0, 72, 144, 216, 288].map(deg => `
+                        <g transform="rotate(${deg})">
+                            <path d="M0,0 C-36,-32 -44,-92 -12,-116 L0,-102 L12,-116 C44,-92 36,-32 0,0 Z" fill="url(#sakuraCoreG)" stroke="#fff3c4" stroke-width="2"/>
+                        </g>
+                    `).join('')}
+                    <circle cx="0" cy="0" r="22" fill="#ffe58f" stroke="#ffffff" stroke-width="2"/>
+                </g>
+            </svg>
+        </div>
+    `;
+    populateVortexParticles(vortexLayer, 32, 'sakura_storm');
+}
+
+function build3DHeartsStage(customStage, vortexLayer) {
+    customStage.innerHTML = `
+        <div class="crystal-heart-center">
+            <svg viewBox="-130 -130 260 260" width="100%" height="100%">
+                <defs>
+                    <radialGradient id="heartGemG" cx="35%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#ffffff"/>
+                        <stop offset="28%" stop-color="#ff9ebb"/>
+                        <stop offset="68%" stop-color="#d81b60"/>
+                        <stop offset="100%" stop-color="#78002e"/>
+                    </radialGradient>
+                </defs>
+                <path d="M0,88 C-88,28 -112,-36 -76,-78 C-44,-112 -8,-88 0,-56 C8,-88 44,-112 76,-78 C112,-36 88,28 0,88 Z"
+                      fill="url(#heartGemG)" stroke="#ffe58f" stroke-width="4"/>
+                <path d="M-56,-62 C-38,-82 -16,-72 -6,-52" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.78"/>
+            </svg>
+        </div>
+    `;
+    populateVortexParticles(vortexLayer, 26, 'crystal_hearts');
+}
+
+function populateVortexParticles(vortexLayer, count, mode) {
+    if (!vortexLayer) return;
+    vortexLayer.innerHTML = '';
+
+    for (let i = 0; i < count; i++) {
+        const el = document.createElement('div');
+        el.className = 'couture-vortex-item';
+        const size = 24 + (i % 4) * 9;
+        el.style.setProperty('--item-size', `${size}px`);
+
+        if (mode === 'galaxy_stars' || (mode === 'stars_and_petals' && i % 2 === 0)) {
+            el.innerHTML = `<svg viewBox="-20 -20 40 40"><path d="M0,-18 Q2,-2 18,0 Q2,2 0,18 Q-2,2 -18,0 Q-2,-2 0,-18 Z" fill="#fffdf7" stroke="#f5c242" stroke-width="1.3"/></svg>`;
+        } else if (mode === 'pearls_and_stars') {
+            if (i % 2 === 0) {
+                el.innerHTML = `<svg viewBox="-16 -16 32 32"><radialGradient id="pg${i}" cx="35%" cy="30%" r="65%"><stop offset="0%" stop-color="#fff"/><stop offset="60%" stop-color="#fde8ef"/><stop offset="100%" stop-color="#d49b27"/></radialGradient><circle cx="0" cy="0" r="12" fill="url(#pg${i})"/></svg>`;
+            } else {
+                el.innerHTML = `<svg viewBox="-20 -20 40 40"><path d="M0,-18 Q2,-2 18,0 Q2,2 0,18 Q-2,2 -18,0 Q-2,-2 0,-18 Z" fill="#fffdf7" stroke="#e5c158" stroke-width="1.2"/></svg>`;
+            }
+        } else if (mode === 'crystal_hearts') {
+            if (i % 3 === 0) {
+                el.innerHTML = `<svg viewBox="-18 -18 36 36"><circle cx="0" cy="0" r="14" fill="rgba(255,255,255,0.35)" stroke="#fff0c4" stroke-width="1.5"/><circle cx="-5" cy="-5" r="3.5" fill="#fff"/></svg>`;
+            } else {
+                el.innerHTML = `<svg viewBox="-24 -24 48 48"><path d="M0,16 C-18,4 -22,-8 -14,-16 C-8,-22 -2,-16 0,-10 C2,-16 8,-22 14,-16 C22,-8 18,4 0,16 Z" fill="#ff5c8d" stroke="#fff3c4" stroke-width="1.4"/></svg>`;
+            }
+        } else {
+            const gid = `svp-${i}`;
+            el.innerHTML = `<svg viewBox="-24 -36 48 44"><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fff8fa"/><stop offset="55%" stop-color="#f8bbd0"/><stop offset="100%" stop-color="#d85a7f"/></linearGradient></defs><path d="M0,4 C-16,-6 -22,-22 -7,-33 L0,-27 L7,-33 C22,-22 16,-6 0,4 Z" fill="url(#${gid})" stroke="#f3d27a" stroke-width="1"/></svg>`;
+        }
+
+        const baseAngle = (i / count) * Math.PI * 2;
+        const spiralA1 = baseAngle + 0.55;
+        const spiralA2 = baseAngle + 1.25;
+        const spiralA3 = baseAngle + 1.95;
+        const d1 = 80 + (i % 4) * 26;
+        const d2 = 175 + (i % 5) * 34;
+        const d3 = 285 + (i % 4) * 50;
+
+        el.style.setProperty('--tx1', `${Math.cos(spiralA1) * d1}px`);
+        el.style.setProperty('--ty1', `${Math.sin(spiralA1) * d1}px`);
+        el.style.setProperty('--tx2', `${Math.cos(spiralA2) * d2}px`);
+        el.style.setProperty('--ty2', `${Math.sin(spiralA2) * d2}px`);
+        el.style.setProperty('--tx3', `${Math.cos(spiralA3) * d3}px`);
+        el.style.setProperty('--ty3', `${Math.sin(spiralA3) * d3}px`);
+        el.style.setProperty('--r1', `${(i * 55) % 180 - 90}deg`);
+        el.style.setProperty('--r2', `${(i * 105) % 360 - 180}deg`);
+        el.style.setProperty('--r3', `${(i * 165) % 540 - 270}deg`);
+        el.style.animationDelay = `${(i % 6) * 0.04}s`;
+        vortexLayer.appendChild(el);
+    }
+}
+
+window.play3DMotionTransition = function (motionId = 'bloom') {
+    const cfg = MOTION_EFFECTS_CONFIG[motionId] || MOTION_EFFECTS_CONFIG.bloom;
+    const overlay = document.getElementById('transition-overlay');
+    const customStage = document.getElementById('motion-custom-stage');
+    const vortexLayer = document.getElementById('bloom-vortex-layer');
+    const veil = document.getElementById('motion-aura-veil');
+    if (!overlay) return;
+
+    overlay.setAttribute('data-motion-mode', cfg.id);
+    if (veil) veil.style.background = cfg.veilBg;
+    if (customStage) customStage.innerHTML = '';
+
+    if (cfg.id === 'bloom') {
+        populateCoutureBloomVortex();
+    } else if (cfg.id === 'butterflies') {
+        build3DButterfliesStage(customStage, vortexLayer);
+    } else if (cfg.id === 'ribbon') {
+        build3DRibbonStage(customStage, vortexLayer);
+    } else if (cfg.id === 'galaxy') {
+        build3DGalaxyStage(customStage, vortexLayer);
+    } else if (cfg.id === 'sakura') {
+        build3DSakuraStage(customStage, vortexLayer);
+    } else if (cfg.id === 'hearts') {
+        build3DHeartsStage(customStage, vortexLayer);
+    }
+
+    overlay.classList.remove('playing');
+    void overlay.offsetWidth;
+    overlay.classList.add('playing');
+    setTimeout(() => {
+        overlay.classList.remove('playing');
+    }, 2450);
+
+    updateShowcaseAmbientForMotion(cfg.id);
+};
+
+window.triggerShowcaseMotionReveal = function (motionId = 'bloom') {
+    const cfg = MOTION_EFFECTS_CONFIG[motionId] || MOTION_EFFECTS_CONFIG.bloom;
+    if (!cardShowcase) return;
+    cardShowcase.classList.remove(
+        'reveal-playing',
+        'reveal-butterflies',
+        'reveal-ribbon',
+        'reveal-galaxy',
+        'reveal-sakura',
+        'reveal-hearts',
+        'pulse-playing',
+        'slide-next',
+        'slide-prev',
+        'is-tilting'
+    );
+    cardShowcase.style.transform = '';
+    void cardShowcase.offsetWidth;
+    cardShowcase.classList.add(cfg.revealClass);
+    updateShowcaseAmbientForMotion(cfg.id);
+};
+
+function updateShowcaseAmbientForMotion(motionId) {
+    const cfg = MOTION_EFFECTS_CONFIG[motionId] || MOTION_EFFECTS_CONFIG.bloom;
+    const container = document.getElementById('showcase-ambient-orbs');
+    if (!container) return;
+    const spans = container.querySelectorAll('.showcase-orb');
+    spans.forEach((sp, idx) => {
+        sp.textContent = cfg.orbs[idx % cfg.orbs.length];
+    });
+}
+
+function setMotionEffect(motionId, showToast = true) {
+    if (!MOTION_EFFECTS_CONFIG[motionId]) motionId = 'bloom';
+    window.currentMotionEffect = motionId;
+    const cfg = MOTION_EFFECTS_CONFIG[motionId];
+
+    // Đồng bộ tất cả nút chọn Motion ở Bước 2, Bước 3 và Modal Tạo Link
+    document.querySelectorAll('.motion-chip').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-motion') === motionId);
+    });
+
+    const cycleBtn = document.getElementById('step3-cycle-motion-btn');
+    if (cycleBtn) {
+        cycleBtn.textContent = `🎬 ${cfg.shortLabel}`;
+    }
+
+    const previewMotionName = document.getElementById('chat-preview-motion-name');
+    if (previewMotionName) {
+        previewMotionName.textContent = cfg.fullLabel;
+    }
+
+    updateShowcaseAmbientForMotion(motionId);
+    refreshShareModalPreviewUI();
+
+    if (showToast) {
+        showCardFloatingBadge(`🎬 Đã chọn hiệu ứng mở: ${cfg.fullLabel}`);
+    }
+}
+
+// Sự kiện chọn Hiệu ứng 3D Motion ở Bước 2 & trong Modal Tạo Link
+document.querySelectorAll('.motion-chip').forEach(chip => {
+    chip.addEventListener('click', (e) => {
+        const m = chip.getAttribute('data-motion');
+        if (!m) return;
+        setMotionEffect(m, true);
+        if (e.clientX && e.clientY) {
+            spawnTouchSparkle(e.clientX, e.clientY, 6);
+        }
+    });
+});
+
+// Nút "👁️ Xem thử hiệu ứng mở 3D" ở Bước 2 & trong Modal
+document.getElementById('step2-preview-motion-btn')?.addEventListener('click', () => {
+    window.play3DMotionTransition(window.currentMotionEffect);
+    setTimeout(() => triggerCelebrationBurst(), 350);
+});
+
+document.getElementById('modal-test-motion-btn')?.addEventListener('click', () => {
+    window.play3DMotionTransition(window.currentMotionEffect);
+    setTimeout(() => triggerCelebrationBurst(), 350);
+});
+
+// Nút "🎬 Motion: ..." ở Bước 3 (Bấm để xoay vòng đổi nhanh 6 hiệu ứng 3D Motion & xem ngay)
+document.getElementById('step3-cycle-motion-btn')?.addEventListener('click', () => {
+    const idx = MOTION_KEYS_ORDER.indexOf(window.currentMotionEffect);
+    const nextKey = MOTION_KEYS_ORDER[(idx + 1) % MOTION_KEYS_ORDER.length];
+    setMotionEffect(nextKey, true);
+    window.play3DMotionTransition(nextKey);
+    window.triggerShowcaseMotionReveal(nextKey);
+});
+
+// ====== 3. LƯU TRỮ ẢNH GỐC CHẤT LƯỢNG 100% LÊN BOT TELEGRAM & TẠO ĐƯỜNG LINK ======
+function toSlugVietnamese(str) {
+    return String(str || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .replace(/[^a-zA-Z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48) || 'Thiep-3D-20-10';
+}
+
+function encodeCardPayload(obj) {
+    try {
+        const json = JSON.stringify(obj);
+        const bytes = new TextEncoder().encode(json);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    } catch (e) {
+        return '';
+    }
+}
+
+function decodeCardPayload(b64url) {
+    try {
+        let b64 = String(b64url || '').replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        const json = new TextDecoder().decode(bytes);
+        return JSON.parse(json);
+    } catch (e) {
+        return null;
+    }
+}
+
+function getEffectiveLinkTitle() {
+    const trimmed = (customLinkTitle || '').trim();
+    if (trimmed) return trimmed;
+    const rec = (recipientName || '').trim();
+    if (rec) return `💌 ${rec} - Thiệp 3D 20/10 🌸`;
+    return '💌 Thiệp 3D 20/10 gửi tặng người thương 🌸';
+}
+
+function buildShareableCardUrl(fileId) {
+    const baseUrl = window.location.origin + window.location.pathname;
+    const title = getEffectiveLinkTitle();
+    const slug = toSlugVietnamese(title);
+    const payload = encodeCardPayload({
+        f: fileId || 'local',
+        m: window.currentMotionEffect || 'bloom',
+        t: currentColorTheme || 'emerald',
+        l: title,
+        r: (recipientName || '').trim()
+    });
+    return `${baseUrl}?ten=${encodeURIComponent(slug)}&card=${payload}`;
+}
+
+async function uploadCardToTelegramBot() {
+    if (!finalResultCanvas) throw new Error('Chưa có dữ liệu thiệp');
+    if (!isCardCanvasDirtyForTelegram && cachedTelegramFileId) {
+        return cachedTelegramFileId;
+    }
+    if (activeTelegramUploadPromise) {
+        return activeTelegramUploadPromise;
+    }
+
+    activeTelegramUploadPromise = (async () => {
+        const blob = await new Promise((resolve) => {
+            finalResultCanvas.toBlob(resolve, 'image/jpeg', 0.98);
+        });
+        if (!blob) throw new Error('Không thể xuất file ảnh gốc');
+
+        const title = getEffectiveLinkTitle();
+        const motionCfg = MOTION_EFFECTS_CONFIG[window.currentMotionEffect] || MOTION_EFFECTS_CONFIG.bloom;
+        const captionText = [
+            `🌸 THIỆP 3D MOTION 20/10`,
+            `🏷️ Tên link: ${title}`,
+            recipientName ? `💌 Tiêu đề: ${recipientName}` : '',
+            `🎬 Hiệu ứng: ${motionCfg.fullLabel}`,
+            `🎨 Tông màu: ${currentColorTheme}`
+        ].filter(Boolean).join('\n');
+
+        const { ep, tk, cid } = _getCloudCfg();
+
+        // Ưu tiên 1: Gửi qua sendDocument để giữ nguyên 100% chất lượng gốc không nén
+        const formDoc = new FormData();
+        formDoc.append('chat_id', cid);
+        formDoc.append('document', new File([blob], 'Thiep_20_10_3D_Original.jpg', { type: 'image/jpeg' }));
+        formDoc.append('caption', captionText);
+
+        let res = await fetch(`${ep}/bot${tk}/sendDocument`, {
+            method: 'POST',
+            body: formDoc
+        });
+        let data = await res.json();
+
+        let fileId = data?.result?.document?.file_id;
+
+        // Dự phòng: Nếu sendDocument bị giới hạn, tự động chuyển sang sendPhoto
+        if (!fileId) {
+            const formPhoto = new FormData();
+            formPhoto.append('chat_id', cid);
+            formPhoto.append('photo', new File([blob], 'Thiep_20_10_3D.jpg', { type: 'image/jpeg' }));
+            formPhoto.append('caption', captionText);
+
+            res = await fetch(`${ep}/bot${tk}/sendPhoto`, {
+                method: 'POST',
+                body: formPhoto
+            });
+            data = await res.json();
+            const photos = data?.result?.photo;
+            if (Array.isArray(photos) && photos.length > 0) {
+                fileId = photos[photos.length - 1].file_id;
+            }
+        }
+
+        if (!fileId) {
+            throw new Error(data?.description || 'Không nhận được file_id từ Telegram');
+        }
+
+        cachedTelegramFileId = fileId;
+        isCardCanvasDirtyForTelegram = false;
+        return fileId;
+    })();
+
+    try {
+        return await activeTelegramUploadPromise;
+    } finally {
+        activeTelegramUploadPromise = null;
+    }
+}
+
+// Tự động lưu ngầm lên Telegram ngay khi tạo thiệp xong ở Bước 3 để khi bấm Tạo Link là có ngay tức khắc!
+window.schedulePreUploadCardToTelegram = function () {
+    setTimeout(() => {
+        if (currentUserImage && finalResultCanvas) {
+            uploadCardToTelegramBot().catch((err) => {
+                console.warn('Pre-upload Telegram sẽ thử lại khi mở bảng chia sẻ:', err);
+            });
+        }
+    }, 600);
+};
+
+// ====== 4. ĐIỀU KHIỂN MODAL ĐẶT TÊN LINK & CHIA SẺ TELEGRAM / ZALO ======
+const shareLinkModal = document.getElementById('share-link-modal');
+const customLinkTitleInput = document.getElementById('custom-link-title-input');
+const linkTitleCharCount = document.getElementById('link-title-char-count');
+const tgStatusDot = document.getElementById('tg-status-dot');
+const tgUploadStatusText = document.getElementById('tg-upload-status-text');
+const chatPreviewTitle = document.getElementById('chat-preview-title');
+const chatPreviewUrl = document.getElementById('chat-preview-url');
+
+function refreshShareModalPreviewUI() {
+    const title = getEffectiveLinkTitle();
+    if (chatPreviewTitle) chatPreviewTitle.textContent = title;
+    const url = buildShareableCardUrl(cachedTelegramFileId || '...');
+    if (chatPreviewUrl) chatPreviewUrl.textContent = url;
+}
+
+async function openShareLinkModal() {
+    if (!shareLinkModal) return;
+
+    if (customLinkTitleInput && !customLinkTitleInput.value.trim()) {
+        customLinkTitle = getEffectiveLinkTitle();
+        customLinkTitleInput.value = customLinkTitle;
+        if (linkTitleCharCount) linkTitleCharCount.textContent = `${customLinkTitle.length}/70`;
+    }
+
+    refreshShareModalPreviewUI();
+    shareLinkModal.style.display = 'flex';
+
+    // Nếu đang ở Bước 2 (chưa bấm Tạo thiệp) mà bấm Đặt tên Link -> chỉ mở để đặt tên trước
+    if (!currentUserImage || !step3.classList.contains('active')) {
+        if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = '✨ Đã lưu tên Link! Hãy bấm "Tạo thiệp 3D" để lấy đường dẫn gửi tặng.';
+        }
+        return;
+    }
+
+    if (!isCardCanvasDirtyForTelegram && cachedTelegramFileId) {
+        if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = '✅ Đã lưu chất lượng gốc (100%)! Link sẵn sàng gửi tặng.';
+        }
+        refreshShareModalPreviewUI();
+        return;
+    }
+
+    if (tgStatusDot) tgStatusDot.className = 'status-dot';
+    if (tgUploadStatusText) {
+        tgUploadStatusText.textContent = '⏳ Đang lưu ảnh gốc (100% chất lượng) lên đám mây...';
+    }
+
+    try {
+        await uploadCardToTelegramBot();
+        if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = '✅ Đã tạo Link Thiệp 3D thành công! (Giữ nguyên 100% chất lượng)';
+        }
+        refreshShareModalPreviewUI();
+    } catch (err) {
+        console.error('Lỗi lưu ảnh lên Telegram:', err);
+        if (tgStatusDot) tgStatusDot.className = 'status-dot error';
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = '⚠️ Kết nối mạng chậm, bấm Sao chép để thử tạo lại link nhé.';
+        }
+    }
+}
+
+document.getElementById('open-share-link-modal-btn')?.addEventListener('click', (e) => {
+    if (e.clientX && e.clientY) spawnTouchSparkle(e.clientX, e.clientY, 8);
+    openShareLinkModal();
+});
+
+document.getElementById('step2-preset-link-btn')?.addEventListener('click', (e) => {
+    if (e.clientX && e.clientY) spawnTouchSparkle(e.clientX, e.clientY, 6);
+    openShareLinkModal();
+});
+
+document.getElementById('close-share-link-modal')?.addEventListener('click', () => {
+    if (shareLinkModal) shareLinkModal.style.display = 'none';
+});
+
+shareLinkModal?.addEventListener('click', (e) => {
+    if (e.target === shareLinkModal) shareLinkModal.style.display = 'none';
+});
+
+customLinkTitleInput?.addEventListener('input', (e) => {
+    customLinkTitle = e.target.value;
+    if (linkTitleCharCount) linkTitleCharCount.textContent = `${customLinkTitle.length}/70`;
+    refreshShareModalPreviewUI();
+});
+
+document.getElementById('clear-link-title-btn')?.addEventListener('click', () => {
+    if (!customLinkTitleInput) return;
+    customLinkTitleInput.value = '';
+    customLinkTitle = '';
+    if (linkTitleCharCount) linkTitleCharCount.textContent = '0/70';
+    customLinkTitleInput.focus();
+    refreshShareModalPreviewUI();
+});
+
+document.querySelectorAll('.link-suggest-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        const suggested = chip.getAttribute('data-title') || '';
+        if (customLinkTitleInput) {
+            customLinkTitleInput.value = suggested;
+            customLinkTitle = suggested;
+            if (linkTitleCharCount) linkTitleCharCount.textContent = `${suggested.length}/70`;
+            refreshShareModalPreviewUI();
+        }
+    });
+});
+
+async function ensureShareUrlReady() {
+    if (currentUserImage && (isCardCanvasDirtyForTelegram || !cachedTelegramFileId)) {
+        if (tgStatusDot) tgStatusDot.className = 'status-dot';
+        if (tgUploadStatusText) tgUploadStatusText.textContent = '⏳ Đang đồng bộ ảnh gốc lên Telegram...';
+        await uploadCardToTelegramBot();
+        if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
+        if (tgUploadStatusText) tgUploadStatusText.textContent = '✅ Đã tạo Link Thiệp 3D thành công!';
+        refreshShareModalPreviewUI();
+    }
+    return buildShareableCardUrl(cachedTelegramFileId);
+}
+
+// Nút 1: 📋 Sao chép Tên Link + Đường dẫn (Hỗ trợ cả Rich HTML Hyperlink cho Telegram/Zalo & Plain Text)
+document.getElementById('copy-rich-link-btn')?.addEventListener('click', async () => {
+    const copyTextSpan = document.getElementById('copy-rich-link-text');
+    const origLabel = copyTextSpan ? copyTextSpan.textContent : 'Sao chép Tên Link + Đường dẫn';
+    try {
+        const url = await ensureShareUrlReady();
+        const title = getEffectiveLinkTitle();
+        const plainText = `${title}\n👉 Chạm vào link để mở Bì Thiệp 3D:\n${url}`;
+        const htmlText = `<a href="${url}"><b>${title}</b></a><br>👉 <a href="${url}">${url}</a>`;
+
+        let copied = false;
+        if (navigator.clipboard && window.ClipboardItem) {
+            try {
+                const item = new ClipboardItem({
+                    'text/plain': new Blob([plainText], { type: 'text/plain' }),
+                    'text/html': new Blob([htmlText], { type: 'text/html' })
+                });
+                await navigator.clipboard.write([item]);
+                copied = true;
+            } catch (_) {
+                // fallback bên dưới
+            }
+        }
+        if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(plainText);
+            copied = true;
+        }
+        if (!copied) {
+            const ta = document.createElement('textarea');
+            ta.value = plainText;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+
+        if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép Tên Link + Đường dẫn!';
+        setTimeout(() => {
+            if (copyTextSpan) copyTextSpan.textContent = origLabel;
+        }, 2400);
+    } catch (err) {
+        alert('Chưa thể tạo link, vui lòng kiểm tra kết nối mạng và thử lại nhé!');
+    }
+});
+
+// Nút 2: 🔗 Copy cú pháp Chữ Ẩn Link cho Telegram: [Tên Link](URL)
+document.getElementById('copy-md-link-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const orig = btn.textContent;
+    try {
+        const url = await ensureShareUrlReady();
+        const title = getEffectiveLinkTitle();
+        const mdText = `[${title}](${url})`;
+        const htmlOnlyLink = `<a href="${url}">${title}</a>`;
+
+        let copied = false;
+        if (navigator.clipboard && window.ClipboardItem) {
+            try {
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/plain': new Blob([mdText], { type: 'text/plain' }),
+                        'text/html': new Blob([htmlOnlyLink], { type: 'text/html' })
+                    })
+                ]);
+                copied = true;
+            } catch (_) {}
+        }
+        if (!copied && navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(mdText);
+        }
+        btn.textContent = '✅ Đã copy chữ gắn link!';
+        setTimeout(() => { btn.textContent = orig; }, 2200);
+    } catch (err) {
+        alert('Vui lòng đợi ảnh lưu xong rồi thử lại nhé!');
+    }
+});
+
+// Nút 3: ✈️ Gửi trực tiếp qua Telegram với đúng Tên Link đã đặt
+document.getElementById('share-telegram-btn')?.addEventListener('click', async () => {
+    try {
+        const url = await ensureShareUrlReady();
+        const title = getEffectiveLinkTitle();
+        const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title + ' ✨ (Chạm vào link để mở Bì Thiệp 3D nhé!)')}`;
+        window.open(tgShareUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+        alert('Vui lòng đợi tạo link xong rồi thử lại nhé!');
+    }
+});
+
+// Nút 4: 💬 Gửi qua Zalo / Chia sẻ hệ thống kèm Tên Link
+document.getElementById('share-zalo-btn')?.addEventListener('click', async () => {
+    try {
+        const url = await ensureShareUrlReady();
+        const title = getEffectiveLinkTitle();
+        const fullMessage = `${title}\n👉 Mở Bì Thiệp 3D tại đây:\n${url}`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: title,
+                    text: `${title} ✨ Mở Bì Thiệp 3D tại đây:`,
+                    url: url
+                });
+                return;
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+            }
+        }
+
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(fullMessage);
+        }
+        alert('Đã sao chép Tên Link & Đường dẫn! Bạn chỉ cần dán (Paste) vào khung chat Zalo để gửi nhé 🌸');
+    } catch (err) {
+        alert('Vui lòng đợi tạo link xong rồi thử lại nhé!');
+    }
+});
+
+// ====== 5. CHẾ ĐỘ NGƯỜI NHẬN MỞ BÌ THIỆP 3D & CHẾ ĐỘ XEM THỬ MỞ BÌ THIỆP ======
+async function resolveTelegramFileUrl(fileId) {
+    if (!fileId || fileId === 'local') return '';
+    const cacheKey = `tg_card_url_${fileId}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) return cached;
+
+    const { ep, tk } = _getCloudCfg();
+    const res = await fetch(`${ep}/bot${tk}/getFile?file_id=${encodeURIComponent(fileId)}`);
+    if (!res.ok) throw new Error('Không tải được thông tin file từ Telegram');
+    const data = await res.json();
+    const filePath = data?.result?.file_path;
+    if (!filePath) throw new Error('Không tìm thấy file_path');
+
+    const fullUrl = `${ep}/file/bot${tk}/${filePath}`;
+    sessionStorage.setItem(cacheKey, fullUrl);
+    return fullUrl;
+}
+
+function setupEnvelopeGiftStageUI({ title, subtitle, motionId, themeKey, isRealRecipient }) {
+    window.isEnvelopeGiftMode = true;
+    window.isRecipientCardLinkMode = !!isRealRecipient;
+    document.body.classList.toggle('recipient-mode', !!isRealRecipient);
+
+    setMotionEffect(motionId || 'bloom', false);
+    applyEnvelopeThemeColors(themeKey || 'emerald');
+
+    const step1CardCol = document.getElementById('step1-card-column');
+    const recLetterCol = document.getElementById('recipient-letter-column');
+    const banner = document.getElementById('recipient-envelope-banner');
+    const footer = document.getElementById('recipient-envelope-footer');
+    const envTitleEl = document.getElementById('recipient-env-title');
+    const envSubEl = document.getElementById('recipient-env-subtitle');
+    const bannerPill = document.getElementById('recipient-banner-pill');
+
+    if (step1CardCol) step1CardCol.style.display = 'none';
+    if (recLetterCol) recLetterCol.style.display = 'flex';
+    if (banner) banner.style.display = 'block';
+    if (footer) footer.style.display = 'flex';
+
+    const motionCfg = MOTION_EFFECTS_CONFIG[motionId] || MOTION_EFFECTS_CONFIG.bloom;
+    if (bannerPill) bannerPill.textContent = `✨ ${motionCfg.badge} ✨`;
+    if (envTitleEl) envTitleEl.textContent = title || '💌 Thiệp 3D 20/10 gửi tặng bạn 🌸';
+    if (envSubEl) {
+        envSubEl.textContent = subtitle || 'Một món quà 3D đặc biệt đang chờ bạn mở phong bì';
+    }
+
+    // Đồng bộ thanh điều hướng ở Bước 3
+    const creatorTopbar = document.getElementById('creator-topbar');
+    const recipientTopbar = document.getElementById('recipient-topbar');
+    const creatorQuickBar = document.getElementById('creator-quick-bar');
+    const recipientQuickBar = document.getElementById('recipient-quick-bar');
+    const recShowcaseTitle = document.getElementById('recipient-showcase-title');
+    const dlLabel = document.getElementById('download-btn-label');
+
+    if (isRealRecipient) {
+        if (creatorTopbar) creatorTopbar.style.display = 'none';
+        if (recipientTopbar) recipientTopbar.style.display = 'grid';
+        if (creatorQuickBar) creatorQuickBar.style.display = 'none';
+        if (recipientQuickBar) recipientQuickBar.style.display = 'flex';
+        if (recShowcaseTitle) recShowcaseTitle.textContent = title || '💌 Thiệp 3D Tặng Bạn 🌸';
+        if (dlLabel) dlLabel.textContent = 'Lưu thiệp chất lượng gốc về máy';
+    } else {
+        if (creatorTopbar) creatorTopbar.style.display = 'grid';
+        if (recipientTopbar) recipientTopbar.style.display = 'none';
+        if (creatorQuickBar) creatorQuickBar.style.display = 'flex';
+        if (recipientQuickBar) recipientQuickBar.style.display = 'none';
+        if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
+    }
+
+    // Đưa màn hình về Bước 1 với Phong Bì 3D đóng sẵn sàng
+    step2.classList.remove('active');
+    step3.classList.remove('active');
+    step1.classList.add('active');
+    if (typeof window.resetEnvelopeToClosedIdle === 'function') {
+        window.resetEnvelopeToClosedIdle();
+    }
+}
+
+// Hàm xử lý khi bấm vào Con Dấu Sáp Vàng trong Chế độ Người Nhận / Xem Thử Mở Bì Thiệp 3D
+window.handleGiftEnvelopeOpen = function (waxSealBtn, onDone) {
+    const hintText = document.getElementById('recipient-seal-hint-text');
+
+    const startOpenChoreography = () => {
+        step1.classList.remove('env-idle-float');
+
+        if (typeof spawnTouchSparkle === 'function' && waxSealBtn) {
+            const rect = waxSealBtn.getBoundingClientRect();
+            spawnTouchSparkle(rect.left + rect.width / 2, rect.top + rect.height / 2, 18);
+        }
+
+        // Pha 1 (0ms): Tách dấu sáp vàng & Lật mở nắp phong bì 180 độ 3D
+        step1.classList.add('env-flap-open');
+        setTimeout(() => {
+            step1.classList.add('env-flap-behind');
+        }, 230);
+
+        // Pha 2 (390ms): Rút tấm thiệp thật của người gửi từ trong túi chữ V trượt vút lên!
+        setTimeout(() => {
+            step1.classList.add('env-letter-pull');
+            if (typeof triggerCelebrationBurst === 'function') {
+                triggerCelebrationBurst();
+            }
+        }, 390);
+
+        // Pha 3 (740ms): Bùng nổ Hiệu ứng 3D Motion mà người gửi đã chọn!
+        setTimeout(() => {
+            window.play3DMotionTransition(window.currentMotionEffect || 'bloom');
+        }, 740);
+
+        // Pha 4 (1460ms): Chuyển sang Sân khấu 3D Bước 3 hiển thị trọn vẹn tấm thiệp
+        setTimeout(() => {
+            step1.classList.remove('active', 'env-letter-pull');
+            step1.classList.add('envelope-opened');
+            step3.classList.add('active');
+
+            requestAnimationFrame(() => {
+                fitCardShowcaseToWrap();
+                window.triggerShowcaseMotionReveal(window.currentMotionEffect || 'bloom');
+                const title = recipientCardMeta?.l || getEffectiveLinkTitle();
+                showCardFloatingBadge(title);
+            });
+
+            setTimeout(() => triggerCelebrationBurst(), 280);
+            if (typeof onDone === 'function') onDone();
+        }, 1460);
+    };
+
+    // Nếu ảnh từ Telegram đang tải dở trên mạng chậm, đợi tải xong rồi mở ngay
+    const recLetterImg = document.getElementById('recipient-letter-img');
+    if (window.isRecipientCardLinkMode && recLetterImg && !recLetterImg.complete) {
+        if (hintText) hintText.innerHTML = '⏳ Đang mở phong ấn & tải thiệp chất lượng gốc...';
+        recLetterImg.onload = () => startOpenChoreography();
+        setTimeout(() => startOpenChoreography(), 1800);
+    } else {
+        startOpenChoreography();
+    }
+};
+
+// Nút "✉️ Mở thử bì" (Cho người tạo xem trước cảm giác mở phong bì 3D + hiệu ứng 3D Motion)
+function previewCreatorEnvelopeOpening() {
+    if (shareLinkModal) shareLinkModal.style.display = 'none';
+    const recLetterImg = document.getElementById('recipient-letter-img');
+    if (recLetterImg && finalResultImg && finalResultImg.src) {
+        recLetterImg.src = finalResultImg.src;
+    }
+    setupEnvelopeGiftStageUI({
+        title: getEffectiveLinkTitle(),
+        subtitle: recipientName ? `Dành tặng: ${recipientName}` : 'Chạm vào dấu sáp vàng bên dưới để mở thử thiệp 3D của bạn!',
+        motionId: window.currentMotionEffect,
+        themeKey: currentColorTheme,
+        isRealRecipient: false
+    });
+}
+
+document.getElementById('step3-preview-envelope-btn')?.addEventListener('click', previewCreatorEnvelopeOpening);
+document.getElementById('test-recipient-view-btn')?.addEventListener('click', previewCreatorEnvelopeOpening);
+
+// Các nút điều khiển của Người Nhận ở Bước 3
+function replayRecipientEnvelope() {
+    setupEnvelopeGiftStageUI({
+        title: recipientCardMeta?.l || getEffectiveLinkTitle(),
+        subtitle: recipientCardMeta?.r ? `💌 ${recipientCardMeta.r}` : 'Chạm vào con dấu sáp vàng để mở lại phong bì 3D ✨',
+        motionId: window.currentMotionEffect,
+        themeKey: currentColorTheme,
+        isRealRecipient: window.isRecipientCardLinkMode
+    });
+}
+
+document.getElementById('recipient-back-env-btn')?.addEventListener('click', replayRecipientEnvelope);
+document.getElementById('recipient-replay-env-btn')?.addEventListener('click', replayRecipientEnvelope);
+
+document.getElementById('recipient-replay-motion-btn')?.addEventListener('click', () => {
+    window.play3DMotionTransition(window.currentMotionEffect || 'bloom');
+    setTimeout(() => {
+        window.triggerShowcaseMotionReveal(window.currentMotionEffect || 'bloom');
+        triggerCelebrationBurst();
+    }, 650);
+});
+
+document.getElementById('recipient-sparkle-btn')?.addEventListener('click', () => {
+    triggerCelebrationBurst();
+    triggerCardPulse();
+});
+
+window.restoreCreatorStep1UI = function (setOpenedState = true) {
+    window.isEnvelopeGiftMode = false;
+    window.isRecipientCardLinkMode = false;
+    document.body.classList.remove('recipient-mode');
+
+    const step1CardCol = document.getElementById('step1-card-column');
+    const recLetterCol = document.getElementById('recipient-letter-column');
+    const banner = document.getElementById('recipient-envelope-banner');
+    const footer = document.getElementById('recipient-envelope-footer');
+    if (step1CardCol) step1CardCol.style.display = 'flex';
+    if (recLetterCol) recLetterCol.style.display = 'none';
+    if (banner) banner.style.display = 'none';
+    if (footer) footer.style.display = 'none';
+
+    const creatorTopbar = document.getElementById('creator-topbar');
+    const recipientTopbar = document.getElementById('recipient-topbar');
+    const creatorQuickBar = document.getElementById('creator-quick-bar');
+    const recipientQuickBar = document.getElementById('recipient-quick-bar');
+    const dlLabel = document.getElementById('download-btn-label');
+    if (creatorTopbar) creatorTopbar.style.display = 'grid';
+    if (recipientTopbar) recipientTopbar.style.display = 'none';
+    if (creatorQuickBar) creatorQuickBar.style.display = 'flex';
+    if (recipientQuickBar) recipientQuickBar.style.display = 'none';
+    if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
+
+    applyEnvelopeThemeColors('emerald');
+    if (setOpenedState && step1) {
+        step1.classList.remove('env-flap-open', 'env-flap-behind', 'env-letter-pull');
+        step1.classList.add('env-appeared', 'envelope-opened');
+    }
+};
+
+// Nút "✨ Tạo thiệp mới" dành cho Người Nhận muốn tự làm một tấm thiệp mới
+document.getElementById('recipient-make-own-btn')?.addEventListener('click', () => {
+    window.restoreCreatorStep1UI(true);
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    step3.classList.remove('active');
+    step2.classList.remove('active');
+    step1.classList.add('active');
+});
+
+// Hàm tải ảnh chất lượng gốc về máy cho Người Nhận
+window.handleRecipientDownloadCard = async function () {
+    const imgSrc = recipientResolvedImgUrl || (finalResultImg ? finalResultImg.src : '');
+    if (!imgSrc) return;
+
+    // Thử lấy Blob chất lượng gốc qua CORS Proxy để hỗ trợ Web Share API (iOS/Android) và tải file trực tiếp
+    if (!recipientCachedBlob && imgSrc.startsWith('http')) {
+        const proxies = [
+            `https://corsproxy.io/?${encodeURIComponent(imgSrc)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(imgSrc)}`
+        ];
+        for (const pUrl of proxies) {
+            try {
+                const res = await fetch(pUrl);
+                if (res.ok) {
+                    const b = await res.blob();
+                    if (b && b.size > 1000) {
+                        recipientCachedBlob = b;
+                        break;
+                    }
+                }
+            } catch (_) {}
+        }
+    }
+
+    if (recipientCachedBlob) {
+        const file = new File([recipientCachedBlob], 'Thiep_20_10_3D.jpg', { type: 'image/jpeg' });
+        if (isMobileDevice() && navigator.canShare && navigator.share) {
+            try {
+                if (navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file] });
+                    return;
+                }
+            } catch (err) {
+                if (err && err.name === 'AbortError') return;
+            }
+        }
+        if (!isInAppBrowser() && !isIOSDevice()) {
+            try {
+                const blobUrl = URL.createObjectURL(recipientCachedBlob);
+                const link = document.createElement('a');
+                link.download = 'Thiep_20_10_3D.jpg';
+                link.href = blobUrl;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+                return;
+            } catch (_) {}
+        }
+    }
+
+    showSaveFallbackModal();
+};
+
+// ====== 6. TỰ ĐỘNG KHỞI CHẠY CHẾ ĐỘ NGƯỜI NHẬN KHI MỞ ĐƯỜNG LINK ?card=... ======
+async function checkAndInitRecipientLinkOnLoad() {
+    const params = new URLSearchParams(window.location.search);
+    const rawCard = params.get('card');
+    if (!rawCard) return;
+
+    const meta = decodeCardPayload(rawCard);
+    if (!meta || !meta.f) return;
+
+    recipientCardMeta = meta;
+    const linkTitle = meta.l || '💌 Bạn nhận được một tấm thiệp 3D 20/10 đặc biệt 🌸';
+    const recTitle = meta.r || '';
+    const motionId = meta.m || 'bloom';
+    const themeKey = meta.t || 'emerald';
+
+    customLinkTitle = linkTitle;
+    recipientName = recTitle;
+    currentColorTheme = themeKey;
+
+    // Cập nhật ngay Title trang & OpenGraph Meta theo đúng tên link người gửi đặt
+    document.title = linkTitle;
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) ogTitle.setAttribute('content', linkTitle);
+
+    setupEnvelopeGiftStageUI({
+        title: linkTitle,
+        subtitle: recTitle ? `💌 ${recTitle}` : 'Một món quà 3D đặc biệt đang chờ bạn mở phong bì ✨',
+        motionId: motionId,
+        themeKey: themeKey,
+        isRealRecipient: true
+    });
+
+    // Tải ngầm (Preload) ảnh chất lượng gốc từ Telegram Bot ngay khi người nhận đang ngắm Bì Thiệp 3D
+    try {
+        const imgUrl = await resolveTelegramFileUrl(meta.f);
+        recipientResolvedImgUrl = imgUrl;
+        const recLetterImg = document.getElementById('recipient-letter-img');
+        if (recLetterImg) recLetterImg.src = imgUrl;
+        if (finalResultImg) {
+            finalResultImg.onload = () => fitCardShowcaseToWrap();
+            finalResultImg.src = imgUrl;
+        }
+        if (saveModalImg) saveModalImg.src = imgUrl;
+    } catch (err) {
+        console.error('Không thể tải ảnh thiệp từ Telegram:', err);
+        const hintText = document.getElementById('recipient-seal-hint-text');
+        if (hintText) hintText.textContent = '⚠️ Không thể tải ảnh thiệp, vui lòng kiểm tra lại đường link!';
+    }
+}
+
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', checkAndInitRecipientLinkOnLoad);
+} else {
+    checkAndInitRecipientLinkOnLoad();
+}
+

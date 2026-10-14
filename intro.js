@@ -71,10 +71,29 @@
         }, 680);
     }
 
+    // Hàm đặt lại phong bì 3D về trạng thái đóng lơ lửng (dùng khi Mở lại bì thiệp 3D hoặc Xem thử mở bì thư)
+    window.resetEnvelopeToClosedIdle = function () {
+        isAnimatingEnvelope = false;
+        stopFanAutoCycle();
+        stopNaturalBlinkLoop();
+        step1El.classList.remove('env-flap-open', 'env-flap-behind', 'env-letter-pull', 'env-letter-front', 'envelope-opened');
+        step1El.classList.add('env-appeared', 'env-idle-float');
+    };
+
     // ====== 2. HOẠT ẢNH VẬT LÝ MỞ PHONG BÌ (CHỈ TÍNH KHI BẤM ĐÚNG VÀO CON DẤU SÁP) ======
     function openPhysicalEnvelope(e) {
         if (e) e.stopPropagation();
         if (isAnimatingEnvelope || step1El.classList.contains('envelope-opened')) return;
+
+        // Nếu đang ở Chế độ Người Nhận (mở từ Link Thiệp 3D) hoặc Chế độ Xem Thử Mở Bì Thiệp 3D:
+        if (window.isEnvelopeGiftMode && typeof window.handleGiftEnvelopeOpen === 'function') {
+            isAnimatingEnvelope = true;
+            window.handleGiftEnvelopeOpen(waxSealBtn, () => {
+                isAnimatingEnvelope = false;
+            });
+            return;
+        }
+
         isAnimatingEnvelope = true;
 
         step1El.classList.remove('env-idle-float');
