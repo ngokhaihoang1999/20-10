@@ -1369,148 +1369,108 @@ input[type="file"] {
     gap: 5px;
 }
 
-/* Tắt animation nảy mặc định của khung ngoài để nhường chỗ cho chuỗi hiệu ứng FLIP Morph & Liquid Reveal mượt mắt */
+/* Giai đoạn dựng ngầm Cropper + Canvas (~40ms) phía dưới Bước 1: giữ Bước 1 nguyên vẹn trên màn hình để không bao giờ chớp trắng */
+#step-2.step2-preloading {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: none !important;
+    z-index: 1 !important;
+}
+
+/* Khi bắt đầu FLIP Morph: Bước 2 hiện tức thì ở độ đục 100% (không bị hụt alpha giữa 2 màn hình gây chớp) và tắt backdrop-filter nặng GPU */
+#step-2.step2-morph-active:not(.step2-preloading) {
+    opacity: 1 !important;
+    transition: none !important;
+    z-index: 5 !important;
+}
+
 #step-2.step2-morph-active .main-container {
-    animation: step2ContainerSoftFade 0.48s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    animation: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(255, 255, 255, 0.98);
 }
 
-@keyframes step2ContainerSoftFade {
-    0% {
-        background: rgba(255, 255, 255, 0.45);
-        box-shadow: 0 8px 20px rgba(15, 123, 95, 0.05);
-    }
-    100% {
-        background: rgba(255, 255, 255, 0.95);
-        box-shadow: 0 15px 35px rgba(15, 123, 95, 0.15);
-    }
-}
-
-#step-2.step2-morph-active .preview-stage {
+#step-2.step2-morph-active .preview-stage,
+#step-2.step2-morph-active #step2-full-card-preview {
     overflow: visible;
     z-index: 30;
 }
 
-/* Tấm ảnh người dùng vừa chọn chạy FLIP GPU (translate3d + scale) mượt 60fps về đúng khung #preview-area-wrap */
-.step2-photo-morph-actor {
-    position: fixed;
-    z-index: 999;
-    pointer-events: none;
-    overflow: hidden;
-    background: #f4fbf8;
+#step-2.step2-morph-active #preview-area-wrap {
+    position: relative;
+    z-index: 40;
     transform-origin: center center;
-    box-shadow:
-        0 20px 48px rgba(7, 71, 56, 0.28),
-        0 0 0 2px rgba(255, 255, 255, 0.95),
-        0 0 22px rgba(226, 176, 73, 0.32);
-    will-change: transform, opacity, border-radius;
+    will-change: transform;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
 }
 
-.step2-photo-morph-actor .morph-actor-photo {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
-.step2-photo-morph-actor .morph-actor-frame {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: fill;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.56s cubic-bezier(0.16, 1, 0.3, 1) 0.16s;
-}
-
-.step2-photo-morph-actor.morph-gliding .morph-actor-frame {
-    opacity: 1;
-}
-
-.step2-photo-morph-actor.morph-fade-out {
-    opacity: 0 !important;
-    box-shadow: none;
-}
-
-/* Giữ #preview-area-wrap ẩn trong lúc Cropper đang khởi tạo ngầm phía dưới actor, chỉ hiện lên khi actor đã đáp khớp 100% */
-#step-2.step2-morph-active #preview-area-wrap {
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
-
-#step-2.step2-morph-active.step2-preview-ready #preview-area-wrap {
-    opacity: 1;
-}
-
-/* Trạng thái khởi đầu trước khi các thành phần Bước 2 trượt mở mượt mà */
+/* Trạng thái khởi đầu của các thành phần xung quanh trước khi trượt mở (Thuần 100% GPU transform + opacity, KHÔNG dùng filter: blur tránh tụt FPS) */
 #step-2.step2-ui-hidden #step2-full-card-preview {
     box-shadow: 0 8px 24px rgba(11, 79, 62, 0);
 }
 
 #step-2.step2-ui-hidden #step2-wish-area {
     opacity: 0;
-    transform: translate3d(0, -18px, 0) scale(0.975);
-    filter: blur(4px);
+    transform: translate3d(0, -14px, 0);
+    will-change: transform, opacity;
 }
 
 #step-2.step2-ui-hidden .step2-header-row {
     opacity: 0;
-    transform: translate3d(0, -14px, 0) scale(0.98);
-    filter: blur(3px);
+    transform: translate3d(0, -12px, 0);
     pointer-events: none;
+    will-change: transform, opacity;
 }
 
 #step-2.step2-ui-hidden .card-nav-prev {
     opacity: 0;
-    transform: translate3d(12px, -50%, 0) scale(0.8);
+    transform: translate3d(10px, -50%, 0) scale(0.85);
     pointer-events: none;
+    will-change: transform, opacity;
 }
 
 #step-2.step2-ui-hidden .card-nav-next {
     opacity: 0;
-    transform: translate3d(-12px, -50%, 0) scale(0.8);
+    transform: translate3d(-10px, -50%, 0) scale(0.85);
     pointer-events: none;
+    will-change: transform, opacity;
 }
 
 #step-2.step2-ui-hidden #step2-control-deck {
     opacity: 0;
-    transform: translate3d(0, 20px, 0) scale(0.985);
-    filter: blur(4px);
+    transform: translate3d(0, 16px, 0);
     pointer-events: none;
+    will-change: transform, opacity;
 }
 
 #step-2.step2-ui-hidden .action-buttons {
     opacity: 0;
-    transform: translate3d(0, 22px, 0) scale(0.985);
-    filter: blur(4px);
+    transform: translate3d(0, 18px, 0);
     pointer-events: none;
+    will-change: transform, opacity;
 }
 
-/* Khi tấm hình đang lướt về đích -> Hộp lời chúc dưới ảnh & các thanh công cụ nở ra tuần tự mượt mắt (Liquid Cascade) */
+/* Làn sóng xuất hiện mượt 60fps của các thành phần chỉnh sửa ngay khi tấm hình lướt về đúng khung */
 #step-2.step2-ui-revealing #step2-full-card-preview {
-    transition: box-shadow 0.68s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: box-shadow 0.56s ease 0.12s;
 }
 
 #step-2.step2-ui-revealing #step2-wish-area {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0);
     transition:
-        opacity 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.04s,
-        transform 0.68s cubic-bezier(0.16, 1, 0.3, 1) 0.04s,
-        filter 0.52s ease 0.04s;
+        opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.10s,
+        transform 0.56s cubic-bezier(0.22, 1, 0.36, 1) 0.10s;
 }
 
 #step-2.step2-ui-revealing .step2-header-row {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0);
     transition:
-        opacity 0.62s cubic-bezier(0.16, 1, 0.3, 1) 0.12s,
-        transform 0.68s cubic-bezier(0.16, 1, 0.3, 1) 0.12s,
-        filter 0.52s ease 0.12s;
+        opacity 0.52s cubic-bezier(0.22, 1, 0.36, 1) 0.16s,
+        transform 0.56s cubic-bezier(0.22, 1, 0.36, 1) 0.16s;
 }
 
 #step-2.step2-ui-revealing .card-nav-prev,
@@ -1518,28 +1478,24 @@ input[type="file"] {
     opacity: 1;
     transform: translate3d(0, -50%, 0) scale(1);
     transition:
-        opacity 0.58s cubic-bezier(0.16, 1, 0.3, 1) 0.19s,
-        transform 0.66s cubic-bezier(0.22, 1.35, 0.36, 1) 0.19s;
+        opacity 0.48s cubic-bezier(0.22, 1, 0.36, 1) 0.22s,
+        transform 0.54s cubic-bezier(0.22, 1, 0.36, 1) 0.22s;
 }
 
 #step-2.step2-ui-revealing #step2-control-deck {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0);
     transition:
-        opacity 0.66s cubic-bezier(0.16, 1, 0.3, 1) 0.24s,
-        transform 0.72s cubic-bezier(0.16, 1, 0.3, 1) 0.24s,
-        filter 0.54s ease 0.24s;
+        opacity 0.54s cubic-bezier(0.22, 1, 0.36, 1) 0.24s,
+        transform 0.58s cubic-bezier(0.22, 1, 0.36, 1) 0.24s;
 }
 
 #step-2.step2-ui-revealing .action-buttons {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-    filter: blur(0px);
+    transform: translate3d(0, 0, 0);
     transition:
-        opacity 0.66s cubic-bezier(0.16, 1, 0.3, 1) 0.32s,
-        transform 0.72s cubic-bezier(0.16, 1, 0.3, 1) 0.32s,
-        filter 0.54s ease 0.32s;
+        opacity 0.54s cubic-bezier(0.22, 1, 0.36, 1) 0.30s,
+        transform 0.58s cubic-bezier(0.22, 1, 0.36, 1) 0.30s;
 }
 
 .step2-header-row {

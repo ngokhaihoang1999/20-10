@@ -2582,8 +2582,9 @@ async function handleImageInput(e) {
     currentScaleX = 1;
     hasGeneratedQuoteOnce = false;
 
-    step1.classList.remove('active');
-    step2.classList.add('active');
+    // Giữ Bước 1 hiển thị ổn định trong ~40ms lúc Bước 2 dựng ngầm Cropper + Canvas phía dưới (không bao giờ chớp trắng màn hình)
+    step2.classList.remove('step2-ui-revealing');
+    step2.classList.add('active', 'step2-preloading', 'step2-morph-active', 'step2-ui-hidden');
 
     // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
     const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
@@ -2595,24 +2596,18 @@ async function handleImageInput(e) {
         syncColorSwatchesUI(currentColorTheme, false);
     }
 
-    // Căn chuẩn kích thước sân khấu thiệp ngay lập tức (Frame 0) để hiệu ứng FLIP Morph lấy đúng tọa độ đích không bị lệch/giật
-    updateFrameOverlay();
+    if (originalImgSrc && originalImgSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(originalImgSrc);
+    }
+    originalImgSrc = URL.createObjectURL(file);
+
     fitPreviewAreaToStage();
     renderStep2WishPreview();
+    initCropper();
+    initScrollHints();
 
-    const reader = new FileReader();
-    reader.onload = function (event) {
-        originalImgSrc = event.target.result;
-        requestAnimationFrame(() => {
-            fitPreviewAreaToStage();
-            initCropper();
-            renderStep2WishPreview();
-            initScrollHints();
-            const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
-            if (activeChip) scrollChipIntoCenter(activeChip);
-        });
-    };
-    reader.readAsDataURL(file);
+    const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
+    if (activeChip) scrollChipIntoCenter(activeChip);
 }
 
 function initCropper() {
@@ -2649,6 +2644,13 @@ function initCropper() {
                     previewArea.addEventListener('touchstart', hideHint, { once: true, passive: true });
                     previewArea.addEventListener('mousedown', hideHint, { once: true });
                 }
+            }
+
+            if (typeof window.onStep2CropperReadyForMorph === 'function') {
+                window.onStep2CropperReadyForMorph();
+            } else {
+                step1.classList.remove('active');
+                step2.classList.remove('step2-preloading', 'step2-morph-active', 'step2-ui-hidden');
             }
         }
     });
