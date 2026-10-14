@@ -1668,43 +1668,49 @@ input[type="file"] {
 
 .step2-header-row {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     width: 100%;
     flex-shrink: 0;
     background: #f4fbf8;
-    border: 1px solid #d4ece2;
+    border: 1.2px solid #cbeadd;
     border-radius: 14px;
-    padding: 4px 6px;
+    padding: 6px 8px;
 }
 
 .step2-header-title {
-    font-size: clamp(0.66rem, 2.75vw, 0.78rem);
-    font-weight: 700;
+    font-size: clamp(0.76rem, 3vw, 0.92rem);
+    font-weight: 800;
     color: #095241;
     text-transform: uppercase;
-    letter-spacing: 0.1px;
+    letter-spacing: 0.2px;
     white-space: nowrap;
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     text-align: center;
+    justify-self: center;
+    padding: 0 4px;
 }
 
 .crop-outside-tools {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: flex-end;
+    justify-self: end;
+    gap: 5px;
     flex-shrink: 0;
 }
 
 .crop-tool-btn {
     background: #ffffff;
-    border: 1.2px solid #8fd1ba;
+    border: 1.3px solid #8fd1ba;
     color: #095241;
     font-family: inherit;
-    font-size: clamp(0.63rem, 2.5vw, 0.72rem);
-    font-weight: 600;
-    padding: 4px 7px;
+    font-size: clamp(0.74rem, 2.7vw, 0.86rem);
+    font-weight: 700;
+    padding: 6px 10px;
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -1713,6 +1719,7 @@ input[type="file"] {
 }
 
 .crop-back-btn {
+    justify-self: start;
     border-color: #f0b8cc;
     color: #9c2756;
     background: #fff8fa;
@@ -1736,7 +1743,7 @@ input[type="file"] {
     overflow: hidden;
 }
 
-/* Chế độ "Lời chúc dành cho bạn" (Self-Oracle Mode) ở Bước 2: Hiển thị riêng bảng chọn Filter ảnh & Thanh kéo mức độ Filter để người dùng tự căn góc + chỉnh màu ảnh ưng ý trước khi Nhận lời chúc */
+/* Chế độ "Lời chúc dành cho bạn" (Self-Oracle Mode) ở Bước 2: Hiển thị riêng bảng chọn Filter ảnh & Thanh kéo mức độ Filter trải đều 100% chiều ngang để người dùng tự căn góc + chỉnh màu ảnh ưng ý trước khi Nhận lời chúc */
 body.self-oracle-mode #step-2 #prev-frame-btn,
 body.self-oracle-mode #step-2 #next-frame-btn,
 body.self-oracle-mode #step-2 .deck-tabs,
@@ -1750,13 +1757,23 @@ body.self-oracle-mode #step-2 #tab-filter .photo-tools-grid {
 
 body.self-oracle-mode #step-2 #step2-control-deck {
     display: flex !important;
-    padding-top: 6px;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    padding: 8px 10px;
 }
 
 body.self-oracle-mode #step-2 #tab-filter {
     display: flex !important;
     flex-direction: column;
-    gap: 6px;
+    align-items: stretch;
+    width: 100%;
+    gap: 8px;
+}
+
+body.self-oracle-mode #step-2 #tab-filter .filter-grid,
+body.self-oracle-mode #step-2 #tab-filter .filter-intensity-row {
+    width: 100%;
 }
 
 body.self-oracle-mode #step-2 .step2-wish-area {
@@ -1839,26 +1856,26 @@ body.self-oracle-mode #step-2 .step2-wish-area {
     transform: translate3d(-50%, -50%, 0);
     z-index: 40;
     pointer-events: none;
-    background: rgba(255, 255, 255, 0.92);
-    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.94);
+    padding: 9px 16px;
     border-radius: 30px;
     text-align: center;
-    color: #0f7b5f;
-    font-size: 0.76rem;
-    font-weight: 600;
-    box-shadow: 0 4px 15px rgba(15, 123, 95, 0.2);
+    color: #095241;
+    font-size: clamp(0.82rem, 2.9vw, 0.94rem);
+    font-weight: 700;
+    box-shadow: 0 6px 18px rgba(15, 123, 95, 0.24);
     opacity: 1;
     transition: opacity 0.4s ease;
     animation: floatHint 2.5s infinite ease-in-out;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
     white-space: nowrap;
 }
 
 .drag-hint .hint-icon {
-    font-size: 1.25rem;
+    font-size: 1.35rem;
     animation: swipeHint 2.5s infinite ease-in-out;
 }
 
@@ -2827,16 +2844,18 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 }
 
 .filter-btn {
-    padding: 5px 2px;
-    border: 1px solid #cfe6dc;
+    width: 100%;
+    padding: 8px 6px;
+    border: 1.2px solid #c2e2d4;
     background: #ffffff;
     color: #095241;
-    border-radius: 10px;
+    border-radius: 11px;
     font-family: inherit;
-    font-size: clamp(0.62rem, 2.35vw, 0.72rem);
-    font-weight: 600;
+    font-size: clamp(0.76rem, 2.85vw, 0.88rem);
+    font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
+    text-align: center;
     transition: all 0.16s ease;
 }
 
@@ -2845,25 +2864,27 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
     border-color: transparent;
     color: #fff;
     font-weight: 700;
+    box-shadow: 0 3px 10px rgba(15, 123, 95, 0.24);
 }
 
 .filter-intensity-row {
+    width: 100%;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 5px 10px;
-    background: rgba(255, 255, 255, 0.88);
-    border: 1px solid #cfe6dc;
-    border-radius: 10px;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1.2px solid #c2e2d4;
+    border-radius: 11px;
     transition: opacity 0.2s ease, border-color 0.2s ease;
 }
 
 .filter-intensity-row.is-disabled {
-    opacity: 0.55;
+    opacity: 0.65;
 }
 
 .filter-intensity-label {
-    font-size: clamp(0.62rem, 2.2vw, 0.74rem);
+    font-size: clamp(0.76rem, 2.85vw, 0.88rem);
     font-weight: 700;
     color: #095241;
     white-space: nowrap;
@@ -2871,9 +2892,10 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 
 .filter-intensity-slider {
     flex: 1;
+    min-width: 80px;
     -webkit-appearance: none;
     appearance: none;
-    height: 6px;
+    height: 7px;
     border-radius: 999px;
     background: linear-gradient(90deg, #0f7b5f 0%, #d4af37 100%);
     outline: none;
@@ -2883,8 +2905,8 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 .filter-intensity-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #fffef5 0%, #f5d365 55%, #b8861b 100%);
     border: 2px solid #095241;
@@ -2899,8 +2921,8 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 }
 
 .filter-intensity-slider::-moz-range-thumb {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #fffef5 0%, #f5d365 55%, #b8861b 100%);
     border: 2px solid #095241;
@@ -2909,9 +2931,9 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 }
 
 .filter-intensity-value {
-    min-width: 36px;
+    min-width: 44px;
     text-align: right;
-    font-size: clamp(0.64rem, 2.2vw, 0.75rem);
+    font-size: clamp(0.76rem, 2.85vw, 0.88rem);
     font-weight: 800;
     color: #095241;
     font-variant-numeric: tabular-nums;
@@ -3019,11 +3041,11 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 .btn-secondary {
     display: block;
     width: 100%;
-    padding: 11px 16px;
+    padding: 12px 16px;
     border-radius: 30px;
     font-family: inherit;
-    font-size: 0.9rem;
-    font-weight: 600;
+    font-size: 0.95rem;
+    font-weight: 700;
     cursor: pointer;
     transition: transform 0.16s ease, box-shadow 0.16s ease;
     margin-bottom: 8px;
@@ -3043,15 +3065,17 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 .action-buttons .btn-secondary {
     flex: 1;
     margin-bottom: 0;
-    padding: 11px 10px;
-    font-size: 0.85rem;
+    padding: 12px 10px;
+    font-size: clamp(0.88rem, 3.2vw, 0.98rem);
 }
 
 .action-buttons .btn-primary {
     flex: 1.5;
     margin-bottom: 0;
-    padding: 11px 14px;
-    font-size: 0.88rem;
+    padding: 12px 16px;
+    font-size: clamp(0.94rem, 3.4vw, 1.04rem);
+    font-weight: 700;
+    letter-spacing: 0.2px;
 }
 
 .btn-primary {
@@ -4413,7 +4437,7 @@ body.recipient-mode .recipient-luxury-dock {
 /* ==========================================================================================
    ====== HỆ THỐNG RESPONSIVE SCALE ĐỒNG BỘ TRÊN TABLET, LAPTOP & MÀN HÌNH MÁY TÍNH ======
    ========================================================================================== */
-@media (min-width: 768px) and (min-height: 680px) {
+@media (min-width: 768px) and (min-height: 540px) {
     /* 1. BƯỚC 1: PHONG BÌ NGỌC BÍCH 3D & TẤM THIỆP MỞ ĐẦU */
     .step1-physical-stage {
         --env-w: clamp(410px, 54vmin, 560px);
@@ -4544,17 +4568,17 @@ body.recipient-mode .recipient-luxury-dock {
     }
 
     .step2-header-row {
-        padding: 7px 10px;
+        padding: 8px 12px;
         border-radius: 16px;
     }
 
     .crop-tool-btn {
-        padding: 7px 14px;
-        font-size: clamp(0.78rem, 1.35dvh, 0.9rem);
+        padding: 8px 14px;
+        font-size: clamp(0.84rem, 1.45dvh, 0.96rem);
     }
 
     .step2-header-title {
-        font-size: clamp(0.84rem, 1.45dvh, 0.98rem);
+        font-size: clamp(0.9rem, 1.58dvh, 1.04rem);
     }
 
     .card-nav-arrow {
@@ -4565,8 +4589,32 @@ body.recipient-mode .recipient-luxury-dock {
     }
 
     .control-deck {
-        padding: 8px 10px 9px;
+        padding: 9px 12px 10px;
         border-radius: 18px;
+    }
+
+    body.self-oracle-mode #step-2 #step2-control-deck {
+        padding: 10px 14px;
+    }
+
+    .filter-grid {
+        gap: 6px;
+    }
+
+    .filter-btn {
+        padding: 9px 10px;
+        font-size: clamp(0.84rem, 1.45dvh, 0.96rem);
+        border-radius: 12px;
+    }
+
+    .filter-intensity-row {
+        padding: 9px 14px;
+        border-radius: 12px;
+    }
+
+    .filter-intensity-label,
+    .filter-intensity-value {
+        font-size: clamp(0.84rem, 1.45dvh, 0.96rem);
     }
 
     .deck-tabs.deck-tabs-5 {
@@ -4585,7 +4633,6 @@ body.recipient-mode .recipient-luxury-dock {
     .topic-chip,
     .style-chip,
     .color-swatch-btn,
-    .filter-btn,
     .motion-chip,
     .wish-action-btn,
     .magic-harmony-btn {
@@ -4616,8 +4663,8 @@ body.recipient-mode .recipient-luxury-dock {
 
     .action-buttons .btn-secondary,
     .action-buttons .btn-primary {
-        padding: clamp(12px, 1.65dvh, 16px) 18px;
-        font-size: clamp(0.94rem, 1.6dvh, 1.08rem);
+        padding: clamp(13px, 1.75dvh, 17px) 20px;
+        font-size: clamp(0.98rem, 1.7dvh, 1.12rem);
         border-radius: 999px;
     }
 

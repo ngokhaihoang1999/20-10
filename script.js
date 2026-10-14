@@ -2262,7 +2262,7 @@ function syncColorSwatchesUI(themeKey, shouldScroll = false) {
     });
 }
 
-// Vẽ nội dung Phong Ấn Bất Ngờ (khi người dùng chọn chế độ "🌸 Câu chúc ngẫu nhiên" hoặc "✨ Lời chúc dành cho bạn") - Chữ to rõ, nổi bật trên điện thoại
+// Vẽ nội dung Phong Ấn Bất Ngờ (khi người dùng chọn chế độ "🌸 Câu chúc ngẫu nhiên" hoặc "✨ Lời chúc dành cho bạn") - Chữ to rõ, cân đối trên cả điện thoại và máy tính
 function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     const centerX = boxX + boxW / 2;
 
@@ -2274,36 +2274,36 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     const topTitle = window.isSelfOracleMode
         ? '✨ Dành Cho Bạn ✨'
         : ((recipientName || '').trim() || '🌸 Câu Chúc Ngẫu Nhiên 🌸');
-    const titleFontPx = Math.floor(62 * scale);
+    const titleFontPx = Math.floor(68 * scale);
     ctx.font = recipientFont(titleFontPx);
     ctx.fillStyle = theme.recipientColor;
     ctx.shadowColor = theme.shadowRgba;
     ctx.shadowBlur = Math.floor(10 * scale);
-    ctx.fillText(topTitle, centerX, boxY + boxH * 0.22, boxW * 0.90);
+    ctx.fillText(topTitle, centerX, boxY + boxH * 0.22, boxW * 0.92);
 
     // 2. Đường kẻ kim cương ánh vàng ở giữa
-    const divY = boxY + boxH * 0.37;
-    const divW = Math.min(boxW * 0.52, 340 * scale);
+    const divY = boxY + boxH * 0.38;
+    const divW = Math.min(boxW * 0.56, 360 * scale);
     const divGrad = ctx.createLinearGradient(centerX - divW / 2, divY, centerX + divW / 2, divY);
     divGrad.addColorStop(0, 'rgba(0,0,0,0)');
     divGrad.addColorStop(0.5, theme.goldAccent);
     divGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.strokeStyle = divGrad;
-    ctx.lineWidth = 2.2 * scale;
+    ctx.lineWidth = 2.4 * scale;
     ctx.beginPath();
     ctx.moveTo(centerX - divW / 2, divY);
     ctx.lineTo(centerX + divW / 2, divY);
     ctx.stroke();
 
     ctx.fillStyle = theme.goldAccent;
-    drawFourPointStarPath(ctx, centerX, divY, 9 * scale);
+    drawFourPointStarPath(ctx, centerX, divY, 9.5 * scale);
     ctx.fill();
 
     // 3. Dòng thông điệp bí mật ở trung tâm hộp chữ: "Lời chúc bất ngờ nhân dịp 20.10 từ BTLMVN"
     const surpriseLine = 'Lời chúc bất ngờ nhân dịp 20.10 từ BTLMVN';
-    let bodyFontPx = Math.floor(46 * scale);
+    let bodyFontPx = Math.floor(52 * scale);
     ctx.font = quoteFont(bodyFontPx);
-    while (bodyFontPx > Math.floor(30 * scale) && ctx.measureText(surpriseLine).width > boxW * 0.88) {
+    while (bodyFontPx > Math.floor(38 * scale) && ctx.measureText(surpriseLine).width > boxW * 0.92) {
         bodyFontPx -= 1;
         ctx.font = quoteFont(bodyFontPx);
     }
@@ -2313,16 +2313,16 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     textGrad.addColorStop(1, theme.textBottom);
     ctx.fillStyle = textGrad;
 
-    ctx.fillText(surpriseLine, centerX, boxY + boxH * 0.60, boxW * 0.90);
+    ctx.fillText(surpriseLine, centerX, boxY + boxH * 0.60, boxW * 0.92);
 
-    // 4. Dòng ghi chú phía dưới
+    // 4. Dòng ghi chú phía dưới to rõ, dễ đọc
     const bottomHint = window.isSelfOracleMode
-        ? '✦ Căn góc ảnh ưng ý rồi bấm Nhận lời chúc ✦'
+        ? '✦ Căn ảnh & chỉnh màu rồi bấm Nhận lời chúc ✦'
         : `✦ Chủ đề: ${TOPIC_LABELS_MAP[currentTopic] || 'Ngẫu nhiên'}  •  Chạm để tự viết ✦`;
-    ctx.font = `700 ${Math.floor(28 * scale)}px "Montserrat", sans-serif`;
+    ctx.font = `700 ${Math.floor(35 * scale)}px "Montserrat", sans-serif`;
     ctx.fillStyle = theme.borderPrimary;
-    ctx.globalAlpha = 0.92;
-    ctx.fillText(bottomHint, centerX, boxY + boxH * 0.85, boxW * 0.90);
+    ctx.globalAlpha = 0.95;
+    ctx.fillText(bottomHint, centerX, boxY + boxH * 0.85, boxW * 0.92);
 
     ctx.restore();
 }
@@ -2889,7 +2889,7 @@ async function handleImageInput(e) {
     const generateBtnEl = document.getElementById('generate-final-btn');
 
     if (window.isSelfOracleMode) {
-        if (headerTitleEl) headerTitleEl.textContent = '✨ Căn Ảnh & Chọn Filter 🌸';
+        if (headerTitleEl) headerTitleEl.textContent = '✨ Căn Chỉnh Ảnh 🌸';
         if (generateBtnEl) generateBtnEl.textContent = 'Nhận lời chúc';
         currentWishMode = 'surprise';
         currentBorderStyle = 'sakura';
@@ -6481,10 +6481,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     // - 'arriving'      : Ảnh đã sẵn sàng -> Phong Bì 3D lướt vào + Ấn Sáp Vàng giáng xuống đóng dấu sẵn sàng
     // - 'waiting'       : Phong Bì & Ấn Sáp đã sẵn sàng 100%, chờ người dùng chạm mở
     // - 'opening'       : Đang mở phong bì & rút thiệp 3D
-    let summonStartTime = performance.now();
-    let arriveStartTime = performance.now();
-    let openStartTime = 0;
-    let lastFrameTime = performance.now();
+    let summonStartTime = null;
+    let arriveStartTime = null;
+    let openStartTime = null;
+    let lastFrameTime = null;
     let summonSpawnAccum = 0;
     let hasSpawnedArrivalStamp = false;
 
@@ -8180,6 +8180,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
     // Vòng lặp Vật Lý 60fps chính của Đạo Diễn Phong Bì 3D Hợp Nhất (ZERO REFLOW, ZERO ALLOCATION)
     function stepPhysicsDirector(now) {
+        if (lastFrameTime === null) lastFrameTime = now;
         const dt = Math.min(0.033, Math.max(0.004, (now - lastFrameTime) / 1000));
         lastFrameTime = now;
 
@@ -8205,7 +8206,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
         // ====== TRẠNG THÁI 0-SKY-A: ĐẠI CẢNH ONE-SHOT SPEED-RAMP "TỪ BỨC ẢNH HOÁ THÀNH BỨC THƯ 3D" (6.20 GIÂY LIỀN MẠCH) ======
         if (u3dCurrentDirectorState === 'sky_oracle') {
-            const summonElapsed = (now - summonStartTime) / 1000;
+            if (summonStartTime === null) summonStartTime = now;
+            const summonElapsed = Math.max(0, (now - summonStartTime) / 1000);
             const SKY_ORACLE_TOTAL = 6.20;
             const atlas = getU3DLuxurySpriteAtlas();
 
@@ -8213,6 +8215,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             frontRig.style.opacity = '0';
             cardActor.style.opacity = '0';
 
+            try {
             // 1. Tính Góc Máy One-Shot Liền Mạch & Speed-Ramping (Nhanh - Chậm tuỳ cảnh)
             const cam = computeSkyGachaCamera(summonElapsed);
             const isAwakened5Star = summonElapsed >= 1.92;
@@ -8220,8 +8223,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 skyWhipScrollDist += dt * 2250 * cam.whipSpeedMult;
             }
 
-            // 2. Vẽ Bầu Trời Vũ Trụ, Biển Mây Khối FBM Celestia phía dưới & Cổng Trời Thiên Đỉnh
-            const portalIntensity = Math.min(1, summonElapsed / 0.32);
+            // 2. Vẽ Bầu Trời Vũ Trụ, Biển Mây Khối FBM Celestia phía dưới & Cổng Trời Thiên Đỉnh (Hiển thị rõ ngay từ Frame 1!)
+            const portalIntensity = Math.max(0.28, Math.min(1, (summonElapsed + 0.08) / 0.30));
             drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, summonElapsed, portalIntensity, screenCx, screenCy, curVw, curVh, cam);
 
             // 3. Vẽ 3 Vòng Tinh Cầu Chòm Sao 3D xoay quanh Cổng Trời Thiên Đỉnh (ở Pha 1, Pha 2 và Pha 4)
@@ -8254,7 +8257,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 const medProj = project3DWithCam(medWx, medWy, medWz, cam, screenCx, screenCy);
 
                 if (medProj) {
-                    const medScale = medProj.scale * Math.min(1, summonElapsed / 0.14);
+                    const medScale = Math.max(0.22, medProj.scale * Math.max(0.36, Math.min(1, (summonElapsed + 0.05) / 0.14)));
 
                     // Khi bắt đầu phóng lên (ascendP > 0.02), vẽ Dải Đuôi Sao Băng phóng thẳng từ dưới biển mây lên theo Lõi Tinh Tú
                     if (ascendP > 0.02) {
@@ -8277,7 +8280,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     // Hào quang hội tụ khi Bức Ảnh cuộn thành Lõi Sao
                     ctxFront.save();
                     ctxFront.globalCompositeOperation = 'lighter';
-                    const haloR = Math.max(20, (115 - 22 * easeCondense) * medScale);
+                    const haloR = Math.max(24, (115 - 22 * easeCondense) * medScale);
                     const haloGrad = ctxFront.createRadialGradient(0, 0, 4, 0, 0, haloR);
                     haloGrad.addColorStop(0, 'rgba(255, 255, 245, 1)');
                     haloGrad.addColorStop(0.38, 'rgba(255, 215, 0, 0.82)');
@@ -8292,7 +8295,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     // Giai đoạn 0.00s -> 0.52s: Bức ảnh chữ nhật (window.skyOracleUserCardPhotoCanvas) thu gọn & bo tròn dần thành Huy Chương Tinh Tú!
                     if (condenseP < 0.96 && window.skyOracleUserCardPhotoCanvas) {
                         const rectAlpha = 1 - Math.pow(condenseP, 1.8);
-                        const rectScale = (1 - easeCondense * 0.52) * medScale;
+                        const rectScale = Math.max(0.18, (1 - easeCondense * 0.52) * medScale);
                         const rw = 165 * rectScale;
                         const rh = 246 * rectScale;
                         ctxFront.save();
@@ -8304,9 +8307,9 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
                     // Huy chương tròn chứa ảnh chân dung trong Lõi Sao Băng hiện rõ dần khi ảnh chữ nhật cuộn lại
                     if (window.skyOracleUserThumbCanvas) {
-                        const drawR = (66 - 14 * easeAscend) * medScale * (0.45 + 0.55 * easeCondense);
+                        const drawR = Math.max(2, (66 - 14 * easeAscend) * medScale * (0.45 + 0.55 * easeCondense));
                         ctxFront.save();
-                        ctxFront.globalAlpha = Math.min(1, condenseP * 1.45);
+                        ctxFront.globalAlpha = Math.max(0, Math.min(1, condenseP * 1.45));
                         ctxFront.drawImage(window.skyOracleUserThumbCanvas, -drawR, -drawR, drawR * 2, drawR * 2);
                         ctxFront.strokeStyle = '#ffd700';
                         ctxFront.lineWidth = Math.max(1.8, 3.4 * medScale);
@@ -8315,7 +8318,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                         ctxFront.stroke();
                         for (let b = 0; b < 8; b++) {
                             const ba = (b / 8) * Math.PI * 2 + summonElapsed * 3.4;
-                            const pr = 5.6 * medScale;
+                            const pr = Math.max(1.5, 5.6 * medScale);
                             ctxFront.drawImage(atlas.pearl, Math.cos(ba) * drawR - pr, Math.sin(ba) * drawR - pr, pr * 2, pr * 2);
                         }
                         ctxFront.restore();
@@ -8630,6 +8633,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 }
             }
 
+            } catch (skyErr) {
+                console.error('Sky Oracle frame error:', skyErr);
+            }
+
             // Khi hoàn tất trọn vẹn 6.20 giây Đại Cảnh One-Shot 3D & ảnh thiệp đã kết xuất xong 100% -> Chuyển sang Pha Phong Bì 3D Khép Lại & Đóng Dấu Sáp Vàng 24K!
             if (window.isRecipientCardImageReady && summonElapsed >= SKY_ORACLE_TOTAL) {
                 if (cardImg && finalResultImg && finalResultImg.src) {
@@ -8647,7 +8654,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
         // ====== TRẠNG THÁI 0-SKY-B: MÀN SƯƠNG HOÀNG KIM 5 SAO TAN MỞ, PHONG BÌ 3D HIỆN RA & ĐÓNG DẤU SÁP VÀNG 24K (1.18 GIÂY) ======
         if (u3dCurrentDirectorState === 'sky_descending') {
-            const arriveElapsed = (now - arriveStartTime) / 1000;
+            if (arriveStartTime === null) arriveStartTime = now;
+            const arriveElapsed = Math.max(0, (now - arriveStartTime) / 1000);
             const SKY_DESCEND_TOTAL = 1.18;
 
             // Giữ nền trời 3D dịu dần mượt mà khi Phong Bì 3D hiện ra ở chính tâm sân khấu
@@ -8773,7 +8781,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
         // ====== TRẠNG THÁI 0A: TRIỆU HỒI THIỆP BẰNG MOTION 3D (KHI ĐANG TẢI ẢNH TỪ LINK - KHÔNG DÙNG CHỮ LOADING!) ======
         if (u3dCurrentDirectorState === 'summoning') {
-            const summonElapsed = (now - summonStartTime) / 1000;
+            if (summonStartTime === null) summonStartTime = now;
+            const summonElapsed = Math.max(0, (now - summonStartTime) / 1000);
             backRig.style.opacity = '0';
             frontRig.style.opacity = '0';
             cardActor.style.opacity = '0';
@@ -8837,7 +8846,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
         // ====== TRẠNG THÁI 0B: PHONG BÌ 3D LƯỚT VÀO & CON DẤU SÁP VÀNG GIÁNG XUỐNG ĐÓNG DẤU SẴN SÀNG ======
         if (u3dCurrentDirectorState === 'arriving') {
-            const arriveElapsed = (now - arriveStartTime) / 1000;
+            if (arriveStartTime === null) arriveStartTime = now;
+            const arriveElapsed = Math.max(0, (now - arriveStartTime) / 1000);
             const ARRIVE_TOTAL = 0.76;
 
             // Pha 1 (0.00s -> 0.48s): Phong bì 3D kết tinh và lướt từ chiều sâu 3D vào giữa sân khấu
@@ -8984,7 +8994,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         }
 
         // ====== TRẠNG THÁI 2: KHỞI ĐỘNG SÁP THƯ HỒI HỘP -> BẬT NẮP -> RÚT THIỆP TỪ TỪ 0%->100% KHỎI BÌ THƯ ======
-        const elapsed = (now - openStartTime) / 1000;
+        if (!openStartTime) openStartTime = now;
+        const elapsed = Math.max(0, (now - openStartTime) / 1000);
         const envMouthWorldY = (envBaseCy - envBaseH * 0.24) - screenCy;
         const sealWorldY = envMouthWorldY + envBaseH * 0.28;
 
