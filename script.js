@@ -574,9 +574,14 @@ function fitCardShowcaseToWrap() {
     const availH = wrap.clientHeight - 6;
     if (availW <= 0 || availH <= 0) return;
 
-    const cw = finalResultCanvas.width || 1024;
-    const ch = finalResultCanvas.height || 2060;
-    const cardRatio = cw / ch;
+    // Luôn ưu tiên tỉ lệ chuẩn của thiệp dọc (1024 / 2060) hoặc tỉ lệ ảnh thật đã tải xong;
+    // TUYỆT ĐỐI không dùng kích thước mặc định 300x150 của canvas khi mở từ link người nhận!
+    let cardRatio = FULL_CARD_ASPECT_RATIO;
+    if (finalResultImg && finalResultImg.complete && finalResultImg.naturalWidth > 100 && finalResultImg.naturalHeight > 100) {
+        cardRatio = finalResultImg.naturalWidth / finalResultImg.naturalHeight;
+    } else if (finalResultCanvas && finalResultCanvas.width >= 500 && finalResultCanvas.height >= 500) {
+        cardRatio = finalResultCanvas.width / finalResultCanvas.height;
+    }
 
     let w = availH * cardRatio;
     let h = availH;
@@ -4277,7 +4282,7 @@ const MOTION_EFFECTS_CONFIG = {
     },
     ribbon: {
         id: 'ribbon',
-        shortLabel: '🎀 Nơ Hoàng Gia',
+        shortLabel: '🎀 Nơ Lụa',
         fullLabel: '🎀 Hộp Quà Nơ Lụa 3D',
         badge: '🎀 HỘP QUÀ NƠ LỤA HOÀNG GIA 3D',
         revealClass: 'reveal-ribbon',
@@ -4295,7 +4300,7 @@ const MOTION_EFFECTS_CONFIG = {
     },
     sakura: {
         id: 'sakura',
-        shortLabel: '🌸 Lốc Anh Đào',
+        shortLabel: '🌸 Anh Đào',
         fullLabel: '🌸 Cơn Lốc Anh Đào 3D',
         badge: '🌸 CƠN LỐC HOA ANH ĐÀO 3D',
         revealClass: 'reveal-sakura',
@@ -4304,7 +4309,7 @@ const MOTION_EFFECTS_CONFIG = {
     },
     hearts: {
         id: 'hearts',
-        shortLabel: '💎 Kim Cương Sao',
+        shortLabel: '💎 Kim Cương',
         fullLabel: '💎 Kim Cương Ánh Sao 3D',
         badge: '💎 KIM CƯƠNG ÁNH SAO & BỤI VÀNG 3D',
         revealClass: 'reveal-hearts',
@@ -5211,13 +5216,13 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (creatorTopbar) creatorTopbar.style.display = 'none';
         if (recipientTopbar) recipientTopbar.style.display = 'grid';
         if (creatorQuickBar) creatorQuickBar.style.display = 'none';
-        if (recipientQuickBar) recipientQuickBar.style.display = 'flex';
+        if (recipientQuickBar) recipientQuickBar.style.display = 'grid';
         if (recShowcaseTitle) recShowcaseTitle.textContent = effectiveTitle;
         if (dlLabel) dlLabel.textContent = 'Lưu thiệp chất lượng gốc về máy';
     } else {
         if (creatorTopbar) creatorTopbar.style.display = 'grid';
         if (recipientTopbar) recipientTopbar.style.display = 'none';
-        if (creatorQuickBar) creatorQuickBar.style.display = 'flex';
+        if (creatorQuickBar) creatorQuickBar.style.display = 'grid';
         if (recipientQuickBar) recipientQuickBar.style.display = 'none';
         if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
     }
@@ -5304,8 +5309,9 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     function measureTargetShowcaseOnce() {
         curVw = window.innerWidth;
         curVh = window.innerHeight;
+        fitCardShowcaseToWrap();
         const rawRect = cardShowcase ? cardShowcase.getBoundingClientRect() : null;
-        if (rawRect && rawRect.width > 40 && rawRect.height > 40) {
+        if (rawRect && rawRect.width > 40 && rawRect.height > rawRect.width * 1.3) {
             cachedTargetRect = {
                 left: rawRect.left,
                 top: rawRect.top,
@@ -5313,20 +5319,44 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 height: rawRect.height
             };
         } else {
-            const fallbackW = Math.min(340, curVw * 0.82);
-            const fallbackH = fallbackW * (2060 / 1024);
-            cachedTargetRect = {
-                left: (curVw - fallbackW) * 0.5,
-                top: (curVh - fallbackH) * 0.5,
-                width: fallbackW,
-                height: fallbackH
-            };
+            const wrap = document.querySelector('.result-canvas-wrap');
+            const wrapRect = wrap ? wrap.getBoundingClientRect() : null;
+            if (wrapRect && wrapRect.width > 60 && wrapRect.height > 60) {
+                const availW = wrapRect.width - 8;
+                const availH = wrapRect.height - 6;
+                let w = availH * FULL_CARD_ASPECT_RATIO;
+                let h = availH;
+                if (w > availW) {
+                    w = availW;
+                    h = availW / FULL_CARD_ASPECT_RATIO;
+                }
+                if (cardShowcase) {
+                    cardShowcase.style.width = `${Math.floor(w)}px`;
+                    cardShowcase.style.height = `${Math.floor(h)}px`;
+                }
+                cachedTargetRect = {
+                    left: wrapRect.left + (wrapRect.width - w) * 0.5,
+                    top: wrapRect.top + (wrapRect.height - h) * 0.5,
+                    width: w,
+                    height: h
+                };
+            } else {
+                const fallbackH = Math.min(curVh * 0.72, 620);
+                const fallbackW = fallbackH * FULL_CARD_ASPECT_RATIO;
+                cachedTargetRect = {
+                    left: (curVw - fallbackW) * 0.5,
+                    top: (curVh - fallbackH) * 0.5,
+                    width: fallbackW,
+                    height: fallbackH
+                };
+            }
         }
         // Khóa cố định width/height của cardActor 1 lần duy nhất; mọi biến thiên kích thước dùng GPU scale()!
         cardActor.style.width = `${cachedTargetRect.width.toFixed(1)}px`;
         cardActor.style.height = `${cachedTargetRect.height.toFixed(1)}px`;
     }
     measureTargetShowcaseOnce();
+    window.u3dRefreshTargetRect = measureTargetShowcaseOnce;
 
     // Các biến trạng thái Vật Lý 60fps
     u3dCurrentDirectorState = 'waiting';
@@ -6370,7 +6400,7 @@ function setMotionEffect(motionId, showToast = true) {
 
     const cycleBtn = document.getElementById('step3-cycle-motion-btn');
     if (cycleBtn) {
-        cycleBtn.textContent = `🎬 ${cfg.shortLabel}`;
+        cycleBtn.textContent = cfg.shortLabel;
     }
 
     const previewMotionName = document.getElementById('chat-preview-motion-name');
@@ -6444,7 +6474,7 @@ document.getElementById('modal-test-motion-btn')?.addEventListener('click', () =
     renderCurrentStep2CardAndPreviewEnvelope(true);
 });
 
-// Nút "🎬 Motion: ..." ở Bước 3 -> Đổi sang hiệu ứng tiếp theo & chạy ngay cảnh Mở Phong Bì Vật Lý 3D!
+// Nút "🌺 Hoa Trà" ở Bước 3 -> Đổi sang hiệu ứng tiếp theo & chạy ngay cảnh Mở Phong Bì Vật Lý 3D!
 document.getElementById('step3-cycle-motion-btn')?.addEventListener('click', () => {
     const idx = MOTION_KEYS_ORDER.indexOf(window.currentMotionEffect);
     const nextKey = MOTION_KEYS_ORDER[(idx + 1) % MOTION_KEYS_ORDER.length];
@@ -6472,6 +6502,14 @@ function toSlugVietnamese(str) {
         .replace(/[^a-zA-Z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
         .slice(0, 48) || 'Thiep-3D-20-10';
+}
+
+function escapeHtmlEntities(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 function encodeCardPayload(obj) {
@@ -6509,7 +6547,7 @@ function getEffectiveLinkTitle() {
     if (trimmed) return trimmed;
     const rec = (recipientName || '').trim();
     if (rec) return `💌 ${rec} - Thiệp 3D 20/10 🌸`;
-    return '💌 Thiệp 3D 20/10 gửi tặng người thương 🌸';
+    return 'Thiệp 20.10 gửi tặng bạn';
 }
 
 function buildShareableCardUrl(fileId) {
@@ -6545,7 +6583,7 @@ async function uploadCardToTelegramBot() {
         const motionCfg = MOTION_EFFECTS_CONFIG[window.currentMotionEffect] || MOTION_EFFECTS_CONFIG.bloom;
         const captionText = [
             `🌸 THIỆP 3D MOTION 20/10`,
-            `🏷️ Tên link: ${title}`,
+            `🏷️ Tên thiệp: ${title}`,
             recipientName ? `💌 Tiêu đề: ${recipientName}` : '',
             `🎬 Hiệu ứng: ${motionCfg.fullLabel}`,
             `🎨 Tông màu: ${currentColorTheme}`
@@ -6566,6 +6604,7 @@ async function uploadCardToTelegramBot() {
         let data = await res.json();
 
         let fileId = data?.result?.document?.file_id;
+        let msgId = data?.result?.message_id;
 
         // Dự phòng: Nếu sendDocument bị giới hạn, tự động chuyển sang sendPhoto
         if (!fileId) {
@@ -6579,6 +6618,7 @@ async function uploadCardToTelegramBot() {
                 body: formPhoto
             });
             data = await res.json();
+            msgId = data?.result?.message_id;
             const photos = data?.result?.photo;
             if (Array.isArray(photos) && photos.length > 0) {
                 fileId = photos[photos.length - 1].file_id;
@@ -6591,6 +6631,20 @@ async function uploadCardToTelegramBot() {
 
         cachedTelegramFileId = fileId;
         isCardCanvasDirtyForTelegram = false;
+        refreshShareModalPreviewUI();
+
+        // Cập nhật luôn Caption trong Bot Telegram thành dạng Hyperlink ẩn URL dưới Tên Thiệp (<a href="URL">Tên Thiệp</a>)
+        if (msgId) {
+            const finalShareUrl = buildShareableCardUrl(fileId);
+            const htmlCaption = `💌 <a href="${escapeHtmlEntities(finalShareUrl)}"><b>${escapeHtmlEntities(title)}</b></a>\n🎬 Hiệu ứng: ${escapeHtmlEntities(motionCfg.fullLabel)}`;
+            const editForm = new FormData();
+            editForm.append('chat_id', cid);
+            editForm.append('message_id', String(msgId));
+            editForm.append('caption', htmlCaption);
+            editForm.append('parse_mode', 'HTML');
+            fetch(`${ep}/bot${tk}/editMessageCaption`, { method: 'POST', body: editForm }).catch(() => {});
+        }
+
         return fileId;
     })();
 
@@ -6609,10 +6663,10 @@ window.schedulePreUploadCardToTelegram = function () {
                 console.warn('Pre-upload Telegram sẽ thử lại khi mở bảng chia sẻ:', err);
             });
         }
-    }, 600);
+    }, 450);
 };
 
-// ====== 4. ĐIỀU KHIỂN MODAL ĐẶT TÊN LINK & CHIA SẺ TELEGRAM / ZALO ======
+// ====== 4. ĐIỀU KHIỂN MODAL ĐẶT TÊN LINK & COPY HYPERLINK ẨN URL DƯỚI TÊN THIỆP ======
 const shareLinkModal = document.getElementById('share-link-modal');
 const customLinkTitleInput = document.getElementById('custom-link-title-input');
 const linkTitleCharCount = document.getElementById('link-title-char-count');
@@ -6623,9 +6677,98 @@ const chatPreviewUrl = document.getElementById('chat-preview-url');
 
 function refreshShareModalPreviewUI() {
     const title = getEffectiveLinkTitle();
-    if (chatPreviewTitle) chatPreviewTitle.textContent = title;
     const url = buildShareableCardUrl(cachedTelegramFileId || '...');
+    if (chatPreviewTitle) {
+        chatPreviewTitle.textContent = title;
+        if (cachedTelegramFileId) {
+            chatPreviewTitle.setAttribute('href', url);
+        } else {
+            chatPreviewTitle.setAttribute('href', '#');
+        }
+    }
     if (chatPreviewUrl) chatPreviewUrl.textContent = url;
+}
+
+// Hàm Sao Chép Hyperlink Ẩn URL Dưới Tên Thiệp (<a href="URL">Tên Thiệp</a>) ĐỒNG BỘ 100% trong cử chỉ chạm (User Gesture):
+// - text/html: <a href="URL">Tên Thiệp</a> (Telegram Android/iOS/Desktop tự động chuyển thành thực thể chữ gắn link xanh, ẩn 100% URL)
+// - text/plain: Tên Thiệp (KHÔNG kèm URL thô phía sau để tránh hiện chuỗi link dài)
+function copyHiddenUrlHyperlinkSync(title, url) {
+    const cleanTitle = (title || 'Thiệp 20.10 gửi tặng bạn').trim();
+    const safeTitle = escapeHtmlEntities(cleanTitle);
+    const safeUrl = escapeHtmlEntities(url);
+    const htmlHyperlink = `<a href="${safeUrl}">${safeTitle}</a>`;
+    let copiedOk = false;
+
+    // Bước 1: Dùng vùng contenteditable chứa thẻ <a href="URL">Tên Thiệp</a> thật + bắt sự kiện copy đồng bộ
+    try {
+        const holder = document.createElement('div');
+        holder.setAttribute('contenteditable', 'true');
+        holder.style.position = 'fixed';
+        holder.style.left = '-9999px';
+        holder.style.top = '0';
+        holder.style.opacity = '0';
+        holder.style.pointerEvents = 'none';
+        holder.innerHTML = htmlHyperlink;
+        document.body.appendChild(holder);
+
+        const onCopy = (e) => {
+            if (e.clipboardData) {
+                e.clipboardData.setData('text/html', htmlHyperlink);
+                e.clipboardData.setData('text/plain', cleanTitle);
+                e.preventDefault();
+                copiedOk = true;
+            }
+        };
+        document.addEventListener('copy', onCopy, true);
+
+        const range = document.createRange();
+        range.selectNodeContents(holder);
+        const sel = window.getSelection();
+        if (sel) {
+            sel.removeAllRanges();
+            sel.addRange(range);
+        }
+        if (document.execCommand('copy')) {
+            copiedOk = true;
+        }
+        if (sel) sel.removeAllRanges();
+        document.removeEventListener('copy', onCopy, true);
+        document.body.removeChild(holder);
+    } catch (_) {}
+
+    // Bước 2: Ghi song song qua ClipboardItem chuẩn W3C ngay trong cùng sự kiện click đồng bộ
+    if (navigator.clipboard && window.ClipboardItem) {
+        try {
+            const item = new ClipboardItem({
+                'text/html': new Blob([htmlHyperlink], { type: 'text/html' }),
+                'text/plain': new Blob([cleanTitle], { type: 'text/plain' })
+            });
+            navigator.clipboard.write([item]).catch(() => {});
+            copiedOk = true;
+        } catch (_) {}
+    }
+
+    return copiedOk;
+}
+
+// Hàm copy URL thuần khi người dùng bấm nút phụ "🔗 Copy URL thuần"
+function copyRawUrlSync(url) {
+    let ok = false;
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+    } catch (_) {}
+    if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(url).catch(() => {});
+        ok = true;
+    }
+    return ok;
 }
 
 async function openShareLinkModal() {
@@ -6644,7 +6787,7 @@ async function openShareLinkModal() {
     if (!currentUserImage || !step3.classList.contains('active')) {
         if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = '✨ Đã lưu tên Link! Hãy bấm "Tạo thiệp 3D" để lấy đường dẫn gửi tặng.';
+            tgUploadStatusText.textContent = '✨ Đã lưu tên Thiệp! Hãy bấm "Tạo thiệp 3D" để lấy link ẩn dưới tên thiệp.';
         }
         return;
     }
@@ -6652,7 +6795,7 @@ async function openShareLinkModal() {
     if (!isCardCanvasDirtyForTelegram && cachedTelegramFileId) {
         if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = '✅ Đã lưu chất lượng gốc (100%)! Link sẵn sàng gửi tặng.';
+            tgUploadStatusText.textContent = '✅ Sẵn sàng! Bấm Sao chép để lấy Tên Thiệp đã gắn ẩn đường link.';
         }
         refreshShareModalPreviewUI();
         return;
@@ -6660,14 +6803,14 @@ async function openShareLinkModal() {
 
     if (tgStatusDot) tgStatusDot.className = 'status-dot';
     if (tgUploadStatusText) {
-        tgUploadStatusText.textContent = '⏳ Đang lưu ảnh gốc (100% chất lượng) lên đám mây...';
+        tgUploadStatusText.textContent = '⏳ Đang lưu ảnh gốc (100% chất lượng) & gắn ẩn URL vào Tên Thiệp...';
     }
 
     try {
         await uploadCardToTelegramBot();
         if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = '✅ Đã tạo Link Thiệp 3D thành công! (Giữ nguyên 100% chất lượng)';
+            tgUploadStatusText.textContent = '✅ Đã gắn ẩn URL dưới Tên Thiệp! Bấm Sao chép rồi Dán (Paste) gửi tặng ngay.';
         }
         refreshShareModalPreviewUI();
     } catch (err) {
@@ -6730,113 +6873,127 @@ async function ensureShareUrlReady() {
         if (tgUploadStatusText) tgUploadStatusText.textContent = '⏳ Đang đồng bộ ảnh gốc lên Telegram...';
         await uploadCardToTelegramBot();
         if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
-        if (tgUploadStatusText) tgUploadStatusText.textContent = '✅ Đã tạo Link Thiệp 3D thành công!';
+        if (tgUploadStatusText) tgUploadStatusText.textContent = '✅ Đã gắn ẩn URL dưới Tên Thiệp!';
         refreshShareModalPreviewUI();
     }
     return buildShareableCardUrl(cachedTelegramFileId);
 }
 
-// Nút 1: 📋 Sao chép Tên Link + Đường dẫn (Hỗ trợ cả Rich HTML Hyperlink cho Telegram/Zalo & Plain Text)
+// Cho phép bấm trực tiếp vào dòng Tên Thiệp màu xanh trong khung Xem trước để Copy Hyperlink ẩn URL
+chatPreviewTitle?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!cachedTelegramFileId) return;
+    const title = getEffectiveLinkTitle();
+    const url = buildShareableCardUrl(cachedTelegramFileId);
+    copyHiddenUrlHyperlinkSync(title, url);
+    if (tgUploadStatusText) {
+        tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Hãy Dán (Paste) vào khung chat.`;
+    }
+});
+
+// Nút 1: 📋 Sao chép Tên Thiệp (Đã gắn ẩn URL) -> Copy ĐỒNG BỘ <a href="URL">Tên Thiệp</a>, ẩn hoàn toàn URL dưới chữ!
 document.getElementById('copy-rich-link-btn')?.addEventListener('click', async () => {
     const copyTextSpan = document.getElementById('copy-rich-link-text');
-    const origLabel = copyTextSpan ? copyTextSpan.textContent : 'Sao chép Tên Link + Đường dẫn';
-    try {
-        const url = await ensureShareUrlReady();
-        const title = getEffectiveLinkTitle();
-        const plainText = `${title}\n👉 Chạm vào link để mở Bì Thiệp 3D:\n${url}`;
-        const htmlText = `<a href="${url}"><b>${title}</b></a><br>👉 <a href="${url}">${url}</a>`;
+    const origLabel = copyTextSpan ? copyTextSpan.textContent : 'Sao chép Tên Thiệp (Đã gắn ẩn URL)';
+    const title = getEffectiveLinkTitle();
 
-        let copied = false;
-        if (navigator.clipboard && window.ClipboardItem) {
-            try {
-                const item = new ClipboardItem({
-                    'text/plain': new Blob([plainText], { type: 'text/plain' }),
-                    'text/html': new Blob([htmlText], { type: 'text/html' })
-                });
-                await navigator.clipboard.write([item]);
-                copied = true;
-            } catch (_) {
-                // fallback bên dưới
-            }
+    // Trường hợp 1 (99%): Đã có sẵn cachedTelegramFileId -> Copy ĐỒNG BỘ ngay trong cử chỉ chạm (0ms delay) để giữ nguyên định dạng Hyperlink ẩn URL!
+    if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
+        const url = buildShareableCardUrl(cachedTelegramFileId);
+        copyHiddenUrlHyperlinkSync(title, url);
+        if (copyTextSpan) copyTextSpan.textContent = `✅ Đã copy "${title}" (Ẩn URL)!`;
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Bạn chỉ cần Dán (Paste) vào Telegram ✨`;
         }
-        if (!copied && navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(plainText);
-            copied = true;
-        }
-        if (!copied) {
-            const ta = document.createElement('textarea');
-            ta.value = plainText;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-        }
-
-        if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép Tên Link + Đường dẫn!';
         setTimeout(() => {
             if (copyTextSpan) copyTextSpan.textContent = origLabel;
-        }, 2400);
+        }, 2600);
+        return;
+    }
+
+    // Trường hợp 2: Ảnh đang tải lên -> Đợi tải xong rồi copy ngay
+    try {
+        if (copyTextSpan) copyTextSpan.textContent = '⏳ Đang chuẩn bị link ẩn...';
+        const url = await ensureShareUrlReady();
+        copyHiddenUrlHyperlinkSync(title, url);
+        if (copyTextSpan) copyTextSpan.textContent = `✅ Đã copy "${title}" (Ẩn URL)!`;
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Hãy Dán (Paste) vào Telegram ✨`;
+        }
+        setTimeout(() => {
+            if (copyTextSpan) copyTextSpan.textContent = origLabel;
+        }, 2600);
     } catch (err) {
+        if (copyTextSpan) copyTextSpan.textContent = origLabel;
         alert('Chưa thể tạo link, vui lòng kiểm tra kết nối mạng và thử lại nhé!');
     }
 });
 
-// Nút 2: 🔗 Copy cú pháp Chữ Ẩn Link cho Telegram: [Tên Link](URL)
+// Nút 2 (Phụ): 🔗 Copy URL thuần (Dành cho trường hợp người dùng muốn lấy đường dẫn thô)
 document.getElementById('copy-md-link-btn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const orig = btn.textContent;
+    if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
+        const url = buildShareableCardUrl(cachedTelegramFileId);
+        copyRawUrlSync(url);
+        btn.textContent = '✅ Đã copy URL thuần!';
+        setTimeout(() => { btn.textContent = orig; }, 2200);
+        return;
+    }
     try {
         const url = await ensureShareUrlReady();
-        const title = getEffectiveLinkTitle();
-        const mdText = `[${title}](${url})`;
-        const htmlOnlyLink = `<a href="${url}">${title}</a>`;
-
-        let copied = false;
-        if (navigator.clipboard && window.ClipboardItem) {
-            try {
-                await navigator.clipboard.write([
-                    new ClipboardItem({
-                        'text/plain': new Blob([mdText], { type: 'text/plain' }),
-                        'text/html': new Blob([htmlOnlyLink], { type: 'text/html' })
-                    })
-                ]);
-                copied = true;
-            } catch (_) {}
-        }
-        if (!copied && navigator.clipboard?.writeText) {
-            await navigator.clipboard.writeText(mdText);
-        }
-        btn.textContent = '✅ Đã copy chữ gắn link!';
+        copyRawUrlSync(url);
+        btn.textContent = '✅ Đã copy URL thuần!';
         setTimeout(() => { btn.textContent = orig; }, 2200);
     } catch (err) {
         alert('Vui lòng đợi ảnh lưu xong rồi thử lại nhé!');
     }
 });
 
-// Nút 3: ✈️ Gửi trực tiếp qua Telegram với đúng Tên Link đã đặt
-document.getElementById('share-telegram-btn')?.addEventListener('click', async () => {
+// Nút 3: ✈️ Copy & Mở Telegram -> Sao chép đồng bộ Tên Thiệp đã gắn ẩn URL (<a href="URL">Tên Thiệp</a>) để dán vào Telegram không bị lộ URL thô!
+document.getElementById('share-telegram-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const orig = btn.textContent;
+    const title = getEffectiveLinkTitle();
+
+    if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
+        const url = buildShareableCardUrl(cachedTelegramFileId);
+        copyHiddenUrlHyperlinkSync(title, url);
+        btn.textContent = '✅ Đã Copy! Hãy Dán vào Chat';
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = `✅ Đã copy "${title}" (ẩn URL)! Bạn chỉ cần Dán (Paste) vào cuộc trò chuyện Telegram ✨`;
+        }
+        setTimeout(() => { btn.textContent = orig; }, 2800);
+        return;
+    }
+
     try {
         const url = await ensureShareUrlReady();
-        const title = getEffectiveLinkTitle();
-        const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title + ' ✨ (Chạm vào link để mở Bì Thiệp 3D nhé!)')}`;
-        window.open(tgShareUrl, '_blank', 'noopener,noreferrer');
+        copyHiddenUrlHyperlinkSync(title, url);
+        btn.textContent = '✅ Đã Copy! Hãy Dán vào Chat';
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = `✅ Đã copy "${title}" (ẩn URL)! Bạn chỉ cần Dán (Paste) vào cuộc trò chuyện Telegram ✨`;
+        }
+        setTimeout(() => { btn.textContent = orig; }, 2800);
     } catch (err) {
         alert('Vui lòng đợi tạo link xong rồi thử lại nhé!');
     }
 });
 
-// Nút 4: 💬 Gửi qua Zalo / Chia sẻ hệ thống kèm Tên Link
+// Nút 4: 💬 Gửi Zalo / Khác
 document.getElementById('share-zalo-btn')?.addEventListener('click', async () => {
+    const title = getEffectiveLinkTitle();
+    if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
+        const url = buildShareableCardUrl(cachedTelegramFileId);
+        copyHiddenUrlHyperlinkSync(title, url);
+    }
     try {
         const url = await ensureShareUrlReady();
-        const title = getEffectiveLinkTitle();
-        const fullMessage = `${title}\n👉 Mở Bì Thiệp 3D tại đây:\n${url}`;
-
         if (navigator.share) {
             try {
                 await navigator.share({
                     title: title,
-                    text: `${title} ✨ Mở Bì Thiệp 3D tại đây:`,
+                    text: title,
                     url: url
                 });
                 return;
@@ -6844,11 +7001,8 @@ document.getElementById('share-zalo-btn')?.addEventListener('click', async () =>
                 if (err && err.name === 'AbortError') return;
             }
         }
-
-        if (navigator.clipboard?.writeText) {
-            await navigator.clipboard.writeText(fullMessage);
-        }
-        alert('Đã sao chép Tên Link & Đường dẫn! Bạn chỉ cần dán (Paste) vào khung chat Zalo để gửi nhé 🌸');
+        copyHiddenUrlHyperlinkSync(title, url);
+        alert(`Đã sao chép "${title}" (đã gắn ẩn link)! Bạn chỉ cần Dán (Paste) vào khung chat để gửi nhé 🌸`);
     } catch (err) {
         alert('Vui lòng đợi tạo link xong rồi thử lại nhé!');
     }
@@ -6965,7 +7119,7 @@ window.restoreCreatorStep1UI = function (setOpenedState = true) {
     const dlLabel = document.getElementById('download-btn-label');
     if (creatorTopbar) creatorTopbar.style.display = 'grid';
     if (recipientTopbar) recipientTopbar.style.display = 'none';
-    if (creatorQuickBar) creatorQuickBar.style.display = 'flex';
+    if (creatorQuickBar) creatorQuickBar.style.display = 'grid';
     if (recipientQuickBar) recipientQuickBar.style.display = 'none';
     if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
 
@@ -7077,11 +7231,24 @@ async function checkAndInitRecipientLinkOnLoad() {
         const imgUrl = await resolveTelegramFileUrl(meta.f);
         recipientResolvedImgUrl = imgUrl;
         const u3dCardImg = document.getElementById('u3d-card-img');
-        if (u3dCardImg) u3dCardImg.src = imgUrl;
+        if (u3dCardImg) {
+            u3dCardImg.onload = () => {
+                fitCardShowcaseToWrap();
+                if (typeof window.u3dRefreshTargetRect === 'function') {
+                    window.u3dRefreshTargetRect();
+                }
+            };
+            u3dCardImg.src = imgUrl;
+        }
         const recLetterImg = document.getElementById('recipient-letter-img');
         if (recLetterImg) recLetterImg.src = imgUrl;
         if (finalResultImg) {
-            finalResultImg.onload = () => fitCardShowcaseToWrap();
+            finalResultImg.onload = () => {
+                fitCardShowcaseToWrap();
+                if (typeof window.u3dRefreshTargetRect === 'function') {
+                    window.u3dRefreshTargetRect();
+                }
+            };
             finalResultImg.src = imgUrl;
         }
         if (saveModalImg) saveModalImg.src = imgUrl;

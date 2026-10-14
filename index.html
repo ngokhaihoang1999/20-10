@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css?v=15.0">
+    <link rel="stylesheet" href="style.css?v=16.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
@@ -89,67 +89,68 @@
     <div id="share-link-modal" class="custom-modal" style="display: none;">
         <div class="custom-modal-box share-link-modal-box">
             <div class="custom-modal-header">
-                <span class="custom-modal-title">🔗 Tạo Link Thiệp 3D & Đặt Tên Link</span>
+                <span class="custom-modal-title">🔗 Tạo Link Thiệp 3D & Đặt Tên Thiệp</span>
                 <button type="button" id="close-share-link-modal" class="custom-modal-close" aria-label="Đóng">✕</button>
             </div>
             <div class="custom-modal-body share-modal-body">
-                <!-- 1. Đặt tên hiển thị của Link trên Telegram / Zalo & Nhãn Bì Thiệp 3D -->
+                <!-- 1. Đặt tên Thiệp (URL sẽ được gắn ẩn trực tiếp dưới Tên này khi sao chép) -->
                 <div class="input-group" style="margin-bottom: 8px;">
                     <label for="custom-link-title-input" class="input-label">
-                        <span>🏷️ Tên hiển thị Link (Telegram, Zalo & Bì Thiệp)</span>
+                        <span>🏷️ Tên Thiệp (URL sẽ ẩn dưới tên này)</span>
                         <span id="link-title-char-count" class="char-counter">0/70</span>
                     </label>
                     <div class="link-title-input-wrap">
                         <input type="text" id="custom-link-title-input" class="custom-input" maxlength="70"
-                            placeholder="VD: 💌 Thiệp 3D 20/10 gửi tặng Em Yêu 🌸">
+                            placeholder="VD: Thiệp 20.10 gửi tặng bạn">
                         <button type="button" id="clear-link-title-btn" class="clear-inline-btn" title="Xóa nhanh">✕</button>
                     </div>
                     <div class="link-title-suggestions" id="link-title-suggestions">
-                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="💌 Thiệp 3D 20/10 gửi tặng người thương 🌸">🌸 Tặng người thương</button>
-                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="🌷 Món quà 3D 20/10 dành riêng cho Mẹ yêu">🌷 Tặng Mẹ yêu</button>
-                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="💖 Chúc mừng 20/10 người phụ nữ tuyệt vời nhất!">💖 Tuyệt vời nhất</button>
-                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="✨ Mở phong bì nhận điều bất ngờ 20/10 nhé!">✨ Điều bất ngờ</button>
+                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="💌 Thiệp 20.10 gửi tặng bạn 🌸">🌸 Thiệp 20.10 gửi tặng bạn</button>
+                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="🌷 Thiệp 20.10 dành tặng Mẹ yêu">🌷 Dành tặng Mẹ yêu</button>
+                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="💖 Thiệp 20.10 gửi người thương">💖 Gửi người thương</button>
+                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="✨ Món quà 3D 20.10 đặc biệt tặng bạn">✨ Món quà 3D đặc biệt</button>
                     </div>
                 </div>
 
                 <!-- 2. Chọn nhanh Hiệu ứng 3D Motion khi người nhận bấm mở bì thiệp -->
                 <div class="input-group" style="margin-bottom: 8px;">
                     <div class="input-label">
-                        <span>🎬 Hiệu ứng 3D Motion khi mở bì thiệp</span>
+                        <span>🎬 Hiệu ứng khi mở bì thư</span>
                         <button type="button" id="modal-test-motion-btn" class="mini-preview-link-btn">👁️ Xem thử</button>
                     </div>
                     <div class="motion-mini-grid" id="modal-motion-chips">
-                        <button type="button" class="motion-chip active" data-motion="bloom">🌺 Hoa Trà 3D</button>
-                        <button type="button" class="motion-chip" data-motion="butterflies">🦋 Hồ Điệp 3D</button>
-                        <button type="button" class="motion-chip" data-motion="ribbon">🎀 Nơ Hoàng Gia</button>
-                        <button type="button" class="motion-chip" data-motion="galaxy">🌌 Ngân Hà 3D</button>
-                        <button type="button" class="motion-chip" data-motion="sakura">🌸 Lốc Anh Đào</button>
-                        <button type="button" class="motion-chip" data-motion="hearts">💎 Kim Cương Sao</button>
+                        <button type="button" class="motion-chip active" data-motion="bloom">🌺 Hoa Trà</button>
+                        <button type="button" class="motion-chip" data-motion="butterflies">🦋 Hồ Điệp</button>
+                        <button type="button" class="motion-chip" data-motion="ribbon">🎀 Nơ Lụa</button>
+                        <button type="button" class="motion-chip" data-motion="galaxy">🌌 Ngân Hà</button>
+                        <button type="button" class="motion-chip" data-motion="sakura">🌸 Anh Đào</button>
+                        <button type="button" class="motion-chip" data-motion="hearts">💎 Kim Cương</button>
                     </div>
                 </div>
 
-                <!-- 3. Khung Xem Trước Link trên Telegram / Zalo & Trạng Thái Lưu Ảnh Gốc -->
+                <!-- 3. Khung Xem Trước Tên Thiệp Đã Gắn Ẩn URL -->
                 <div class="share-preview-card" id="share-preview-card">
                     <div class="share-status-row" id="tg-upload-status-row">
                         <span class="status-dot" id="tg-status-dot"></span>
                         <span id="tg-upload-status-text">Đang chuẩn bị lưu ảnh chất lượng gốc (100%)...</span>
                     </div>
                     <div class="chat-preview-bubble">
-                        <div class="chat-preview-title" id="chat-preview-title">💌 Thiệp 3D 20/10 gửi tặng người thương 🌸</div>
-                        <div class="chat-preview-url" id="chat-preview-url">https://ngokhaihoang1999.github.io/20-10/?ten=...</div>
-                        <div class="chat-preview-sub">📦 Chạm mở Bì Thiệp 3D • Kèm hiệu ứng <b id="chat-preview-motion-name">Đại Hoa Trà 3D</b></div>
+                        <div class="chat-preview-label">Xem trước định dạng chữ gắn ẩn link:</div>
+                        <a href="#" id="chat-preview-title" class="chat-preview-hyperlink" target="_blank" rel="noopener">💌 Thiệp 20.10 gửi tặng bạn 🌸</a>
+                        <div class="chat-preview-url" id="chat-preview-url" style="display: none;"></div>
+                        <div class="chat-preview-sub">🔗 Đường dẫn URL đã được gắn ẩn dưới Tên thiệp • Hiệu ứng: <b id="chat-preview-motion-name">Đại Hoa Trà 3D</b></div>
                     </div>
                 </div>
 
-                <!-- 4. Các nút Copy & Chia sẻ tối ưu cho Telegram & Zalo -->
+                <!-- 4. Các nút Copy Chữ Ẩn Link & Chia sẻ -->
                 <div class="share-actions-stack">
                     <button type="button" id="copy-rich-link-btn" class="btn-primary btn-shimmer share-main-copy-btn">
-                        <span class="icon">📋</span> <span id="copy-rich-link-text">Sao chép Tên Link + Đường dẫn</span>
+                        <span class="icon">📋</span> <span id="copy-rich-link-text">Sao chép Tên Thiệp (Đã gắn ẩn URL)</span>
                     </button>
 
                     <div class="share-platform-row">
                         <button type="button" id="share-telegram-btn" class="share-platform-btn tg-btn">
-                            ✈️ Gửi qua Telegram
+                            ✈️ Copy & Mở Telegram
                         </button>
                         <button type="button" id="share-zalo-btn" class="share-platform-btn zalo-btn">
                             💬 Gửi Zalo / Chia sẻ
@@ -157,8 +158,8 @@
                     </div>
 
                     <div class="share-utility-row">
-                        <button type="button" id="copy-md-link-btn" class="share-util-btn" title="Copy cú pháp [Tên Link](URL) để dán vào Telegram chỉ hiện chữ màu xanh">
-                            🔗 Copy chữ ẩn link (Telegram)
+                        <button type="button" id="copy-md-link-btn" class="share-util-btn" title="Sao chép đường dẫn URL thuần">
+                            🔗 Copy URL thuần
                         </button>
                         <button type="button" id="test-recipient-view-btn" class="share-util-btn highlight-util">
                             ✉️ Mở thử Bì Thiệp 3D
@@ -729,7 +730,7 @@
                         💌 Lời chúc
                     </button>
                     <button type="button" class="deck-tab" data-tab="tab-style">
-                        🌸 Viền & Màu
+                        🌸 Viền·Màu
                     </button>
                     <button type="button" class="deck-tab" data-tab="tab-filter">
                         ✨ Màu ảnh
@@ -743,10 +744,10 @@
                 <div id="tab-concept" class="deck-pane active">
                     <div class="frame-page-switch">
                         <button type="button" class="frame-page-btn active" data-frame-page="1">
-                            ✨ Mẫu 01–10 (Tạp chí & Hiện đại)
+                            ✨ Mẫu 01–10 • Hiện đại
                         </button>
                         <button type="button" class="frame-page-btn" data-frame-page="2">
-                            🌸 Mẫu 11–20 (Hoa & Lãng mạn)
+                            🌸 Mẫu 11–20 • Lãng mạn
                         </button>
                     </div>
                     <div class="concept-grid" id="step3-concept-chips"></div>
@@ -761,14 +762,14 @@
                             🌸 Bất ngờ <span class="mode-sub">(Mở khi tạo)</span>
                         </button>
                         <button type="button" id="wish-mode-custom-btn" class="wish-mode-btn" data-wish-mode="custom">
-                            ✍️ Tự sửa <span class="mode-sub">(Tặng người khác)</span>
+                            ✍️ Tự soạn <span class="mode-sub">(Tặng riêng)</span>
                         </button>
                     </div>
 
                     <!-- Lưới 4x2 Chủ đề (Khi chọn 🌸 Bất ngờ): Hiển thị trọn 8 chủ đề, bấm chọn ngay không cần kéo ngang -->
                     <div id="wish-surprise-subrow">
                         <div class="topic-grid" id="topic-chips">
-                            <button type="button" class="topic-chip active" data-topic="all">🎲 Ngẫu nhiên</button>
+                            <button type="button" class="topic-chip active" data-topic="all">🎲 Tất cả</button>
                             <button type="button" class="topic-chip" data-topic="warm">💕 Ấm áp</button>
                             <button type="button" class="topic-chip" data-topic="beauty">🌷 Xinh đẹp</button>
                             <button type="button" class="topic-chip" data-topic="selflove">✨ Yêu mình</button>
@@ -779,13 +780,13 @@
                         </div>
                     </div>
 
-                    <!-- Hàng phụ B (Khi chọn ✍️ Tự sửa / Tặng người khác): Xem trước câu chúc trên thiệp & nhập lời chúc riêng -->
+                    <!-- Hàng phụ B (Khi chọn ✍️ Tự soạn / Tặng riêng): Xem trước câu chúc trên thiệp & nhập lời chúc riêng -->
                     <div class="deck-actions-grid" id="wish-custom-subrow" style="display: none;">
                         <button type="button" id="open-text-modal-btn" class="deck-action-btn primary-pill">
-                            ✍️ Nhập Tiêu đề & Lời chúc
+                            ✍️ Nhập Tiêu đề & Chúc
                         </button>
                         <button type="button" id="shuffle-quote-btn" class="deck-action-btn secondary-pill">
-                            🎲 Đổi câu chúc mẫu khác
+                            🎲 Đổi câu chúc mẫu
                         </button>
                     </div>
                 </div>
@@ -850,19 +851,19 @@
                 <!-- Tab 5: Chọn Hiệu Ứng 3D Motion Khi Mở Bì Thiệp (Lưới 3x2 + Xem thử ngay) -->
                 <div id="tab-motion" class="deck-pane">
                     <div class="style-grid" id="step2-motion-chips">
-                        <button type="button" class="motion-chip active" data-motion="bloom">🌺 Hoa Trà 3D</button>
-                        <button type="button" class="motion-chip" data-motion="butterflies">🦋 Hồ Điệp 3D</button>
-                        <button type="button" class="motion-chip" data-motion="ribbon">🎀 Nơ Hoàng Gia</button>
-                        <button type="button" class="motion-chip" data-motion="galaxy">🌌 Ngân Hà 3D</button>
-                        <button type="button" class="motion-chip" data-motion="sakura">🌸 Lốc Anh Đào</button>
-                        <button type="button" class="motion-chip" data-motion="hearts">💎 Kim Cương Sao</button>
+                        <button type="button" class="motion-chip active" data-motion="bloom">🌺 Hoa Trà</button>
+                        <button type="button" class="motion-chip" data-motion="butterflies">🦋 Hồ Điệp</button>
+                        <button type="button" class="motion-chip" data-motion="ribbon">🎀 Nơ Lụa</button>
+                        <button type="button" class="motion-chip" data-motion="galaxy">🌌 Ngân Hà</button>
+                        <button type="button" class="motion-chip" data-motion="sakura">🌸 Anh Đào</button>
+                        <button type="button" class="motion-chip" data-motion="hearts">💎 Kim Cương</button>
                     </div>
                     <div class="deck-actions-grid">
                         <button type="button" id="step2-preview-motion-btn" class="deck-action-btn primary-pill">
-                            👁️ Xem thử hiệu ứng mở 3D
+                            👁️ Xem thử mở 3D
                         </button>
                         <button type="button" id="step2-preset-link-btn" class="deck-action-btn secondary-pill">
-                            🏷️ Đặt tên Link gửi tặng
+                            🏷️ Đặt tên Thiệp/Link
                         </button>
                     </div>
                 </div>
@@ -883,7 +884,7 @@
             <!-- Thanh điều hướng cân xứng 3 cột trên cùng (Tự động đổi sang chế độ Người Nhận khi mở từ Link) -->
             <div class="result-topbar" id="creator-topbar">
                 <button type="button" id="back-step2-btn" class="topbar-btn topbar-btn-left">
-                    ‹ Sửa lại thiệp
+                    ‹ Sửa thiệp
                 </button>
                 <span class="result-title" id="step3-main-title">✨ Tuyệt Tác 20/10 🌸</span>
                 <button type="button" id="redo-btn" class="topbar-btn topbar-btn-right">
@@ -893,7 +894,7 @@
 
             <div class="result-topbar recipient-topbar" id="recipient-topbar" style="display: none;">
                 <button type="button" id="recipient-back-env-btn" class="topbar-btn topbar-btn-left">
-                    ✉️ Mở lại bì thư
+                    ✉️ Mở lại bì
                 </button>
                 <span class="result-title" id="recipient-showcase-title">💌 Thiệp 3D Tặng Bạn 🌸</span>
                 <button type="button" id="recipient-make-own-btn" class="topbar-btn topbar-btn-right">
@@ -923,7 +924,7 @@
                 <div id="showcase-ambient-orbs" class="showcase-ambient-orbs" aria-hidden="true"></div>
 
                 <div id="card-showcase" class="card-showcase">
-                    <canvas id="final-result-canvas" style="display: none;"></canvas>
+                    <canvas id="final-result-canvas" width="1024" height="2060" style="display: none;"></canvas>
                     <img id="final-result-img" alt="Thiệp 20/10 của bạn" draggable="false">
                     <div class="card-foil-glint" id="card-foil-glint" aria-hidden="true"></div>
                     <div class="card-glass-shine" aria-hidden="true"></div>
@@ -935,39 +936,39 @@
                 </div>
             </div>
 
-            <!-- Thanh công cụ nhanh dưới sân khấu thành phẩm (Chế độ Người Tạo) -->
-            <div class="showcase-quick-bar" id="creator-quick-bar">
+            <!-- Thanh công cụ nhanh dưới sân khấu thành phẩm (Chế độ Người Tạo - Lưới 4 cột chuẩn xác không tràn chữ) -->
+            <div class="showcase-quick-bar showcase-grid-4" id="creator-quick-bar">
                 <button type="button" id="step3-reroll-quote-btn" class="showcase-pill-btn">
-                    🎲 Đổi câu chúc
+                    🎲 Đổi chúc
                 </button>
                 <button type="button" id="step3-edit-quote-btn" class="showcase-pill-btn">
                     ✍️ Sửa chữ
                 </button>
                 <button type="button" id="step3-cycle-motion-btn" class="showcase-pill-btn">
-                    🎬 Motion: Hoa Trà
+                    🌺 Hoa Trà
                 </button>
                 <button type="button" id="step3-preview-envelope-btn" class="showcase-pill-btn">
                     ✉️ Mở thử bì
                 </button>
             </div>
 
-            <!-- Thanh công cụ nhanh dưới sân khấu (Chế độ Người Nhận mở từ Link) -->
-            <div class="showcase-quick-bar" id="recipient-quick-bar" style="display: none;">
+            <!-- Thanh công cụ nhanh dưới sân khấu (Chế độ Người Nhận mở từ Link - Lưới 3 cột chuẩn xác không tràn chữ) -->
+            <div class="showcase-quick-bar showcase-grid-3" id="recipient-quick-bar" style="display: none;">
                 <button type="button" id="recipient-replay-env-btn" class="showcase-pill-btn">
-                    ✉️ Mở lại bì thiệp 3D
+                    ✉️ Mở lại bì thư
                 </button>
                 <button type="button" id="recipient-replay-motion-btn" class="showcase-pill-btn">
-                    🎬 Phát lại hiệu ứng 3D
+                    🎬 Phát lại 3D
                 </button>
                 <button type="button" id="recipient-sparkle-btn" class="showcase-pill-btn">
-                    ✨ Bung pháo hoa
+                    ✨ Pháo hoa
                 </button>
             </div>
 
             <!-- Cụm nút Hành động chính: Tạo Link Thiệp 3D Gửi Tặng & Lưu Ảnh Gốc -->
             <div class="result-actions result-actions-dual" id="result-actions-wrap">
                 <button type="button" id="open-share-link-modal-btn" class="btn-primary btn-shimmer btn-create-3d-link">
-                    <span class="icon">🔗</span> Tạo Link Thiệp 3D Gửi Tặng <span class="save-sub-hint">(Mở bì thư 3D)</span>
+                    <span class="icon">🔗</span> Tạo Link Thiệp 3D Gửi Tặng
                 </button>
                 <button type="button" id="download-btn" class="btn-secondary btn-save-card">
                     <span class="icon">⬇️</span> <span id="download-btn-label">Lưu ảnh</span>
@@ -976,9 +977,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=15.0"></script>
-    <script src="script.js?v=15.0"></script>
-    <script src="intro.js?v=15.0"></script>
+    <script src="wishes.js?v=16.0"></script>
+    <script src="script.js?v=16.0"></script>
+    <script src="intro.js?v=16.0"></script>
 </body>
 
 </html>
