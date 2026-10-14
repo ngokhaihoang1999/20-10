@@ -37,12 +37,12 @@
     ];
 
     const SAMPLE_WISHES = [
-        'Chúc các chị em luôn rạng rỡ như nắng thu, hạnh phúc đong đầy và tỏa sáng theo cách riêng tuyệt vời nhất!',
-        'Nhân ngày 20/10, chúc một nửa thế giới luôn xinh đẹp, bình an, được yêu thương và nâng niu mỗi ngày.',
-        'Cảm ơn những đóa hoa BTLMVN đã luôn dịu dàng, bản lĩnh và truyền cảm hứng tích cực đến mọi người xung quanh!',
-        'Chúc bạn mỗi ngày đều nở nụ cười thật tươi, tâm hồn thanh thản như gió mùa thu và ngập tràn niềm vui mới.',
-        'Chúc chị em 20/10 vẹn tròn niềm vui, công việc hanh thông, nhan sắc thăng hạng và luôn ngập tràn yêu thương!',
-        'Mong bạn luôn giữ trọn nét duyên dáng, tự tin tỏa sáng và gặt hái thật nhiều điều ngọt ngào trong cuộc sống.'
+        'Gửi chút nắng ấm tháng Mười, chúc chị em môi luôn tươi sắc thắm, lòng luôn đằm thắm bình yên và mọi ước nguyện dịu hiền đều sớm nở hoa!',
+        'Mừng ngày 20/10! Chúc một nửa thế giới mắt luôn trong, lòng luôn sáng, tháng năm nhẹ nhàng và đi tới đâu cũng ngập tràn thương mến.',
+        'Cảm ơn những đóa hoa BTLMVN vừa dịu dàng như nắng mai, vừa bản lĩnh trên dặm dài, luôn mang lại niềm vui và cảm hứng tuyệt vời!',
+        'Thương chúc bạn mỗi sớm mai thức dậy lòng nhẹ tựa mây bay, niềm vui đong đầy, công việc thuận tay và nụ cười tươi tắn suốt cả ngày!',
+        'Chúc chị em ngày 20/10 tay ôm đầy hoa, lòng ngập tràn nắng, nhan sắc thăng hoa, việc nhà việc sở đều thuận hòa viên mãn!',
+        'Mong bạn giữ mãi nét duyên đằm thắm, bước chân kiêu hãnh trên con đường mình chọn và đón nhận muôn vàn ngọt ngào trong cuộc sống.'
     ];
 
     function resetStep1CtaToInitial() {

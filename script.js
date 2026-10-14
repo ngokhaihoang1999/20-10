@@ -2262,7 +2262,7 @@ function syncColorSwatchesUI(themeKey, shouldScroll = false) {
     });
 }
 
-// Vẽ nội dung Phong Ấn Bất Ngờ (khi người dùng chọn chế độ "🌸 Bất ngờ - Mở khi tạo thiệp") - Chữ to rõ, nổi bật trên điện thoại
+// Vẽ nội dung Phong Ấn Bất Ngờ (khi người dùng chọn chế độ "🌸 Câu chúc ngẫu nhiên" hoặc "✨ Lời chúc dành cho bạn") - Chữ to rõ, nổi bật trên điện thoại
 function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     const centerX = boxX + boxW / 2;
 
@@ -2270,8 +2270,10 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // 1. Dòng tiêu đề trên cùng lớn rõ (Hiển thị Tên người nhận nếu đã nhập, hoặc dòng chữ Câu Chúc Ngẫu Nhiên)
-    const topTitle = (recipientName || '').trim() || '🌸 Câu Chúc Ngẫu Nhiên 🌸';
+    // 1. Dòng tiêu đề trên cùng lớn rõ
+    const topTitle = window.isSelfOracleMode
+        ? '✨ Dành Cho Bạn ✨'
+        : ((recipientName || '').trim() || '🌸 Câu Chúc Ngẫu Nhiên 🌸');
     const titleFontPx = Math.floor(62 * scale);
     ctx.font = recipientFont(titleFontPx);
     ctx.fillStyle = theme.recipientColor;
@@ -2313,12 +2315,14 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
 
     ctx.fillText(surpriseLine, centerX, boxY + boxH * 0.60, boxW * 0.90);
 
-    // 4. Dòng ghi chú phía dưới báo Chủ đề & hướng dẫn chạm để tự viết (cỡ chữ rõ ràng dễ đọc)
-    const topicLabel = TOPIC_LABELS_MAP[currentTopic] || 'Ngẫu nhiên';
-    ctx.font = `700 ${Math.floor(29 * scale)}px "Montserrat", sans-serif`;
+    // 4. Dòng ghi chú phía dưới
+    const bottomHint = window.isSelfOracleMode
+        ? '✦ Căn góc ảnh ưng ý rồi bấm Nhận lời chúc ✦'
+        : `✦ Chủ đề: ${TOPIC_LABELS_MAP[currentTopic] || 'Ngẫu nhiên'}  •  Chạm để tự viết ✦`;
+    ctx.font = `700 ${Math.floor(28 * scale)}px "Montserrat", sans-serif`;
     ctx.fillStyle = theme.borderPrimary;
     ctx.globalAlpha = 0.92;
-    ctx.fillText(`✦ Chủ đề: ${topicLabel}  •  Chạm để tự viết ✦`, centerX, boxY + boxH * 0.85, boxW * 0.90);
+    ctx.fillText(bottomHint, centerX, boxY + boxH * 0.85, boxW * 0.90);
 
     ctx.restore();
 }
@@ -2628,14 +2632,103 @@ function buildSkyOracleUserThumbCanvas(rawImg) {
 
 window.isSelfOracleMode = false;
 window.skyOracleUserThumbCanvas = null;
+let cachedSelfOracleCommonOverlayUrl = '';
 
-// Luồng "Lời chúc dành cho bạn": Chỉ chụp/chọn ảnh -> Ngẫu nhiên 100% Khung + Viền + Màu + Filter + Lời chúc + Hiệu ứng mở 3D -> Motion chờ đợi thông điệp từ trên trời -> Hiện bì thư để tự tay mở -> Vẫn có Link xem lại!
-function startSelfWishSkyOracleFlow(file) {
-    window.isSelfOracleMode = true;
-    window.isRecipientCardImageReady = false;
-    window.skyOracleUserThumbCanvas = null;
+// Tạo Khuôn Chung Của Thiệp (Universal Common Card Frame Overlay 1024 x 1526) cho chế độ "Lời chúc dành cho bạn":
+// Hiển thị đúng vùng cửa sổ ảnh chuẩn của cả 20 mẫu khung (winX = 68, winY = 58, winW = 888, winH = 1410) kèm viền chỉ vàng 24K & đường căn vòm thanh lịch mà không tiết lộ trước khung ngẫu nhiên nào sẽ được chọn!
+function buildSelfOracleCommonFrameOverlayDataUrl() {
+    if (cachedSelfOracleCommonOverlayUrl) return cachedSelfOracleCommonOverlayUrl;
+    const W = 1024;
+    const H = 1526;
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    const ctx = c.getContext('2d');
 
-    // 1. Chọn ngẫu nhiên 100% mọi yếu tố nghệ thuật của tấm thiệp
+    const winX = 68;
+    const winY = 58;
+    const winW = W - winX * 2; // 888
+    const winH = H - winY * 2; // 1410
+    const r = 46;
+
+    // 1. Nền lụa ngọc trai sang trọng bao ngoài cửa sổ ảnh chung
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    drawRoundedRectPath(ctx, winX, winY, winW, winH, r);
+    ctx.fillStyle = '#f8f5ef';
+    ctx.fill('evenodd');
+
+    const matteGrad = ctx.createLinearGradient(0, 0, W, H);
+    matteGrad.addColorStop(0, 'rgba(232, 246, 239, 0.92)');
+    matteGrad.addColorStop(0.5, 'rgba(255, 250, 243, 0.95)');
+    matteGrad.addColorStop(1, 'rgba(235, 245, 240, 0.92)');
+    ctx.fillStyle = matteGrad;
+    ctx.fill('evenodd');
+    ctx.restore();
+
+    // 2. Bóng đổ chiều sâu mềm mại vào mép trong cửa sổ ảnh
+    ctx.save();
+    drawRoundedRectPath(ctx, winX, winY, winW, winH, r);
+    ctx.clip();
+    ctx.strokeStyle = 'rgba(10, 56, 40, 0.22)';
+    ctx.lineWidth = 14;
+    drawRoundedRectPath(ctx, winX - 3, winY - 3, winW + 6, winH + 6, r + 3);
+    ctx.stroke();
+
+    // Đường vòm gợi ý mảnh ánh kim bên trong cửa sổ giúp người dùng căn gương mặt ở vị trí đẹp nhất cho cả khung chữ nhật lẫn khung vòm/oval
+    ctx.save();
+    ctx.setLineDash([10, 10]);
+    ctx.strokeStyle = 'rgba(246, 211, 101, 0.48)';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    const archR = winW * 0.46;
+    ctx.arc(W / 2, winY + archR + 28, archR, Math.PI, 0, false);
+    ctx.stroke();
+    ctx.restore();
+    ctx.restore();
+
+    // 3. Viền Kép Vàng Kim 24K & Ngọc Bích quanh cửa sổ khuôn chung
+    const goldGrad = ctx.createLinearGradient(winX, winY, winX + winW, winY + winH);
+    goldGrad.addColorStop(0, '#d4af37');
+    goldGrad.addColorStop(0.28, '#fff3b8');
+    goldGrad.addColorStop(0.55, '#c59227');
+    goldGrad.addColorStop(0.82, '#fff1b0');
+    goldGrad.addColorStop(1, '#b8861b');
+
+    ctx.save();
+    ctx.strokeStyle = goldGrad;
+    ctx.lineWidth = 6.5;
+    drawRoundedRectPath(ctx, winX, winY, winW, winH, r);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(15, 123, 95, 0.35)';
+    ctx.lineWidth = 2;
+    drawRoundedRectPath(ctx, winX - 11, winY - 11, winW + 22, winH + 22, r + 8);
+    ctx.stroke();
+
+    // 4. Hoa văn sao 4 cánh ánh vàng ở 4 góc & đỉnh khuôn chung
+    ctx.fillStyle = '#d4af37';
+    drawFourPointStarPath(ctx, W / 2, winY, 15);
+    ctx.fill();
+    drawFourPointStarPath(ctx, W / 2, winY + winH, 13);
+    ctx.fill();
+    drawFourPointStarPath(ctx, winX + 18, winY + 18, 11);
+    ctx.fill();
+    drawFourPointStarPath(ctx, winX + winW - 18, winY + 18, 11);
+    ctx.fill();
+    drawFourPointStarPath(ctx, winX + 18, winY + winH - 18, 11);
+    ctx.fill();
+    drawFourPointStarPath(ctx, winX + winW - 18, winY + winH - 18, 11);
+    ctx.fill();
+    ctx.restore();
+
+    cachedSelfOracleCommonOverlayUrl = c.toDataURL('image/png');
+    return cachedSelfOracleCommonOverlayUrl;
+}
+
+// Hàm bốc thăm ngẫu nhiên 100% Khung + Viền + Tông màu + Filter + Lời chúc + Hiệu ứng mở 3D cho luồng "Lời chúc dành cho bạn" (chạy ngay sau khi người dùng đã căn ảnh ưng ý!)
+function applyRandomSelfOracleArtSelections() {
     currentSelectedFrameId = Math.floor(Math.random() * framesConfig.length);
     const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
 
@@ -2678,46 +2771,7 @@ function startSelfWishSkyOracleFlow(file) {
     syncBorderChipsUI(currentBorderStyle, false);
     syncColorSwatchesUI(currentColorTheme, false);
     refreshConceptFramesForTheme();
-
-    // 2. Khởi chạy ngay lập tức Sân Khấu Motion "Chờ Đợi Thông Điệp Từ Trên Trời" (Thuần Motion 100%, không dùng chữ, sau đó bì thư từ bầu trời hạ xuống chờ mở)
-    if (typeof window.launchUnified3DEnvelopeDirector === 'function') {
-        window.launchUnified3DEnvelopeDirector({
-            autoOpen: false,
-            skyOracleMode: true,
-            motionId: randomMotion,
-            themeKey: currentColorTheme,
-            isRealRecipient: false,
-            isStep2Preview: false,
-            onComplete: () => {
-                triggerCelebrationBurst();
-            }
-        });
-    }
-
-    // 3. Giải mã ảnh người dùng, tự động cắt khung chân dung, kết xuất thiệp 1024x2060 và tải ngầm lên Telegram để tạo sẵn Link xem lại
-    if (originalImgSrc && originalImgSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(originalImgSrc);
-    }
-    originalImgSrc = URL.createObjectURL(file);
-
-    const rawImg = new Image();
-    rawImg.onload = function () {
-        window.skyOracleUserThumbCanvas = buildSkyOracleUserThumbCanvas(rawImg);
-        const croppedCanvas = createAutoCroppedPortraitCanvas(rawImg, 1024, 1526);
-        const croppedImg = new Image();
-        croppedImg.onload = function () {
-            currentUserImage = croppedImg;
-            ensureQuoteFont().then(() => {
-                drawCanvasImageText(finalResultCanvas, true, false);
-                window.isRecipientCardImageReady = true;
-                if (typeof window.schedulePreUploadCardToTelegram === 'function') {
-                    window.schedulePreUploadCardToTelegram();
-                }
-            });
-        };
-        croppedImg.src = croppedCanvas.toDataURL('image/jpeg', 0.95);
-    };
-    rawImg.src = originalImgSrc;
+    return randomMotion;
 }
 
 async function handleImageInput(e) {
@@ -2727,28 +2781,37 @@ async function handleImageInput(e) {
     currentScaleX = 1;
     hasGeneratedQuoteOnce = false;
 
-    // Nhánh 1: Nếu người dùng chọn "Lời chúc dành cho bạn" -> Không qua Bước 2, vào thẳng Motion Chờ Đợi Thông Điệp Từ Trên Trời!
-    if (window.selectedCreationFlow === 'self') {
-        startSelfWishSkyOracleFlow(file);
-        return;
-    }
+    // Cả 2 nhánh ("Lời chúc dành cho bạn" và "Soạn lời chúc cho người thân") đều vào Bước 2 để người dùng tự tay căn góc ảnh theo khuôn chung của thiệp!
+    window.isSelfOracleMode = (window.selectedCreationFlow === 'self');
+    document.body.classList.toggle('self-oracle-mode', window.isSelfOracleMode);
 
-    // Nhánh 2: "Soạn lời chúc cho người thân" -> Vào Xưởng Thiết Kế Bước 2 như luồng hiện tại
-    window.isSelfOracleMode = false;
+    const headerTitleEl = document.querySelector('#step-2 .step2-header-title');
+    const createBtnMainEl = document.querySelector('#generate-final-btn .create-btn-main');
+
+    if (window.isSelfOracleMode) {
+        if (headerTitleEl) headerTitleEl.textContent = '✨ Căn Chỉnh Ảnh 🌸';
+        if (createBtnMainEl) createBtnMainEl.textContent = '✨ Nhận lời chúc 20.10 🌸';
+        currentWishMode = 'surprise';
+        currentSelectedFilter = 'none';
+        currentBorderStyle = 'sakura';
+        currentColorTheme = 'emerald';
+    } else {
+        if (headerTitleEl) headerTitleEl.textContent = '✨ Thiết Kế Thiệp 🌸';
+        if (createBtnMainEl) createBtnMainEl.textContent = 'Tạo thiệp';
+        // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
+        const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
+        if (cfg && CONCEPT_HARMONY_MAP[cfg.concept]) {
+            const harmony = CONCEPT_HARMONY_MAP[cfg.concept];
+            currentBorderStyle = harmony.border;
+            currentColorTheme = harmony.theme;
+            syncBorderChipsUI(currentBorderStyle, false);
+            syncColorSwatchesUI(currentColorTheme, false);
+        }
+    }
 
     // Giữ Bước 1 hiển thị ổn định trong ~35ms lúc Bước 2 dựng ngầm Cropper + Canvas phía dưới (không bao giờ chớp màn hình)
     step2.classList.remove('step2-morph-from', 'step2-morph-to', 'step2-morph-active', 'step2-ui-hidden', 'step2-ui-revealing');
     step2.classList.add('active', 'step2-preloading');
-
-    // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
-    const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
-    if (cfg && CONCEPT_HARMONY_MAP[cfg.concept]) {
-        const harmony = CONCEPT_HARMONY_MAP[cfg.concept];
-        currentBorderStyle = harmony.border;
-        currentColorTheme = harmony.theme;
-        syncBorderChipsUI(currentBorderStyle, false);
-        syncColorSwatchesUI(currentColorTheme, false);
-    }
 
     if (originalImgSrc && originalImgSrc.startsWith('blob:')) {
         URL.revokeObjectURL(originalImgSrc);
@@ -2812,8 +2875,13 @@ function initCropper() {
 
 // Cập nhật trực tiếp lớp ảnh khung nằm phủ trên #preview-area-wrap (không bị Cropper cắt lẹm)
 function updateFrameOverlay() {
+    if (!frameOverlayEl) return;
+    if (window.isSelfOracleMode) {
+        frameOverlayEl.src = buildSelfOracleCommonFrameOverlayDataUrl();
+        return;
+    }
     const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
-    if (frameOverlayEl && cfg) {
+    if (cfg) {
         frameOverlayEl.src = getFullConceptOverlayDataUrl(cfg.concept);
     }
 }
@@ -2822,6 +2890,7 @@ document.getElementById('upload-btn').addEventListener('change', handleImageInpu
 document.getElementById('selfie-btn').addEventListener('change', handleImageInput);
 
 document.getElementById('cancel-btn').addEventListener('click', () => {
+    document.body.classList.remove('self-oracle-mode');
     step2.classList.remove('active', 'step2-preloading', 'step2-morph-from', 'step2-morph-to');
     step1.classList.add('active');
     document.getElementById('upload-btn').value = '';
@@ -3014,7 +3083,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = "🌸 Đang tạo thiệp...";
+    btn.innerHTML = window.isSelfOracleMode ? "✨ Đang gửi thông điệp..." : "🌸 Đang tạo thiệp...";
     btn.disabled = true;
 
     setTimeout(() => {
@@ -3022,6 +3091,49 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
         const targetH = 1526;
 
         const canvas = cropperObj.getCroppedCanvas({ width: targetW, height: targetH });
+
+        // Nhánh 1: Luồng "Lời chúc dành cho bạn" -> Sau khi người dùng đã căn ảnh ưng ý theo khuôn chung, bốc thăm ngẫu nhiên 100% và chạy Motion Chờ Đợi Thông Điệp Từ Trên Trời!
+        if (window.isSelfOracleMode) {
+            window.isRecipientCardImageReady = false;
+            window.skyOracleUserThumbCanvas = buildSkyOracleUserThumbCanvas(canvas);
+            const randomMotion = applyRandomSelfOracleArtSelections();
+
+            document.body.classList.remove('step2-previewing-3d');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+
+            if (typeof window.launchUnified3DEnvelopeDirector === 'function') {
+                window.launchUnified3DEnvelopeDirector({
+                    autoOpen: false,
+                    skyOracleMode: true,
+                    motionId: randomMotion,
+                    themeKey: currentColorTheme,
+                    isRealRecipient: false,
+                    isStep2Preview: false,
+                    onComplete: () => {
+                        triggerCelebrationBurst();
+                        showCardFloatingBadge('🌸 Lời chúc 20.10 dành riêng cho bạn đã mở!');
+                    }
+                });
+            }
+
+            const img = new Image();
+            img.onload = function () {
+                currentUserImage = img;
+                ensureQuoteFont().then(() => {
+                    drawCanvasImageText(finalResultCanvas, true, false);
+                    window.isRecipientCardImageReady = true;
+                    fitCardShowcaseToWrap();
+                    if (typeof window.schedulePreUploadCardToTelegram === 'function') {
+                        window.schedulePreUploadCardToTelegram();
+                    }
+                });
+            };
+            img.src = canvas.toDataURL('image/jpeg', 0.95);
+            return;
+        }
+
+        // Nhánh 2: Luồng "Soạn lời chúc cho người thân" -> Tạo thiệp và đưa phong bì 3D ra chờ người dùng bấm vào con dấu sáp để mở!
         const img = new Image();
         img.onload = function () {
             currentUserImage = img;
@@ -3049,11 +3161,10 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
                 fitCardShowcaseToWrap();
 
-                // Khởi chạy Sân Khấu Vật Lý 3D Hợp Nhất: Phong bì 3D mở nắp -> Phun trào vật lý từ túi -> Rút thiệp bay 3D đáp vào #card-showcase
+                // Khởi chạy Sân Khấu Vật Lý 3D Hợp Nhất: Phong bì 3D lướt vào đóng dấu sáp -> Đợi người dùng ấn vào con dấu sáp mới mở bì thư!
                 if (typeof window.launchUnified3DEnvelopeDirector === 'function') {
                     window.launchUnified3DEnvelopeDirector({
-                        autoOpen: true,
-                        autoOpenDelay: 340,
+                        autoOpen: false,
                         isRealRecipient: false,
                         isStep2Preview: false,
                         onComplete: () => {
@@ -3091,9 +3202,9 @@ function triggerCardPulse() {
     activeTarget.classList.add('pulse-playing');
 }
 
-// Mở Modal sửa Tiêu đề & Lời chúc kèm hiệu ứng hạt lấp lánh (KHÔNG BAO GIỜ mở khi Người Nhận đang xem thiệp!)
+// Mở Modal sửa Tiêu đề & Lời chúc kèm hiệu ứng hạt lấp lánh (KHÔNG BAO GIỜ mở khi Người Nhận hoặc Chế Độ Lời Chúc Dành Cho Bạn đang xem!)
 function openTextEditModalWithSparkle(clientX, clientY) {
-    if (window.isRecipientCardLinkMode) {
+    if (window.isRecipientCardLinkMode || window.isSelfOracleMode) {
         if (typeof clientX === 'number' && typeof clientY === 'number' && clientX > 0 && clientY > 0) {
             spawnTouchSparkle(clientX, clientY, 9);
         }
@@ -4945,8 +5056,21 @@ let u3dPointerCurRotY = 0;
         u3dPointerTargetRotY = 0;
     });
 
-    const triggerFromUserTap = (e) => {
-        if (e) e.stopPropagation();
+    // CHỈ KHI ẤN ĐÚNG VÀO CON DẤU SÁP (#u3d-seal-btn) THÌ MỚI MỞ BÌ THƯ!
+    const triggerFromSealTap = (e) => {
+        if (e) {
+            e.stopPropagation();
+            if (sealBtn && typeof e.clientX === 'number' && typeof e.clientY === 'number' && (e.clientX !== 0 || e.clientY !== 0)) {
+                const rect = sealBtn.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    const cx = rect.left + rect.width * 0.5;
+                    const cy = rect.top + rect.height * 0.5;
+                    const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+                    const maxRadius = Math.max(rect.width, rect.height) * 0.58;
+                    if (dist > maxRadius) return;
+                }
+            }
+        }
         // Kích hoạt quyền cảm biến Con Quay Hồi Chuyển (iOS 13+ yêu cầu gọi trong sự kiện chạm của người dùng)
         if (typeof window.requestCardGyroscopePermission === 'function') {
             window.requestCardGyroscopePermission();
@@ -4959,9 +5083,23 @@ let u3dPointerCurRotY = 0;
         }
     };
 
-    sealBtn?.addEventListener('click', triggerFromUserTap);
-    frontRig?.addEventListener('click', triggerFromUserTap);
-    stage.addEventListener('click', triggerFromUserTap);
+    sealBtn?.addEventListener('click', triggerFromSealTap);
+
+    // Nếu người dùng bấm ra ngoài con dấu sáp (vào thân bì thư hoặc nền sân khấu) -> Tuyệt đối KHÔNG mở bì thư, mà làm con dấu sáp nảy sáng lấp lánh nhắc người dùng ấn vào sáp!
+    stage.addEventListener('click', (e) => {
+        if (u3dCurrentDirectorState !== 'waiting') return;
+        if (sealBtn && (e.target === sealBtn || sealBtn.contains(e.target))) return;
+        const emblem = document.getElementById('u3d-seal-emblem');
+        if (emblem) {
+            emblem.classList.remove('seal-attention');
+            void emblem.offsetWidth;
+            emblem.classList.add('seal-attention');
+        }
+        if (sealBtn && typeof spawnTouchSparkle === 'function') {
+            const rect = sealBtn.getBoundingClientRect();
+            spawnTouchSparkle(rect.left + rect.width * 0.5, rect.top + rect.height * 0.5, 8);
+        }
+    });
 })();
 
 // Hàm vẽ các thực thể Vật Lý 3D trên 2 lớp Canvas (Sau thiệp & Trước thiệp)
@@ -5891,7 +6029,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         u3dCurrentDirectorState = 'waiting';
         backRig.style.opacity = '1';
         frontRig.style.opacity = '1';
-        frontRig.style.pointerEvents = 'auto';
+        frontRig.style.pointerEvents = 'none';
         if (sealBtn) {
             sealBtn.style.opacity = '1';
             sealBtn.style.pointerEvents = 'auto';
@@ -6871,7 +7009,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             if (arriveElapsed >= SKY_DESCEND_TOTAL) {
                 u3dCurrentDirectorState = 'waiting';
                 stage.classList.remove('is-arriving');
-                frontRig.style.pointerEvents = 'auto';
+                frontRig.style.pointerEvents = 'none';
                 if (sealBtn) {
                     sealBtn.style.opacity = '1';
                     sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
@@ -7036,16 +7174,11 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             if (arriveElapsed >= ARRIVE_TOTAL) {
                 u3dCurrentDirectorState = 'waiting';
                 stage.classList.remove('is-arriving');
-                frontRig.style.pointerEvents = 'auto';
+                frontRig.style.pointerEvents = 'none';
                 if (sealBtn) {
                     sealBtn.style.opacity = '1';
                     sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
                     sealBtn.style.pointerEvents = 'auto';
-                }
-                if (autoOpen) {
-                    u3dAutoOpenTimerId = setTimeout(() => {
-                        startEnvelopePhysicsOpen();
-                    }, 180);
                 }
             }
 
@@ -7652,11 +7785,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
 };
 
-// Tương thích ngược với các lệnh gọi cũ: Tất cả đều quy về Sân Khấu Phong Bì Vật Lý 3D Hợp Nhất!
+// Tương thích ngược với các lệnh gọi cũ: Tất cả đều quy về Sân Khấu Phong Bì Vật Lý 3D Hợp Nhất (Bắt buộc ấn vào dấu sáp mới mở)!
 window.play3DMotionTransition = function (motionId = 'bloom') {
     window.launchUnified3DEnvelopeDirector({
-        autoOpen: true,
-        autoOpenDelay: 220,
+        autoOpen: false,
         motionId: motionId || window.currentMotionEffect || 'bloom',
         themeKey: currentColorTheme || 'emerald',
         isRealRecipient: window.isRecipientCardLinkMode
@@ -8522,8 +8654,8 @@ window.finishStep2MotionPreview = function () {
     });
 };
 
-// Helper kết xuất nhanh thiệp hiện tại ở Bước 2 để XEM THỬ hiệu ứng mở 3D (KHÔNG lưu Telegram, xem xong trả về màn hình Edit Bước 2)
-function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = true) {
+// Helper kết xuất nhanh thiệp hiện tại ở Bước 2 để XEM THỬ hiệu ứng mở 3D (KHÔNG lưu Telegram, ấn vào sáp để mở, xem xong trả về màn hình Edit Bước 2)
+function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = false) {
     if (shareLinkModal) shareLinkModal.style.display = 'none';
     const isFromStep2 = (step2 && step2.classList.contains('active')) || document.body.classList.contains('step2-previewing-3d');
 
@@ -8545,8 +8677,7 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = true) {
                     step3.classList.add('active');
                     fitCardShowcaseToWrap();
                     window.launchUnified3DEnvelopeDirector({
-                        autoOpen: true,
-                        autoOpenDelay: 240,
+                        autoOpen: false,
                         motionId: window.currentMotionEffect,
                         themeKey: currentColorTheme,
                         isRealRecipient: false,
@@ -8561,8 +8692,7 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = true) {
 
     // Trường hợp đang ở Bước 3 (sau khi đã bấm Tạo thiệp) và bấm "✉️ Mở thử bì"
     window.launchUnified3DEnvelopeDirector({
-        autoOpen,
-        autoOpenDelay: 260,
+        autoOpen: false,
         motionId: window.currentMotionEffect,
         themeKey: currentColorTheme,
         isRealRecipient: window.isRecipientCardLinkMode,
@@ -8585,16 +8715,16 @@ document.querySelectorAll('.motion-chip').forEach(chip => {
     });
 });
 
-// Nút "👁️ Xem thử hiệu ứng mở 3D" ở Bước 2 & trong Modal -> Mở trực tiếp Phong Bì Vật Lý 3D rồi trả về màn hình Edit Bước 2!
+// Nút "👁️ Xem thử hiệu ứng mở 3D" ở Bước 2 & trong Modal -> Hiện Phong Bì Vật Lý 3D để người dùng ấn vào dấu sáp mở thử rồi trả về màn hình Edit Bước 2!
 document.getElementById('step2-preview-motion-btn')?.addEventListener('click', () => {
-    renderCurrentStep2CardAndPreviewEnvelope(true);
+    renderCurrentStep2CardAndPreviewEnvelope(false);
 });
 
 document.getElementById('modal-test-motion-btn')?.addEventListener('click', () => {
-    renderCurrentStep2CardAndPreviewEnvelope(true);
+    renderCurrentStep2CardAndPreviewEnvelope(false);
 });
 
-// Nút "🌺 Hoa Trà" ở Bước 3 -> Đổi sang hiệu ứng tiếp theo & chạy ngay cảnh Mở Phong Bì Vật Lý 3D (chỉ cập nhật caption nếu đã tạo thiệp, không gửi lặp ảnh)!
+// Nút "🌺 Hoa Trà" ở Bước 3 -> Đổi sang hiệu ứng tiếp theo & hiện Phong Bì Vật Lý 3D để ấn vào dấu sáp mở thử!
 document.getElementById('step3-cycle-motion-btn')?.addEventListener('click', () => {
     const idx = MOTION_KEYS_ORDER.indexOf(window.currentMotionEffect);
     const nextKey = MOTION_KEYS_ORDER[(idx + 1) % MOTION_KEYS_ORDER.length];
@@ -8603,8 +8733,7 @@ document.getElementById('step3-cycle-motion-btn')?.addEventListener('click', () 
         window.syncTelegramMessageCaptionIfUploaded();
     }
     window.launchUnified3DEnvelopeDirector({
-        autoOpen: true,
-        autoOpenDelay: 220,
+        autoOpen: false,
         motionId: nextKey,
         themeKey: currentColorTheme,
         isRealRecipient: window.isRecipientCardLinkMode,
