@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css?v=12.0">
+    <link rel="stylesheet" href="style.css?v=13.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
@@ -172,35 +172,162 @@
     <canvas id="bg-canvas"></canvas>
     <canvas id="fx-canvas"></canvas>
 
-    <!-- Sân Khấu Chuyển Cảnh 3D Motion Đa Hiệu Ứng (Hoa Trà, Hồ Điệp 3D, Nơ Lụa, Ngân Hà, Lốc Anh Đào, Tim Pha Lê) -->
-    <div id="transition-overlay" data-motion-mode="bloom" aria-hidden="true">
-        <div class="bloom-aura-veil" id="motion-aura-veil"></div>
+    <!-- SÂN KHẤU VẬT LÝ 3D HỢP NHẤT: PHONG BÌ 3D + HIỆU ỨNG PHUN TRÀO TỪ TÚI THƯ + RÚT THIỆP BAY 3D LIỀN MẠCH -->
+    <div id="u3d-envelope-stage" class="u3d-envelope-stage" data-motion="bloom" data-theme="emerald" aria-hidden="true" style="display: none;">
+        <!-- Lớp nền không gian nhung lụa & ánh đèn sân khấu 3D -->
+        <div id="u3d-backdrop" class="u3d-backdrop"></div>
 
-        <!-- Lớp hạt xoáy 3D (Cánh hoa, Bướm 3D, Sao băng, Tim pha lê, Ngọc trai) -->
-        <div id="bloom-vortex-layer" class="bloom-vortex-layer"></div>
+        <!-- Bảng tiêu đề / tên link lơ lửng phía trên Phong Bì 3D -->
+        <div id="u3d-header-banner" class="u3d-header-banner">
+            <div id="u3d-motion-pill" class="u3d-motion-pill">✨ HIỆU ỨNG MỞ THƯ VẬT LÝ 3D ✨</div>
+            <h2 id="u3d-banner-title" class="u3d-banner-title">💌 Gửi tặng người thương 🌸</h2>
+            <p id="u3d-banner-subtitle" class="u3d-banner-subtitle">Chạm vào phong ấn 3D để mở thư</p>
+        </div>
 
-        <!-- Sân khấu 3D tùy biến cho các hiệu ứng Hồ Điệp, Nơ Hoàng Gia, Ngân Hà, Tim Pha Lê -->
-        <div id="motion-custom-stage" class="motion-custom-stage"></div>
+        <!-- Lớp 1 (z: 5): Nửa sau của Phong Bì 3D (Bóng đổ sàn, Hào quang, Lưng lót lụa, Ánh sáng nội tâm & Nắp thư khi đã mở >90°) -->
+        <div id="u3d-env-back-rig" class="u3d-env-rig u3d-env-back-rig">
+            <div class="u3d-env-floor-shadow" id="u3d-env-floor-shadow"></div>
+            <div class="u3d-env-aura" id="u3d-env-aura"></div>
 
-        <!-- Sân khấu Đại Hoa Trà đặt chính giữa màn hình (92vmin), từng tầng cánh vừa xoay vừa xòe rộng -->
-        <div class="couture-bloom-stage" id="couture-bloom-stage">
-            <svg class="bloom-astrolabe" viewBox="0 0 400 400" aria-hidden="true">
-                <defs>
-                    <linearGradient id="bloomGoldStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stop-color="#fff6c4" />
-                        <stop offset="35%" stop-color="#e5b242" />
-                        <stop offset="70%" stop-color="#fff0a8" />
-                        <stop offset="100%" stop-color="#c48a18" />
-                    </linearGradient>
-                </defs>
-                <circle cx="200" cy="200" r="190" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1.5" stroke-dasharray="6 8" opacity="0.82" />
-                <circle cx="200" cy="200" r="172" fill="none" stroke="url(#bloomGoldStroke)" stroke-width="1" opacity="0.55" />
-                <path d="M200,4 L205,18 L219,23 L205,28 L200,42 L195,28 L181,23 L195,18 Z" fill="url(#bloomGoldStroke)" />
-                <path d="M200,358 L205,372 L219,377 L205,382 L200,396 L195,382 L181,377 L195,372 Z" fill="url(#bloomGoldStroke)" />
-                <path d="M4,200 L18,195 L23,181 L28,195 L42,200 L28,205 L23,219 L18,205 Z" fill="url(#bloomGoldStroke)" />
-                <path d="M358,200 L372,195 L377,181 L382,195 L396,200 L382,205 L377,219 L372,205 Z" fill="url(#bloomGoldStroke)" />
-            </svg>
-            <div id="bloom-flower-core" class="bloom-flower-core"></div>
+            <!-- Mặt lưng bao thư + Lót lụa kim cương + Đèn volumetic chiếu vọt từ đáy túi chữ V -->
+            <div class="u3d-env-back-plate">
+                <svg class="u3d-env-svg" viewBox="0 0 680 472" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="u3dBackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#074334" id="u3d-grad-back-1" />
+                            <stop offset="50%" stop-color="#0a5844" id="u3d-grad-back-2" />
+                            <stop offset="100%" stop-color="#053328" id="u3d-grad-back-3" />
+                        </linearGradient>
+                        <linearGradient id="u3dLiningGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#fffdf9" id="u3d-grad-lining-1" />
+                            <stop offset="50%" stop-color="#e8f7f0" id="u3d-grad-lining-2" />
+                            <stop offset="100%" stop-color="#cbece0" id="u3d-grad-lining-3" />
+                        </linearGradient>
+                        <linearGradient id="u3dGoldFoil" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#fff3b8" />
+                            <stop offset="28%" stop-color="#d89e2c" />
+                            <stop offset="55%" stop-color="#fff1be" />
+                            <stop offset="80%" stop-color="#b77b12" />
+                            <stop offset="100%" stop-color="#f8e18e" />
+                        </linearGradient>
+                    </defs>
+                    <rect x="2" y="2" width="676" height="468" rx="28" ry="28" fill="url(#u3dBackGrad)" stroke="url(#u3dGoldFoil)" stroke-width="3.5" />
+                    <rect x="16" y="16" width="648" height="440" rx="20" ry="20" fill="url(#u3dLiningGrad)" opacity="0.96" />
+                    <rect x="28" y="28" width="624" height="416" rx="14" ry="14" fill="none" stroke="url(#u3dGoldFoil)" stroke-width="1.6" stroke-dasharray="7 5" opacity="0.78" />
+                </svg>
+                <!-- Luồng sáng Volumetric bùng lên từ khe túi chữ V khi nắp thư mở -->
+                <div id="u3d-pocket-light" class="u3d-pocket-light"></div>
+                <!-- Cấu trúc 3D mọc trực tiếp từ miệng túi thư (Đóa Hoa Trà 3D nở bung từ miệng túi) -->
+                <div id="u3d-pocket-bloom-core" class="u3d-pocket-bloom-core"></div>
+            </div>
+
+            <!-- Bản sao Nắp thư ở lớp sau (Hiển thị ngay khi nắp lật qua góc 90° tới 185° để nằm phía sau tấm thiệp đang rút lên) -->
+            <div id="u3d-flap-back-actor" class="u3d-flap-actor u3d-flap-back-only" style="display: none;">
+                <svg class="u3d-env-svg" viewBox="0 0 680 472" preserveAspectRatio="none">
+                    <path d="M 4,14 Q 16,2 34,2 L 646,2 Q 664,2 676,14 L 368,266 Q 340,290 312,266 Z" fill="url(#u3dLiningGrad)" stroke="url(#u3dGoldFoil)" stroke-width="3" />
+                    <path d="M 28,12 L 652,12 L 360,248 Q 340,265 320,248 Z" fill="none" stroke="url(#u3dGoldFoil)" stroke-width="1.3" stroke-dasharray="6 5" opacity="0.82" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- Lớp 2 (z: 6): Canvas Vật Lý 3D Lớp Sau (Vẽ Cánh hoa, Hồ điệp 3D, Nửa sau vòng Ngân Hà, Dải lụa bay phía SAU tấm thiệp) -->
+        <canvas id="u3d-canvas-back" class="u3d-physics-canvas u3d-canvas-back"></canvas>
+
+        <!-- Lớp 3 (z: 8): TẤM THIỆP VẬT LÝ 3D (Nằm trong túi chữ V rồi bay vọt lên, xoay lật 3D 2 mặt Trước/Sau và đáp thẳng vào #card-showcase) -->
+        <div id="u3d-card-actor" class="u3d-card-actor">
+            <div id="u3d-card-inner" class="u3d-card-inner">
+                <!-- Mặt trước tấm thiệp (Ảnh thật chất lượng gốc + Ánh kim phản quang theo góc nghiêng 3D) -->
+                <div class="u3d-card-face u3d-card-front">
+                    <img id="u3d-card-img" alt="Thiệp 3D 20/10" draggable="false" />
+                    <div id="u3d-card-specular" class="u3d-card-specular"></div>
+                    <div class="u3d-card-gold-rim"></div>
+                </div>
+                <!-- Mặt lưng tấm thiệp (Bìa Lụa Ép Kim Vàng 24K Hoàng Gia - lộ diện khi thiệp xoay lật 360° trên không trung) -->
+                <div class="u3d-card-face u3d-card-back" id="u3d-card-back-face">
+                    <div class="u3d-back-filigree">
+                        <div class="u3d-back-emblem-ring">
+                            <span class="u3d-back-crown">👑</span>
+                            <span class="u3d-back-date">20 • 10</span>
+                            <span class="u3d-back-sub">HAPPY WOMEN'S DAY</span>
+                        </div>
+                    </div>
+                    <div id="u3d-back-specular" class="u3d-card-specular"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lớp 4 (z: 10 khi thiệp trong túi -> z: 5 khi thiệp vượt miệng túi): Nửa trước của Phong Bì 3D (Túi chữ V + Dải Ruy-băng 3D + Nắp đóng + Con dấu sáp 3D) -->
+        <div id="u3d-env-front-rig" class="u3d-env-rig u3d-env-front-rig">
+            <!-- Túi trước chữ V đè lên nửa dưới tấm thiệp khi thiệp đang rút từ trong túi ra -->
+            <div class="u3d-env-front-pocket">
+                <svg class="u3d-env-svg" viewBox="0 0 680 472" preserveAspectRatio="none">
+                    <defs>
+                        <linearGradient id="u3dPocketLeftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#0d6e55" id="u3d-grad-left-1" />
+                            <stop offset="100%" stop-color="#074736" id="u3d-grad-left-2" />
+                        </linearGradient>
+                        <linearGradient id="u3dPocketRightGrad" x1="100%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#0b624b" id="u3d-grad-right-1" />
+                            <stop offset="100%" stop-color="#063e30" id="u3d-grad-right-2" />
+                        </linearGradient>
+                        <linearGradient id="u3dPocketBottomGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#0f7c60" id="u3d-grad-bot-1" />
+                            <stop offset="55%" stop-color="#0a5844" id="u3d-grad-bot-2" />
+                            <stop offset="100%" stop-color="#063b2d" id="u3d-grad-bot-3" />
+                        </linearGradient>
+                        <linearGradient id="u3dFlapOuterGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#12886a" id="u3d-grad-flap-1" />
+                            <stop offset="60%" stop-color="#0b604a" id="u3d-grad-flap-2" />
+                            <stop offset="100%" stop-color="#074334" id="u3d-grad-flap-3" />
+                        </linearGradient>
+                        <filter id="u3dPocketShadow" x="-10%" y="-15%" width="120%" height="130%">
+                            <feDropShadow dx="0" dy="-5" stdDeviation="7" flood-color="#01140e" flood-opacity="0.52" />
+                        </filter>
+                    </defs>
+                    <!-- Cánh gấp trái & phải tạo miệng túi chữ V -->
+                    <path d="M 2,18 L 360,262 L 2,456 Z" fill="url(#u3dPocketLeftGrad)" stroke="url(#u3dGoldFoil)" stroke-width="2" />
+                    <path d="M 678,18 L 320,262 L 678,456 Z" fill="url(#u3dPocketRightGrad)" stroke="url(#u3dGoldFoil)" stroke-width="2" />
+                    <!-- Cánh gấp đáy chữ V -->
+                    <path d="M 4,462 L 314,224 Q 340,204 366,224 L 676,462 Q 666,470 648,470 L 32,470 Q 14,470 4,462 Z" fill="url(#u3dPocketBottomGrad)" stroke="url(#u3dGoldFoil)" stroke-width="2.5" filter="url(#u3dPocketShadow)" />
+                    <path d="M 26,456 L 322,238 Q 340,224 358,238 L 654,456" fill="none" stroke="url(#u3dGoldFoil)" stroke-width="1.2" stroke-dasharray="6 6" opacity="0.65" />
+                </svg>
+            </div>
+
+            <!-- Hệ thống Dải Lụa Hoàng Gia buộc ngang-dọc quanh phong bì (Tự tháo nút và bung lụa khi mở) -->
+            <div id="u3d-ribbon-straps" class="u3d-ribbon-straps">
+                <div class="u3d-ribbon-strap u3d-strap-h-left"></div>
+                <div class="u3d-ribbon-strap u3d-strap-h-right"></div>
+                <div class="u3d-ribbon-strap u3d-strap-v-top"></div>
+                <div class="u3d-ribbon-strap u3d-strap-v-bottom"></div>
+            </div>
+
+            <!-- Nắp trên của Phong Bì khi góc mở < 90° -->
+            <div id="u3d-flap-front-actor" class="u3d-flap-actor">
+                <svg class="u3d-env-svg" viewBox="0 0 680 472" preserveAspectRatio="none">
+                    <path d="M 4,14 Q 16,2 34,2 L 646,2 Q 664,2 676,14 L 368,266 Q 340,290 312,266 Z" fill="url(#u3dFlapOuterGrad)" stroke="url(#u3dGoldFoil)" stroke-width="3" filter="url(#u3dPocketShadow)" />
+                    <path d="M 28,12 L 652,12 L 360,248 Q 340,265 320,248 Z" fill="none" stroke="url(#u3dGoldFoil)" stroke-width="1.3" stroke-dasharray="7 5" opacity="0.72" />
+                </svg>
+                <div id="u3d-flap-shine" class="u3d-flap-shine"></div>
+            </div>
+
+            <!-- PHONG ẤN 3D TƯƠNG TÁC (Con dấu sáp 24K / Hồ Điệp 3D / Nơ Lụa Hoàng Gia / Tinh Cầu Ngân Hà / Tim Pha Lê) -->
+            <button type="button" id="u3d-seal-btn" class="u3d-seal-btn" aria-label="Chạm để mở phong bì 3D">
+                <span class="u3d-seal-pulse-ring ring-1"></span>
+                <span class="u3d-seal-pulse-ring ring-2"></span>
+                <div id="u3d-seal-emblem" class="u3d-seal-emblem"></div>
+            </button>
+        </div>
+
+        <!-- Lớp 5 (z: 12): Canvas Vật Lý 3D Lớp Trước (Vẽ Cánh hoa, Hồ điệp 3D, Nửa trước vòng Ngân Hà, Dải lụa, Tim pha lê bay TRƯỚC MẶT tấm thiệp) -->
+        <canvas id="u3d-canvas-front" class="u3d-physics-canvas u3d-canvas-front"></canvas>
+
+        <!-- Chân trang hướng dẫn tương tác khi chờ người nhận chạm mở phong bì -->
+        <div id="u3d-footer-prompt" class="u3d-footer-prompt">
+            <div class="u3d-prompt-pill">
+                <span class="u3d-prompt-sparkle">✨</span>
+                <span id="u3d-prompt-text">Chạm vào <strong>Phong Ấn 3D</strong> ở giữa phong bì để mở thiệp</span>
+                <span class="u3d-prompt-sparkle">✨</span>
+            </div>
         </div>
     </div>
 
@@ -866,9 +993,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=12.0"></script>
-    <script src="script.js?v=12.0"></script>
-    <script src="intro.js?v=12.0"></script>
+    <script src="wishes.js?v=13.0"></script>
+    <script src="script.js?v=13.0"></script>
+    <script src="intro.js?v=13.0"></script>
 </body>
 
 </html>
