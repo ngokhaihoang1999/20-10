@@ -3160,7 +3160,7 @@ body.recipient-mode .result-actions-dual .btn-save-card {
 /* --- Hai Nửa Khung Phong Bì 3D (Back Rig z:5 & Front Rig z:10) đồng bộ Ma Trận 3D 60fps --- */
 .u3d-env-rig {
     position: absolute;
-    top: 53%;
+    top: 50%;
     left: 50%;
     width: var(--u3d-env-w);
     height: var(--u3d-env-h);

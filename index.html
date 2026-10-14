@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css?v=13.0">
+    <link rel="stylesheet" href="style.css?v=14.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
@@ -124,7 +124,7 @@
                         <button type="button" class="motion-chip" data-motion="ribbon">🎀 Nơ Hoàng Gia</button>
                         <button type="button" class="motion-chip" data-motion="galaxy">🌌 Ngân Hà 3D</button>
                         <button type="button" class="motion-chip" data-motion="sakura">🌸 Lốc Anh Đào</button>
-                        <button type="button" class="motion-chip" data-motion="hearts">💖 Tim Pha Lê</button>
+                        <button type="button" class="motion-chip" data-motion="hearts">💎 Kim Cương Sao</button>
                     </div>
                 </div>
 
@@ -172,17 +172,10 @@
     <canvas id="bg-canvas"></canvas>
     <canvas id="fx-canvas"></canvas>
 
-    <!-- SÂN KHẤU VẬT LÝ 3D HỢP NHẤT: PHONG BÌ 3D + HIỆU ỨNG PHUN TRÀO TỪ TÚI THƯ + RÚT THIỆP BAY 3D LIỀN MẠCH -->
+    <!-- SÂN KHẤU VẬT LÝ 3D HỢP NHẤT: CHỈ HIỂN THỊ BÌ THƯ 3D (CÓ THIỆP BÊN TRONG) -> MỞ BÌ THƯ LÀ THIỆP TỪ BÌ THƯ ĐI RA KÈM HIỆU ỨNG -->
     <div id="u3d-envelope-stage" class="u3d-envelope-stage" data-motion="bloom" data-theme="emerald" aria-hidden="true" style="display: none;">
         <!-- Lớp nền không gian nhung lụa & ánh đèn sân khấu 3D -->
         <div id="u3d-backdrop" class="u3d-backdrop"></div>
-
-        <!-- Bảng tiêu đề / tên link lơ lửng phía trên Phong Bì 3D -->
-        <div id="u3d-header-banner" class="u3d-header-banner">
-            <div id="u3d-motion-pill" class="u3d-motion-pill">✨ HIỆU ỨNG MỞ THƯ VẬT LÝ 3D ✨</div>
-            <h2 id="u3d-banner-title" class="u3d-banner-title">💌 Gửi tặng người thương 🌸</h2>
-            <p id="u3d-banner-subtitle" class="u3d-banner-subtitle">Chạm vào phong ấn 3D để mở thư</p>
-        </div>
 
         <!-- Lớp 1 (z: 5): Nửa sau của Phong Bì 3D (Bóng đổ sàn, Hào quang, Lưng lót lụa, Ánh sáng nội tâm & Nắp thư khi đã mở >90°) -->
         <div id="u3d-env-back-rig" class="u3d-env-rig u3d-env-back-rig">
@@ -233,7 +226,7 @@
         <!-- Lớp 2 (z: 6): Canvas Vật Lý 3D Lớp Sau (Vẽ Cánh hoa, Hồ điệp 3D, Nửa sau vòng Ngân Hà, Dải lụa bay phía SAU tấm thiệp) -->
         <canvas id="u3d-canvas-back" class="u3d-physics-canvas u3d-canvas-back"></canvas>
 
-        <!-- Lớp 3 (z: 8): TẤM THIỆP VẬT LÝ 3D (Nằm trong túi chữ V rồi bay vọt lên, xoay lật 3D 2 mặt Trước/Sau và đáp thẳng vào #card-showcase) -->
+        <!-- Lớp 3 (z: 8): TẤM THIỆP VẬT LÝ 3D (Nằm thật bên trong túi chữ V -> Khi mở bì thư, thiệp từ trong bì thư trượt rút thẳng lên và mở rộng ra sân khấu) -->
         <div id="u3d-card-actor" class="u3d-card-actor">
             <div id="u3d-card-inner" class="u3d-card-inner">
                 <!-- Mặt trước tấm thiệp (Ảnh thật chất lượng gốc + Ánh kim phản quang theo góc nghiêng 3D) -->
@@ -242,7 +235,7 @@
                     <div id="u3d-card-specular" class="u3d-card-specular"></div>
                     <div class="u3d-card-gold-rim"></div>
                 </div>
-                <!-- Mặt lưng tấm thiệp (Bìa Lụa Ép Kim Vàng 24K Hoàng Gia - lộ diện khi thiệp xoay lật 360° trên không trung) -->
+                <!-- Mặt lưng tấm thiệp (Bìa Lụa Ép Kim Vàng 24K Hoàng Gia) -->
                 <div class="u3d-card-face u3d-card-back" id="u3d-card-back-face">
                     <div class="u3d-back-filigree">
                         <div class="u3d-back-emblem-ring">
@@ -310,7 +303,7 @@
                 <div id="u3d-flap-shine" class="u3d-flap-shine"></div>
             </div>
 
-            <!-- PHONG ẤN 3D TƯƠNG TÁC (Con dấu sáp 24K / Hồ Điệp 3D / Nơ Lụa Hoàng Gia / Tinh Cầu Ngân Hà / Tim Pha Lê) -->
+            <!-- PHONG ẤN 3D TƯƠNG TÁC (Con dấu sáp 24K / Hồ Điệp 3D / Nơ Lụa Hoàng Gia / Tinh Cầu Ngân Hà / Kim Cương Ánh Sao) -->
             <button type="button" id="u3d-seal-btn" class="u3d-seal-btn" aria-label="Chạm để mở phong bì 3D">
                 <span class="u3d-seal-pulse-ring ring-1"></span>
                 <span class="u3d-seal-pulse-ring ring-2"></span>
@@ -318,17 +311,8 @@
             </button>
         </div>
 
-        <!-- Lớp 5 (z: 12): Canvas Vật Lý 3D Lớp Trước (Vẽ Cánh hoa, Hồ điệp 3D, Nửa trước vòng Ngân Hà, Dải lụa, Tim pha lê bay TRƯỚC MẶT tấm thiệp) -->
+        <!-- Lớp 5 (z: 12): Canvas Vật Lý 3D Lớp Trước (Vẽ Cánh hoa, Hồ điệp 3D, Nửa trước vòng Ngân Hà, Dải lụa, Kim cương bay TRƯỚC MẶT tấm thiệp) -->
         <canvas id="u3d-canvas-front" class="u3d-physics-canvas u3d-canvas-front"></canvas>
-
-        <!-- Chân trang hướng dẫn tương tác khi chờ người nhận chạm mở phong bì -->
-        <div id="u3d-footer-prompt" class="u3d-footer-prompt">
-            <div class="u3d-prompt-pill">
-                <span class="u3d-prompt-sparkle">✨</span>
-                <span id="u3d-prompt-text">Chạm vào <strong>Phong Ấn 3D</strong> ở giữa phong bì để mở thiệp</span>
-                <span class="u3d-prompt-sparkle">✨</span>
-            </div>
-        </div>
     </div>
 
     <!-- Bước 1: Phong Bì Lụa Ngọc Bích Vật Lý 3D (chứa trực tiếp tấm Tháng 10 Rạng Rỡ hoặc Thiệp Người Nhận bên trong) -->
@@ -872,7 +856,7 @@
                         <button type="button" class="motion-chip" data-motion="ribbon">🎀 Nơ Hoàng Gia</button>
                         <button type="button" class="motion-chip" data-motion="galaxy">🌌 Ngân Hà 3D</button>
                         <button type="button" class="motion-chip" data-motion="sakura">🌸 Lốc Anh Đào</button>
-                        <button type="button" class="motion-chip" data-motion="hearts">💖 Tim Pha Lê</button>
+                        <button type="button" class="motion-chip" data-motion="hearts">💎 Kim Cương Sao</button>
                     </div>
                     <div class="deck-actions-grid">
                         <button type="button" id="step2-preview-motion-btn" class="deck-action-btn primary-pill">
@@ -993,9 +977,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=13.0"></script>
-    <script src="script.js?v=13.0"></script>
-    <script src="intro.js?v=13.0"></script>
+    <script src="wishes.js?v=14.0"></script>
+    <script src="script.js?v=14.0"></script>
+    <script src="intro.js?v=14.0"></script>
 </body>
 
 </html>
