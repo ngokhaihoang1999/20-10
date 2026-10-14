@@ -4649,6 +4649,7 @@ let u3dPointerCurRotY = 0;
 })();
 
 // Hàm vẽ các thực thể Vật Lý 3D trên 2 lớp Canvas (Sau thiệp & Trước thiệp)
+// TỐI ƯU GPU DI ĐỘNG: Tuyệt đối KHÔNG cấp phát createLinearGradient / createRadialGradient hay shadowBlur mỗi frame!
 function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
     const depth = focal - p.z;
     if (depth <= 80) return;
@@ -4663,10 +4664,10 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
 
     if (p.type === 'shard') {
         ctx.rotate(p.rz);
-        ctx.scale(Math.max(0.2, Math.cos(p.rx)), Math.max(0.2, Math.sin(p.ry)));
-        ctx.fillStyle = p.color;
+        ctx.scale(Math.max(0.22, Math.cos(p.rx)), Math.max(0.22, Math.sin(p.ry)));
+        ctx.fillStyle = p.color || '#f5c242';
         ctx.strokeStyle = '#fff6c4';
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = 1.1;
         ctx.beginPath();
         ctx.moveTo(0, -p.size);
         ctx.lineTo(p.size * 0.85, -p.size * 0.2);
@@ -4681,18 +4682,15 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
         ctx.rotate(heading * 0.35 + Math.sin(p.phase * 0.5) * 0.2);
         const wingCos = Math.max(0.14, Math.abs(Math.cos(p.flapPhase)));
         const s = p.size;
+        const wingMain = p.isGold ? '#ffd54f' : '#ff80ab';
+        const wingTip = p.isGold ? '#fff8cc' : '#ffe4ef';
 
-        // Cánh trái & phải vỗ 3D
         [-1, 1].forEach(dir => {
             ctx.save();
             ctx.scale(dir * wingCos, 1);
-            const g = ctx.createLinearGradient(0, -s, s, s);
-            g.addColorStop(0, '#fffdf0');
-            g.addColorStop(0.5, p.isGold ? '#ffd54f' : '#ff80ab');
-            g.addColorStop(1, p.isGold ? '#b8790e' : '#ad1457');
-            ctx.fillStyle = g;
-            ctx.strokeStyle = '#fff8cc';
-            ctx.lineWidth = 1.2;
+            ctx.fillStyle = wingMain;
+            ctx.strokeStyle = wingTip;
+            ctx.lineWidth = 1.0;
 
             ctx.beginPath();
             ctx.moveTo(0, -s * 0.1);
@@ -4708,28 +4706,22 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
             ctx.bezierCurveTo(s * 0.12, s * 0.95, s * 0.04, s * 0.45, 0, s * 0.2);
             ctx.closePath();
             ctx.fill();
-            ctx.stroke();
             ctx.restore();
         });
 
-        // Thân bướm ánh kim
         ctx.fillStyle = '#4e2c04';
         ctx.beginPath();
-        ctx.ellipse(0, 0, Math.max(1.5, s * 0.08), s * 0.38, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, Math.max(1.4, s * 0.08), s * 0.36, 0, 0, Math.PI * 2);
         ctx.fill();
     } else if (p.type === 'petal') {
         ctx.rotate(p.rz);
-        const tiltX = Math.max(0.22, Math.abs(Math.cos(p.rx)));
+        const tiltX = Math.max(0.24, Math.abs(Math.cos(p.rx)));
         const tiltY = Math.max(0.28, Math.abs(Math.sin(p.ry)));
         ctx.scale(tiltX, tiltY);
         const s = p.size;
-        const g = ctx.createLinearGradient(0, -s, 0, s);
-        g.addColorStop(0, '#ffffff');
-        g.addColorStop(0.55, p.colorMid);
-        g.addColorStop(1, p.colorEnd);
-        ctx.fillStyle = g;
-        ctx.strokeStyle = 'rgba(246, 212, 122, 0.85)';
-        ctx.lineWidth = 1;
+        ctx.fillStyle = p.colorMid || '#f48fb1';
+        ctx.strokeStyle = '#ffeef5';
+        ctx.lineWidth = 0.9;
 
         ctx.beginPath();
         if (p.isSakura) {
@@ -4746,18 +4738,24 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+
+        // Lớp nhụy sáng nhẹ bên trong cánh hoa
+        ctx.fillStyle = p.colorEnd || '#ad1457';
+        ctx.beginPath();
+        ctx.arc(0, s * 0.12, s * 0.24, 0, Math.PI * 2);
+        ctx.fill();
     } else if (p.type === 'pearl') {
         const r = p.size;
-        const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.1, 0, 0, r);
-        g.addColorStop(0, '#ffffff');
-        g.addColorStop(0.55, '#fff0c8');
-        g.addColorStop(1, '#c68b1c');
-        ctx.fillStyle = g;
+        ctx.fillStyle = '#f5deb3';
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(-r * 0.28, -r * 0.28, r * 0.38, 0, Math.PI * 2);
+        ctx.fill();
     } else if (p.type === 'diamond') {
-        // Viên Kim Cương Giác Cắt Đa Diện 3D khúc xạ ánh cầu vồng pastel & tia sáng kim tuyến
+        // Viên Kim Cương Giác Cắt Đa Diện 3D siêu mượt (không tạo gradient mỗi frame)
         ctx.rotate(p.rz);
         const turnX = Math.max(0.45, Math.abs(Math.cos(p.ry)));
         const s = p.size;
@@ -4766,15 +4764,9 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
         ctx.scale(turnX, 1);
 
         // Mặt cắt chính của viên kim cương Brilliant
-        const gCrown = ctx.createLinearGradient(-s, -s, s, s);
-        gCrown.addColorStop(0, '#ffffff');
-        gCrown.addColorStop(0.38, p.tintA || '#e0f7fa');
-        gCrown.addColorStop(0.72, p.tintB || '#fce4ec');
-        gCrown.addColorStop(1, '#ffe58f');
-
-        ctx.fillStyle = gCrown;
+        ctx.fillStyle = p.tintA || '#e0f7fa';
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.1;
+        ctx.lineWidth = 1.05;
 
         ctx.beginPath();
         ctx.moveTo(-s * 0.52, -s * 0.68);
@@ -4786,62 +4778,64 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
         ctx.fill();
         ctx.stroke();
 
-        // Các đường giác cắt nội tâm lấp lánh
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
-        ctx.lineWidth = 0.85;
+        // Mặt giác cắt khúc xạ ánh hồng/vàng bên trong
+        ctx.fillStyle = p.tintB || '#fce4ec';
         ctx.beginPath();
-        ctx.moveTo(-s * 0.92, -s * 0.18);
-        ctx.lineTo(s * 0.92, -s * 0.18);
-        ctx.moveTo(-s * 0.52, -s * 0.68);
-        ctx.lineTo(-s * 0.32, -s * 0.18);
-        ctx.lineTo(0, s * 0.98);
-        ctx.moveTo(s * 0.52, -s * 0.68);
-        ctx.lineTo(s * 0.32, -s * 0.18);
-        ctx.lineTo(0, s * 0.98);
-        ctx.moveTo(-s * 0.32, -s * 0.18);
-        ctx.lineTo(0, -s * 0.68);
-        ctx.lineTo(s * 0.32, -s * 0.18);
-        ctx.stroke();
+        ctx.moveTo(-s * 0.34, -s * 0.18);
+        ctx.lineTo(s * 0.34, -s * 0.18);
+        ctx.lineTo(0, s * 0.92);
+        ctx.closePath();
+        ctx.fill();
+
+        // Mặt bàn (Table facet) sáng trắng ở đỉnh
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.42, -s * 0.62);
+        ctx.lineTo(s * 0.42, -s * 0.62);
+        ctx.lineTo(s * 0.28, -s * 0.18);
+        ctx.lineTo(-s * 0.28, -s * 0.18);
+        ctx.closePath();
+        ctx.fill();
         ctx.restore();
 
         // Tia chớp lấp lánh 4 cánh mảnh ở đỉnh viên kim cương
-        const glint = 0.6 + 0.4 * Math.sin(p.phase * 2.5);
-        const gs = s * 0.85 * glint;
+        const glint = 0.55 + 0.45 * Math.sin(p.phase * 2.5);
+        const gs = s * 0.78 * glint;
         ctx.fillStyle = '#ffffff';
         ctx.beginPath();
         ctx.moveTo(0, -s * 0.42 - gs);
-        ctx.quadraticCurveTo(gs * 0.12, -s * 0.42 - gs * 0.12, gs, -s * 0.42);
-        ctx.quadraticCurveTo(gs * 0.12, -s * 0.42 + gs * 0.12, 0, -s * 0.42 + gs);
-        ctx.quadraticCurveTo(-gs * 0.12, -s * 0.42 + gs * 0.12, -gs, -s * 0.42);
-        ctx.quadraticCurveTo(-gs * 0.12, -s * 0.42 - gs * 0.12, 0, -s * 0.42 - gs);
+        ctx.lineTo(gs * 0.14, -s * 0.42 - gs * 0.14);
+        ctx.lineTo(gs, -s * 0.42);
+        ctx.lineTo(gs * 0.14, -s * 0.42 + gs * 0.14);
+        ctx.lineTo(0, -s * 0.42 + gs);
+        ctx.lineTo(-gs * 0.14, -s * 0.42 + gs * 0.14);
+        ctx.lineTo(-gs, -s * 0.42);
+        ctx.lineTo(-gs * 0.14, -s * 0.42 - gs * 0.14);
         ctx.closePath();
         ctx.fill();
     } else if (p.type === 'bokeh') {
-        // Hạt ánh sáng Bokeh Hoàng Gia mềm mại nhiều lớp sâu nông
+        // Hạt ánh sáng Bokeh 2 lớp đồng tâm siêu nhẹ (không dùng radialGradient)
         const r = p.size;
-        const g = ctx.createRadialGradient(0, 0, r * 0.05, 0, 0, r);
-        g.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
-        g.addColorStop(0.45, p.bokehColor || 'rgba(255, 232, 156, 0.65)');
-        g.addColorStop(1, 'rgba(255, 232, 156, 0)');
-        ctx.fillStyle = g;
+        ctx.fillStyle = p.bokehColor || 'rgba(255, 232, 156, 0.38)';
         ctx.beginPath();
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.fill();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.42, 0, Math.PI * 2);
+        ctx.fill();
     } else if (p.type === 'star') {
-        // Sao băng & tinh tú ngân hà
         if (p.hasTrail && (Math.abs(p.vx) + Math.abs(p.vy) > 40)) {
             const ang = Math.atan2(p.vy, p.vx);
             ctx.save();
             ctx.rotate(ang);
-            const tg = ctx.createLinearGradient(0, 0, -p.size * 4.2, 0);
-            tg.addColorStop(0, 'rgba(255, 248, 198, 0.9)');
-            tg.addColorStop(1, 'rgba(255, 248, 198, 0)');
-            ctx.strokeStyle = tg;
-            ctx.lineWidth = p.size * 0.42;
+            ctx.strokeStyle = 'rgba(255, 244, 184, 0.48)';
+            ctx.lineWidth = p.size * 0.34;
             ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(0, 0);
-            ctx.lineTo(-p.size * 4.2, 0);
+            ctx.lineTo(-p.size * 3.6, 0);
             ctx.stroke();
             ctx.restore();
         }
@@ -4849,13 +4843,16 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
         const s = p.size;
         ctx.fillStyle = '#fffef5';
         ctx.strokeStyle = '#f5c242';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 0.9;
         ctx.beginPath();
         ctx.moveTo(0, -s);
-        ctx.quadraticCurveTo(s * 0.14, -s * 0.14, s, 0);
-        ctx.quadraticCurveTo(s * 0.14, s * 0.14, 0, s);
-        ctx.quadraticCurveTo(-s * 0.14, s * 0.14, -s, 0);
-        ctx.quadraticCurveTo(-s * 0.14, -s * 0.14, 0, -s);
+        ctx.lineTo(s * 0.18, -s * 0.18);
+        ctx.lineTo(s, 0);
+        ctx.lineTo(s * 0.18, s * 0.18);
+        ctx.lineTo(0, s);
+        ctx.lineTo(-s * 0.18, s * 0.18);
+        ctx.lineTo(-s, 0);
+        ctx.lineTo(-s * 0.18, -s * 0.18);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -4865,10 +4862,10 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
 }
 
 // Vẽ Vòng Quỹ Đạo Thiên Văn 3D (Galaxy Gyroscope) hoặc Vòng Hào Quang Kim Cương 3D
-// Chia đôi chính xác: nửa vòng có z < cardZ vẽ trên ctxBack (sau lưng thiệp), nửa vòng z >= cardZ vẽ trên ctxFront (vắt ngang trước mặt thiệp)!
+// Đã bỏ shadowBlur nặng nề, thay bằng 2 nét vẽ (hào quang mờ + lõi sáng) mượt 60fps trên mọi điện thoại
 function drawSplit3DRing(ctxBack, ctxFront, ring, cx, cy, focal, cardZ) {
     if (ring.alpha <= 0.01) return;
-    const steps = 64;
+    const steps = 52;
     const cosX = Math.cos(ring.rx), sinX = Math.sin(ring.rx);
     const cosY = Math.cos(ring.ry), sinY = Math.sin(ring.ry);
     const cosZ = Math.cos(ring.rz), sinZ = Math.sin(ring.rz);
@@ -4876,22 +4873,20 @@ function drawSplit3DRing(ctxBack, ctxFront, ring, cx, cy, focal, cardZ) {
     const pts = [];
     for (let i = 0; i <= steps; i++) {
         const a = (i / steps) * Math.PI * 2;
-        let x0 = Math.cos(a) * ring.radius;
-        let y0 = Math.sin(a) * ring.radius;
-        let z0 = 0;
+        const x0 = Math.cos(a) * ring.radius;
+        const y0 = Math.sin(a) * ring.radius;
 
-        // Rotate X
-        let y1 = y0 * cosX - z0 * sinX;
-        let z1 = y0 * sinX + z0 * cosX;
-        let x1 = x0;
-        // Rotate Y
-        let x2 = x1 * cosY + z1 * sinY;
-        let z2 = -x1 * sinY + z1 * cosY;
-        let y2 = y1;
-        // Rotate Z
-        let x3 = x2 * cosZ - y2 * sinZ + ring.cx;
-        let y3 = x2 * sinZ + y2 * cosZ + ring.cy;
-        let z3 = z2 + ring.cz;
+        const y1 = y0 * cosX;
+        const z1 = y0 * sinX;
+        const x1 = x0;
+
+        const x2 = x1 * cosY + z1 * sinY;
+        const z2 = -x1 * sinY + z1 * cosY;
+        const y2 = y1;
+
+        const x3 = x2 * cosZ - y2 * sinZ + ring.cx;
+        const y3 = x2 * sinZ + y2 * cosZ + ring.cy;
+        const z3 = z2 + ring.cz;
 
         const depth = Math.max(120, focal - z3);
         const s = focal / depth;
@@ -4907,11 +4902,6 @@ function drawSplit3DRing(ctxBack, ctxFront, ring, cx, cy, focal, cardZ) {
         { ctx: ctxFront, isFront: true }
     ].forEach(({ ctx, isFront }) => {
         ctx.save();
-        ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha));
-        ctx.strokeStyle = ring.color;
-        ctx.lineWidth = ring.lineWidth;
-        ctx.shadowColor = ring.glowColor;
-        ctx.shadowBlur = 12;
         if (ring.dashed) ctx.setLineDash([8, 6]);
 
         ctx.beginPath();
@@ -4930,7 +4920,19 @@ function drawSplit3DRing(ctxBack, ctxFront, ring, cx, cy, focal, cardZ) {
                 penDown = false;
             }
         }
+
+        // Lớp hào quang mềm bên ngoài (thay thế shadowBlur)
+        ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha * 0.28));
+        ctx.strokeStyle = ring.glowColor || ring.color;
+        ctx.lineWidth = ring.lineWidth * 3.0;
         ctx.stroke();
+
+        // Lớp lõi sắc nét bên trong
+        ctx.globalAlpha = Math.max(0, Math.min(1, ring.alpha));
+        ctx.strokeStyle = ring.color;
+        ctx.lineWidth = ring.lineWidth;
+        ctx.stroke();
+
         ctx.restore();
     });
 }
@@ -4938,7 +4940,7 @@ function drawSplit3DRing(ctxBack, ctxFront, ring, cx, cy, focal, cardZ) {
 // Vẽ Dải Lụa Hoàng Gia 3D (3D Helical Silk Ribbon Streamer) quấn quanh thiệp từ trong túi phong bì
 function drawSplit3DRibbonHelix(ctxBack, ctxFront, ribbon, cx, cy, focal, cardZ) {
     if (ribbon.alpha <= 0.01) return;
-    const segs = 42;
+    const segs = 36;
     const pts = [];
     for (let i = 0; i <= segs; i++) {
         const u = i / segs;
@@ -4955,7 +4957,7 @@ function drawSplit3DRibbonHelix(ctxBack, ctxFront, ribbon, cx, cy, focal, cardZ)
             sx: cx + wx * s,
             sy: cy + wy * s,
             z: wz,
-            w: (14 * (1 - u * 0.45)) * s
+            w: (13 * (1 - u * 0.45)) * s
         });
     }
 
@@ -4990,6 +4992,153 @@ function drawSplit3DRibbonHelix(ctxBack, ctxFront, ribbon, cx, cy, focal, cardZ)
         }
         ctx.restore();
     });
+}
+
+// Vẽ Hiệu Ứng Khởi Động / Tụ Năng Lượng Hồi Hộp quanh Con Dấu Sáp theo từng chế độ (0.00s -> 0.88s)
+function drawSealWindupEffect(ctx, modeId, w, cx, cy, sealScreenY) {
+    if (w <= 0 || w >= 1) return;
+    ctx.save();
+    ctx.translate(cx, sealScreenY);
+
+    const fadeOut = w > 0.84 ? (1 - w) / 0.16 : 1;
+    const baseAlpha = Math.min(1, w * 2.5) * fadeOut;
+
+    if (modeId === 'bloom') {
+        // Đại Hoa Trà: 2 vòng cánh hoa vàng hồng nở xoáy & nhịp tim lan tỏa từ ấn sáp
+        const pulseR = 34 + (w * 95) % 48;
+        ctx.globalAlpha = baseAlpha * 0.55;
+        ctx.strokeStyle = '#ff9ebb';
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.arc(0, 0, pulseR, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.rotate(w * Math.PI * 1.8);
+        const petalCount = 8;
+        const ringR = 36 + Math.sin(w * Math.PI) * 14;
+        ctx.fillStyle = '#ffd54f';
+        ctx.globalAlpha = baseAlpha * 0.85;
+        for (let i = 0; i < petalCount; i++) {
+            const a = (i / petalCount) * Math.PI * 2;
+            ctx.save();
+            ctx.rotate(a);
+            ctx.beginPath();
+            ctx.ellipse(0, -ringR, 4.5, 9.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+    } else if (modeId === 'butterflies') {
+        // Hồ Điệp Vàng: Đôi cánh ánh kim khổng lồ bằng tia sáng đập nhịp nhàng hai bên ấn sáp trước khi hóa bướm bay lên
+        const wingFlap = Math.max(0.18, Math.abs(Math.cos(w * Math.PI * 9.5)));
+        const span = (42 + w * 38);
+        ctx.globalAlpha = baseAlpha * 0.82;
+        ctx.strokeStyle = '#ffe57f';
+        ctx.fillStyle = 'rgba(255, 213, 79, 0.22)';
+        ctx.lineWidth = 2.0;
+
+        [-1, 1].forEach(dir => {
+            ctx.save();
+            ctx.scale(dir * wingFlap, 1);
+            ctx.beginPath();
+            ctx.moveTo(0, -6);
+            ctx.bezierCurveTo(span * 0.65, -span * 1.05, span * 1.25, -span * 0.5, span * 0.92, span * 0.12);
+            ctx.bezierCurveTo(span * 0.65, span * 0.35, span * 0.25, span * 0.2, 0, span * 0.08);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(0, span * 0.08);
+            ctx.bezierCurveTo(span * 0.7, span * 0.28, span * 0.82, span * 0.9, span * 0.38, span * 0.95);
+            ctx.bezierCurveTo(span * 0.15, span * 0.95, span * 0.05, span * 0.5, 0, span * 0.2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        });
+    } else if (modeId === 'ribbon') {
+        // Ruy-Băng Lụa: 4 vòng lụa kim tuyến xoắn căng dần quanh nút thắt rồi bung nút
+        ctx.globalAlpha = baseAlpha * 0.85;
+        for (let k = 0; k < 2; k++) {
+            ctx.save();
+            ctx.rotate((k === 0 ? 1 : -1) * w * Math.PI * 2.4);
+            ctx.strokeStyle = k === 0 ? '#ff80ab' : '#ffd54f';
+            ctx.lineWidth = 2.4;
+            ctx.setLineDash([14, 10]);
+            const r = 38 + k * 12 + Math.sin(w * Math.PI * 2) * 8;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    } else if (modeId === 'galaxy') {
+        // Ngân Hà Sao: Vòng La Bàn Thiên Văn 3D xoay tít hội tụ tinh vân vào tâm ấn sáp
+        ctx.globalAlpha = baseAlpha * 0.9;
+        for (let k = 0; k < 2; k++) {
+            ctx.save();
+            ctx.rotate((k === 0 ? 1 : -1.4) * w * Math.PI * 3.5);
+            ctx.scale(1, k === 0 ? 0.62 : 0.78);
+            ctx.strokeStyle = k === 0 ? '#ffe898' : '#80deea';
+            ctx.lineWidth = 2.0;
+            if (k === 1) ctx.setLineDash([8, 6]);
+            const r = 68 - w * 22 + k * 14;
+            ctx.beginPath();
+            ctx.arc(0, 0, r, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+    } else if (modeId === 'sakura') {
+        // Lốc Anh Đào: Lốc xoáy gió hồng cuộn 6 vệt cánh hoa xoáy tròn tốc độ cao quanh ấn sáp
+        ctx.globalAlpha = baseAlpha * 0.85;
+        ctx.rotate(w * Math.PI * 4.2);
+        const arms = 6;
+        for (let i = 0; i < arms; i++) {
+            ctx.save();
+            ctx.rotate((i / arms) * Math.PI * 2);
+            ctx.strokeStyle = i % 2 === 0 ? '#ff9ebb' : '#ffe596';
+            ctx.lineWidth = 2.2;
+            ctx.lineCap = 'round';
+            const rIn = 22 + (1 - w) * 18;
+            const rOut = rIn + 26;
+            ctx.beginPath();
+            ctx.arc(0, 0, (rIn + rOut) * 0.5, -0.45, 0.45);
+            ctx.stroke();
+            ctx.restore();
+        }
+    } else if (modeId === 'hearts') {
+        // Kim Cương Sao: Khung Bát Giác Kim Cương & 8 tia khúc xạ lấp lánh hội tụ
+        ctx.globalAlpha = baseAlpha * 0.9;
+        ctx.save();
+        ctx.rotate(w * Math.PI * 1.5);
+        const r = 36 + Math.sin(w * Math.PI * 3) * 8;
+        ctx.strokeStyle = '#e0f7fa';
+        ctx.lineWidth = 2.0;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const px = Math.cos(a) * r;
+            const py = Math.sin(a) * r;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+
+        // Tia chớp kim cương phóng ra
+        ctx.strokeStyle = '#fff9c4';
+        ctx.lineWidth = 1.6;
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const len = (i % 2 === 0 ? 58 : 44) * Math.sin(w * Math.PI);
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a) * 26, Math.sin(a) * 26);
+            ctx.lineTo(Math.cos(a) * (26 + len), Math.sin(a) * (26 + len));
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    ctx.restore();
 }
 
 // ====== ĐẠO DIỄN SÂN KHẤU PHONG BÌ VẬT LÝ 3D HỢP NHẤT ======
@@ -5044,7 +5193,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     stage.setAttribute('data-motion', cfg.id);
     stage.setAttribute('data-theme', themeKey);
 
-    // Đồng bộ giao diện Bước 3 nằm ngay bên dưới sân khấu 3D để đo tọa độ đích chính xác tuyệt đối
+    // Đồng bộ giao diện Bước 3 nằm ngay bên dưới sân khấu 3D để đo tọa độ đích 1 lần duy nhất
     window.isEnvelopeGiftMode = true;
     window.isRecipientCardLinkMode = !!isRealRecipient;
     document.body.classList.toggle('recipient-mode', !!isRealRecipient);
@@ -5095,7 +5244,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         }
     }
 
-    if (sealEmblem) sealEmblem.innerHTML = getSealEmblemSVG(cfg.id);
+    if (sealEmblem) {
+        sealEmblem.innerHTML = getSealEmblemSVG(cfg.id);
+        sealEmblem.style.transform = '';
+    }
     if (pocketBloomCore) {
         pocketBloomCore.innerHTML = cfg.id === 'bloom' ? buildPocketBloomCamelliaSVG() : '';
         pocketBloomCore.style.opacity = '0';
@@ -5123,23 +5275,58 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         pocketLight.style.opacity = '0';
         pocketLight.style.transform = 'scaleY(0.2) scaleX(0.6)';
     }
-    if (ribbonStraps) {
-        ribbonStraps.querySelectorAll('.u3d-ribbon-strap').forEach(s => {
+    const strapEls = {
+        hL: ribbonStraps ? ribbonStraps.querySelector('.u3d-strap-h-left') : null,
+        hR: ribbonStraps ? ribbonStraps.querySelector('.u3d-strap-h-right') : null,
+        vT: ribbonStraps ? ribbonStraps.querySelector('.u3d-strap-v-top') : null,
+        vB: ribbonStraps ? ribbonStraps.querySelector('.u3d-strap-v-bottom') : null
+    };
+    Object.values(strapEls).forEach(s => {
+        if (s) {
             s.style.transform = '';
             s.style.opacity = '1';
-        });
-    }
+        }
+    });
 
-    // Chuẩn bị 2 lớp Canvas Vật Lý 3D độ phân giải cao
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    canvasBack.width = vw * dpr;
-    canvasBack.height = vh * dpr;
-    canvasFront.width = vw * dpr;
-    canvasFront.height = vh * dpr;
+    // Chuẩn bị 2 lớp Canvas Vật Lý 3D (Giới hạn dpr <= 1.5 để đạt tốc độ 60-120fps mượt tuyệt đối trên điện thoại)
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    let curVw = window.innerWidth;
+    let curVh = window.innerHeight;
+    canvasBack.width = Math.round(curVw * dpr);
+    canvasBack.height = Math.round(curVh * dpr);
+    canvasFront.width = Math.round(curVw * dpr);
+    canvasFront.height = Math.round(curVh * dpr);
     const ctxBack = canvasBack.getContext('2d');
     const ctxFront = canvasFront.getContext('2d');
+
+    // ĐO TỌA ĐỘ ĐÍCH #card-showcase MỘT LẦN DUY NHẤT NGOÀI VÒNG LẶP ĐỂ CHỐNG REFLOW (LAYOUT THRASHING)
+    let cachedTargetRect = null;
+    function measureTargetShowcaseOnce() {
+        curVw = window.innerWidth;
+        curVh = window.innerHeight;
+        const rawRect = cardShowcase ? cardShowcase.getBoundingClientRect() : null;
+        if (rawRect && rawRect.width > 40 && rawRect.height > 40) {
+            cachedTargetRect = {
+                left: rawRect.left,
+                top: rawRect.top,
+                width: rawRect.width,
+                height: rawRect.height
+            };
+        } else {
+            const fallbackW = Math.min(340, curVw * 0.82);
+            const fallbackH = fallbackW * (2060 / 1024);
+            cachedTargetRect = {
+                left: (curVw - fallbackW) * 0.5,
+                top: (curVh - fallbackH) * 0.5,
+                width: fallbackW,
+                height: fallbackH
+            };
+        }
+        // Khóa cố định width/height của cardActor 1 lần duy nhất; mọi biến thiên kích thước dùng GPU scale()!
+        cardActor.style.width = `${cachedTargetRect.width.toFixed(1)}px`;
+        cardActor.style.height = `${cachedTargetRect.height.toFixed(1)}px`;
+    }
+    measureTargetShowcaseOnce();
 
     // Các biến trạng thái Vật Lý 60fps
     u3dCurrentDirectorState = 'waiting';
@@ -5155,7 +5342,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     let flapAngle = 0;
     let flapVel = 0;
 
-    // Danh sách thực thể Vật Lý 3D (Hạt, Hồ điệp, Cánh hoa, Ngọc trai, Kim cương, Bokeh, Vòng Ngân Hà, Dải lụa)
+    // Danh sách thực thể Vật Lý 3D
     const particles = [];
     const rings3D = [];
     const ribbons3D = [];
@@ -5164,28 +5351,40 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     let hasSpawnedMainBurst = false;
     let hasHandedOffCard = false;
     let streamSpawnAccum = 0;
+    let windupSpawnAccum = 0;
+    let isClipPathNone = false;
 
-    // Khởi tạo 18 hạt đom đóm / cánh hoa lơ lửng nhẹ quanh phong bì ngay từ lúc chờ mở
-    for (let i = 0; i < 18; i++) {
-        const ang = (i / 18) * Math.PI * 2;
-        const radX = 140 + (i % 3) * 45;
-        const radY = 105 + (i % 4) * 32;
+    // Mốc thời gian Đạo Diễn:
+    // 0.00s -> 0.88s: Pha Khởi Động / Vận Động Hồi Hộp trên Sáp Thư (Wind-up / Charge-up riêng theo từng hiệu ứng)
+    // 0.88s -> 1.02s: Phong ấn bung nổ & Nắp phong bì bật mở theo lò xo vật lý
+    // 0.98s -> 2.32s: Bức thư trượt từ từ 0% -> 100% ra khỏi miệng túi phong bì (KHÔNG nhảy bậc, KHÔNG biến ra đột ngột)
+    // 2.32s -> 2.94s: Bức thư đã ra trọn vẹn khỏi phong bì -> Phóng to mượt mà khớp vào chính giữa sân khấu
+    const WINDUP_END = 0.88;
+    const EXTRACT_START = 0.98;
+    const EXTRACT_END = 2.32;
+    const PRESENT_END = 2.94;
+
+    // Khởi tạo 14 hạt đom đóm / ánh sao lơ lửng nhẹ quanh phong bì lúc chờ mở
+    for (let i = 0; i < 14; i++) {
+        const ang = (i / 14) * Math.PI * 2;
+        const radX = 140 + (i % 3) * 42;
+        const radY = 105 + (i % 4) * 30;
         particles.push({
             type: i % 3 === 0 ? 'star' : 'bokeh',
             hasTrail: false,
             x: Math.cos(ang) * radX,
             y: Math.sin(ang) * radY,
-            z: (Math.random() - 0.5) * 180,
-            vx: (Math.random() - 0.5) * 18,
-            vy: -14 - Math.random() * 18,
-            vz: (Math.random() - 0.5) * 20,
+            z: (Math.random() - 0.5) * 160,
+            vx: (Math.random() - 0.5) * 16,
+            vy: -12 - Math.random() * 16,
+            vz: (Math.random() - 0.5) * 18,
             gravity: -6,
             drag: 0.2,
             vortex: 0.4,
-            flutter: 25,
+            flutter: 22,
             phase: Math.random() * Math.PI * 2,
-            size: i % 3 === 0 ? (6 + Math.random() * 5) : (10 + Math.random() * 12),
-            bokehColor: i % 2 === 0 ? 'rgba(255, 232, 156, 0.55)' : 'rgba(255, 182, 208, 0.50)',
+            size: i % 3 === 0 ? (6 + Math.random() * 4) : (9 + Math.random() * 9),
+            bokehColor: i % 2 === 0 ? 'rgba(255, 232, 156, 0.42)' : 'rgba(255, 182, 208, 0.38)',
             rx: 0, ry: 0, rz: Math.random() * 6,
             vrx: 0, vry: 0, vrz: 1.5,
             alpha: 0.85,
@@ -5198,7 +5397,6 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const startEnvelopePhysicsOpen = () => {
         if (u3dCurrentDirectorState !== 'waiting') return;
 
-        // Nếu đang ở chế độ Người Nhận mà ảnh từ Telegram chưa tải xong (hoặc chưa gán src), đợi tải xong (tối đa 1.8s) rồi mở
         const imgNotReady = !cardImg || !cardImg.getAttribute('src') || !cardImg.complete || cardImg.naturalWidth === 0;
         if (isRealRecipient && imgNotReady) {
             if (sealBtn) sealBtn.style.transform = 'scale(0.92)';
@@ -5217,6 +5415,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
     function beginOpenSequence() {
         if (u3dCurrentDirectorState === 'opening') return;
+        measureTargetShowcaseOnce();
         u3dCurrentDirectorState = 'opening';
         openStartTime = performance.now();
         stage.classList.add('is-opening');
@@ -5231,26 +5430,110 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         }, autoOpenDelay);
     }
 
-    // Hàm tạo vụ nổ Mảnh Sáp Vàng / Kim Cương 3D khi phong ấn vỡ tung (t = 0.12s)
+    // Hàm tạo hạt năng lượng hội tụ / thức tỉnh quanh Con Dấu Sáp trong pha Khởi Động (0.00s -> 0.88s)
+    function spawnWindupSealParticle(sealWorldY, w) {
+        const ang = Math.random() * Math.PI * 2;
+        if (cfg.id === 'butterflies') {
+            // Các hồ điệp vàng nhỏ thức giấc bay vờn từ con dấu sáp
+            particles.push({
+                type: 'butterfly',
+                isGold: true,
+                x: (Math.random() - 0.5) * 32,
+                y: sealWorldY + (Math.random() - 0.5) * 24,
+                z: 50 + Math.random() * 35,
+                vx: Math.cos(ang) * (70 + w * 90),
+                vy: -80 - Math.random() * 90,
+                vz: 60 + Math.random() * 60,
+                gravity: -40,
+                drag: 0.9,
+                vortex: 1.5,
+                flutter: 110,
+                phase: Math.random() * 6,
+                flapPhase: Math.random() * 6,
+                flapSpeed: 46,
+                size: 10 + Math.random() * 6,
+                rx: 0, ry: 0, rz: 0, vrx: 0, vry: 0, vrz: 0,
+                alpha: 1,
+                life: 0,
+                maxLife: 0.95
+            });
+        } else if (cfg.id === 'galaxy' || cfg.id === 'hearts') {
+            // Hạt tinh tú / bụi kim cương từ ngoài không gian hút tụ vào tâm ấn sáp
+            const dist = 95 + Math.random() * 55;
+            const px = Math.cos(ang) * dist;
+            const py = sealWorldY + Math.sin(ang) * dist;
+            particles.push({
+                type: cfg.id === 'hearts' ? 'diamond' : 'star',
+                hasTrail: false,
+                x: px,
+                y: py,
+                z: 45 + Math.random() * 30,
+                vx: -Math.cos(ang) * 210,
+                vy: -(py - sealWorldY) * 2.2,
+                vz: 20,
+                gravity: 0,
+                drag: 0.4,
+                vortex: 0,
+                flutter: 0,
+                phase: Math.random() * 6,
+                size: cfg.id === 'hearts' ? 7 : 6,
+                tintA: '#e0f7fa',
+                tintB: '#fce4ec',
+                rx: Math.random() * 4, ry: Math.random() * 4, rz: Math.random() * 4,
+                vrx: 5, vry: 6, vrz: 6,
+                alpha: 1,
+                life: 0,
+                maxLife: 0.48
+            });
+        } else {
+            // Hoa trà, Anh đào, Ruy-băng: Cánh hoa / ngọc trai xoáy tròn quanh ấn sáp
+            const r = 24 + Math.random() * 28;
+            particles.push({
+                type: cfg.id === 'ribbon' ? 'pearl' : 'petal',
+                isSakura: cfg.id === 'sakura',
+                x: Math.cos(ang) * r,
+                y: sealWorldY + Math.sin(ang) * r,
+                z: 48 + Math.random() * 30,
+                vx: -Math.sin(ang) * 140,
+                vy: Math.cos(ang) * 140 - 40,
+                vz: 40,
+                gravity: -20,
+                drag: 0.8,
+                vortex: 0,
+                flutter: 60,
+                phase: Math.random() * 6,
+                size: cfg.id === 'ribbon' ? 5 : 8,
+                colorMid: cfg.id === 'sakura' ? '#ffb2c9' : '#f48fb1',
+                colorEnd: cfg.id === 'sakura' ? '#d83a6f' : '#ad1457',
+                rx: Math.random() * 5, ry: Math.random() * 5, rz: Math.random() * 5,
+                vrx: 6, vry: 6, vrz: 6,
+                alpha: 1,
+                life: 0,
+                maxLife: 0.72
+            });
+        }
+    }
+
+    // Hàm tạo vụ nổ Mảnh Sáp Vàng / Kim Cương 3D khi phong ấn vỡ tung (t = WINDUP_END)
     function spawnSealBreakExplosion(originY) {
-        const count = 24;
+        const count = 18;
         for (let i = 0; i < count; i++) {
-            const ang = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
-            const spd = 220 + Math.random() * 360;
+            const ang = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+            const spd = 230 + Math.random() * 340;
             particles.push({
                 type: cfg.id === 'ribbon' ? 'pearl' : (cfg.id === 'hearts' ? 'diamond' : 'shard'),
-                x: (Math.random() - 0.5) * 18,
-                y: originY + 12,
+                x: (Math.random() - 0.5) * 16,
+                y: originY + 10,
                 z: 45 + Math.random() * 40,
                 vx: Math.cos(ang) * spd,
-                vy: Math.sin(ang) * spd - 240,
-                vz: 120 + Math.random() * 240,
-                gravity: 980,
+                vy: Math.sin(ang) * spd - 220,
+                vz: 120 + Math.random() * 220,
+                gravity: 920,
                 drag: 1.4,
                 vortex: 0,
                 flutter: 0,
                 phase: Math.random() * 6,
-                size: cfg.id === 'ribbon' ? (5 + Math.random() * 5) : (7 + Math.random() * 6),
+                size: cfg.id === 'ribbon' ? (5 + Math.random() * 4) : (7 + Math.random() * 5),
                 tintA: '#e0f7fa',
                 tintB: '#fce4ec',
                 rx: Math.random() * Math.PI * 2,
@@ -5262,54 +5545,51 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 color: i % 2 === 0 ? '#f5c242' : '#d84b7e',
                 alpha: 1,
                 life: 0,
-                maxLife: 1.15 + Math.random() * 0.45
+                maxLife: 1.05 + Math.random() * 0.35
             });
         }
     }
 
-    // Hàm phun trào Vật Lý 3D từ chính Miệng Túi Chữ V của Phong Bì (t = 0.22s)
+    // Hàm phun trào Vật Lý 3D từ chính Miệng Túi Chữ V của Phong Bì (t = EXTRACT_START)
     function spawnPocketMouthEruption(mouthY) {
         if (cfg.id === 'butterflies') {
-            // 32 Hồ điệp ánh kim 3D vỗ cánh bay vọt từ trong lòng túi chữ V ra ngoài
-            for (let i = 0; i < 32; i++) {
+            for (let i = 0; i < 24; i++) {
                 const fanAngle = -Math.PI / 2 + (Math.random() - 0.5) * 1.45;
-                const spd = 340 + Math.random() * 420;
+                const spd = 330 + Math.random() * 390;
                 particles.push({
                     type: 'butterfly',
                     isGold: i % 3 !== 0,
-                    x: (Math.random() - 0.5) * 120,
+                    x: (Math.random() - 0.5) * 115,
                     y: mouthY + 20,
-                    z: (Math.random() - 0.5) * 240,
+                    z: (Math.random() - 0.5) * 230,
                     vx: Math.cos(fanAngle) * spd,
-                    vy: Math.sin(fanAngle) * spd - 140,
-                    vz: (Math.random() - 0.5) * 340,
+                    vy: Math.sin(fanAngle) * spd - 130,
+                    vz: (Math.random() - 0.5) * 320,
                     gravity: -65,
                     drag: 1.25,
                     vortex: 2.2,
-                    flutter: 180,
+                    flutter: 170,
                     phase: Math.random() * Math.PI * 2,
                     flapPhase: Math.random() * Math.PI * 2,
                     flapSpeed: 38 + Math.random() * 14,
-                    size: 16 + Math.random() * 14,
+                    size: 15 + Math.random() * 12,
                     rx: 0, ry: 0, rz: 0, vrx: 0, vry: 0, vrz: 0,
                     alpha: 1,
                     life: 0,
-                    maxLife: 2.6 + Math.random() * 0.8
+                    maxLife: 2.5 + Math.random() * 0.6
                 });
             }
-            // 4 Hồ Điệp Chúa hộ tống 4 góc tấm thiệp rút khỏi túi
             [-1, 1].forEach(sx => {
                 [-1, 1].forEach(sy => {
                     escortButterflies.push({
                         sx, sy,
                         flapPhase: Math.random() * Math.PI,
                         flapSpeed: 42,
-                        size: 26
+                        size: 24
                     });
                 });
             });
         } else if (cfg.id === 'ribbon') {
-            // 4 Dải lụa vàng hồng 3D xoắn ốc vọt từ miệng phong bì quấn quanh thiệp
             const colors = ['#e02f6e', '#f5c242', '#ff74a4', '#d49b27'];
             for (let r = 0; r < 4; r++) {
                 ribbons3D.push({
@@ -5317,77 +5597,73 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     phase: 0,
                     originX: 0,
                     originY: mouthY + 40,
-                    startRadius: 135 + (r % 2) * 28,
-                    heightSpan: 440,
+                    startRadius: 132 + (r % 2) * 26,
+                    heightSpan: 430,
                     progress: 0,
                     alpha: 1,
                     color: colors[r]
                 });
             }
-            // Mưa ngọc trai 3D và sao vàng bắn lên từ túi thư
-            for (let i = 0; i < 46; i++) {
+            for (let i = 0; i < 32; i++) {
                 const isPearl = i % 2 === 0;
                 const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.3;
-                const spd = 380 + Math.random() * 440;
+                const spd = 360 + Math.random() * 400;
                 particles.push({
                     type: isPearl ? 'pearl' : 'star',
                     hasTrail: false,
                     x: (Math.random() - 0.5) * 110,
                     y: mouthY + 15,
-                    z: (Math.random() - 0.5) * 260,
+                    z: (Math.random() - 0.5) * 240,
                     vx: Math.cos(ang) * spd,
                     vy: Math.sin(ang) * spd,
-                    vz: (Math.random() - 0.5) * 320,
-                    gravity: isPearl ? 520 : 180,
+                    vz: (Math.random() - 0.5) * 300,
+                    gravity: isPearl ? 500 : 170,
                     drag: 1.1,
                     vortex: 1.8,
-                    flutter: 60,
+                    flutter: 55,
                     phase: Math.random() * 6,
-                    size: isPearl ? (6 + Math.random() * 6) : (10 + Math.random() * 8),
+                    size: isPearl ? (6 + Math.random() * 5) : (9 + Math.random() * 7),
                     rx: 0, ry: 0, rz: Math.random() * 6,
                     vrx: 0, vry: 0, vrz: (Math.random() - 0.5) * 8,
                     alpha: 1,
                     life: 0,
-                    maxLife: 2.4 + Math.random() * 0.7
+                    maxLife: 2.3 + Math.random() * 0.6
                 });
             }
         } else if (cfg.id === 'galaxy') {
-            // 3 Vòng Quỹ Đạo Thiên Văn 3D (Gyroscope Rings) bung ra từ miệng phong bì bao quanh thiệp
             rings3D.push(
-                { cx: 0, cy: mouthY, cz: 0, radius: 40, targetRadius: 215, rx: 1.05, ry: 0.25, rz: 0, vrx: 0.35, vry: 1.45, vrz: 2.1, color: '#ffe898', glowColor: '#f5c242', lineWidth: 2.6, dashed: false, alpha: 1 },
-                { cx: 0, cy: mouthY, cz: 0, radius: 35, targetRadius: 190, rx: -0.85, ry: 0.95, rz: 0.4, vrx: -1.2, vry: 0.65, vrz: -1.8, color: '#ff9ebb', glowColor: '#d84b7e', lineWidth: 2.0, dashed: true, alpha: 1 },
-                { cx: 0, cy: mouthY, cz: 0, radius: 45, targetRadius: 245, rx: 0.35, ry: -1.1, rz: -0.6, vrx: 0.85, vry: -1.35, vrz: 1.5, color: '#9be7ff', glowColor: '#4dd0e1', lineWidth: 1.8, dashed: false, alpha: 0.9 }
+                { cx: 0, cy: mouthY, cz: 0, radius: 40, targetRadius: 210, rx: 1.05, ry: 0.25, rz: 0, vrx: 0.35, vry: 1.45, vrz: 2.1, color: '#ffe898', glowColor: '#f5c242', lineWidth: 2.4, dashed: false, alpha: 1 },
+                { cx: 0, cy: mouthY, cz: 0, radius: 35, targetRadius: 185, rx: -0.85, ry: 0.95, rz: 0.4, vrx: -1.2, vry: 0.65, vrz: -1.8, color: '#ff9ebb', glowColor: '#d84b7e', lineWidth: 1.9, dashed: true, alpha: 1 },
+                { cx: 0, cy: mouthY, cz: 0, radius: 45, targetRadius: 238, rx: 0.35, ry: -1.1, rz: -0.6, vrx: 0.85, vry: -1.35, vrz: 1.5, color: '#9be7ff', glowColor: '#4dd0e1', lineWidth: 1.7, dashed: false, alpha: 0.9 }
             );
-            // 48 Sao băng 3D có đuôi sáng bắn vọt từ lòng túi chữ V
-            for (let i = 0; i < 48; i++) {
+            for (let i = 0; i < 34; i++) {
                 const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.65;
-                const spd = 360 + Math.random() * 480;
+                const spd = 350 + Math.random() * 440;
                 particles.push({
                     type: 'star',
                     hasTrail: i % 2 === 0,
                     x: (Math.random() - 0.5) * 100,
                     y: mouthY + 10,
-                    z: (Math.random() - 0.5) * 280,
+                    z: (Math.random() - 0.5) * 260,
                     vx: Math.cos(ang) * spd,
                     vy: Math.sin(ang) * spd,
-                    vz: (Math.random() - 0.5) * 380,
+                    vz: (Math.random() - 0.5) * 360,
                     gravity: 40,
                     drag: 1.35,
                     vortex: 2.4,
-                    flutter: 90,
+                    flutter: 85,
                     phase: Math.random() * 6,
-                    size: 9 + Math.random() * 10,
+                    size: 8 + Math.random() * 9,
                     rx: 0, ry: 0, rz: 0, vrx: 0, vry: 0, vrz: 4,
                     alpha: 1,
                     life: 0,
-                    maxLife: 2.5 + Math.random() * 0.7
+                    maxLife: 2.4 + Math.random() * 0.6
                 });
             }
         } else if (cfg.id === 'hearts') {
-            // 'hearts' -> KIM CƯƠNG ÁNH SAO 3D: 2 Vòng Hào Quang Kim Tuyến mảnh mai + Mưa Kim Cương Đa Diện & Đom Đóm Bokeh Vàng 24K
             rings3D.push(
-                { cx: 0, cy: mouthY, cz: 0, radius: 42, targetRadius: 210, rx: 1.12, ry: 0.22, rz: 0, vrx: 0.28, vry: 1.15, vrz: 1.8, color: '#fff6c4', glowColor: '#f5c242', lineWidth: 2.0, dashed: false, alpha: 0.92 },
-                { cx: 0, cy: mouthY, cz: 0, radius: 38, targetRadius: 185, rx: -0.95, ry: -0.35, rz: 0.5, vrx: -0.45, vry: 0.95, vrz: -1.5, color: '#e0f7fa', glowColor: '#80deea', lineWidth: 1.6, dashed: true, alpha: 0.85 }
+                { cx: 0, cy: mouthY, cz: 0, radius: 42, targetRadius: 205, rx: 1.12, ry: 0.22, rz: 0, vrx: 0.28, vry: 1.15, vrz: 1.8, color: '#fff6c4', glowColor: '#f5c242', lineWidth: 2.0, dashed: false, alpha: 0.92 },
+                { cx: 0, cy: mouthY, cz: 0, radius: 38, targetRadius: 180, rx: -0.95, ry: -0.35, rz: 0.5, vrx: -0.45, vry: 0.95, vrz: -1.5, color: '#e0f7fa', glowColor: '#80deea', lineWidth: 1.6, dashed: true, alpha: 0.85 }
             );
             const tints = [
                 ['#e0f7fa', '#fce4ec'],
@@ -5395,29 +5671,29 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 ['#e8eaf6', '#fff3e0'],
                 ['#f3e5f5', '#e0f2f1']
             ];
-            for (let i = 0; i < 54; i++) {
+            for (let i = 0; i < 36; i++) {
                 const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.5;
-                const spd = 330 + Math.random() * 440;
+                const spd = 320 + Math.random() * 410;
                 const pType = i % 3 === 0 ? 'bokeh' : (i % 4 === 0 ? 'star' : 'diamond');
                 const pair = tints[i % tints.length];
                 particles.push({
                     type: pType,
                     hasTrail: pType === 'star',
-                    x: (Math.random() - 0.5) * 130,
+                    x: (Math.random() - 0.5) * 120,
                     y: mouthY + 18,
-                    z: (Math.random() - 0.5) * 260,
+                    z: (Math.random() - 0.5) * 240,
                     vx: Math.cos(ang) * spd,
                     vy: Math.sin(ang) * spd - 90,
-                    vz: (Math.random() - 0.5) * 340,
-                    gravity: pType === 'bokeh' ? -75 : -35,
+                    vz: (Math.random() - 0.5) * 320,
+                    gravity: pType === 'bokeh' ? -70 : -35,
                     drag: 1.25,
                     vortex: 1.85,
-                    flutter: 130,
+                    flutter: 120,
                     phase: Math.random() * Math.PI * 2,
-                    size: pType === 'bokeh' ? (14 + Math.random() * 16) : (pType === 'diamond' ? (10 + Math.random() * 9) : (9 + Math.random() * 8)),
+                    size: pType === 'bokeh' ? (12 + Math.random() * 12) : (pType === 'diamond' ? (9 + Math.random() * 8) : (8 + Math.random() * 7)),
                     tintA: pair[0],
                     tintB: pair[1],
-                    bokehColor: i % 2 === 0 ? 'rgba(255, 236, 168, 0.72)' : 'rgba(224, 247, 250, 0.72)',
+                    bokehColor: i % 2 === 0 ? 'rgba(255, 236, 168, 0.45)' : 'rgba(224, 247, 250, 0.45)',
                     rx: Math.random() * 6,
                     ry: Math.random() * 6,
                     rz: (Math.random() - 0.5) * 0.6,
@@ -5426,33 +5702,31 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     vrz: (Math.random() - 0.5) * 3,
                     alpha: 1,
                     life: 0,
-                    maxLife: 2.6 + Math.random() * 0.7
+                    maxLife: 2.5 + Math.random() * 0.6
                 });
             }
         } else {
-            // 'bloom' (Đại Hoa Trà 3D) hoặc 'sakura' (Cơn Lốc Anh Đào 3D):
-            // Cơn lốc 80+ cánh hoa 3D phun vọt từ đáy túi chữ V xoáy tròn quanh tấm thiệp
             const isSakura = cfg.id === 'sakura';
-            const total = isSakura ? 85 : 68;
+            const total = isSakura ? 48 : 42;
             for (let i = 0; i < total; i++) {
                 const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.5;
-                const spd = 340 + Math.random() * 480;
+                const spd = 330 + Math.random() * 440;
                 particles.push({
                     type: (!isSakura && i % 6 === 0) ? 'star' : 'petal',
                     isSakura,
                     hasTrail: false,
-                    x: (Math.random() - 0.5) * 130,
+                    x: (Math.random() - 0.5) * 125,
                     y: mouthY + 24,
-                    z: (Math.random() - 0.5) * 270,
+                    z: (Math.random() - 0.5) * 250,
                     vx: Math.cos(ang) * spd,
-                    vy: Math.sin(ang) * spd - 120,
-                    vz: (Math.random() - 0.5) * 360,
-                    gravity: isSakura ? -75 : 95,
+                    vy: Math.sin(ang) * spd - 110,
+                    vz: (Math.random() - 0.5) * 330,
+                    gravity: isSakura ? -70 : 90,
                     drag: 1.3,
-                    vortex: isSakura ? 3.4 : 2.1,
-                    flutter: 165,
+                    vortex: isSakura ? 3.2 : 2.1,
+                    flutter: 155,
                     phase: Math.random() * Math.PI * 2,
-                    size: isSakura ? (11 + Math.random() * 9) : (13 + Math.random() * 11),
+                    size: isSakura ? (10 + Math.random() * 8) : (12 + Math.random() * 9),
                     colorMid: isSakura ? '#ffb2c9' : '#f48fb1',
                     colorEnd: isSakura ? '#d83a6f' : '#ad1457',
                     rx: Math.random() * 6,
@@ -5463,19 +5737,17 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     vrz: (Math.random() - 0.5) * 7,
                     alpha: 1,
                     life: 0,
-                    maxLife: 2.6 + Math.random() * 0.8
+                    maxLife: 2.5 + Math.random() * 0.6
                 });
             }
         }
     }
 
-    // Vòng lặp Vật Lý 60fps chính của Đạo Diễn Phong Bì 3D Hợp Nhất
+    // Vòng lặp Vật Lý 60fps chính của Đạo Diễn Phong Bì 3D Hợp Nhất (ZERO REFLOW, ZERO ALLOCATION)
     function stepPhysicsDirector(now) {
         const dt = Math.min(0.033, Math.max(0.004, (now - lastFrameTime) / 1000));
         lastFrameTime = now;
 
-        const curVw = window.innerWidth;
-        const curVh = window.innerHeight;
         const screenCx = curVw * 0.5;
         const screenCy = curVh * 0.5;
         const envBaseW = Math.min(356, curVw * 0.86);
@@ -5488,19 +5760,16 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         ctxFront.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctxFront.clearRect(0, 0, curVw, curVh);
 
-        // Lấy tọa độ khung đích #card-showcase ở Bước 3
-        const targetRect = (cardShowcase && cardShowcase.getBoundingClientRect().width > 40)
-            ? cardShowcase.getBoundingClientRect()
-            : { left: screenCx - 150, top: screenCy - 300, width: 300, height: 600 };
+        const targetRect = cachedTargetRect;
+        const baseW = targetRect.width;
+        const baseH = targetRect.height;
 
-        const cardAspect = (targetRect.width > 0 && targetRect.height > 0)
-            ? (targetRect.height / targetRect.width)
-            : (2060 / 1024);
-        const cardInPocketW = envBaseW * 0.75;
-        const cardInPocketH = cardInPocketW * cardAspect;
+        // Tỷ lệ thu nhỏ của tấm thiệp khi đang nằm lọt lòng bên trong túi chữ V của phong bì
+        const pocketScale = Math.min(0.86, (envBaseW * 0.76) / baseW);
+        const cardInPocketW = baseW * pocketScale;
+        const cardInPocketH = baseH * pocketScale;
 
         if (u3dCurrentDirectorState === 'waiting') {
-            // Trạng thái 1: Phong bì 3D đóng kín lơ lửng chính giữa sân khấu & phản hồi nghiêng 3D theo ngón tay/chuột
             const floatT = now * 0.0022;
             const idleY = Math.sin(floatT) * 7;
             const idleRotZ = Math.cos(floatT * 0.7) * 1.2;
@@ -5522,19 +5791,17 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 floorShadow.style.transform = `translate3d(${(ry * 1.4).toFixed(1)}px, ${(-idleY * 0.5).toFixed(1)}px, 0) scale(${(1 - idleY * 0.006).toFixed(3)})`;
             }
 
-            // Đặt tấm thiệp nằm gọn bên trong túi chữ V của phong bì
+            // Đặt tấm thiệp nằm gọn bên trong túi chữ V của phong bì bằng GPU transform + scale
             const cardLeft = screenCx - cardInPocketW * 0.5;
             const cardTop = envBaseCy - envBaseH * 0.36 + idleY;
-            const envBottomY = envBaseCy + envBaseH * 0.45 + idleY;
-            const bottomClip = Math.max(0, (cardTop + cardInPocketH) - envBottomY);
+            const envBottomY = envBaseCy + envBaseH * 0.445 + idleY;
+            const bottomClipUnscaled = Math.max(0, ((cardTop + cardInPocketH) - envBottomY) / pocketScale);
 
-            cardActor.style.width = `${cardInPocketW.toFixed(1)}px`;
-            cardActor.style.height = `${cardInPocketH.toFixed(1)}px`;
             cardActor.style.opacity = '0';
-            cardActor.style.transform = `translate3d(${cardLeft.toFixed(1)}px, ${cardTop.toFixed(1)}px, 0px)`;
-            cardActor.style.clipPath = `inset(0px 0px ${bottomClip.toFixed(1)}px 0px round 14px)`;
+            cardActor.style.transform = `translate3d(${cardLeft.toFixed(1)}px, ${cardTop.toFixed(1)}px, 0px) scale(${pocketScale.toFixed(4)})`;
+            cardActor.style.clipPath = `inset(0px 0px ${bottomClipUnscaled.toFixed(1)}px 0px)`;
+            isClipPathNone = false;
 
-            // Vẽ các hạt đom đóm / ánh sao lơ lửng xung quanh phong bì lúc đang chờ mở
             for (let i = 0; i < particles.length; i++) {
                 const p = particles[i];
                 p.phase += dt * 2.2;
@@ -5548,27 +5815,118 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             return;
         }
 
-        // ====== TRẠNG THÁI 2: MỞ BÌ THƯ VẬT LÝ 3D -> THIỆP TỪ TRONG BÌ THƯ ĐI RA + HIỆU ỨNG PHUN TRÀO TỪ TÚI THƯ ======
+        // ====== TRẠNG THÁI 2: KHỞI ĐỘNG SÁP THƯ HỒI HỘP -> BẬT NẮP -> RÚT THIỆP TỪ TỪ 0%->100% KHỎI BÌ THƯ ======
         const elapsed = (now - openStartTime) / 1000;
-
-        // 1. Kích hoạt vỡ phong ấn / tháo nơ tại t = 0.12s
         const envMouthWorldY = (envBaseCy - envBaseH * 0.24) - screenCy;
-        if (!hasSpawnedSealBreak && elapsed >= 0.12) {
-            hasSpawnedSealBreak = true;
-            spawnSealBreakExplosion(envMouthWorldY + envBaseH * 0.28);
+        const sealWorldY = envMouthWorldY + envBaseH * 0.28;
+
+        // ---------------------------------------------------------------------------------
+        // PHA A (0.00s -> 0.88s): KHỞI ĐỘNG / VẬN ĐỘNG HỒI HỘP TRÊN CON DẤU SÁP THEO TỪNG CHẾ ĐỘ
+        // ---------------------------------------------------------------------------------
+        const w = Math.min(1, elapsed / WINDUP_END);
+
+        if (elapsed < WINDUP_END) {
+            // Con dấu sáp & biểu tượng trung tâm vận động riêng biệt theo đúng chủ đề hiệu ứng đã chọn
+            let sealScale = 1;
+            let sealRotZ = 0;
+            let sealTx = 0;
+            let sealTy = 0;
+            let emblemTransform = '';
+
+            if (cfg.id === 'bloom') {
+                // Đại Hoa Trà: 3 nhịp đập trái tim dồn dập + hoa trà xoay lấy đà ngược chiều kim đồng hồ rồi bùng nở
+                const beat = Math.abs(Math.sin(w * Math.PI * 3.5));
+                sealScale = 1 + 0.22 * beat * w;
+                sealRotZ = w < 0.35 ? (w / 0.35) * 16 : 16 - ((w - 0.35) / 0.65) * 52;
+                sealTx = Math.sin(elapsed * 55) * 2.5 * w * w;
+            } else if (cfg.id === 'butterflies') {
+                // Hồ Điệp Vàng: Cánh bướm vàng trên ấn sáp vỗ cánh nhanh dần như đang thức giấc muốn bay vọt khỏi sáp
+                const wingScaleX = 0.32 + 0.68 * Math.abs(Math.cos(w * Math.PI * 10));
+                sealScale = 1 + 0.18 * w;
+                sealTy = -Math.abs(Math.sin(w * Math.PI * 5)) * 8 * w;
+                sealRotZ = Math.sin(w * Math.PI * 8) * 6 * w;
+                emblemTransform = `scaleX(${wingScaleX.toFixed(2)}) scaleY(${(1 + 0.12 * w).toFixed(2)})`;
+            } else if (cfg.id === 'ribbon') {
+                // Ruy-Băng Lụa: (0 -> 0.42) Nút nơ thắt căng lấy đà; (0.42 -> 1.0) 4 dải lụa tuột mở bay vút ra 4 phía!
+                if (w < 0.42) {
+                    const tw = w / 0.42;
+                    sealScale = 1 - 0.08 * Math.sin(tw * Math.PI) + 0.15 * tw;
+                    sealRotZ = -18 * Math.sin(tw * Math.PI * 0.5);
+                } else {
+                    const uw = (w - 0.42) / 0.58;
+                    const easeUw = 1 - Math.pow(1 - uw, 2.6);
+                    sealScale = 1.07 + 0.25 * easeUw;
+                    sealRotZ = -18 + easeUw * 140;
+                    const op = `${Math.max(0, 1 - easeUw * 1.15).toFixed(2)}`;
+                    if (strapEls.hL) { strapEls.hL.style.transform = `translateX(${(-easeUw * 115).toFixed(1)}px) rotateZ(${(-easeUw * 22).toFixed(1)}deg) scaleX(${(1 - easeUw * 0.65).toFixed(2)})`; strapEls.hL.style.opacity = op; }
+                    if (strapEls.hR) { strapEls.hR.style.transform = `translateX(${(easeUw * 115).toFixed(1)}px) rotateZ(${(easeUw * 22).toFixed(1)}deg) scaleX(${(1 - easeUw * 0.65).toFixed(2)})`; strapEls.hR.style.opacity = op; }
+                    if (strapEls.vT) { strapEls.vT.style.transform = `translateY(${(-easeUw * 95).toFixed(1)}px) scaleY(${(1 - easeUw * 0.65).toFixed(2)})`; strapEls.vT.style.opacity = op; }
+                    if (strapEls.vB) { strapEls.vB.style.transform = `translateY(${(easeUw * 95).toFixed(1)}px) scaleY(${(1 - easeUw * 0.65).toFixed(2)})`; strapEls.vB.style.opacity = op; }
+                }
+            } else if (cfg.id === 'galaxy') {
+                // Ngân Hà Sao: La bàn thiên văn quay gia tốc như con quay hồi chuyển tụ năng lượng vũ trụ
+                sealScale = 1 + 0.24 * (w * w);
+                sealRotZ = Math.pow(w, 2.2) * 420;
+            } else if (cfg.id === 'sakura') {
+                // Lốc Anh Đào: Con dấu xoay cuốn theo tâm bão hoa anh đào + rung nhịp gió xuân
+                sealScale = 1 + 0.20 * Math.sin(w * Math.PI * 0.8);
+                sealRotZ = Math.pow(w, 1.9) * 320;
+                sealTx = Math.cos(elapsed * 42) * 3.5 * w;
+                sealTy = Math.sin(elapsed * 42) * 3.5 * w;
+            } else if (cfg.id === 'hearts') {
+                // Kim Cương Sao: Viên kim cương 16 giác cắt rung cộng hưởng pha lê tần số cao & lóe sáng đa diện
+                const crystalPulse = Math.sin(w * Math.PI * 7);
+                sealScale = 1 + 0.24 * w + 0.08 * Math.abs(crystalPulse);
+                sealRotZ = crystalPulse * 14 * w;
+                sealTx = Math.sin(elapsed * 75) * 3.2 * w * w;
+                emblemTransform = `rotateZ(${(w * 90).toFixed(1)}deg) scale(${(1 + 0.15 * Math.abs(crystalPulse)).toFixed(2)})`;
+            }
+
+            if (sealBtn) {
+                sealBtn.style.opacity = '1';
+                sealBtn.style.transform = `translate3d(${sealTx.toFixed(1)}px, ${sealTy.toFixed(1)}px, 0) scale(${sealScale.toFixed(3)}) rotateZ(${sealRotZ.toFixed(1)}deg)`;
+            }
+            if (sealEmblem) {
+                sealEmblem.style.transform = emblemTransform;
+            }
+
+            // Phun các hạt mồi thức tỉnh quanh con dấu sáp trong lúc khởi động hồi hộp
+            windupSpawnAccum += dt;
+            if (windupSpawnAccum >= 0.065) {
+                windupSpawnAccum = 0;
+                spawnWindupSealParticle(sealWorldY, w);
+            }
+        } else {
+            // Sau t = 0.88s: Phong ấn vỡ tung & bay vọt lên khi nắp thư bật mở
+            if (sealBtn) {
+                const sp = Math.min(1, (elapsed - WINDUP_END) / 0.22);
+                sealBtn.style.opacity = `${(1 - sp).toFixed(2)}`;
+                sealBtn.style.transform = `translate3d(0, ${(-sp * 48).toFixed(1)}px, 0) scale(${(1.25 + sp * 0.75).toFixed(2)})`;
+            }
         }
 
-        // 2. Giải phương trình vi phân Lò xo Bản lề Nắp Thư (bắt đầu mở tại t = 0.13s)
-        if (elapsed >= 0.13) {
+        // Kích hoạt vụ nổ vỡ phong ấn tại đúng thời khắc kết thúc pha khởi động (t = WINDUP_END = 0.88s)
+        if (!hasSpawnedSealBreak && elapsed >= WINDUP_END) {
+            hasSpawnedSealBreak = true;
+            spawnSealBreakExplosion(sealWorldY);
+        }
+
+        // ---------------------------------------------------------------------------------
+        // PHA B: CHUYỂN ĐỘNG BẢN LỀ NẮP PHONG BÌ (Hé mở hồi hộp lúc khởi động -> Bật mở lò xo tại 0.88s)
+        // ---------------------------------------------------------------------------------
+        if (elapsed < WINDUP_END) {
+            // Trong lúc khởi động sáp thư (0.00s -> 0.88s): Nắp phong bì hé nhẹ 0° -> 18° kèm nhịp rung nội lực, ánh sáng vàng hé lộ từ khe nắp
+            flapAngle = 18 * Math.pow(w, 2.2) + Math.sin(elapsed * 45) * 2.2 * (w * w);
+        } else {
+            // Từ 0.88s: Lò xo bản lề bật mở dứt khoát từ 18° lên 184°
             const targetFlap = 184;
-            const springK = 165;
-            const dampingC = 13.0;
+            const springK = 175;
+            const dampingC = 13.5;
             const accel = springK * (targetFlap - flapAngle) - dampingC * flapVel;
             flapVel += accel * dt;
             flapAngle += flapVel * dt;
         }
 
-        // Chuyển nắp thư từ lớp Trước sang lớp Sau ngay khi góc mở vượt 90° (vuông góc camera)
         if (flapAngle < 89.5) {
             if (flapFront) {
                 flapFront.style.display = 'block';
@@ -5583,42 +5941,16 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             }
         }
 
-        // Hiệu ứng Bung Phong Ấn & Tháo 4 Dải Ruy-băng Lụa
-        if (sealBtn) {
-            if (elapsed < 0.12) {
-                const vib = Math.sin(elapsed * 95) * 3;
-                sealBtn.style.transform = `translate3d(${vib.toFixed(1)}px, 0, 0) scale(${(1 + elapsed * 0.9).toFixed(2)})`;
-            } else {
-                const sp = Math.min(1, (elapsed - 0.12) / 0.20);
-                sealBtn.style.opacity = `${(1 - sp).toFixed(2)}`;
-                sealBtn.style.transform = `translate3d(0, ${(-sp * 42).toFixed(1)}px, 0) scale(${(1.12 + sp * 0.75).toFixed(2)})`;
-            }
-        }
-
-        if (ribbonStraps && cfg.id === 'ribbon' && elapsed >= 0.12) {
-            const rp = Math.min(1, (elapsed - 0.12) / 0.34);
-            const easeOut = 1 - Math.pow(1 - rp, 3);
-            const hL = ribbonStraps.querySelector('.u3d-strap-h-left');
-            const hR = ribbonStraps.querySelector('.u3d-strap-h-right');
-            const vT = ribbonStraps.querySelector('.u3d-strap-v-top');
-            const vB = ribbonStraps.querySelector('.u3d-strap-v-bottom');
-            const op = `${Math.max(0, 1 - rp * 1.15).toFixed(2)}`;
-            if (hL) { hL.style.transform = `translateX(${(-easeOut * 95).toFixed(1)}px) rotateZ(${(-easeOut * 18).toFixed(1)}deg) scaleX(${(1 - easeOut * 0.7).toFixed(2)})`; hL.style.opacity = op; }
-            if (hR) { hL.style.transform = `translateX(${(easeOut * 95).toFixed(1)}px) rotateZ(${(easeOut * 18).toFixed(1)}deg) scaleX(${(1 - easeOut * 0.7).toFixed(2)})`; hR.style.opacity = op; }
-            if (vT) { vT.style.transform = `translateY(${(-easeOut * 85).toFixed(1)}px) scaleY(${(1 - easeOut * 0.7).toFixed(2)})`; vT.style.opacity = op; }
-            if (vB) { vB.style.transform = `translateY(${(easeOut * 85).toFixed(1)}px) scaleY(${(1 - easeOut * 0.7).toFixed(2)})`; vB.style.opacity = op; }
-        }
-
-        // 3. Kích hoạt Phun Trào Vật Lý 3D từ trong Miệng Túi Chữ V ngay khi nắp thư hé mở (t = 0.22s)
-        if (!hasSpawnedMainBurst && elapsed >= 0.22) {
+        // Kích hoạt Phun Trào Vật Lý 3D từ trong Miệng Túi Chữ V ngay khi nắp thư mở qua 90° (t = EXTRACT_START = 0.98s)
+        if (!hasSpawnedMainBurst && elapsed >= EXTRACT_START) {
             hasSpawnedMainBurst = true;
             spawnPocketMouthEruption(envMouthWorldY);
         }
 
-        // Bổ sung luồng hạt 3D phun liên tục từ miệng phong bì trong lúc thiệp đang từ trong bì thư đi ra (0.24s -> 1.45s)
-        if (elapsed >= 0.24 && elapsed <= 1.45) {
+        // Luồng hạt 3D phun liên tục từ miệng phong bì trong lúc thiệp đang từ trong bì thư đi ra (1.00s -> 2.25s)
+        if (elapsed >= EXTRACT_START && elapsed <= EXTRACT_END) {
             streamSpawnAccum += dt;
-            if (streamSpawnAccum >= 0.045) {
+            if (streamSpawnAccum >= 0.065) {
                 streamSpawnAccum = 0;
                 const pType = cfg.id === 'butterflies' ? 'butterfly'
                     : (cfg.id === 'galaxy' ? 'star'
@@ -5629,20 +5961,20 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     isGold: Math.random() > 0.35,
                     isSakura: cfg.id === 'sakura',
                     hasTrail: cfg.id === 'galaxy',
-                    x: (Math.random() - 0.5) * 140,
+                    x: (Math.random() - 0.5) * 135,
                     y: envMouthWorldY + 30,
-                    z: (Math.random() - 0.5) * 280,
-                    vx: (Math.random() - 0.5) * 280,
-                    vy: -320 - Math.random() * 340,
-                    vz: (Math.random() - 0.5) * 320,
+                    z: (Math.random() - 0.5) * 260,
+                    vx: (Math.random() - 0.5) * 260,
+                    vy: -310 - Math.random() * 320,
+                    vz: (Math.random() - 0.5) * 300,
                     gravity: (pType === 'butterfly' || pType === 'diamond' || cfg.id === 'sakura') ? -50 : 140,
                     drag: 1.2,
                     vortex: 2.2,
-                    flutter: 130,
+                    flutter: 125,
                     phase: Math.random() * 6,
                     flapPhase: Math.random() * 6,
                     flapSpeed: 40,
-                    size: pType === 'butterfly' ? 18 : (pType === 'pearl' ? 7 : 11),
+                    size: pType === 'butterfly' ? 16 : (pType === 'pearl' ? 6 : 10),
                     tintA: '#e0f7fa',
                     tintB: '#fce4ec',
                     colorMid: cfg.id === 'sakura' ? '#ffb2c9' : '#f48fb1',
@@ -5651,150 +5983,193 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     vrx: (Math.random() - 0.5) * 8, vry: (Math.random() - 0.5) * 8, vrz: (Math.random() - 0.5) * 8,
                     alpha: 1,
                     life: 0,
-                    maxLife: 2.2
+                    maxLife: 2.0
                 });
             }
         }
 
-        // 4. Quỹ Đạo Vật Lý của PHONG BÌ 3D:
-        // Khi nắp mở & thiệp trượt từ trong bì thư đi lên (0.14s -> 1.40s), bì thư lùi dần xuống dưới theo phản lực để nhường chỗ cho tấm thiệp đi ra trọn vẹn!
+        // ---------------------------------------------------------------------------------
+        // PHA C: TÍNH TOÁN QUỸ ĐẠO PHONG BÌ & TẤM THIỆP ĐỂ THIỆP ĐI RA TỪ TỪ 0% -> 100% (KHÔNG BAO GIỜ NHẢY BẬC!)
+        // ---------------------------------------------------------------------------------
+        // Để bức thư rút ra khỏi phong bì từ từ đến hết 100% chiều dài mà KHÔNG bị biến ra đột ngột ở 1/3 cuối:
+        // Tại thời điểm kết thúc pha rút (t = EXTRACT_END = 2.32s), cạnh đáy của tấm thiệp (cardBottomY)
+        // PHẢI VƯỢT LÊN TRÊN miệng trên của túi phong bì (envTopMouthY)!
+        // Khi cardBottomY <= envTopMouthY, toàn bộ 100% tấm thiệp đã ở phía trên túi trước (#u3d-env-front-rig),
+        // nên không có bất kỳ phần nào của tấm thiệp bị nhảy lớp z-index!
+        const targetCx = targetRect.left + baseW * 0.5;
+        const targetCy = targetRect.top + baseH * 0.5;
+
+        const extractedScale = pocketScale;
+        const extractedH = baseH * extractedScale;
+        const extractedCy = Math.max(extractedH * 0.52, targetCy - 18);
+        const extractedBottomY = extractedCy + extractedH * 0.5;
+
+        // Khoảng lùi xuống của phong bì tại t = EXTRACT_END sao cho miệng trên của túi phong bì (envTopMouthY)
+        // nằm thấp hơn cạnh đáy của tấm thiệp (extractedBottomY) đúng 14px -> Thiệp đi ra từ từ 0% đến 100% trọn vẹn!
+        const envScaleExtractEnd = 0.94;
+        const envTopOffsetFromCenter = envBaseH * 0.43 * envScaleExtractEnd;
+        const envExtractDropY = Math.max(240, (extractedBottomY + 14) - (envBaseCy - envTopOffsetFromCenter));
+
+        let envX = 0;
         let envY = 0;
         let envZ = 0;
         let envRotX = 6;
+        let envRotZ = 0;
         let envScale = 1;
         let envOpacity = 1;
 
-        if (elapsed < 0.14) {
-            const cp = elapsed / 0.14;
-            envZ = -24 * Math.sin(cp * Math.PI * 0.5);
-            envRotX = 6 - 10 * Math.sin(cp * Math.PI * 0.5);
-            envScale = 1 - 0.03 * cp;
-        } else if (elapsed < 1.40) {
-            // Phong bì hạ dần xuống dưới trong lúc tấm thiệp trượt rút thẳng từ trong lòng túi chữ V đi lên
-            const ep = (elapsed - 0.14) / 1.26;
+        if (elapsed < WINDUP_END) {
+            // Phong bì gồng mình tụ lực và rung nhẹ theo nhịp khởi động của con dấu sáp (0.00s -> 0.88s)
+            const chargeCurve = Math.sin(w * Math.PI * 0.5);
+            const rumble = w > 0.25 ? Math.pow((w - 0.25) / 0.75, 2) : 0;
+            envX = Math.sin(elapsed * 58) * 3.2 * rumble;
+            envY = -10 * Math.sin(w * Math.PI * 0.85);
+            envZ = -34 * chargeCurve;
+            envRotX = 6 - 12 * chargeCurve;
+            envRotZ = Math.cos(elapsed * 46) * 1.4 * rumble;
+            envScale = 1 - 0.035 * chargeCurve;
+        } else if (elapsed < EXTRACT_START) {
+            // Phản lực nhún nhẹ khi phong ấn nổ tung & nắp bật mở (0.88s -> 0.98s)
+            const bp = (elapsed - WINDUP_END) / (EXTRACT_START - WINDUP_END);
+            envY = 14 * bp;
+            envZ = -34 + 10 * bp;
+            envRotX = -6 + 6 * bp;
+            envScale = 0.965;
+        } else if (elapsed < EXTRACT_END) {
+            // (0.98s -> 2.32s): Trong lúc tấm thiệp trượt lên, phong bì lùi mượt xuống dưới đến envExtractDropY
+            // để miệng túi phong bì quét dọc hết 100% thân thiệp từ đỉnh thiệp xuống tận đáy thiệp!
+            const ep = (elapsed - EXTRACT_START) / (EXTRACT_END - EXTRACT_START);
+            // Đường cong S-curve siêu mượt (C1/C2 continuous)
             const easeEp = ep * ep * (3 - 2 * ep);
-            envY = easeEp * 225;
-            envZ = -24 + easeEp * 14;
-            envRotX = -4 + easeEp * 20;
-            envScale = 0.97;
+            envY = 14 + (envExtractDropY - 14) * easeEp;
+            envZ = -24 + easeEp * 10;
+            envRotX = easeEp * 16;
+            envScale = 0.965 - easeEp * 0.025;
         } else {
-            // Khi đáy thiệp đã rút hoàn toàn khỏi miệng túi chữ V (t >= 1.40s), phong bì lùi mờ xuống dưới
-            const dp = Math.min(1, (elapsed - 1.40) / 0.90);
+            // Sau khi 100% tấm thiệp đã ra khỏi miệng bì thư (t >= 2.32s): Phong bì rỗng lùi mờ xuống dưới
+            const dp = Math.min(1, (elapsed - EXTRACT_END) / (PRESENT_END - EXTRACT_END));
             const easeDp = dp * dp;
-            envY = 225 + easeDp * 250;
-            envZ = -10 - easeDp * 380;
-            envRotX = 16 + easeDp * 28;
-            envScale = 0.97 - easeDp * 0.35;
-            envOpacity = Math.max(0, 1 - Math.pow(dp, 1.35));
+            envY = envExtractDropY + easeDp * 180;
+            envZ = -14 - easeDp * 260;
+            envRotX = 16 + easeDp * 22;
+            envScale = 0.94 - easeDp * 0.26;
+            envOpacity = Math.max(0, 1 - Math.pow(dp, 1.25));
         }
 
-        const envMat = `perspective(1400px) translate3d(0px, ${envY.toFixed(1)}px, ${envZ.toFixed(1)}px) rotateX(${envRotX.toFixed(2)}deg) scale(${envScale.toFixed(3)})`;
+        const envMat = `perspective(1400px) translate3d(${envX.toFixed(1)}px, ${envY.toFixed(1)}px, ${envZ.toFixed(1)}px) rotateX(${envRotX.toFixed(2)}deg) rotateZ(${envRotZ.toFixed(2)}deg) scale(${envScale.toFixed(3)})`;
         backRig.style.transform = envMat;
         frontRig.style.transform = envMat;
         backRig.style.opacity = `${envOpacity.toFixed(3)}`;
         frontRig.style.opacity = `${envOpacity.toFixed(3)}`;
 
-        // Ánh sáng Volumetric & Đóa Đại Hoa Trà 3D mọc từ miệng túi chữ V
-        if (pocketLight && elapsed >= 0.15) {
-            const lp = Math.min(1, (elapsed - 0.15) / 0.45);
-            const fadeL = elapsed > 1.25 ? Math.max(0, 1 - (elapsed - 1.25) / 0.7) : 1;
-            pocketLight.style.opacity = `${(Math.sin(lp * Math.PI * 0.5) * fadeL).toFixed(3)}`;
-            pocketLight.style.transform = `scaleY(${(0.25 + lp * 1.15).toFixed(2)}) scaleX(${(0.65 + lp * 0.55).toFixed(2)})`;
+        // Ánh sáng Volumetric hé lộ từ khe nắp thư trong lúc khởi động và bùng sáng khi nắp mở
+        if (pocketLight) {
+            if (elapsed < WINDUP_END) {
+                const glowW = Math.pow(w, 1.8) * 0.55;
+                pocketLight.style.opacity = `${glowW.toFixed(3)}`;
+                pocketLight.style.transform = `scaleY(${(0.25 + w * 0.35).toFixed(2)}) scaleX(${(0.65 + w * 0.25).toFixed(2)})`;
+            } else {
+                const lp = Math.min(1, (elapsed - WINDUP_END) / 0.42);
+                const fadeL = elapsed > 1.95 ? Math.max(0, 1 - (elapsed - 1.95) / 0.65) : 1;
+                pocketLight.style.opacity = `${((0.55 + 0.45 * Math.sin(lp * Math.PI * 0.5)) * fadeL).toFixed(3)}`;
+                pocketLight.style.transform = `scaleY(${(0.60 + lp * 0.80).toFixed(2)}) scaleX(${(0.90 + lp * 0.30).toFixed(2)})`;
+            }
         }
-        if (pocketBloomCore && cfg.id === 'bloom' && elapsed >= 0.18) {
-            const bp = Math.min(1, (elapsed - 0.18) / 0.68);
+        if (pocketBloomCore && cfg.id === 'bloom' && elapsed >= WINDUP_END + 0.04) {
+            const bp = Math.min(1, (elapsed - (WINDUP_END + 0.04)) / 0.68);
             const easeBp = 1 - Math.pow(1 - bp, 3);
             pocketBloomCore.style.opacity = `${(Math.min(1, bp * 2.2) * envOpacity).toFixed(3)}`;
             pocketBloomCore.style.transform = `translate3d(0, ${(-easeBp * 48).toFixed(1)}px, 0) scale(${(0.18 + easeBp * 1.12).toFixed(3)}) rotateZ(${(easeBp * 28).toFixed(1)}deg)`;
         }
 
-        // 5. QUỸ ĐẠO VẬT LÝ 3D CỦA TẤM THIỆP:
-        // Nằm thật bên trong túi chữ V -> Khi mở nắp bì thư, thiệp từ trong bì thư trượt rút thẳng lên khỏi miệng túi -> Mở rộng mượt mà ra chính giữa sân khấu (#card-showcase)
+        // ---------------------------------------------------------------------------------
+        // PHA D: QUỸ ĐẠO VẬT LÝ 3D CỦA TẤM THIỆP (RÚT MƯỢT 0% -> 100% KHỎI TÚI -> MỞ RỘNG RA SÂN KHẤU)
+        // ---------------------------------------------------------------------------------
         let cardCx = screenCx;
         let cardCy = envBaseCy;
-        let cardW = cardInPocketW;
-        let cardH = cardInPocketH;
+        let cardScale = pocketScale;
         let cardZ = 0;
         let cardRotX = envRotX;
         let cardRotY = 0;
-        let cardRotZ = 0;
-        let cardOpacity = flapAngle < 5 ? 0 : Math.min(1, (flapAngle - 5) / 22);
-        let bottomClipPx = 0;
+        let cardRotZ = envRotZ;
+        let cardOpacity = flapAngle < 8 ? 0 : Math.min(1, (flapAngle - 8) / 24);
+        let bottomClipScreenPx = 0;
 
-        // Vị trí của tấm thiệp ngay khi vừa rút hết phần thân ra khỏi miệng túi chữ V tại t = 1.40s
-        const extractedW = cardInPocketW * 1.06;
-        const extractedH = cardInPocketH * 1.06;
-        const extractedCy = screenCy - 28;
         const envBottomScreenY = envBaseCy + envY + (envBaseH * 0.445) * envScale;
+        const startTopY = (envBaseCy - envBaseH * 0.36);
+        const startCy = startTopY + cardInPocketH * 0.5;
 
-        if (elapsed < 0.26) {
-            // Nắp bì thư vừa bật mở (0.00s -> 0.26s): Lộ rõ tấm thiệp đang nằm gọn bên trong lòng túi chữ V
-            const tuckedTopY = (envBaseCy - envBaseH * 0.36) + envY;
-            cardCy = tuckedTopY + cardH * 0.5;
-            bottomClipPx = Math.max(0, (cardCy + cardH * 0.5) - envBottomScreenY);
-        } else if (elapsed < 1.40) {
-            // PHA RÚT THIỆP TỪ TRONG BÌ THƯ ĐI RA NGOÀI (0.26s -> 1.40s)
+        if (elapsed < EXTRACT_START) {
+            // (0.00s -> 0.98s): Tấm thiệp nằm gọn bên trong túi chữ V, nhấp nhô cùng phong bì khi nắp hé mở
+            cardCx = screenCx + envX;
+            cardCy = startCy + envY;
+            cardScale = pocketScale;
+            bottomClipScreenPx = Math.max(0, (cardCy + cardInPocketH * 0.5) - envBottomScreenY);
+        } else if (elapsed < EXTRACT_END) {
+            // (0.98s -> 2.32s): BỨC THƯ TỪ TỪ ĐI RA KHỎI PHONG BÌ TỪ 0% ĐẾN ĐÚNG 100% CHIỀU DÀI!
+            // Giữ nguyên bề ngang lọt lòng túi (pocketScale) trong suốt quá trình trượt qua miệng túi
+            // và kết hợp phong bì lùi xuống để cạnh đáy bức thư vượt lên trên miệng túi tại đúng p = 1.0!
             cardOpacity = 1;
-            const pp = (elapsed - 0.26) / (1.40 - 0.26);
-            // Đường cong trượt mượt mà: thắng lực ma sát túi thư rồi trượt êm ái lên khỏi miệng túi chữ V
-            const easePull = pp < 0.25
-                ? 2.0 * pp * pp
-                : 1 - Math.pow(1 - pp, 2.4);
+            const pp = (elapsed - EXTRACT_START) / (EXTRACT_END - EXTRACT_START);
+            // Hàm S-curve mượt liên tục (không gãy vận tốc):
+            const easePull = pp * pp * (3 - 2 * pp);
 
-            const startTopY = (envBaseCy - envBaseH * 0.36);
-            const startCy = startTopY + cardInPocketH * 0.5;
+            const inEnvCy = startCy + envY;
+            cardCx = screenCx;
+            cardCy = inEnvCy + (extractedCy - inEnvCy) * easePull;
+            cardScale = pocketScale;
 
-            cardW = cardInPocketW + (extractedW - cardInPocketW) * easePull;
-            cardH = cardInPocketH + (extractedH - cardInPocketH) * easePull;
-            cardCy = (startCy + envY * (1 - easePull)) + (extractedCy - startCy) * easePull;
+            // Nghiêng 3D nhẹ nhàng sang trọng khi tấm thiệp trượt qua miệng túi
+            const tiltWave = Math.sin(pp * Math.PI);
+            cardRotX = envRotX * (1 - easePull) + 8 * tiltWave;
+            cardRotY = tiltWave * (cfg.id === 'butterflies' ? -9 : 8);
+            cardRotZ = tiltWave * (cfg.id === 'sakura' ? 2.5 : -2.0);
+            cardZ = easePull * 28;
 
-            // Giữ mặt trước tấm thiệp hướng về phía người xem, nghiêng 3D nhẹ nhàng sang trọng khi trượt ra khỏi bì thư
-            const tiltWave = Math.sin(easePull * Math.PI);
-            cardRotX = envRotX * (1 - easePull) + 10 * tiltWave;
-            cardRotY = tiltWave * (cfg.id === 'butterflies' ? -10 : 9);
-            cardRotZ = tiltWave * (cfg.id === 'sakura' ? 3.5 : -2.5);
-            cardZ = easePull * 36;
-
-            // Cắt chính xác phần đuôi thiệp còn nằm dưới đáy phong bì (tự động về 0 khi đáy thiệp vượt lên trên đáy phong bì)
-            bottomClipPx = Math.max(0, (cardCy + cardH * 0.5) - envBottomScreenY);
+            // Cắt phần chân thiệp nếu còn thấp hơn đáy phong bì (tự động giảm mượt về 0 khi chân thiệp rút lên cao hơn đáy phong bì)
+            const curCardH = baseH * cardScale;
+            bottomClipScreenPx = Math.max(0, (cardCy + curCardH * 0.5) - envBottomScreenY);
         } else {
-            // PHA TRÌNH BÀY: Đáy thiệp đã rút hoàn toàn khỏi miệng bì thư -> Phóng to mượt mà khớp vào #card-showcase (1.40s -> 2.35s)
+            // (2.32s -> 2.94s): Toàn bộ 100% tấm thiệp đã ra khỏi miệng bì thư!
+            // Bây giờ tấm thiệp mới phóng to mượt mà từ kích thước lọt lòng túi (pocketScale) lên 1.000 khớp vào #card-showcase!
             cardOpacity = 1;
             if (!stage.classList.contains('pocket-cleared')) {
                 stage.classList.add('pocket-cleared');
             }
-            bottomClipPx = 0;
+            bottomClipScreenPx = 0;
 
-            const fp = Math.min(1, (elapsed - 1.40) / 0.95);
-            const easeFlight = 1 - Math.pow(1 - fp, 3.0);
+            const fp = Math.min(1, (elapsed - EXTRACT_END) / (PRESENT_END - EXTRACT_END));
+            // Quintic smooth-out để đáp vào khung đích êm như nhung, không khựng
+            const easeExpand = 1 - Math.pow(1 - fp, 3.2);
             const rem = Math.pow(1 - fp, 2.0);
 
-            const targetCx = targetRect.left + targetRect.width * 0.5;
-            const targetCy = targetRect.top + targetRect.height * 0.5;
+            cardCx = screenCx + (targetCx - screenCx) * easeExpand;
+            cardCy = extractedCy + (targetCy - extractedCy) * easeExpand;
+            cardScale = pocketScale + (1.0 - pocketScale) * easeExpand;
+            cardZ = 28 * (1 - easeExpand) + Math.sin(fp * Math.PI) * 38 * rem;
 
-            const arcLiftY = -Math.sin(fp * Math.PI) * 22 * (1 - fp * 0.5);
-            cardCx = screenCx + (targetCx - screenCx) * easeFlight;
-            cardCy = extractedCy + (targetCy - extractedCy) * easeFlight + arcLiftY;
-            cardW = extractedW + (targetRect.width - extractedW) * easeFlight;
-            cardH = extractedH + (targetRect.height - extractedH) * easeFlight;
-            cardZ = 36 * (1 - easeFlight) + Math.sin(fp * Math.PI) * 55 * rem;
-
-            // Nghiêng 3D uyển chuyển khoe ánh kim phản quang trên mặt thiệp rồi đáp êm vào khung đích
-            cardRotX = -Math.sin(fp * Math.PI) * 8 * rem;
-            cardRotY = Math.sin(fp * Math.PI) * (cfg.id === 'butterflies' ? -12 : 12) * rem;
-            cardRotZ = Math.sin(fp * Math.PI) * 2.5 * rem;
+            cardRotX = -Math.sin(fp * Math.PI) * 6 * rem;
+            cardRotY = Math.sin(fp * Math.PI) * (cfg.id === 'butterflies' ? -9 : 9) * rem;
+            cardRotZ = Math.sin(fp * Math.PI) * 1.8 * rem;
         }
 
-        // Áp dụng vị trí, độ trong suốt & góc xoay 3D cho Tấm Thiệp
-        const cardLeft = cardCx - cardW * 0.5;
-        const cardTop = cardCy - cardH * 0.5;
-        cardActor.style.width = `${cardW.toFixed(2)}px`;
-        cardActor.style.height = `${cardH.toFixed(2)}px`;
+        // Áp dụng vị trí & tỷ lệ cho Tấm Thiệp BẰNG THUẦN GPU TRANSFORM (Không chạm vào style.width / style.height!)
+        const curCardW = baseW * cardScale;
+        const curCardH = baseH * cardScale;
+        const cardLeft = cardCx - curCardW * 0.5;
+        const cardTop = cardCy - curCardH * 0.5;
+
         cardActor.style.opacity = `${cardOpacity.toFixed(3)}`;
-        cardActor.style.transform = `translate3d(${cardLeft.toFixed(2)}px, ${cardTop.toFixed(2)}px, 0px)`;
-        cardActor.style.clipPath = bottomClipPx > 0.5
-            ? `inset(0px 0px ${bottomClipPx.toFixed(1)}px 0px round 14px)`
-            : 'none';
+        cardActor.style.transform = `translate3d(${cardLeft.toFixed(2)}px, ${cardTop.toFixed(2)}px, 0px) scale(${cardScale.toFixed(4)})`;
+
+        if (bottomClipScreenPx > 1.0) {
+            const clipUnscaled = bottomClipScreenPx / cardScale;
+            cardActor.style.clipPath = `inset(0px 0px ${clipUnscaled.toFixed(1)}px 0px)`;
+            isClipPathNone = false;
+        } else if (!isClipPathNone) {
+            cardActor.style.clipPath = 'none';
+            isClipPathNone = true;
+        }
 
         if (cardInner) {
             cardInner.style.transform = `translateZ(${cardZ.toFixed(1)}px) rotateX(${cardRotX.toFixed(2)}deg) rotateY(${cardRotY.toFixed(2)}deg) rotateZ(${cardRotZ.toFixed(2)}deg)`;
@@ -5809,7 +6184,14 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             backSpecular.style.transform = `translateX(${(-glareShift).toFixed(1)}%) rotate(15deg)`;
         }
 
-        // 6. CẬP NHẬT & VẼ CÁC CẤU TRÚC 3D BAO QUANH THIỆP (Vòng Ngân Hà, Vòng Kim Cương, Dải Lụa Hoàng Gia, Hồ Điệp Hộ Tống)
+        // ---------------------------------------------------------------------------------
+        // PHA E: VẼ VÒNG NĂNG LƯỢNG KHỞI ĐỘNG SÁP THƯ & CÁC CẤU TRÚC 3D BAO QUANH THIỆP
+        // ---------------------------------------------------------------------------------
+        if (elapsed < WINDUP_END) {
+            const sealScreenY = screenCy + sealWorldY + envY;
+            drawSealWindupEffect(ctxFront, cfg.id, w, screenCx + envX, screenCy, sealScreenY);
+        }
+
         const cardWorldX = cardCx - screenCx;
         const cardWorldY = cardCy - screenCy;
 
@@ -5823,8 +6205,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             r.rx += r.vrx * dt;
             r.ry += r.vry * dt;
             r.rz += r.vrz * dt;
-            if (elapsed > 1.90) {
-                r.alpha = Math.max(0, 1 - (elapsed - 1.90) / 0.95);
+            if (elapsed > 2.45) {
+                r.alpha = Math.max(0, 1 - (elapsed - 2.45) / 0.90);
             }
             drawSplit3DRing(ctxBack, ctxFront, r, screenCx, screenCy, focal, cardZ);
         }
@@ -5833,23 +6215,23 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         for (let i = 0; i < ribbons3D.length; i++) {
             const rb = ribbons3D[i];
             rb.originX = cardWorldX;
-            rb.originY = cardWorldY + cardH * 0.42;
-            rb.progress = Math.min(1, (elapsed - 0.22) / 0.85);
+            rb.originY = cardWorldY + curCardH * 0.42;
+            rb.progress = Math.min(1, (elapsed - EXTRACT_START) / 0.95);
             rb.phase += dt * 4.2;
-            if (elapsed > 1.80) {
-                rb.alpha = Math.max(0, 1 - (elapsed - 1.80) / 0.85);
+            if (elapsed > 2.40) {
+                rb.alpha = Math.max(0, 1 - (elapsed - 2.40) / 0.85);
             }
             drawSplit3DRibbonHelix(ctxBack, ctxFront, rb, screenCx, screenCy, focal, cardZ);
         }
 
         // Cập nhật 4 Hồ Điệp Chúa Hộ Tống 4 góc tấm thiệp (Butterflies)
-        if (escortButterflies.length > 0 && elapsed >= 0.24 && elapsed <= 2.80) {
-            const fadeEscort = elapsed > 2.05 ? Math.max(0, 1 - (elapsed - 2.05) / 0.75) : 1;
-            const spread = elapsed > 1.90 ? (elapsed - 1.90) * 140 : 0;
+        if (escortButterflies.length > 0 && elapsed >= EXTRACT_START && elapsed <= 3.35) {
+            const fadeEscort = elapsed > 2.60 ? Math.max(0, 1 - (elapsed - 2.60) / 0.75) : 1;
+            const spread = elapsed > 2.45 ? (elapsed - 2.45) * 135 : 0;
             escortButterflies.forEach(eb => {
                 eb.flapPhase += eb.flapSpeed * dt;
-                const ex = cardWorldX + eb.sx * (cardW * 0.48 + spread);
-                const ey = cardWorldY + eb.sy * (cardH * 0.44 + spread * 0.6);
+                const ex = cardWorldX + eb.sx * (curCardW * 0.48 + spread);
+                const ey = cardWorldY + eb.sy * (curCardH * 0.44 + spread * 0.6);
                 const ez = cardZ + 28;
                 draw3DProjectedParticle(ctxFront, {
                     type: 'butterfly',
@@ -5867,7 +6249,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             });
         }
 
-        // 7. CẬP NHẬT & VẼ HỆ HẠT VẬT LÝ 3D (Phân lớp chính xác: z < cardZ vẽ ở ctxBack, z >= cardZ vẽ ở ctxFront)
+        // Cập nhật & vẽ Hệ Hạt Vật Lý 3D (z < cardZ vẽ ở ctxBack, z >= cardZ vẽ ở ctxFront)
         for (let i = particles.length - 1; i >= 0; i--) {
             const p = particles[i];
             p.life += dt;
@@ -5876,17 +6258,13 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 continue;
             }
 
-            // Lực cản không khí
             const dragFactor = Math.max(0, 1 - p.drag * dt);
             p.vx *= dragFactor;
             p.vy *= dragFactor;
             p.vz *= dragFactor;
-
-            // Trọng lực / Lực đẩy nổi
             p.vy += p.gravity * dt;
 
-            // Lực xoáy Vortex 3D xoay quanh trục tấm thiệp đang đi lên
-            if (p.vortex > 0) {
+            if (p.vortex > 0 && elapsed >= EXTRACT_START) {
                 const dx = p.x - cardWorldX;
                 const dz = p.z - cardZ;
                 const dist = Math.max(35, Math.hypot(dx, dz));
@@ -5897,7 +6275,6 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 p.vz += (tangZ * p.vortex * 115 + (dz / dist) * pullIn) * dt;
             }
 
-            // Lực chao liệng khí động học (Aerodynamic Flutter)
             if (p.flutter > 0) {
                 p.phase += dt * 5.5;
                 p.vx += Math.sin(p.phase) * p.flutter * dt;
@@ -5924,8 +6301,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             draw3DProjectedParticle(targetCtx, p, screenCx, screenCy, focal);
         }
 
-        // 8. PHA BÀN GIAO MƯỢT MÀ SANG #card-showcase (t >= 2.35s): KHÔNG NHẢY HÌNH, KHÔNG CẮT CẢNH!
-        if (!hasHandedOffCard && elapsed >= 2.35) {
+        // Bàn giao mượt mà sang #card-showcase tại t >= PRESENT_END (2.94s): KHÔNG gọi thêm canvas phụ để tránh giật lag!
+        if (!hasHandedOffCard && elapsed >= PRESENT_END) {
             hasHandedOffCard = true;
             stage.classList.add('handing-off');
             if (cardShowcase) {
@@ -5935,17 +6312,14 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             cardActor.style.opacity = '0';
             if (backdrop) backdrop.style.opacity = '0';
             updateShowcaseAmbientForMotion(cfg.id);
-            if (typeof triggerCelebrationBurst === 'function') {
-                triggerCelebrationBurst();
-            }
             if (typeof u3dActiveOnComplete === 'function') {
                 u3dActiveOnComplete();
                 u3dActiveOnComplete = null;
             }
         }
 
-        // Kết thúc hoàn toàn sân khấu khi các hạt 3D cuối cùng đã tan hết (t >= 3.35s)
-        if (elapsed >= 3.35) {
+        // Kết thúc hoàn toàn sân khấu khi các hạt 3D cuối cùng đã tan hết (t >= 3.65s)
+        if (elapsed >= 3.65) {
             stage.style.display = 'none';
             stage.classList.remove('is-opening', 'pocket-cleared', 'handing-off');
             if (cardShowcase) cardShowcase.style.opacity = '1';
