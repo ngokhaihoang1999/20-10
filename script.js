@@ -238,6 +238,7 @@ function spawnTouchSparkle(x, y, count = 2) {
 }
 
 function triggerCelebrationBurst() {
+    window.CardAudio?.playCelebrationBurst();
     const palette = ['#ff6b9d', '#ffd166', '#ff9ebb', '#52b788', '#f48fb1', '#ffe57f'];
     const total = isMobileDevice() ? 30 : 44;
     for (let i = 0; i < total; i++) {
@@ -332,11 +333,17 @@ window.addEventListener('pointermove', (e) => {
     if (e.target && e.target.closest('#preview-area-wrap')) return;
     lastSparkleTime = now;
     spawnTouchSparkle(e.clientX, e.clientY, 1);
+    if (e.pointerType === 'touch' || e.buttons > 0) {
+        window.CardAudio?.playTouchSparkle(e.clientX);
+    }
 }, { passive: true });
 
 window.addEventListener('pointerdown', (e) => {
     if (e.target && e.target.closest('#preview-area-wrap')) return;
     spawnTouchSparkle(e.clientX, e.clientY, 3);
+    if (!e.target || !e.target.closest('button, input, textarea, label, a, #hero-fan-showcase')) {
+        window.CardAudio?.playTouchSparkle(e.clientX);
+    }
 }, { passive: true });
 
 // ====== CẤU HÌNH 20 CONCEPT KHUNG NGHỆ THUẬT CAO CẤP (SANG - XỊN - KHÔNG SẾN) ======

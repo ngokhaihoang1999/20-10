@@ -626,6 +626,8 @@
 
     function createScene(motionId, stageEl) {
         const id = THEMES[motionId] ? motionId : 'bloom';
+        window.CardAudio?.setMotionTheme(id);
+        window.CardAudio?.resetWishBloomCues();
         const th = THEMES[id];
         const S = buildThemeSprites(id);
         const petals = buildPetalList(th);
@@ -2997,6 +2999,7 @@
                 sc.tau = Math.min(T.END, sc.tau + speedAt(sc.tau) * dt);
                 if (sc.tau >= T.IMPACT && sc.impactClock < 0) sc.impactClock = sc.clock;
             }
+            window.CardAudio?.updateWishBloomAudioByTau(sc.tau, sc.skipped);
             sc.finished = sc.tau >= T.END;
             if (sc.skipFlash > 0) sc.skipFlash = Math.max(0, sc.skipFlash - dt / 0.45);
             if (skipBtn) {
@@ -3037,6 +3040,7 @@
     // ---------------------------------------------------------------------------------
     let preludeEl = null;
     function beginPrelude(motionId) {
+        window.CardAudio?.setMotionTheme(motionId);
         const th = THEMES[motionId] || THEMES.bloom;
         endPreludeImmediate();
         const el = document.createElement('div');

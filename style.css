@@ -4854,3 +4854,199 @@ body.recipient-mode .recipient-luxury-dock {
         font-size: 1.08rem;
     }
 }
+
+/* =========================================================================
+   NÚT ĐIỀU KHIỂN ÂM THANH NGỌC TRAI & VÀNG 24K (LUXURY FLOATING AUDIO ORB)
+   ========================================================================= */
+.luxury-audio-toggle {
+    position: fixed;
+    top: max(14px, env(safe-area-inset-top, 14px));
+    left: max(14px, env(safe-area-inset-left, 14px));
+    z-index: 9995;
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    height: 38px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(246, 211, 101, 0.48);
+    background: linear-gradient(135deg, rgba(22, 12, 28, 0.78) 0%, rgba(44, 18, 38, 0.68) 100%);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    color: #fceabb;
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.36),
+        0 0 14px rgba(246, 211, 101, 0.18),
+        inset 0 1px 1px rgba(255, 255, 255, 0.22);
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+        top 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+        left 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+        padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.22s ease,
+        border-color 0.28s ease,
+        box-shadow 0.28s ease,
+        background 0.28s ease;
+}
+
+.luxury-audio-toggle:hover {
+    transform: translateY(-1px) scale(1.03);
+    border-color: rgba(255, 223, 128, 0.82);
+    box-shadow:
+        0 8px 24px rgba(0, 0, 0, 0.44),
+        0 0 20px rgba(246, 211, 101, 0.34),
+        inset 0 1px 2px rgba(255, 255, 255, 0.32);
+}
+
+.luxury-audio-toggle:active {
+    transform: scale(0.95);
+}
+
+.luxury-audio-toggle .audio-orb-ring {
+    position: absolute;
+    inset: -3px;
+    border-radius: 999px;
+    border: 1px solid rgba(246, 211, 101, 0.32);
+    pointer-events: none;
+    opacity: 0;
+    animation: luxuryAudioPulseRing 2.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.luxury-audio-toggle.is-playing .audio-orb-ring {
+    opacity: 1;
+}
+
+@keyframes luxuryAudioPulseRing {
+    0% {
+        transform: scale(0.96);
+        opacity: 0.65;
+    }
+    70% {
+        transform: scale(1.14);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1.14);
+        opacity: 0;
+    }
+}
+
+.luxury-audio-toggle .audio-icon-wrap {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #ffe08a;
+}
+
+.luxury-audio-toggle .audio-icon-wrap svg {
+    width: 17px;
+    height: 17px;
+    display: block;
+    filter: drop-shadow(0 1px 4px rgba(246, 211, 101, 0.35));
+}
+
+.luxury-audio-toggle.is-playing .audio-svg-off {
+    display: none;
+}
+
+.luxury-audio-toggle.is-muted .audio-svg-on {
+    display: none;
+}
+
+.luxury-audio-toggle.is-muted {
+    border-color: rgba(255, 255, 255, 0.22);
+    color: rgba(255, 240, 245, 0.68);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+/* 3 Cột Sóng Nhạc Vàng 24K nhảy theo nhịp khi đang phát */
+.luxury-audio-toggle .audio-bars {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 12px;
+    margin-left: 5px;
+    overflow: hidden;
+    transition: width 0.28s ease, opacity 0.28s ease, margin 0.28s ease;
+    width: 12px;
+}
+
+.luxury-audio-toggle.is-muted .audio-bars {
+    width: 0;
+    opacity: 0;
+    margin-left: 0;
+}
+
+.luxury-audio-toggle .audio-bars i {
+    display: block;
+    width: 2.2px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, #fff6d6 0%, #f6d365 60%, #fda085 100%);
+    animation: luxuryAudioBarDance 1.15s ease-in-out infinite alternate;
+}
+
+.luxury-audio-toggle .audio-bars i:nth-child(1) {
+    height: 5px;
+    animation-duration: 0.75s;
+}
+.luxury-audio-toggle .audio-bars i:nth-child(2) {
+    height: 11px;
+    animation-duration: 0.55s;
+    animation-delay: 0.15s;
+}
+.luxury-audio-toggle .audio-bars i:nth-child(3) {
+    height: 7px;
+    animation-duration: 0.9s;
+    animation-delay: 0.3s;
+}
+
+@keyframes luxuryAudioBarDance {
+    0% {
+        transform: scaleY(0.32);
+    }
+    100% {
+        transform: scaleY(1);
+    }
+}
+
+.luxury-audio-toggle .audio-pill-label {
+    font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif);
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    margin-left: 0;
+    transition:
+        max-width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.28s ease,
+        margin-left 0.32s ease;
+}
+
+.luxury-audio-toggle.show-label .audio-pill-label,
+.luxury-audio-toggle:hover .audio-pill-label {
+    max-width: 96px;
+    opacity: 0.95;
+    margin-left: 6px;
+}
+
+/* Trên điện thoại ở Bước 2 & Bước 3 (Creator Mode): Dịch nhẹ nút âm thanh xuống ngay dưới thanh Header để không chạm nút "📷 Đổi ảnh" hay "‹ Sửa thiệp" */
+@media (max-width: 767px) {
+    .luxury-audio-toggle {
+        height: 34px;
+        padding: 0 8.5px;
+    }
+
+    body:not(.u3d-stage-active):not(.recipient-mode):has(#step-2.active, #step-3.active) .luxury-audio-toggle {
+        top: max(56px, calc(env(safe-area-inset-top, 8px) + 50px));
+        left: 10px;
+    }
+}

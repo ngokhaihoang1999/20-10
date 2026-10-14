@@ -112,6 +112,7 @@
         }
 
         isAnimatingEnvelope = true;
+        window.CardAudio?.playStep1EnvelopeOpenSequence();
 
         step1El.classList.remove('env-idle-float');
 
@@ -148,6 +149,7 @@
             // Nháy mắt chào người dùng ngay khi thiệp bung ra giữa màn hình
             setTimeout(() => {
                 triggerCardBlink(activeFanSlots[1], true);
+                window.CardAudio?.playCardWinkTwinkle();
             }, 260);
         }, 980);
 
@@ -216,6 +218,7 @@
                 waxSealBtn.classList.remove('seal-attention');
                 void waxSealBtn.offsetWidth;
                 waxSealBtn.classList.add('seal-attention');
+                window.CardAudio?.playSealAttentionHint();
                 if (typeof spawnTouchSparkle === 'function') {
                     const rect = waxSealBtn.getBoundingClientRect();
                     spawnTouchSparkle(rect.left + rect.width / 2, rect.top + rect.height / 2, 5);
@@ -1260,6 +1263,7 @@
                 return;
             }
             advanceFanSequentially();
+            window.CardAudio?.playCardFanSwipe(false);
         }, 4000);
     }
 
@@ -1281,6 +1285,7 @@
             } else {
                 advanceFanSequentially();
             }
+            window.CardAudio?.playCardFanSwipe(true);
 
             // Reset bộ đếm 4 giây để không bị nhảy kép ngay sau khi người dùng vừa bấm
             startFanAutoCycle();
@@ -1298,6 +1303,7 @@
                 e.preventDefault();
                 if (!step1El.classList.contains('envelope-opened')) return;
                 advanceFanSequentially();
+                window.CardAudio?.playCardFanSwipe(true);
                 startFanAutoCycle();
             }
         });
