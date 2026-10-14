@@ -1,4 +1,4 @@
-// ====== TRANG MỞ ĐẦU VẬT LÝ 3D: PHONG BÌ LỤA NGỌC BÍCH + CON DẤU SÁP SIÊU THỰC + 3 THIỆP MẪU CÓ HỒN ======
+// ====== TRANG MỞ ĐẦU VẬT LÝ 3D: PHONG BÌ LỤA NGỌC BÍCH + CON DẤU SÁP SIÊU THỰC + 3 THIỆP MẪU ĐA DẠNG KIỂU TÓC & NHÁY MẮT SỐNG ĐỘNG ======
 (function () {
     const step1El = document.getElementById('step-1');
     const physicalStage = document.getElementById('step1-physical-stage');
@@ -16,6 +16,8 @@
     let isAnimatingEnvelope = false;
     let currentCenterIndex = 0;
     let fanCycleIntervalId = null;
+    let blinkLoopTimerId = null;
+    let blinkStepCount = 0;
 
     // 5 tông màu chuẩn từ COLOR_THEMES trong script.js (giữ sắc Xanh Ngọc Bích làm chủ đạo)
     const REAL_THEME_KEYS = ['emerald', 'blush', 'champagne', 'emerald', 'rosegold', 'lavender'];
@@ -107,12 +109,17 @@
         setTimeout(() => {
             step1El.classList.remove('env-letter-pull');
             step1El.classList.add('envelope-opened');
+            // Nháy mắt chào người dùng ngay khi thiệp bung ra giữa màn hình
+            setTimeout(() => {
+                triggerCardBlink(activeFanSlots[1], true);
+            }, 260);
         }, 980);
 
-        // Hoàn tất mở thư & bắt đầu chu kỳ 4 giây tự động trượt đổi mẫu 3 tấm hình
+        // Hoàn tất mở thư & bắt đầu chu kỳ 4 giây tự động trượt đổi mẫu + nhịp chớp mắt tự nhiên
         setTimeout(() => {
             isAnimatingEnvelope = false;
             startFanAutoCycle();
+            startNaturalBlinkLoop();
         }, 1560);
     }
 
@@ -123,6 +130,7 @@
         isAnimatingEnvelope = true;
 
         stopFanAutoCycle();
+        stopNaturalBlinkLoop();
 
         // Pha R1 (0ms): Hiện lại phong bì đang mở phía dưới; thu nhỏ tấm thiệp & nhấc lên ngang miệng phong bì (giữ ở lớp trước z:14)
         step1El.classList.add('env-letter-front', 'env-letter-pull');
@@ -183,7 +191,7 @@
         replayEnvBtn.addEventListener('click', closePhysicalEnvelope);
     }
 
-    // ====== 4. TRANH MINH HỌA CHÂN DUNG NÀNG THƠ CÓ HỒN (WATERCOLOR & GOLDEN HOUR PORTRAIT) ======
+    // ====== 4. TRANH MINH HỌA CHÂN DUNG NÀNG THƠ: 6 KIỂU TÓC ĐA DẠNG & ĐÔI MẮT CHỚP NHÁY SỐNG ĐỘNG ======
     function drawSoulfulPetal(ctx, x, y, rx, ry, rot, color, alpha) {
         ctx.save();
         ctx.translate(x, y);
@@ -199,57 +207,477 @@
         ctx.restore();
     }
 
-    function drawLuxuryMuseIllustration(ctx, w, h, styleIdx) {
+    function drawSmallBlossom(ctx, cx, cy, r, petalColor, coreColor, petalCount = 5) {
+        ctx.save();
+        for (let p = 0; p < petalCount; p++) {
+            const a = (p * Math.PI * 2) / petalCount;
+            drawSoulfulPetal(
+                ctx,
+                cx + Math.cos(a) * r * 0.55,
+                cy + Math.sin(a) * r * 0.55,
+                r * 0.48,
+                r * 0.65,
+                a + Math.PI / 2,
+                petalColor,
+                0.96
+            );
+        }
+        ctx.fillStyle = coreColor;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * 0.28, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Vẽ lớp tóc phía sau đầu/vai theo 6 kiểu tóc hoàn toàn khác nhau
+    function drawBackHairstyle(ctx, cx, cy, w, h, hairStyle, hairGrad, pal) {
+        ctx.save();
+        ctx.fillStyle = hairGrad;
+
+        if (hairStyle === 0) {
+            // Kiểu 0: Tóc dài suôn thẳng truyền thống mượt mà qua vai
+            ctx.beginPath();
+            ctx.moveTo(cx - w * 0.19, cy - h * 0.13);
+            ctx.bezierCurveTo(cx - w * 0.28, cy - h * 0.28, cx + w * 0.28, cy - h * 0.28, cx + w * 0.19, cy - h * 0.13);
+            ctx.bezierCurveTo(cx + w * 0.26, cy + h * 0.04, cx + w * 0.25, cy + h * 0.22, cx + w * 0.19, cy + h * 0.32);
+            ctx.lineTo(cx - w * 0.19, cy + h * 0.32);
+            ctx.bezierCurveTo(cx - w * 0.25, cy + h * 0.22, cx - w * 0.26, cy + h * 0.04, cx - w * 0.19, cy - h * 0.13);
+            ctx.closePath();
+            ctx.fill();
+
+            // Ánh lụa phản chiếu trên mái tóc dài suôn mượt
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+            ctx.lineWidth = w * 0.008;
+            ctx.beginPath();
+            ctx.moveTo(cx - w * 0.15, cy - h * 0.04);
+            ctx.quadraticCurveTo(cx - w * 0.18, cy + h * 0.1, cx - w * 0.15, cy + h * 0.24);
+            ctx.moveTo(cx + w * 0.15, cy - h * 0.04);
+            ctx.quadraticCurveTo(cx + w * 0.18, cy + h * 0.1, cx + w * 0.15, cy + h * 0.24);
+            ctx.stroke();
+
+        } else if (hairStyle === 1) {
+            // Kiểu 1: Tóc búi cao quý phái (High Couture Chignon Bun) + Nơ lụa hồng xoè hai bên
+            // Dải ruy-băng lụa cài sau búi tóc
+            ctx.fillStyle = pal.flower;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy - h * 0.21);
+            ctx.quadraticCurveTo(cx - w * 0.16, cy - h * 0.26, cx - w * 0.19, cy - h * 0.16);
+            ctx.quadraticCurveTo(cx - w * 0.1, cy - h * 0.17, cx, cy - h * 0.2);
+            ctx.moveTo(cx, cy - h * 0.21);
+            ctx.quadraticCurveTo(cx + w * 0.16, cy - h * 0.26, cx + w * 0.19, cy - h * 0.16);
+            ctx.quadraticCurveTo(cx + w * 0.1, cy - h * 0.17, cx, cy - h * 0.2);
+            ctx.fill();
+
+            // Khối búi tóc tròn đầy trên đỉnh đầu
+            ctx.fillStyle = hairGrad;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy - h * 0.235, w * 0.105, h * 0.058, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Đường vân tóc xoắn trên búi cao
+            ctx.strokeStyle = pal.hairHi;
+            ctx.lineWidth = w * 0.005;
+            ctx.beginPath();
+            ctx.arc(cx, cy - h * 0.235, w * 0.068, Math.PI * 1.1, Math.PI * 1.9);
+            ctx.stroke();
+
+            // Phần tóc ôm gọn sau đầu (khoe trọn cổ cao thanh thoát)
+            ctx.fillStyle = hairGrad;
+            ctx.beginPath();
+            ctx.ellipse(cx, cy - h * 0.12, w * 0.145, h * 0.095, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Trâm ngọc trai đính chân búi tóc
+            for (let i = -2; i <= 2; i++) {
+                ctx.fillStyle = '#fffdf7';
+                ctx.beginPath();
+                ctx.arc(cx + i * w * 0.024, cy - h * 0.192 + Math.abs(i) * h * 0.003, w * 0.0085, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+        } else if (hairStyle === 2) {
+            // Kiểu 2: Tóc xoăn sóng nước bồng bềnh (Glamorous Cascading S-Waves)
+            ctx.beginPath();
+            ctx.moveTo(cx - w * 0.2, cy - h * 0.14);
+            ctx.bezierCurveTo(cx - w * 0.3, cy - h * 0.28, cx + w * 0.3, cy - h * 0.28, cx + w * 0.2, cy - h * 0.14);
+            // 3 nhịp sóng uốn lượn bên phải
+            ctx.bezierCurveTo(cx + w * 0.33, cy - h * 0.06, cx + w * 0.23, cy + h * 0.02, cx + w * 0.31, cy + h * 0.1);
+            ctx.bezierCurveTo(cx + w * 0.36, cy + h * 0.17, cx + w * 0.22, cy + h * 0.23, cx + w * 0.26, cy + h * 0.3);
+            ctx.lineTo(cx - w * 0.26, cy + h * 0.3);
+            // 3 nhịp sóng uốn lượn bên trái
+            ctx.bezierCurveTo(cx - w * 0.22, cy + h * 0.23, cx - w * 0.36, cy + h * 0.17, cx - w * 0.31, cy + h * 0.1);
+            ctx.bezierCurveTo(cx - w * 0.23, cy + h * 0.02, cx - w * 0.33, cy - h * 0.06, cx - w * 0.2, cy - h * 0.14);
+            ctx.closePath();
+            ctx.fill();
+
+            // Sợi highlight uốn sóng bồng bềnh
+            ctx.strokeStyle = 'rgba(255, 240, 210, 0.22)';
+            ctx.lineWidth = w * 0.007;
+            ctx.beginPath();
+            ctx.moveTo(cx - w * 0.19, cy - h * 0.05);
+            ctx.bezierCurveTo(cx - w * 0.27, cy + h * 0.02, cx - w * 0.16, cy + h * 0.1, cx - w * 0.24, cy + h * 0.2);
+            ctx.moveTo(cx + w * 0.19, cy - h * 0.05);
+            ctx.bezierCurveTo(cx + w * 0.27, cy + h * 0.02, cx + w * 0.16, cy + h * 0.1, cx + w * 0.24, cy + h * 0.2);
+            ctx.stroke();
+
+        } else if (hairStyle === 3) {
+            // Kiểu 3: Tóc ngắn Bob uốn cụp ngang cằm trẻ trung (Chic C-Curl Short Bob)
+            ctx.beginPath();
+            ctx.moveTo(cx - w * 0.18, cy - h * 0.15);
+            ctx.bezierCurveTo(cx - w * 0.26, cy - h * 0.27, cx + w * 0.26, cy - h * 0.27, cx + w * 0.18, cy - h * 0.15);
+            // Đuôi tóc Bob uốn cụp chữ C ôm vừa ngang cằm, khoe trọn cổ và vai
+            ctx.bezierCurveTo(cx + w * 0.26, cy - h * 0.05, cx + w * 0.22, cy + h * 0.025, cx + w * 0.09, cy + h * 0.015);
+            ctx.lineTo(cx - w * 0.09, cy + h * 0.015);
+            ctx.bezierCurveTo(cx - w * 0.22, cy + h * 0.025, cx - w * 0.26, cy - h * 0.05, cx - w * 0.18, cy - h * 0.15);
+            ctx.closePath();
+            ctx.fill();
+
+        } else if (hairStyle === 4) {
+            // Kiểu 4: Tóc tiểu thư vắt lệch một bên vai (One-Shoulder Asymmetric Sweep)
+            ctx.beginPath();
+            ctx.moveTo(cx - w * 0.16, cy - h * 0.14);
+            ctx.bezierCurveTo(cx - w * 0.24, cy - h * 0.27, cx + w * 0.26, cy - h * 0.27, cx + w * 0.19, cy - h * 0.13);
+            // Bên phải buông lơi dày bồng bềnh qua vai phải
+            ctx.bezierCurveTo(cx + w * 0.3, cy + h * 0.02, cx + w * 0.28, cy + h * 0.2, cx + w * 0.18, cy + h * 0.3);
+            ctx.lineTo(cx + w * 0.02, cy + h * 0.28);
+            // Bên trái vén gọn sau tai khoe bờ vai trái
+            ctx.bezierCurveTo(cx - w * 0.08, cy + h * 0.08, cx - w * 0.16, cy - h * 0.01, cx - w * 0.16, cy - h * 0.14);
+            ctx.closePath();
+            ctx.fill();
+
+        } else {
+            // Kiểu 5: Tóc búi thấp trễ nải kiểu Pháp lệch bên gáy (Romantic Low Side Chignon)
+            ctx.beginPath();
+            ctx.moveTo(cx - w * 0.17, cy - h * 0.14);
+            ctx.bezierCurveTo(cx - w * 0.25, cy - h * 0.27, cx + w * 0.25, cy - h * 0.27, cx + w * 0.17, cy - h * 0.14);
+            ctx.bezierCurveTo(cx + w * 0.2, cy - h * 0.04, cx + w * 0.13, cy + h * 0.01, cx, cy + h * 0.01);
+            ctx.bezierCurveTo(cx - w * 0.15, cy + h * 0.02, cx - w * 0.22, cy - h * 0.03, cx - w * 0.17, cy - h * 0.14);
+            ctx.closePath();
+            ctx.fill();
+
+            // Khối búi tóc thấp tròn đầy lệch bên trái gáy
+            ctx.beginPath();
+            ctx.ellipse(cx - w * 0.135, cy - h * 0.028, w * 0.075, h * 0.048, -0.25, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Hoa hồng Pháp & lá vàng cài trên búi tóc thấp
+            drawSoulfulPetal(ctx, cx - w * 0.18, cy - h * 0.055, w * 0.016, h * 0.024, -0.8, '#2b9376', 0.85);
+            drawSmallBlossom(ctx, cx - w * 0.145, cy - h * 0.048, w * 0.034, pal.flower, pal.accent, 6);
+        }
+
+        ctx.restore();
+    }
+
+    // Vẽ phần tóc mái phía trước trán/má & phụ kiện cài tóc theo đúng 6 kiểu tóc
+    function drawFrontHairstyle(ctx, w, h, hairStyle, hairGrad, pal) {
+        ctx.save();
+        ctx.fillStyle = hairGrad;
+
+        if (hairStyle === 0) {
+            // Kiểu 0: Mái chéo dịu dàng + lọn tóc mai dài + Trâm Hoa Sen cài bên phải
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.118, -h * 0.012);
+            ctx.quadraticCurveTo(-w * 0.03, -h * 0.108, w * 0.118, -h * 0.012);
+            ctx.quadraticCurveTo(w * 0.055, -h * 0.06, -w * 0.015, -h * 0.054);
+            ctx.quadraticCurveTo(-w * 0.075, -h * 0.05, -w * 0.118, -h * 0.012);
+            ctx.fill();
+
+            // Lọn tóc mai mềm ôm má trái
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.114, -h * 0.018);
+            ctx.quadraticCurveTo(-w * 0.13, h * 0.035, -w * 0.095, h * 0.082);
+            ctx.quadraticCurveTo(-w * 0.105, h * 0.03, -w * 0.098, -h * 0.018);
+            ctx.fill();
+
+            // Trâm Hoa Sen cài tóc + tua rua ngọc vàng
+            drawSmallBlossom(ctx, w * 0.102, -h * 0.046, w * 0.032, pal.flower, pal.accent, 5);
+            ctx.strokeStyle = pal.accent;
+            ctx.lineWidth = w * 0.0035;
+            ctx.beginPath();
+            ctx.moveTo(w * 0.112, -h * 0.03);
+            ctx.lineTo(w * 0.112, h * 0.018);
+            ctx.stroke();
+            ctx.fillStyle = '#fffdf8';
+            ctx.beginPath();
+            ctx.arc(w * 0.112, h * 0.022, w * 0.006, 0, Math.PI * 2);
+            ctx.fill();
+
+        } else if (hairStyle === 1) {
+            // Kiểu 1: Mái bay rẽ ngôi + 2 lọn tóc mai uốn xoăn chữ S mềm mại hai bên má
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.116, -h * 0.014);
+            ctx.quadraticCurveTo(0, -h * 0.108, w * 0.116, -h * 0.014);
+            ctx.quadraticCurveTo(w * 0.06, -h * 0.042, 0, -h * 0.074);
+            ctx.quadraticCurveTo(-w * 0.06, -h * 0.042, -w * 0.116, -h * 0.014);
+            ctx.fill();
+
+            // Lọn tóc mai uốn lơi hai bên thái dương
+            ctx.strokeStyle = pal.hair;
+            ctx.lineWidth = w * 0.0085;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.11, -h * 0.015);
+            ctx.bezierCurveTo(-w * 0.138, h * 0.015, -w * 0.095, h * 0.045, -w * 0.118, h * 0.075);
+            ctx.moveTo(w * 0.11, -h * 0.015);
+            ctx.bezierCurveTo(w * 0.138, h * 0.015, w * 0.095, h * 0.045, w * 0.118, h * 0.075);
+            ctx.stroke();
+
+        } else if (hairStyle === 2) {
+            // Kiểu 2: Mái bay phồng Hàn Quốc rẽ ngôi giữa + Kẹp ngọc trai đôi bên thái dương trái
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.124, h * 0.004);
+            ctx.bezierCurveTo(-w * 0.13, -h * 0.085, -w * 0.02, -h * 0.105, 0, -h * 0.075);
+            ctx.bezierCurveTo(w * 0.02, -h * 0.105, w * 0.13, -h * 0.085, w * 0.124, h * 0.004);
+            ctx.quadraticCurveTo(w * 0.085, -h * 0.045, 0, -h * 0.068);
+            ctx.quadraticCurveTo(-w * 0.085, -h * 0.045, -w * 0.124, h * 0.004);
+            ctx.fill();
+
+            // Kẹp tóc ngọc trai đính vàng bên trái
+            ctx.strokeStyle = pal.accent;
+            ctx.lineWidth = w * 0.006;
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.115, -h * 0.036);
+            ctx.lineTo(-w * 0.072, -h * 0.046);
+            ctx.stroke();
+            for (let k = 0; k < 3; k++) {
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(-w * 0.11 + k * w * 0.016, -h * 0.037 - k * h * 0.003, w * 0.0065, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+        } else if (hairStyle === 3) {
+            // Kiểu 3: Tóc Bob mái thưa Hàn Quốc (Airy See-Through Bangs) + Kẹp hoa cúc họa mi
+            // Phần vòm tóc trên trán
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.12, -h * 0.018);
+            ctx.quadraticCurveTo(0, -h * 0.11, w * 0.12, -h * 0.018);
+            ctx.quadraticCurveTo(0, -h * 0.068, -w * 0.12, -h * 0.018);
+            ctx.fill();
+
+            // Các lọn mái thưa mảnh rơi nhẹ trên trán
+            ctx.strokeStyle = pal.hair;
+            ctx.lineWidth = w * 0.0075;
+            ctx.lineCap = 'round';
+            const wisps = [-0.065, -0.038, -0.012, 0.014, 0.04, 0.066];
+            wisps.forEach((wx, idx) => {
+                ctx.beginPath();
+                ctx.moveTo(w * wx, -h * 0.072);
+                ctx.quadraticCurveTo(w * (wx + (idx < 3 ? -0.006 : 0.006)), -h * 0.045, w * wx, -h * 0.026);
+                ctx.stroke();
+            });
+
+            // Hai nhánh tóc Bob ôm sát hai bên má và uốn cụp vào cằm
+            ctx.fillStyle = hairGrad;
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.112, -h * 0.025);
+            ctx.quadraticCurveTo(-w * 0.145, h * 0.045, -w * 0.075, h * 0.088);
+            ctx.quadraticCurveTo(-w * 0.108, h * 0.04, -w * 0.102, -h * 0.025);
+            ctx.moveTo(w * 0.112, -h * 0.025);
+            ctx.quadraticCurveTo(w * 0.145, h * 0.045, w * 0.075, h * 0.088);
+            ctx.quadraticCurveTo(w * 0.108, h * 0.04, w * 0.102, -h * 0.025);
+            ctx.fill();
+
+            // Kẹp Hoa Cúc Họa Mi trắng nhụy vàng cài bên mái phải
+            drawSmallBlossom(ctx, w * 0.096, -h * 0.042, w * 0.028, '#ffffff', '#f2b73f', 8);
+
+        } else if (hairStyle === 4) {
+            // Kiểu 4: Bím tóc tết vương miện đính ngọc trai (Braided Pearl Crown)
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.116, -h * 0.016);
+            ctx.quadraticCurveTo(w * 0.02, -h * 0.105, w * 0.118, -h * 0.012);
+            ctx.quadraticCurveTo(w * 0.04, -h * 0.056, -w * 0.116, -h * 0.016);
+            ctx.fill();
+
+            // Vòng bím tóc tết vương miện đính ngọc trai lấp lánh trên đỉnh đầu
+            for (let b = -4; b <= 4; b++) {
+                const bx = b * w * 0.022;
+                const by = -h * 0.078 + (b * b) * h * 0.0022;
+                ctx.fillStyle = pal.hairHi;
+                ctx.beginPath();
+                ctx.ellipse(bx, by, w * 0.015, h * 0.009, b * 0.12, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (b % 2 === 0) {
+                    ctx.fillStyle = '#fffdf7';
+                    ctx.beginPath();
+                    ctx.arc(bx, by - h * 0.002, w * 0.006, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+
+            // Lọn tóc uốn sóng vắt qua vai phải
+            ctx.fillStyle = hairGrad;
+            ctx.beginPath();
+            ctx.moveTo(w * 0.102, h * 0.02);
+            ctx.bezierCurveTo(w * 0.155, h * 0.08, w * 0.12, h * 0.16, w * 0.065, h * 0.22);
+            ctx.bezierCurveTo(w * 0.095, h * 0.14, w * 0.11, h * 0.07, w * 0.092, h * 0.02);
+            ctx.fill();
+
+        } else {
+            // Kiểu 5: Mái uốn sóng cổ điển Pháp (French Vintage S-Wave Bang)
+            ctx.beginPath();
+            ctx.moveTo(-w * 0.118, -h * 0.01);
+            ctx.bezierCurveTo(-w * 0.08, -h * 0.11, w * 0.08, -h * 0.105, w * 0.118, -h * 0.006);
+            ctx.bezierCurveTo(w * 0.065, -h * 0.032, w * 0.015, -h * 0.068, -w * 0.045, -h * 0.056);
+            ctx.quadraticCurveTo(-w * 0.09, -h * 0.048, -w * 0.118, -h * 0.01);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+
+    // Vẽ đôi mắt có hồn với 3 trạng thái: Mở long lanh (1.0) -> Chớp nửa mắt (0.45) -> Nhắm dịu dàng (0.0)
+    function drawExpressiveEyes(ctx, w, h, pal, eyeOpenness) {
+        const eyePositions = [-w * 0.046, w * 0.046];
+        const eyeY = -h * 0.002;
+
+        eyePositions.forEach((ex, idx) => {
+            const isLeft = idx === 0;
+            const dir = isLeft ? -1 : 1;
+
+            // Nếp mí mắt đôi dịu dàng phía trên
+            ctx.strokeStyle = 'rgba(160, 105, 95, 0.38)';
+            ctx.lineWidth = Math.max(0.9, w * 0.0032);
+            ctx.beginPath();
+            ctx.arc(ex, eyeY - h * 0.002, w * 0.022, 1.15 * Math.PI, 1.85 * Math.PI);
+            ctx.stroke();
+
+            if (eyeOpenness > 0.15) {
+                // Trạng thái MỞ MẮT (1.0) hoặc ĐANG CHỚP (0.45)
+                const openScale = eyeOpenness;
+                const rx = w * 0.021;
+                const ry = h * 0.0115 * openScale;
+
+                ctx.save();
+                // 1. Tròng trắng mắt hạnh nhân
+                ctx.beginPath();
+                ctx.ellipse(ex, eyeY, rx, ry, 0, 0, Math.PI * 2);
+                ctx.fillStyle = '#fffdfa';
+                ctx.fill();
+                ctx.clip();
+
+                // 2. Con ngươi (Iris) sâu thẳm giàu cảm xúc
+                const irisR = w * 0.0138;
+                const irisGrad = ctx.createLinearGradient(ex, eyeY - irisR, ex, eyeY + irisR);
+                irisGrad.addColorStop(0, pal.hair);
+                irisGrad.addColorStop(0.65, pal.hairHi);
+                irisGrad.addColorStop(1, '#7a5244');
+                ctx.fillStyle = irisGrad;
+                ctx.beginPath();
+                ctx.arc(ex, eyeY, irisR, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 3. Đồng tử (Pupil)
+                ctx.fillStyle = '#121715';
+                ctx.beginPath();
+                ctx.arc(ex, eyeY, irisR * 0.48, 0, Math.PI * 2);
+                ctx.fill();
+
+                // 4. Hai đốm sáng long lanh trong mắt (Dual Catchlights)
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(ex + w * 0.0048, eyeY - h * 0.0038, w * 0.0046, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.beginPath();
+                ctx.arc(ex - w * 0.0042, eyeY + h * 0.0032, w * 0.0024, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+
+                // 5. Đường viền mí trên sắc nét & lông mi cong vút ở đuôi mắt
+                ctx.strokeStyle = pal.hair;
+                ctx.lineCap = 'round';
+                ctx.lineWidth = Math.max(1.6, w * 0.0065);
+                ctx.beginPath();
+                ctx.ellipse(ex, eyeY + h * 0.001, rx * 1.04, ry * 1.02, 0, 1.08 * Math.PI, 1.92 * Math.PI);
+                ctx.stroke();
+
+                // Lông mi cong ở đuôi mắt
+                ctx.lineWidth = Math.max(1.2, w * 0.0045);
+                ctx.beginPath();
+                ctx.moveTo(ex + dir * rx * 0.92, eyeY - ry * 0.2);
+                ctx.quadraticCurveTo(ex + dir * rx * 1.22, eyeY - ry * 0.55, ex + dir * rx * 1.32, eyeY - ry * 0.95);
+                ctx.moveTo(ex + dir * rx * 0.65, eyeY - ry * 0.72);
+                ctx.quadraticCurveTo(ex + dir * rx * 0.9, eyeY - ry * 1.1, ex + dir * rx * 1.02, eyeY - ry * 1.38);
+                ctx.stroke();
+            } else {
+                // Trạng thái NHẮM MẮT DỊU DÀNG (0.0) với hàng mi dài cong vút
+                ctx.strokeStyle = pal.hair;
+                ctx.lineCap = 'round';
+                ctx.lineWidth = Math.max(1.6, w * 0.0066);
+                ctx.beginPath();
+                ctx.arc(ex, eyeY - h * 0.003, w * 0.022, 0.14 * Math.PI, 0.86 * Math.PI);
+                ctx.stroke();
+
+                // Hàng mi rủ nhẹ khi nhắm mắt
+                ctx.lineWidth = Math.max(1.1, w * 0.0042);
+                const lashAngles = [0.24, 0.42, 0.6, 0.78];
+                lashAngles.forEach(la => {
+                    const a = la * Math.PI;
+                    const sx = ex + Math.cos(a) * w * 0.022;
+                    const sy = (eyeY - h * 0.003) + Math.sin(a) * w * 0.022;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(sx + dir * w * 0.004, sy + h * 0.0055);
+                    ctx.stroke();
+                });
+            }
+        });
+    }
+
+    function drawLuxuryMuseIllustration(ctx, w, h, styleIdx, eyeOpenness = 1.0) {
         ctx.save();
         const variant = styleIdx % 6;
 
         const palettes = [
-            // 0: Ngọc Bích Hoàng Gia & Bạch Liên Hoa
+            // 0: Ngọc Bích Hoàng Gia & Bạch Liên Hoa (Tóc Dài Suôn Thẳng & Trâm Sen)
             {
                 top: '#c3ecdc', mid: '#f2fbf7', bot: '#8ed3b9',
                 sun: 'rgba(255, 244, 206, 0.72)',
                 dress1: '#128769', dress2: '#074837',
-                hair: '#1c2d27', hairHi: '#355449',
+                hair: '#192a24', hairHi: '#355449',
                 flower: '#fff7fa', petal: '#ffb7c5', accent: '#e5b84b'
             },
-            // 1: Vườn Đào Kyoto Mùa Xuân
+            // 1: Vườn Đào Kyoto Mùa Xuân (Tóc Búi Cao & Nơ Lụa Hồng)
             {
                 top: '#ffdce9', mid: '#fff6fa', bot: '#f4b6ce',
                 sun: 'rgba(255, 247, 222, 0.75)',
                 dress1: '#de5b8a', dress2: '#9e2451',
-                hair: '#341e27', hairHi: '#5e3847',
+                hair: '#341d26', hairHi: '#633949',
                 flower: '#ffb7c5', petal: '#ffd4e0', accent: '#f0c659'
             },
-            // 2: Nắng Thu Vàng Champagne & Hoa Trà Trắng
+            // 2: Nắng Thu Vàng Champagne (Tóc Xoăn Sóng Nước Bồng Bềnh & Kẹp Ngọc Trai)
             {
                 top: '#fcedcc', mid: '#fffcf4', bot: '#cfeadd',
                 sun: 'rgba(255, 236, 179, 0.8)',
                 dress1: '#cf992e', dress2: '#8c610e',
-                hair: '#2d2119', hairHi: '#594233',
+                hair: '#382417', hairHi: '#6b4932',
                 flower: '#ffffff', petal: '#ffe4ec', accent: '#0f7b5f'
             },
-            // 3: Thảo Nguyên Cúc Họa Mi & Lụa Mint
+            // 3: Thảo Nguyên Cúc Họa Mi (Tóc Ngắn Bob Uốn Cụp & Mái Thưa Hàn Quốc)
             {
                 top: '#d5f2e6', mid: '#ffffff', bot: '#b5e2ce',
                 sun: 'rgba(255, 249, 219, 0.75)',
                 dress1: '#1a9474', dress2: '#0a5743',
-                hair: '#22302b', hairHi: '#3d574e',
+                hair: '#22302b', hairHi: '#425e54',
                 flower: '#ffffff', petal: '#fff3b8', accent: '#f2b73f'
             },
-            // 4: Dạ Khúc Ánh Trăng & Chuỗi Ngọc Trai
+            // 4: Dạ Khúc Ánh Trăng (Tóc Tết Vương Miện Ngọc Trai & Vắt Lệch Vai)
             {
                 top: '#cde7df', mid: '#f4fbf8', bot: '#a3d5c6',
                 sun: 'rgba(255, 245, 214, 0.7)',
                 dress1: '#0e6b54', dress2: '#05382b',
-                hair: '#182521', hairHi: '#314a42',
+                hair: '#182521', hairHi: '#345249',
                 flower: '#ffd6e4', petal: '#ffffff', accent: '#f7df94'
             },
-            // 5: Vườn Hồng Pháp Rose-Gold
+            // 5: Vườn Hồng Pháp Rose-Gold (Tóc Búi Thấp Trễ Nải & Hoa Hồng Cài Gáy)
             {
                 top: '#fde2d9', mid: '#fff8f5', bot: '#f2bfb0',
                 sun: 'rgba(255, 242, 209, 0.76)',
                 dress1: '#c96557', dress2: '#8a392d',
-                hair: '#36211e', hairHi: '#5e3b36',
+                hair: '#36201d', hairHi: '#633c36',
                 flower: '#ffe3ec', petal: '#ffb7c5', accent: '#e5b84b'
             }
         ];
@@ -263,7 +691,7 @@
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, w, h);
 
-        // 2. Luồng nắng thu chiếu xiên (Golden Hour Sunbeams) tạo chiều sâu tâm hồn
+        // 2. Luồng nắng thu chiếu xiên (Golden Hour Sunbeams)
         ctx.save();
         const beamGrad = ctx.createLinearGradient(0, 0, w * 0.85, h * 0.75);
         beamGrad.addColorStop(0, pal.sun);
@@ -293,7 +721,7 @@
         ctx.arc(haloX, haloY, haloR, 0, Math.PI * 2);
         ctx.fill();
 
-        // Đốm sáng Bokeh lung linh nhiều kích cỡ
+        // Đốm sáng Bokeh lung linh
         const bokehs = [
             [0.18, 0.2, 0.068, 0.52], [0.83, 0.22, 0.082, 0.48],
             [0.15, 0.55, 0.055, 0.44], [0.86, 0.58, 0.072, 0.5],
@@ -311,7 +739,7 @@
             ctx.fill();
         });
 
-        // 4. Vòm cành lá & hoa nở phía sau vai nhân vật
+        // 4. Vòm cành lá phía sau vai nhân vật
         ctx.strokeStyle = 'rgba(15, 123, 95, 0.32)';
         ctx.lineWidth = w * 0.0055;
         ctx.beginPath();
@@ -329,25 +757,18 @@
             drawSoulfulPetal(ctx, w * lx, h * ly, w * 0.022, h * 0.028, rot, '#2b9376', 0.36);
         });
 
-        // 5. Vẽ Nàng Thơ Thanh Lịch (Soulful Editorial Muse)
+        // 5. Vẽ Nàng Thơ Thanh Lịch với 6 Kiểu Tóc Đa Dạng
         const cx = w * 0.5;
         const cy = h * 0.47;
-        const headTilt = (variant % 2 === 0 ? -0.035 : 0.035);
+        const headTilt = (variant % 2 === 0 ? -0.028 : 0.028);
 
-        // Suối tóc bồng bềnh phía sau lưng
         const hairGrad = ctx.createLinearGradient(cx, cy - h * 0.26, cx, cy + h * 0.28);
         hairGrad.addColorStop(0, pal.hairHi);
         hairGrad.addColorStop(0.35, pal.hair);
         hairGrad.addColorStop(1, '#101a17');
-        ctx.fillStyle = hairGrad;
-        ctx.beginPath();
-        ctx.moveTo(cx - w * 0.2, cy - h * 0.12);
-        ctx.bezierCurveTo(cx - w * 0.3, cy - h * 0.28, cx + w * 0.3, cy - h * 0.28, cx + w * 0.2, cy - h * 0.12);
-        ctx.bezierCurveTo(cx + w * 0.31, cy + h * 0.04, cx + w * 0.27, cy + h * 0.22, cx + w * 0.16, cy + h * 0.29);
-        ctx.lineTo(cx - w * 0.16, cy + h * 0.29);
-        ctx.bezierCurveTo(cx - w * 0.27, cy + h * 0.22, cx - w * 0.31, cy + h * 0.04, cx - w * 0.2, cy - h * 0.12);
-        ctx.closePath();
-        ctx.fill();
+
+        // Lớp tóc sau lưng/đầu theo từng kiểu tóc (0..5)
+        drawBackHairstyle(ctx, cx, cy, w, h, variant, hairGrad, pal);
 
         // Cổ cao & bờ vai mềm mại
         const skinGrad = ctx.createLinearGradient(cx, cy - h * 0.2, cx, cy + h * 0.16);
@@ -376,7 +797,7 @@
         ctx.closePath();
         ctx.fill();
 
-        // Nếp gấp lụa mềm mại và họa tiết thêu kim tuyến trên áo
+        // Nếp gấp lụa mềm mại trên áo
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.24)';
         ctx.lineWidth = w * 0.004;
         ctx.beginPath();
@@ -408,7 +829,7 @@
         ctx.translate(cx, cy - h * 0.1);
         ctx.rotate(headTilt);
 
-        // Gương mặt trái xoan
+        // Gương mặt trái xoan thanh tú
         ctx.fillStyle = skinGrad;
         ctx.beginPath();
         ctx.ellipse(0, 0, w * 0.114, h * 0.09, 0, 0, Math.PI * 2);
@@ -427,20 +848,20 @@
         ctx.fill();
 
         // Má hồng ửng nắng tự nhiên
-        const blushL = ctx.createRadialGradient(-w * 0.056, h * 0.014, 0, -w * 0.056, h * 0.014, w * 0.038);
+        const blushL = ctx.createRadialGradient(-w * 0.056, h * 0.015, 0, -w * 0.056, h * 0.015, w * 0.038);
         blushL.addColorStop(0, 'rgba(238, 108, 146, 0.34)');
         blushL.addColorStop(1, 'rgba(238, 108, 146, 0)');
         ctx.fillStyle = blushL;
         ctx.beginPath();
-        ctx.arc(-w * 0.056, h * 0.014, w * 0.038, 0, Math.PI * 2);
+        ctx.arc(-w * 0.056, h * 0.015, w * 0.038, 0, Math.PI * 2);
         ctx.fill();
 
-        const blushR = ctx.createRadialGradient(w * 0.056, h * 0.014, 0, w * 0.056, h * 0.014, w * 0.038);
+        const blushR = ctx.createRadialGradient(w * 0.056, h * 0.015, 0, w * 0.056, h * 0.015, w * 0.038);
         blushR.addColorStop(0, 'rgba(238, 108, 146, 0.34)');
         blushR.addColorStop(1, 'rgba(238, 108, 146, 0)');
         ctx.fillStyle = blushR;
         ctx.beginPath();
-        ctx.arc(w * 0.056, h * 0.014, w * 0.038, 0, Math.PI * 2);
+        ctx.arc(w * 0.056, h * 0.015, w * 0.038, 0, Math.PI * 2);
         ctx.fill();
 
         // Đôi mày lá liễu thanh thoát
@@ -448,55 +869,21 @@
         ctx.lineCap = 'round';
         ctx.lineWidth = Math.max(1.3, w * 0.0052);
         ctx.beginPath();
-        ctx.moveTo(-w * 0.074, -h * 0.02);
-        ctx.quadraticCurveTo(-w * 0.048, -h * 0.031, -w * 0.02, -h * 0.021);
-        ctx.moveTo(w * 0.02, -h * 0.021);
-        ctx.quadraticCurveTo(w * 0.048, -h * 0.031, w * 0.074, -h * 0.02);
+        ctx.moveTo(-w * 0.074, -h * 0.022);
+        ctx.quadraticCurveTo(-w * 0.048, -h * 0.033, -w * 0.02, -h * 0.023);
+        ctx.moveTo(w * 0.02, -h * 0.023);
+        ctx.quadraticCurveTo(w * 0.048, -h * 0.033, w * 0.074, -h * 0.022);
         ctx.stroke();
 
-        // Đôi mắt có hồn (nhắm hờ mỉm cười hoặc long lanh ánh sáng)
-        if (variant % 2 === 1) {
-            // Đôi mắt long lanh có đốm sáng catchlight
-            ctx.fillStyle = pal.hair;
-            ctx.beginPath();
-            ctx.ellipse(-w * 0.046, -h * 0.002, w * 0.015, h * 0.0095, 0, 0, Math.PI * 2);
-            ctx.ellipse(w * 0.046, -h * 0.002, w * 0.015, h * 0.0095, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Đốm sáng trong mắt (Catchlight)
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(-w * 0.041, -h * 0.005, w * 0.0048, 0, Math.PI * 2);
-            ctx.arc(w * 0.051, -h * 0.005, w * 0.0048, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Mi trên cong vút
-            ctx.strokeStyle = pal.hair;
-            ctx.lineWidth = Math.max(1.6, w * 0.0065);
-            ctx.beginPath();
-            ctx.arc(-w * 0.046, h * 0.002, w * 0.022, 1.12 * Math.PI, 1.88 * Math.PI);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(w * 0.046, h * 0.002, w * 0.022, 1.12 * Math.PI, 1.88 * Math.PI);
-            ctx.stroke();
-        } else {
-            // Đôi mắt cong hạnh phúc với hàng mi dài
-            ctx.strokeStyle = pal.hair;
-            ctx.lineWidth = Math.max(1.6, w * 0.0068);
-            ctx.beginPath();
-            ctx.arc(-w * 0.046, -h * 0.004, w * 0.023, 0.12 * Math.PI, 0.88 * Math.PI);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(w * 0.046, -h * 0.004, w * 0.023, 0.12 * Math.PI, 0.88 * Math.PI);
-            ctx.stroke();
-        }
+        // Vẽ đôi mắt có hồn (hỗ trợ cả Mở mắt long lanh & Nhắm mắt mỉm cười)
+        drawExpressiveEyes(ctx, w, h, pal, eyeOpenness);
 
         // Sống mũi thanh tú
         ctx.strokeStyle = 'rgba(205, 145, 130, 0.45)';
         ctx.lineWidth = Math.max(1, w * 0.0038);
         ctx.beginPath();
-        ctx.moveTo(0, -h * 0.01);
-        ctx.quadraticCurveTo(-w * 0.005, h * 0.014, 0, h * 0.019);
+        ctx.moveTo(0, -h * 0.008);
+        ctx.quadraticCurveTo(-w * 0.005, h * 0.015, 0, h * 0.02);
         ctx.stroke();
 
         // Nụ cười rạng rỡ dịu dàng
@@ -515,35 +902,8 @@
         ctx.quadraticCurveTo(0, h * 0.046, w * 0.033, h * 0.036);
         ctx.stroke();
 
-        // Tóc mái bay mềm mại ôm gương mặt
-        ctx.fillStyle = hairGrad;
-        ctx.beginPath();
-        ctx.moveTo(-w * 0.118, -h * 0.012);
-        ctx.quadraticCurveTo(-w * 0.03, -h * 0.105, w * 0.118, -h * 0.012);
-        ctx.quadraticCurveTo(w * 0.06, -h * 0.058, -w * 0.01, -h * 0.052);
-        ctx.quadraticCurveTo(-w * 0.072, -h * 0.052, -w * 0.118, -h * 0.012);
-        ctx.fill();
-
-        // Cành hoa cài mái tóc duyên dáng
-        const hairFlowerX = w * 0.098;
-        const hairFlowerY = -h * 0.046;
-        for (let p = 0; p < 5; p++) {
-            const a = (p * Math.PI * 2) / 5;
-            drawSoulfulPetal(
-                ctx,
-                hairFlowerX + Math.cos(a) * w * 0.016,
-                hairFlowerY + Math.sin(a) * w * 0.016,
-                w * 0.015,
-                w * 0.02,
-                a + Math.PI / 2,
-                pal.flower,
-                0.95
-            );
-        }
-        ctx.fillStyle = pal.accent;
-        ctx.beginPath();
-        ctx.arc(hairFlowerX, hairFlowerY, w * 0.009, 0, Math.PI * 2);
-        ctx.fill();
+        // Vẽ phần tóc mái phía trước & trâm/kẹp/bím tóc theo đúng kiểu tóc (0..5)
+        drawFrontHairstyle(ctx, w, h, variant, hairGrad, pal);
 
         ctx.restore(); // Kết thúc vẽ phần đầu nghiêng
 
@@ -600,7 +960,7 @@
             ctx.fill();
         });
 
-        // 7. Cánh hoa anh đào bay lơ lửng ở tiền cảnh (Foreground Petals) tạo chiều sâu sống động
+        // 7. Cánh hoa anh đào bay lơ lửng ở tiền cảnh (Foreground Petals)
         const fgPetals = [
             [0.14, 0.18, 0.018, 0.026, 0.6],
             [0.86, 0.32, 0.02, 0.028, -0.8],
@@ -614,7 +974,14 @@
         ctx.restore();
     }
 
-    // ====== 5. VẼ THIỆP MẪU CHUẨN 100% BỐ CỤC BƯỚC 3 (KHUNG CONCEPT + CẦU NỐI + HỘP LỜI CHÚC HAUTE COUTURE) ======
+    // ====== 5. VẼ THIỆP MẪU & ĐỆM 3 TRẠNG THÁI NHÁY MẮT (MỞ - NỬA NHẮM - NHẮM) SIÊU MƯỢT ======
+    function createOffscreenBuffer(w, h) {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        return c;
+    }
+
     function drawSampleCardOnElement(cardEl, conceptIdx) {
         if (!cardEl) return;
         const canvas = cardEl.querySelector('canvas');
@@ -631,7 +998,6 @@
             : { concept: 'arch', fullLabel: '✨ 01. Vòm Lụa' };
         const concept = def.concept || 'arch';
 
-        // Lấy đúng tông màu & kiểu viền hộp lời chúc của mẫu khung từ script.js
         const mappedThemeKey = (typeof CONCEPT_THEME_MAP !== 'undefined' && CONCEPT_THEME_MAP[concept])
             ? CONCEPT_THEME_MAP[concept]
             : REAL_THEME_KEYS[conceptIdx % REAL_THEME_KEYS.length];
@@ -645,37 +1011,19 @@
             ? CONCEPT_BORDER_MAP[concept]
             : 'sakura';
 
-        ctx.clearRect(0, 0, targetW, targetH);
         if (!theme) return;
 
-        // 1. Nền lụa liền mạch toàn tấm thiệp
-        const fullGrad = ctx.createLinearGradient(0, 0, 0, targetH);
-        fullGrad.addColorStop(0, theme.canvasBgStart);
-        fullGrad.addColorStop(0.5, theme.canvasBgMid);
-        fullGrad.addColorStop(1, theme.canvasBgEnd);
-        ctx.fillStyle = fullGrad;
-        ctx.fillRect(0, 0, targetW, targetH);
+        // Vẽ 1 lần lớp Khung Concept + Cầu nối + Hộp lời chúc vào overlayCanvas để tái sử dụng cho 3 pha nháy mắt
+        const overlayCanvas = createOffscreenBuffer(targetW, targetH);
+        const oCtx = overlayCanvas.getContext('2d');
 
         if (typeof drawBottomAmbientDecor === 'function') {
-            drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, theme);
+            drawBottomAmbientDecor(oCtx, targetW, originH, textSpaceHeight, scale, theme);
         }
-
-        // 2. Cắt cửa sổ ảnh theo đúng hình dáng Concept và vẽ chân dung nàng thơ có hồn
-        ctx.save();
-        if (typeof traceConceptPhotoWindow === 'function') {
-            ctx.beginPath();
-            traceConceptPhotoWindow(ctx, concept, targetW, originH, scale);
-            ctx.clip();
-        }
-        drawLuxuryMuseIllustration(ctx, targetW, originH, conceptIdx);
-        ctx.restore();
-
-        // 3. Phủ thiết kế khung Concept thật từ script.js
         if (typeof renderConceptOverlayToCtx === 'function') {
-            renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, false);
+            renderConceptOverlayToCtx(oCtx, concept, targetW, originH, theme, false);
         }
 
-        // 4. Vẽ Cầu nối trang sức (Ornamental Bridge) & Hộp lời chúc Haute Couture thật của Bước 3
         const marginX = Math.floor(targetW * 0.056);
         const boxX = marginX;
         const boxY = originH + Math.floor(textSpaceHeight * 0.085);
@@ -687,16 +1035,118 @@
         const activeQuote = SAMPLE_WISHES[conceptIdx % SAMPLE_WISHES.length];
 
         if (typeof drawOrnamentalBridge === 'function') {
-            drawOrnamentalBridge(ctx, targetW / 2, originH, boxY, scale, theme, concept);
+            drawOrnamentalBridge(oCtx, targetW / 2, originH, boxY, scale, theme, concept);
         }
-
         if (typeof drawRomanticQuoteBox === 'function') {
-            drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme, borderStyle, concept);
+            drawRomanticQuoteBox(oCtx, boxX, boxY, boxW, boxH, radius, scale, theme, borderStyle, concept);
+        }
+        if (typeof fitQuoteInBox === 'function' && typeof drawQuoteContent === 'function') {
+            const layout = fitQuoteInBox(oCtx, activeQuote, recipientLine, boxW, boxH, scale, borderStyle);
+            drawQuoteContent(oCtx, boxX, boxY, boxW, boxH, layout, theme, scale);
         }
 
-        if (typeof fitQuoteInBox === 'function' && typeof drawQuoteContent === 'function') {
-            const layout = fitQuoteInBox(ctx, activeQuote, recipientLine, boxW, boxH, scale, borderStyle);
-            drawQuoteContent(ctx, boxX, boxY, boxW, boxH, layout, theme, scale);
+        // Hàm nội bộ dựng nhanh 1 frame hoàn chỉnh ứng với độ mở mắt (1.0 = mở, 0.45 = chớp, 0.0 = nhắm)
+        function buildEyeStateCanvas(eyeOpenness) {
+            const buf = createOffscreenBuffer(targetW, targetH);
+            const bCtx = buf.getContext('2d');
+
+            const fullGrad = bCtx.createLinearGradient(0, 0, 0, targetH);
+            fullGrad.addColorStop(0, theme.canvasBgStart);
+            fullGrad.addColorStop(0.5, theme.canvasBgMid);
+            fullGrad.addColorStop(1, theme.canvasBgEnd);
+            bCtx.fillStyle = fullGrad;
+            bCtx.fillRect(0, 0, targetW, targetH);
+
+            bCtx.save();
+            if (typeof traceConceptPhotoWindow === 'function') {
+                bCtx.beginPath();
+                traceConceptPhotoWindow(bCtx, concept, targetW, originH, scale);
+                bCtx.clip();
+            }
+            drawLuxuryMuseIllustration(bCtx, targetW, originH, conceptIdx, eyeOpenness);
+            bCtx.restore();
+
+            bCtx.drawImage(overlayCanvas, 0, 0);
+            return buf;
+        }
+
+        cardEl._eyeFrames = {
+            open: buildEyeStateCanvas(1.0),
+            half: buildEyeStateCanvas(0.45),
+            closed: buildEyeStateCanvas(0.0)
+        };
+        cardEl._isBlinking = false;
+
+        // Mặc định hiển thị trạng thái mắt mở long lanh
+        ctx.clearRect(0, 0, targetW, targetH);
+        ctx.drawImage(cardEl._eyeFrames.open, 0, 0);
+    }
+
+    // Hiệu ứng nháy mắt tự nhiên trên 1 tấm thiệp (Mở -> Nửa nhắm -> Nhắm -> Nửa nhắm -> Mở)
+    function triggerCardBlink(cardEl, isDoubleBlink = false) {
+        if (!cardEl || !cardEl._eyeFrames || cardEl._isBlinking) return;
+        const canvas = cardEl.querySelector('canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const frames = cardEl._eyeFrames;
+
+        cardEl._isBlinking = true;
+
+        const paintFrame = (img) => {
+            if (!img) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+        };
+
+        // Nhịp chớp mắt 1
+        paintFrame(frames.half);
+        setTimeout(() => paintFrame(frames.closed), 55);
+        setTimeout(() => paintFrame(frames.half), 185);
+        setTimeout(() => {
+            paintFrame(frames.open);
+            if (!isDoubleBlink) {
+                cardEl._isBlinking = false;
+            }
+        }, 240);
+
+        // Nếu là nháy mắt kép (Double-Blink duyên dáng khi thiệp vừa trượt ra giữa)
+        if (isDoubleBlink) {
+            setTimeout(() => paintFrame(frames.half), 360);
+            setTimeout(() => paintFrame(frames.closed), 410);
+            setTimeout(() => paintFrame(frames.half), 550);
+            setTimeout(() => {
+                paintFrame(frames.open);
+                cardEl._isBlinking = false;
+            }, 605);
+        }
+    }
+
+    function startNaturalBlinkLoop() {
+        stopNaturalBlinkLoop();
+        blinkLoopTimerId = setInterval(() => {
+            if (document.hidden || !step1El.classList.contains('active') || !step1El.classList.contains('envelope-opened')) {
+                return;
+            }
+            blinkStepCount++;
+            // Luôn ưu tiên nháy mắt cho tấm thiệp chính giữa, xen kẽ nháy mắt cho 2 tấm thiệp hai bên
+            const centerCard = activeFanSlots[1];
+            const leftCard = activeFanSlots[0];
+            const rightCard = activeFanSlots[2];
+
+            triggerCardBlink(centerCard, blinkStepCount % 3 === 0);
+
+            if (blinkStepCount % 2 === 0) {
+                setTimeout(() => triggerCardBlink(leftCard, false), 420);
+            } else {
+                setTimeout(() => triggerCardBlink(rightCard, false), 520);
+            }
+        }, 2350);
+    }
+
+    function stopNaturalBlinkLoop() {
+        if (blinkLoopTimerId) {
+            clearInterval(blinkLoopTimerId);
+            blinkLoopTimerId = null;
         }
     }
 
@@ -734,6 +1184,11 @@
         activeFanSlots = [oldCenterCard, oldRightCard, oldLeftCard];
         applyFanSlotClasses();
 
+        // Khi tấm thiệp mới vừa trượt vào chính giữa -> chớp mắt duyên dáng chào người xem
+        setTimeout(() => {
+            triggerCardBlink(activeFanSlots[1], false);
+        }, 380);
+
         if (typeof selectFrameById === 'function') {
             selectFrameById(currentCenterIndex, false);
         }
@@ -751,6 +1206,10 @@
         drawSampleCardOnElement(oldRightCard, upcomingLeftIdx);
         activeFanSlots = [oldRightCard, oldLeftCard, oldCenterCard];
         applyFanSlotClasses();
+
+        setTimeout(() => {
+            triggerCardBlink(activeFanSlots[1], false);
+        }, 380);
 
         if (typeof selectFrameById === 'function') {
             selectFrameById(currentCenterIndex, false);
