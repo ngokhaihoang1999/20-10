@@ -46,7 +46,7 @@ function initCanvasSizes() {
 }
 window.addEventListener('resize', initCanvasSizes, { passive: true });
 
-// Lớp 1: Đốm sáng Bokeh mềm mại (dùng radial gradient, không dùng shadowBlur để tránh lag)
+// Lớp 1: Đốm sáng Bokeh Ngọc Bích & Hoa Đào mềm mại (dùng radial gradient, không dùng shadowBlur để tránh lag)
 class BokehOrb {
     constructor() {
         this.reset(true);
@@ -54,12 +54,12 @@ class BokehOrb {
     reset(initial = false) {
         this.x = Math.random() * bgWidth;
         this.y = initial ? Math.random() * bgHeight : bgHeight + 60;
-        this.radius = Math.random() * 32 + 18;
+        this.radius = Math.random() * 44 + 24;
         this.vy = -(Math.random() * 0.35 + 0.12);
         this.vx = (Math.random() - 0.5) * 0.25;
         this.phase = Math.random() * Math.PI * 2;
-        this.baseAlpha = Math.random() * 0.16 + 0.08;
-        const colors = ['255, 192, 208', '255, 255, 255', '168, 230, 207', '255, 218, 230'];
+        this.baseAlpha = Math.random() * 0.18 + 0.10;
+        const colors = ['64, 186, 146', '112, 214, 178', '154, 232, 204', '255, 198, 214', '255, 255, 255'];
         this.rgb = colors[Math.floor(Math.random() * colors.length)];
     }
     update() {
@@ -2655,7 +2655,7 @@ function buildSelfOracleCommonFrameOverlayDataUrl() {
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, W, H);
-    drawRoundedRectPath(ctx, winX, winY, winW, winH, r);
+    traceRoundedWindowPath(ctx, winX, winY, winW, winH, r);
     ctx.fillStyle = '#f8f5ef';
     ctx.fill('evenodd');
 
@@ -2669,11 +2669,13 @@ function buildSelfOracleCommonFrameOverlayDataUrl() {
 
     // 2. Bóng đổ chiều sâu mềm mại vào mép trong cửa sổ ảnh
     ctx.save();
-    drawRoundedRectPath(ctx, winX, winY, winW, winH, r);
+    ctx.beginPath();
+    traceRoundedWindowPath(ctx, winX, winY, winW, winH, r);
     ctx.clip();
     ctx.strokeStyle = 'rgba(10, 56, 40, 0.22)';
     ctx.lineWidth = 14;
-    drawRoundedRectPath(ctx, winX - 3, winY - 3, winW + 6, winH + 6, r + 3);
+    ctx.beginPath();
+    traceRoundedWindowPath(ctx, winX - 3, winY - 3, winW + 6, winH + 6, r + 3);
     ctx.stroke();
 
     // Đường vòm gợi ý mảnh ánh kim bên trong cửa sổ giúp người dùng căn gương mặt ở vị trí đẹp nhất cho cả khung chữ nhật lẫn khung vòm/oval
@@ -2699,12 +2701,14 @@ function buildSelfOracleCommonFrameOverlayDataUrl() {
     ctx.save();
     ctx.strokeStyle = goldGrad;
     ctx.lineWidth = 6.5;
-    drawRoundedRectPath(ctx, winX, winY, winW, winH, r);
+    ctx.beginPath();
+    traceRoundedWindowPath(ctx, winX, winY, winW, winH, r);
     ctx.stroke();
 
     ctx.strokeStyle = 'rgba(15, 123, 95, 0.35)';
     ctx.lineWidth = 2;
-    drawRoundedRectPath(ctx, winX - 11, winY - 11, winW + 22, winH + 22, r + 8);
+    ctx.beginPath();
+    traceRoundedWindowPath(ctx, winX - 11, winY - 11, winW + 22, winH + 22, r + 8);
     ctx.stroke();
 
     // 4. Hoa văn sao 4 cánh ánh vàng ở 4 góc & đỉnh khuôn chung
@@ -2876,14 +2880,16 @@ function initCropper() {
 // Cập nhật trực tiếp lớp ảnh khung nằm phủ trên #preview-area-wrap (không bị Cropper cắt lẹm)
 function updateFrameOverlay() {
     if (!frameOverlayEl) return;
-    if (window.isSelfOracleMode) {
-        frameOverlayEl.src = buildSelfOracleCommonFrameOverlayDataUrl();
-        return;
-    }
-    const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
-    if (cfg) {
-        frameOverlayEl.src = getFullConceptOverlayDataUrl(cfg.concept);
-    }
+    try {
+        if (window.isSelfOracleMode) {
+            frameOverlayEl.src = buildSelfOracleCommonFrameOverlayDataUrl();
+            return;
+        }
+        const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
+        if (cfg) {
+            frameOverlayEl.src = getFullConceptOverlayDataUrl(cfg.concept);
+        }
+    } catch (_) {}
 }
 
 document.getElementById('upload-btn').addEventListener('change', handleImageInput);
@@ -5922,9 +5928,13 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
     // ĐO TỌA ĐỘ ĐÍCH #card-showcase MỘT LẦN DUY NHẤT NGOÀI VÒNG LẶP ĐỂ CHỐNG REFLOW (LAYOUT THRASHING)
     let cachedTargetRect = null;
+    let cachedEnvBaseW = 356;
     function measureTargetShowcaseOnce() {
         curVw = window.innerWidth;
         curVh = window.innerHeight;
+        cachedEnvBaseW = (backRig && backRig.offsetWidth > 120)
+            ? backRig.offsetWidth
+            : Math.min(356, curVw * 0.86);
         if (cardShowcase) {
             cardShowcase.classList.remove('is-tilting');
             cardShowcase.style.transform = 'translate3d(0, 0, 0) scale(1)';
@@ -6650,7 +6660,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
         const screenCx = curVw * 0.5;
         const screenCy = curVh * 0.5;
-        const envBaseW = Math.min(356, curVw * 0.86);
+        const envBaseW = cachedEnvBaseW;
         const envBaseH = envBaseW * 0.694;
         const envBaseCy = curVh * 0.50;
         const focal = 920;

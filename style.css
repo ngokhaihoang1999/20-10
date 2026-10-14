@@ -10,7 +10,11 @@ body {
     width: 100%;
     height: 100%;
     height: 100dvh;
-    background: linear-gradient(135deg, #f4fbf8 0%, #fceef3 50%, #c4ead8 100%);
+    background:
+        radial-gradient(ellipse 68% 60% at 50% 48%, rgba(232, 250, 243, 0.65) 0%, rgba(132, 214, 185, 0.35) 52%, transparent 82%),
+        radial-gradient(circle at 14% 18%, rgba(86, 198, 160, 0.48) 0%, transparent 56%),
+        radial-gradient(circle at 86% 82%, rgba(56, 178, 138, 0.52) 0%, transparent 58%),
+        linear-gradient(135deg, #9adac1 0%, #bfead8 34%, #a5e0c8 68%, #76c8a8 100%);
     font-family: 'Montserrat', sans-serif;
     overflow: hidden;
     color: #333;
@@ -4318,4 +4322,296 @@ body.recipient-mode .recipient-luxury-dock {
 
 .u3d-prompt-pill strong {
     color: #ffe688;
+}
+
+/* ==========================================================================================
+   ====== HỆ THỐNG RESPONSIVE SCALE ĐỒNG BỘ TRÊN TABLET, LAPTOP & MÀN HÌNH MÁY TÍNH ======
+   ========================================================================================== */
+@media (min-width: 768px) and (min-height: 680px) {
+    /* 1. BƯỚC 1: PHONG BÌ NGỌC BÍCH 3D & TẤM THIỆP MỞ ĐẦU */
+    .step1-physical-stage {
+        --env-w: clamp(410px, 54vmin, 560px);
+    }
+
+    .env-wax-seal {
+        width: clamp(114px, 14.5vmin, 148px);
+        height: clamp(114px, 14.5vmin, 148px);
+    }
+
+    .step1-card-column {
+        max-width: min(560px, 64dvh);
+        gap: 12px;
+    }
+
+    .step1-card {
+        max-width: 100%;
+        max-height: 92dvh;
+        padding: clamp(22px, 2.8dvh, 32px) clamp(22px, 2.8dvh, 30px) clamp(20px, 2.4dvh, 26px);
+        gap: clamp(12px, 1.6dvh, 18px);
+        border-radius: 26px;
+    }
+
+    .step1-deco-corner {
+        width: 24px;
+        height: 24px;
+    }
+
+    .main-title {
+        font-size: clamp(2.65rem, 4.5dvh, 3.6rem);
+        margin-bottom: 4px;
+    }
+
+    .sub-title {
+        font-size: clamp(0.95rem, 1.65dvh, 1.18rem);
+    }
+
+    .fan-Ambient-glow {
+        width: clamp(340px, 46dvh, 460px);
+        height: clamp(280px, 38dvh, 380px);
+    }
+
+    .fan-cards-stage {
+        height: clamp(290px, 44dvh, 440px);
+    }
+
+    #step-1:has(.upload-wrapper.cta-stage-modes) .fan-cards-stage,
+    #step-1:has(.upload-wrapper.cta-expanded) .fan-cards-stage {
+        height: clamp(256px, 39dvh, 395px);
+    }
+
+    .fan-card {
+        border-radius: 16px;
+    }
+
+    .fan-card.fan-pos-left {
+        transform: translate3d(calc(-1 * clamp(98px, 13dvh, 136px)), 12px, -10px) rotate(-14.5deg) scale(0.88);
+    }
+
+    .fan-card.fan-pos-right {
+        transform: translate3d(clamp(98px, 13dvh, 136px), 12px, -10px) rotate(14.5deg) scale(0.88);
+    }
+
+    .fan-floating-accent {
+        font-size: 1.2rem;
+    }
+
+    .step1-cta-initial {
+        max-height: 82px;
+    }
+
+    .step1-start-btn {
+        padding: clamp(14px, 1.9dvh, 18px) 24px;
+        font-size: clamp(1.06rem, 1.85dvh, 1.24rem);
+        border-radius: 999px;
+    }
+
+    .step1-cta-modes-inner,
+    .step1-cta-choices-inner {
+        gap: 10px;
+    }
+
+    .step1-mode-btn,
+    .step1-choice-btn {
+        padding: clamp(13px, 1.7dvh, 16px) 18px;
+        font-size: clamp(0.94rem, 1.62dvh, 1.1rem);
+        border-radius: 999px;
+    }
+
+    .step1-photo-note-row {
+        gap: 8px;
+        margin-bottom: 3px;
+    }
+
+    .step1-back-mode-pill {
+        font-size: clamp(0.8rem, 1.38dvh, 0.92rem);
+        padding: 7px 14px;
+        border-radius: 20px;
+    }
+
+    .step1-photo-note {
+        font-size: clamp(0.82rem, 1.42dvh, 0.95rem);
+        padding: 7px 14px;
+        border-radius: 22px;
+    }
+
+    .replay-env-icon-btn {
+        width: 56px;
+        height: 46px;
+        border-radius: 24px;
+    }
+
+    .replay-env-svg {
+        width: 34px;
+        height: 27px;
+    }
+
+    /* 2. BƯỚC 2: XƯỞNG THIẾT KẾ & MÀN HÌNH CĂN CHỈNH ẢNH */
+    .glass-container,
+    .main-container {
+        max-width: min(560px, 65dvh);
+        padding: clamp(12px, 1.6dvh, 18px) clamp(14px, 1.8dvh, 22px);
+        gap: clamp(6px, 0.95dvh, 10px);
+    }
+
+    .main-container::before {
+        border-radius: 26px;
+    }
+
+    .step2-header-row {
+        padding: 7px 10px;
+        border-radius: 16px;
+    }
+
+    .crop-tool-btn {
+        padding: 7px 14px;
+        font-size: clamp(0.78rem, 1.35dvh, 0.9rem);
+    }
+
+    .step2-header-title {
+        font-size: clamp(0.84rem, 1.45dvh, 0.98rem);
+    }
+
+    .card-nav-arrow {
+        width: 38px;
+        height: 58px;
+        font-size: 1.6rem;
+        border-radius: 19px;
+    }
+
+    .control-deck {
+        padding: 8px 10px 9px;
+        border-radius: 18px;
+    }
+
+    .deck-tabs.deck-tabs-5 {
+        gap: 4px;
+        padding: 4px;
+        margin-bottom: 6px;
+    }
+
+    .deck-tabs.deck-tabs-5 .deck-tab {
+        font-size: clamp(0.72rem, 1.25dvh, 0.84rem);
+        padding: 7px 4px;
+    }
+
+    .frame-page-btn,
+    .wish-mode-btn,
+    .topic-chip,
+    .style-chip,
+    .color-swatch-btn,
+    .filter-btn,
+    .motion-chip,
+    .wish-action-btn,
+    .magic-harmony-btn {
+        font-size: clamp(0.74rem, 1.28dvh, 0.86rem);
+        padding: 7px 8px;
+    }
+
+    .concept-grid {
+        gap: 6px;
+    }
+
+    .concept-chip {
+        padding: 6px 3px;
+        border-radius: 12px;
+    }
+
+    .concept-chip .chip-idx {
+        font-size: clamp(0.6rem, 1.05dvh, 0.7rem);
+    }
+
+    .concept-chip .chip-txt {
+        font-size: clamp(0.66rem, 1.15dvh, 0.76rem);
+    }
+
+    .action-buttons {
+        gap: 10px;
+    }
+
+    .action-buttons .btn-secondary,
+    .action-buttons .btn-primary {
+        padding: clamp(12px, 1.65dvh, 16px) 18px;
+        font-size: clamp(0.94rem, 1.6dvh, 1.08rem);
+        border-radius: 999px;
+    }
+
+    /* 3. BƯỚC 3 & SÂN KHẤU PHONG BÌ VẬT LÝ 3D (#u3d-envelope-stage) */
+    .u3d-envelope-stage {
+        --u3d-env-w: clamp(390px, 48vmin, 520px);
+    }
+
+    .u3d-seal-btn {
+        width: clamp(102px, 12.8vmin, 128px);
+        height: clamp(102px, 12.8vmin, 128px);
+        margin-left: calc(clamp(102px, 12.8vmin, 128px) * -0.5);
+        margin-top: calc(clamp(102px, 12.8vmin, 128px) * -0.5);
+    }
+
+    .u3d-prompt-pill {
+        font-size: clamp(0.88rem, 1.52dvh, 1.02rem);
+        padding: 11px 24px;
+    }
+
+    #step-3 .result-card-container,
+    body.recipient-mode #step-3 .result-card-container {
+        max-width: min(560px, 65dvh);
+        padding: clamp(10px, 1.4dvh, 16px) clamp(12px, 1.6dvh, 18px);
+        gap: clamp(8px, 1.15dvh, 12px);
+    }
+
+    .result-topbar {
+        padding: 7px 12px;
+        border-radius: 999px;
+    }
+
+    .topbar-btn {
+        padding: 8px 14px;
+        font-size: clamp(0.78rem, 1.35dvh, 0.9rem);
+    }
+
+    .result-title {
+        font-size: clamp(0.88rem, 1.52dvh, 1.04rem);
+    }
+
+    .showcase-quick-bar {
+        gap: 8px;
+    }
+
+    .showcase-pill-btn {
+        padding: 9px 8px;
+        font-size: clamp(0.75rem, 1.3dvh, 0.88rem);
+    }
+
+    .result-actions.result-actions-dual {
+        gap: 10px;
+    }
+
+    .result-actions-dual .btn-create-3d-link,
+    .result-actions-dual .btn-save-card {
+        padding: clamp(13px, 1.7dvh, 16px) 16px;
+        font-size: clamp(0.9rem, 1.55dvh, 1.04rem);
+    }
+
+    .recipient-luxury-dock {
+        padding: 7px 10px;
+        gap: 8px;
+    }
+
+    .recipient-dock-pill {
+        padding: 9px 18px;
+        font-size: clamp(0.82rem, 1.42dvh, 0.96rem);
+    }
+
+    /* 4. MODALS TRÊN DESKTOP / TABLET */
+    .custom-modal-box,
+    .save-modal-box,
+    .share-link-modal-box {
+        max-width: min(480px, 92vw);
+        padding: 20px 22px 18px;
+        border-radius: 24px;
+    }
+
+    .custom-modal-title {
+        font-size: 1.08rem;
+    }
 }
