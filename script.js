@@ -346,15 +346,15 @@ const CONCEPT_DEFS = [
     { concept: 'oval', label: '02. Gương Ngọc', fullLabel: '🪞 02. Gương Hoàng Gia' },
     { concept: 'cathedral', label: '03. Hoa Trà', fullLabel: '🌷 03. Vòm Hoa Trà' },
     { concept: 'scallop', label: '04. Viền Sóng', fullLabel: '☁️ 04. Viền Sóng Mây' },
-    { concept: 'hourglass', label: '05. Nguyệt Quế', fullLabel: '🌿 05. Vòng Nguyệt Quế' },
+    { concept: 'hourglass', label: '05. Vòm Lá', fullLabel: '🌿 05. Vòng Nguyệt Quế' },
     { concept: 'magazine', label: '06. Tạp Chí', fullLabel: '📖 06. Tạp Chí Vogue' },
-    { concept: 'elle_minimal', label: '07. Muse Paris', fullLabel: '🕊️ 07. Muse Paris' },
+    { concept: 'elle_minimal', label: '07. Muse Pháp', fullLabel: '🕊️ 07. Muse Paris' },
     { concept: 'runway', label: '08. Hào Quang', fullLabel: '👑 08. Ánh Hào Quang' },
     { concept: 'atelier', label: '09. Couture', fullLabel: '🏷️ 09. Nhãn Couture' },
     { concept: 'polaroid', label: '10. Polaroid', fullLabel: '📸 10. Polaroid Hàn' },
     { concept: 'film_kodak', label: '11. Anh Đào', fullLabel: '🌸 11. Cành Anh Đào' },
     { concept: 'postcard', label: '12. Bưu Thiếp', fullLabel: '💌 12. Bưu Thiếp Paris' },
-    { concept: 'scrapbook', label: '13. Cúc Họa Mi', fullLabel: '🌼 13. Cúc Họa Mi' },
+    { concept: 'scrapbook', label: '13. Họa Mi', fullLabel: '🌼 13. Cúc Họa Mi' },
     { concept: 'aura', label: '14. Kính Aura', fullLabel: '💎 14. Kính Mờ Aura' },
     { concept: 'aura_arch', label: '15. Vòm Aura', fullLabel: '🌈 15. Vòm Cực Quang' },
     { concept: 'prism', label: '16. Pha Lê', fullLabel: '💠 16. Pha Lê Ánh Sao' },
@@ -380,11 +380,11 @@ uploadWrapper.classList.add('ready');
 // ====== QUẢN LÝ LỜI CHÚC THEO CHỦ ĐỀ (KHÔNG LẶP LẠI) ======
 const TOPIC_RANGES = {
     all: [[0, 199]],
-    warm: [[0, 53]],
-    selflove: [[54, 63], [114, 123]],
+    warm: [[0, 53], [154, 163], [194, 199]],
+    selflove: [[54, 63], [114, 123], [184, 193]],
     work: [[64, 73], [144, 153]],
-    beauty: [[74, 83], [0, 23]],
-    friends: [[84, 93], [134, 143]],
+    beauty: [[74, 83], [0, 23], [174, 183]],
+    friends: [[84, 93], [134, 143], [164, 173]],
     family: [[94, 103]],
     autumn: [[104, 113]],
     fun: [[124, 133]]
@@ -2687,7 +2687,10 @@ function startSelfWishSkyOracleFlow(file) {
             motionId: randomMotion,
             themeKey: currentColorTheme,
             isRealRecipient: false,
-            isStep2Preview: false
+            isStep2Preview: false,
+            onComplete: () => {
+                triggerCelebrationBurst();
+            }
         });
     }
 
@@ -3011,7 +3014,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = "🌸 Đang niêm phong Bì Thiệp 3D...";
+    btn.innerHTML = "🌸 Đang tạo thiệp...";
     btn.disabled = true;
 
     setTimeout(() => {
@@ -4601,7 +4604,7 @@ const MOTION_EFFECTS_CONFIG = {
     },
     hearts: {
         id: 'hearts',
-        shortLabel: '💎 Kim Cương',
+        shortLabel: '💎 Pha Lê',
         fullLabel: '💎 Kim Cương Ánh Sao 3D',
         badge: '💎 KIM CƯƠNG ÁNH SAO & BỤI VÀNG 3D',
         revealClass: 'reveal-hearts',
@@ -5680,14 +5683,14 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'flex';
         if (dlLabel) dlLabel.textContent = 'Lưu thiệp';
     } else if (window.isSelfOracleMode) {
-        // Chế độ "Lời chúc dành cho bạn": Mọi thứ ngẫu nhiên 100%, ẩn thanh sửa nhanh, giữ nút Lưu Link Xem Lại & Mở lại thư
+        // Chế độ "Lời chúc dành cho bạn": Mọi thứ ngẫu nhiên 100%, ẩn thanh sửa nhanh, giữ nút Lưu link xem lại & Mở lại
         if (creatorTopbar) creatorTopbar.style.display = 'grid';
         if (creatorQuickBar) creatorQuickBar.style.display = 'none';
         if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'none';
         if (step3FloatingBadge) step3FloatingBadge.style.display = 'none';
-        if (backStep2Btn) backStep2Btn.innerHTML = '✉️ Mở lại thư';
-        if (step3MainTitle) step3MainTitle.textContent = '✨ Lời Chúc Dành Cho Bạn 🌸';
-        if (openShareLinkModalBtn) openShareLinkModalBtn.innerHTML = '<span class="icon">🔗</span> Lưu Link Xem Lại Thiệp 3D';
+        if (backStep2Btn) backStep2Btn.innerHTML = '✉️ Mở lại';
+        if (step3MainTitle) step3MainTitle.textContent = '✨ Dành Cho Bạn 🌸';
+        if (openShareLinkModalBtn) openShareLinkModalBtn.innerHTML = '<span class="icon">🔗</span> Lưu link xem lại';
         if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
     } else {
         if (creatorTopbar) creatorTopbar.style.display = 'grid';
@@ -5695,8 +5698,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'none';
         if (step3FloatingBadge) step3FloatingBadge.style.display = '';
         if (backStep2Btn) backStep2Btn.innerHTML = '‹ Sửa thiệp';
-        if (step3MainTitle) step3MainTitle.textContent = '✨ Tuyệt Tác 20/10 🌸';
-        if (openShareLinkModalBtn) openShareLinkModalBtn.innerHTML = '<span class="icon">🔗</span> Tạo Link Thiệp 3D Gửi Tặng';
+        if (step3MainTitle) step3MainTitle.textContent = '✨ Thiệp 20/10 🌸';
+        if (openShareLinkModalBtn) openShareLinkModalBtn.innerHTML = '<span class="icon">🔗</span> Tạo link gửi tặng';
         if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
     }
 
@@ -9037,17 +9040,17 @@ chatPreviewTitle?.addEventListener('click', (e) => {
     }
 });
 
-// Nút 1: 📋 Sao chép Tên Thiệp (Đã gắn ẩn URL) -> Copy ĐỒNG BỘ <a href="URL">Tên Thiệp</a>, ẩn hoàn toàn URL dưới chữ!
+// Nút 1: 📋 Sao chép Link Thiệp 3D -> Copy ĐỒNG BỘ <a href="URL">Tên Thiệp</a>, ẩn hoàn toàn URL dưới chữ!
 document.getElementById('copy-rich-link-btn')?.addEventListener('click', async () => {
     const copyTextSpan = document.getElementById('copy-rich-link-text');
-    const origLabel = copyTextSpan ? copyTextSpan.textContent : 'Sao chép Tên Thiệp (Đã gắn ẩn URL)';
+    const origLabel = copyTextSpan ? copyTextSpan.textContent : 'Sao chép Link Thiệp 3D';
     const title = getEffectiveLinkTitle();
 
     // Trường hợp 1 (99%): Đã có sẵn cachedTelegramFileId -> Copy ĐỒNG BỘ ngay trong cử chỉ chạm (0ms delay) để giữ nguyên định dạng Hyperlink ẩn URL!
     if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
         const url = buildShareableCardUrl(cachedTelegramFileId);
         copyHiddenUrlHyperlinkSync(title, url);
-        if (copyTextSpan) copyTextSpan.textContent = `✅ Đã copy "${title}" (Ẩn URL)!`;
+        if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép Link Thiệp!';
         if (tgUploadStatusText) {
             tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Bạn chỉ cần Dán (Paste) vào Telegram ✨`;
         }
@@ -9059,10 +9062,10 @@ document.getElementById('copy-rich-link-btn')?.addEventListener('click', async (
 
     // Trường hợp 2: Ảnh đang tải lên -> Đợi tải xong rồi copy ngay
     try {
-        if (copyTextSpan) copyTextSpan.textContent = '⏳ Đang chuẩn bị link ẩn...';
+        if (copyTextSpan) copyTextSpan.textContent = '⏳ Đang tạo link...';
         const url = await ensureShareUrlReady();
         copyHiddenUrlHyperlinkSync(title, url);
-        if (copyTextSpan) copyTextSpan.textContent = `✅ Đã copy "${title}" (Ẩn URL)!`;
+        if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép Link Thiệp!';
         if (tgUploadStatusText) {
             tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Hãy Dán (Paste) vào Telegram ✨`;
         }
@@ -9075,28 +9078,28 @@ document.getElementById('copy-rich-link-btn')?.addEventListener('click', async (
     }
 });
 
-// Nút 2 (Phụ): 🔗 Copy URL thuần (Dành cho trường hợp người dùng muốn lấy đường dẫn thô)
+// Nút 2 (Phụ): 🔗 Copy URL (Dành cho trường hợp người dùng muốn lấy đường dẫn thô)
 document.getElementById('copy-md-link-btn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const orig = btn.textContent;
     if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
         const url = buildShareableCardUrl(cachedTelegramFileId);
         copyRawUrlSync(url);
-        btn.textContent = '✅ Đã copy URL thuần!';
+        btn.textContent = '✅ Đã copy URL!';
         setTimeout(() => { btn.textContent = orig; }, 2200);
         return;
     }
     try {
         const url = await ensureShareUrlReady();
         copyRawUrlSync(url);
-        btn.textContent = '✅ Đã copy URL thuần!';
+        btn.textContent = '✅ Đã copy URL!';
         setTimeout(() => { btn.textContent = orig; }, 2200);
     } catch (err) {
         alert('Vui lòng đợi ảnh lưu xong rồi thử lại nhé!');
     }
 });
 
-// Nút 3: ✈️ Copy & Mở Telegram -> Sao chép đồng bộ Tên Thiệp đã gắn ẩn URL (<a href="URL">Tên Thiệp</a>) để dán vào Telegram không bị lộ URL thô!
+// Nút 3: ✈️ Gửi Telegram -> Sao chép đồng bộ Tên Thiệp đã gắn ẩn URL (<a href="URL">Tên Thiệp</a>) để dán vào Telegram không bị lộ URL thô!
 document.getElementById('share-telegram-btn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const orig = btn.textContent;
@@ -9105,7 +9108,7 @@ document.getElementById('share-telegram-btn')?.addEventListener('click', async (
     if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
         const url = buildShareableCardUrl(cachedTelegramFileId);
         copyHiddenUrlHyperlinkSync(title, url);
-        btn.textContent = '✅ Đã Copy! Hãy Dán vào Chat';
+        btn.textContent = '✅ Đã copy! Dán vào Chat';
         if (tgUploadStatusText) {
             tgUploadStatusText.textContent = `✅ Đã copy "${title}" (ẩn URL)! Bạn chỉ cần Dán (Paste) vào cuộc trò chuyện Telegram ✨`;
         }
@@ -9116,7 +9119,7 @@ document.getElementById('share-telegram-btn')?.addEventListener('click', async (
     try {
         const url = await ensureShareUrlReady();
         copyHiddenUrlHyperlinkSync(title, url);
-        btn.textContent = '✅ Đã Copy! Hãy Dán vào Chat';
+        btn.textContent = '✅ Đã copy! Dán vào Chat';
         if (tgUploadStatusText) {
             tgUploadStatusText.textContent = `✅ Đã copy "${title}" (ẩn URL)! Bạn chỉ cần Dán (Paste) vào cuộc trò chuyện Telegram ✨`;
         }

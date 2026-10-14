@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title></title>
 
-    <link rel="stylesheet" href="style.css?v=25.0">
+    <link rel="stylesheet" href="style.css?v=26.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
@@ -25,7 +25,7 @@
             <div class="warning-step">1. Nhấn nút <b>⋮</b> hoặc <b>⋯</b> ở góc trên cùng bên phải.</div>
             <div class="warning-step">2. Chọn <b>"Mở bằng trình duyệt ngoài"</b> (Open in Browser).</div>
             <button onclick="document.getElementById('browser-warning').style.display='none'" class="btn-primary"
-                style="margin-top: 16px; margin-bottom: 0;">Tiếp tục tạo thiệp ngay ✨</button>
+                style="margin-top: 16px; margin-bottom: 0;">Tiếp tục tạo thiệp ✨</button>
         </div>
     </div>
 
@@ -33,7 +33,7 @@
     <div id="text-edit-modal" class="custom-modal" style="display: none;">
         <div class="custom-modal-box">
             <div class="custom-modal-header">
-                <span class="custom-modal-title">💌 Tuỳ chỉnh Tiêu đề & Lời chúc</span>
+                <span class="custom-modal-title">💌 Soạn Tiêu đề & Lời chúc</span>
                 <button type="button" id="close-text-modal" class="custom-modal-close" aria-label="Đóng">✕</button>
             </div>
             <div class="custom-modal-body">
@@ -54,13 +54,13 @@
                     <textarea id="custom-wish-input" class="custom-textarea" rows="4" maxlength="160"
                         placeholder="Nhập lời chúc của bạn hoặc bấm Đổi câu mẫu bên dưới (tự động co chữ vừa khung)..."></textarea>
                     <div class="modal-Inline-tools">
-                        <button type="button" id="modal-random-wish-btn" class="mini-suggest-btn">🎲 Đổi câu chúc mẫu</button>
-                        <button type="button" id="modal-clear-wish-btn" class="mini-suggest-btn">🗑️ Xóa để tự viết</button>
+                        <button type="button" id="modal-random-wish-btn" class="mini-suggest-btn">🎲 Đổi câu mẫu</button>
+                        <button type="button" id="modal-clear-wish-btn" class="mini-suggest-btn">🗑️ Xóa tự viết</button>
                     </div>
                 </div>
 
                 <button type="button" id="apply-text-modal-btn" class="btn-primary" style="margin-bottom: 0; padding: 11px 16px;">
-                    ✨ Áp dụng & Xem trước trên thiệp
+                    ✨ Áp dụng lên thiệp
                 </button>
             </div>
         </div>
@@ -81,14 +81,14 @@
     <div id="share-link-modal" class="custom-modal" style="display: none;">
         <div class="custom-modal-box share-link-modal-box">
             <div class="custom-modal-header">
-                <span class="custom-modal-title">🔗 Tạo Link Thiệp 3D & Đặt Tên Thiệp</span>
+                <span class="custom-modal-title">🔗 Link Thiệp 3D & Tên Thiệp</span>
                 <button type="button" id="close-share-link-modal" class="custom-modal-close" aria-label="Đóng">✕</button>
             </div>
             <div class="custom-modal-body share-modal-body">
                 <!-- 1. Đặt tên Thiệp (URL sẽ được gắn ẩn trực tiếp dưới Tên này khi sao chép) -->
                 <div class="input-group" style="margin-bottom: 8px;">
                     <label for="custom-link-title-input" class="input-label">
-                        <span>🏷️ Tên Thiệp (URL sẽ ẩn dưới tên này)</span>
+                        <span>🏷️ Tên Thiệp (URL ẩn dưới tên này)</span>
                         <span id="link-title-char-count" class="char-counter">0/70</span>
                     </label>
                     <div class="link-title-input-wrap">
@@ -97,10 +97,10 @@
                         <button type="button" id="clear-link-title-btn" class="clear-inline-btn" title="Xóa nhanh">✕</button>
                     </div>
                     <div class="link-title-suggestions" id="link-title-suggestions">
-                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="💌 Thiệp 20.10 gửi tặng bạn 🌸">🌸 Thiệp 20.10 gửi tặng bạn</button>
+                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="💌 Thiệp 20.10 gửi tặng bạn 🌸">🌸 Tặng bạn 20.10</button>
                         <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="🌷 Thiệp 20.10 dành tặng Mẹ yêu">🌷 Dành tặng Mẹ yêu</button>
                         <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="💖 Thiệp 20.10 gửi người thương">💖 Gửi người thương</button>
-                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="✨ Món quà 3D 20.10 đặc biệt tặng bạn">✨ Món quà 3D đặc biệt</button>
+                        <button type="button" class="mini-suggest-btn link-suggest-chip" data-title="✨ Món quà 3D 20.10 đặc biệt tặng bạn">✨ Món quà 3D 20.10</button>
                     </div>
                 </div>
 
@@ -116,7 +116,7 @@
                         <button type="button" class="motion-chip" data-motion="ribbon">🎀 Nơ Lụa</button>
                         <button type="button" class="motion-chip" data-motion="galaxy">🌌 Ngân Hà</button>
                         <button type="button" class="motion-chip" data-motion="sakura">🌸 Anh Đào</button>
-                        <button type="button" class="motion-chip" data-motion="hearts">💎 Kim Cương</button>
+                        <button type="button" class="motion-chip" data-motion="hearts">💎 Pha Lê</button>
                     </div>
                 </div>
 
@@ -137,24 +137,24 @@
                 <!-- 4. Các nút Copy Chữ Ẩn Link & Chia sẻ -->
                 <div class="share-actions-stack">
                     <button type="button" id="copy-rich-link-btn" class="btn-primary btn-shimmer share-main-copy-btn">
-                        <span class="icon">📋</span> <span id="copy-rich-link-text">Sao chép Tên Thiệp (Đã gắn ẩn URL)</span>
+                        <span class="icon">📋</span> <span id="copy-rich-link-text">Sao chép Link Thiệp 3D</span>
                     </button>
 
                     <div class="share-platform-row">
                         <button type="button" id="share-telegram-btn" class="share-platform-btn tg-btn">
-                            ✈️ Copy & Mở Telegram
+                            ✈️ Gửi Telegram
                         </button>
                         <button type="button" id="share-zalo-btn" class="share-platform-btn zalo-btn">
-                            💬 Gửi Zalo / Chia sẻ
+                            💬 Chia sẻ ngay
                         </button>
                     </div>
 
                     <div class="share-utility-row">
                         <button type="button" id="copy-md-link-btn" class="share-util-btn" title="Sao chép đường dẫn URL thuần">
-                            🔗 Copy URL thuần
+                            🔗 Copy URL
                         </button>
                         <button type="button" id="test-recipient-view-btn" class="share-util-btn highlight-util">
-                            ✉️ Mở thử Bì Thiệp 3D
+                            ✉️ Mở thử bì thư
                         </button>
                     </div>
                 </div>
@@ -652,9 +652,9 @@
                             <div class="step1-cta-choices" id="step1-cta-choices" aria-hidden="true">
                                 <div class="step1-cta-choices-inner">
                                     <div class="step1-photo-note-row">
-                                        <button type="button" id="step1-back-mode-btn" class="step1-back-mode-pill" title="Quay lại chọn chế độ">‹ Đổi chế độ</button>
+                                        <button type="button" id="step1-back-mode-btn" class="step1-back-mode-pill" title="Quay lại chọn chế độ">‹ Quay lại</button>
                                         <p class="step1-photo-note">
-                                            <span class="note-sparkle">✨</span> Hãy chọn tấm hình xinh đẹp nhất <span class="note-sparkle">🌸</span>
+                                            <span class="note-sparkle">✨</span> Chọn tấm hình xinh đẹp nhất <span class="note-sparkle">🌸</span>
                                         </p>
                                     </div>
 
@@ -711,7 +711,7 @@
                 <button type="button" id="cancel-btn" class="crop-tool-btn crop-back-btn">
                     📷 Đổi ảnh
                 </button>
-                <span class="step2-header-title">Thiết kế thiệp 3D 20/10 🌸</span>
+                <span class="step2-header-title">✨ Thiết Kế Thiệp 🌸</span>
                 <div class="crop-outside-tools">
                     <button type="button" id="flip-h-btn" class="crop-tool-btn" title="Lật ngang ảnh">🪞 Lật</button>
                     <button type="button" id="rotate-btn" class="crop-tool-btn" title="Xoay ảnh 90 độ">🔄 Xoay</button>
@@ -766,10 +766,10 @@
                 <div id="tab-concept" class="deck-pane active">
                     <div class="frame-page-switch">
                         <button type="button" class="frame-page-btn active" data-frame-page="1">
-                            ✨ Mẫu 01–10 • Hiện đại
+                            ✨ Mẫu 01 – 10
                         </button>
                         <button type="button" class="frame-page-btn" data-frame-page="2">
-                            🌸 Mẫu 11–20 • Lãng mạn
+                            🌸 Mẫu 11 – 20
                         </button>
                     </div>
                     <div class="concept-grid" id="step3-concept-chips"></div>
@@ -805,10 +805,10 @@
                     <!-- Hàng phụ B (Khi chọn ✍️ Tự soạn / Tặng riêng): Xem trước câu chúc trên thiệp & nhập lời chúc riêng -->
                     <div class="deck-actions-grid" id="wish-custom-subrow" style="display: none;">
                         <button type="button" id="open-text-modal-btn" class="deck-action-btn primary-pill">
-                            ✍️ Nhập Tiêu đề & Chúc
+                            ✍️ Nhập lời chúc
                         </button>
                         <button type="button" id="shuffle-quote-btn" class="deck-action-btn secondary-pill">
-                            🎲 Đổi câu chúc mẫu
+                            🎲 Đổi câu mẫu
                         </button>
                     </div>
                 </div>
@@ -878,7 +878,7 @@
                         <button type="button" class="motion-chip" data-motion="ribbon">🎀 Nơ Lụa</button>
                         <button type="button" class="motion-chip" data-motion="galaxy">🌌 Ngân Hà</button>
                         <button type="button" class="motion-chip" data-motion="sakura">🌸 Anh Đào</button>
-                        <button type="button" class="motion-chip" data-motion="hearts">💎 Kim Cương</button>
+                        <button type="button" class="motion-chip" data-motion="hearts">💎 Pha Lê</button>
                     </div>
                     <div class="deck-actions-grid deck-actions-single">
                         <button type="button" id="step2-preview-motion-btn" class="deck-action-btn primary-pill" style="grid-column: 1 / -1;">
@@ -911,7 +911,7 @@
                 <button type="button" id="back-step2-btn" class="topbar-btn topbar-btn-left">
                     ‹ Sửa thiệp
                 </button>
-                <span class="result-title" id="step3-main-title">✨ Tuyệt Tác 20/10 🌸</span>
+                <span class="result-title" id="step3-main-title">✨ Thiệp 20/10 🌸</span>
                 <button type="button" id="redo-btn" class="topbar-btn topbar-btn-right">
                     📷 Ảnh mới
                 </button>
@@ -948,14 +948,14 @@
                     🌺 Hoa Trà
                 </button>
                 <button type="button" id="step3-preview-envelope-btn" class="showcase-pill-btn">
-                    ✉️ Mở thử bì
+                    ✉️ Mở thử
                 </button>
             </div>
 
             <!-- Cụm nút Hành động chính cho Người Tạo: Tạo Link Thiệp 3D Gửi Tặng & Lưu Ảnh Gốc -->
             <div class="result-actions result-actions-dual" id="result-actions-wrap">
                 <button type="button" id="open-share-link-modal-btn" class="btn-primary btn-shimmer btn-create-3d-link">
-                    <span class="icon">🔗</span> Tạo Link Thiệp 3D Gửi Tặng
+                    <span class="icon">🔗</span> Tạo link gửi tặng
                 </button>
                 <button type="button" id="download-btn" class="btn-secondary btn-save-card">
                     <span class="icon">⬇️</span> <span id="download-btn-label">Lưu ảnh</span>
@@ -977,9 +977,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=25.0"></script>
-    <script src="script.js?v=25.0"></script>
-    <script src="intro.js?v=25.0"></script>
+    <script src="wishes.js?v=26.0"></script>
+    <script src="script.js?v=26.0"></script>
+    <script src="intro.js?v=26.0"></script>
 </body>
 
 </html>

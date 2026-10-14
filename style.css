@@ -1267,6 +1267,10 @@ input[type="file"] {
 
 .step1-mode-btn {
     margin-bottom: 0 !important;
+    padding: 11px 10px;
+    font-size: clamp(0.75rem, 3.05vw, 0.89rem);
+    white-space: nowrap;
+    letter-spacing: -0.1px;
     opacity: 0;
     transform: translateY(10px) scale(0.96);
     transition:
@@ -1325,19 +1329,21 @@ input[type="file"] {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
     margin-bottom: 2px;
+    width: 100%;
 }
 
 .step1-back-mode-pill {
     flex-shrink: 0;
     border: 1px solid rgba(15, 123, 95, 0.34);
-    background: rgba(255, 255, 255, 0.92);
+    background: rgba(255, 255, 255, 0.94);
     color: #095241;
-    font-size: 0.72rem;
+    font-size: clamp(0.64rem, 2.5vw, 0.73rem);
     font-weight: 700;
-    padding: 5px 9px;
+    padding: 5px 8px;
     border-radius: 16px;
+    white-space: nowrap;
     cursor: pointer;
     opacity: 0;
     transform: translateY(8px);
@@ -1353,16 +1359,18 @@ input[type="file"] {
 
 .step1-photo-note {
     flex: 1;
+    min-width: 0;
     margin: 0;
-    font-size: clamp(0.75rem, 3.2vw, 0.85rem);
+    font-size: clamp(0.64rem, 2.55vw, 0.77rem);
     font-weight: 600;
     color: #0d6950;
     text-align: center;
-    background: linear-gradient(90deg, rgba(232, 248, 241, 0.4) 0%, rgba(232, 248, 241, 0.95) 50%, rgba(232, 248, 241, 0.4) 100%);
+    white-space: nowrap;
+    background: linear-gradient(90deg, rgba(232, 248, 241, 0.45) 0%, rgba(232, 248, 241, 0.96) 50%, rgba(232, 248, 241, 0.45) 100%);
     border: 1px dashed rgba(143, 209, 186, 0.85);
     border-radius: 20px;
-    padding: 5px 10px;
-    letter-spacing: 0.1px;
+    padding: 5px 6px;
+    letter-spacing: -0.1px;
     opacity: 0;
     transform: translateY(8px);
     transition:
@@ -1377,6 +1385,9 @@ input[type="file"] {
 
 .step1-choice-btn {
     margin-bottom: 0 !important;
+    padding: 11px 12px;
+    font-size: clamp(0.8rem, 3.3vw, 0.9rem);
+    white-space: nowrap;
     opacity: 0;
     transform: translateY(10px) scale(0.96);
     transition:
@@ -1653,26 +1664,24 @@ input[type="file"] {
 
 .step2-header-row {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     width: 100%;
     flex-shrink: 0;
     background: #f4fbf8;
     border: 1px solid #d4ece2;
     border-radius: 14px;
-    padding: 4px 7px;
+    padding: 4px 6px;
 }
 
 .step2-header-title {
-    font-size: clamp(0.68rem, 3vw, 0.8rem);
+    font-size: clamp(0.66rem, 2.75vw, 0.78rem);
     font-weight: 700;
     color: #095241;
     text-transform: uppercase;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.1px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     min-width: 0;
     text-align: center;
 }
@@ -1689,9 +1698,9 @@ input[type="file"] {
     border: 1.2px solid #8fd1ba;
     color: #095241;
     font-family: inherit;
-    font-size: clamp(0.65rem, 2.65vw, 0.73rem);
+    font-size: clamp(0.63rem, 2.5vw, 0.72rem);
     font-weight: 600;
-    padding: 4px 8px;
+    padding: 4px 7px;
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -1858,16 +1867,26 @@ input[type="file"] {
     background-color: transparent !important;
 }
 
-/* ====== STEP 3: SÂN KHẤU TRÌNH BÀY THÀNH PHẨM LUNG LINH (GRAND MASTERPIECE SHOWCASE) ====== */
-.result-card-container {
+/* ====== STEP 3: SÂN KHẤU TRÌNH BÀY THÀNH PHẨM LUNG LINH (KHÔNG LÓT NỀN TRẮNG NHƯ EDIT, NỔI TRỰC TIẾP TRÊN THÁNH ĐƯỜNG 3D) ====== */
+#step-3 {
+    background: transparent !important;
+}
+
+.result-card-container,
+#step-3 .result-card-container {
     height: 100%;
     max-height: 98dvh;
     max-width: 500px;
-    padding: 9px 11px;
+    padding: 10px 10px 12px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    gap: 5px;
+    gap: 7px;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
 }
 
 .result-topbar {
@@ -1876,29 +1895,44 @@ input[type="file"] {
     grid-template-columns: auto minmax(0, 1fr) auto;
     align-items: center;
     width: 100%;
-    gap: 5px;
-    background: #f4fbf8;
-    border: 1px solid #d4ece2;
-    border-radius: 14px;
+    gap: 6px;
+    background: rgba(8, 38, 29, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1.2px solid rgba(246, 214, 126, 0.58);
+    border-radius: 999px;
     padding: 5px 7px;
+    box-shadow:
+        0 10px 26px rgba(3, 18, 14, 0.32),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+body[data-recipient-theme="blush"] .result-topbar,
+body[data-recipient-theme="rosegold"] .result-topbar {
+    background: rgba(64, 12, 33, 0.72);
+}
+
+body[data-recipient-theme="lavender"] .result-topbar {
+    background: rgba(38, 16, 68, 0.72);
+}
+
+body[data-recipient-theme="champagne"] .result-topbar {
+    background: rgba(62, 38, 9, 0.72);
 }
 
 .topbar-btn {
-    background: #ffffff;
-    border: 1.2px solid #9ad6c2;
-    color: #095241;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 244, 214, 0.34);
+    color: #fffdf7;
     font-family: inherit;
-    font-size: clamp(0.64rem, 2.5vw, 0.74rem);
+    font-size: clamp(0.65rem, 2.5vw, 0.75rem);
     font-weight: 600;
-    padding: 5px 8px;
-    border-radius: 11px;
+    padding: 6px 10px;
+    border-radius: 999px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.16s ease;
     white-space: nowrap;
     line-height: 1.2;
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .topbar-btn-left {
@@ -1911,45 +1945,45 @@ input[type="file"] {
 
 .topbar-btn:active {
     transform: scale(0.94);
-    background: #0f7b5f;
+    background: rgba(245, 211, 114, 0.28);
     color: #fff;
 }
 
 .result-title {
-    font-size: clamp(0.7rem, 2.9vw, 0.85rem);
+    font-size: clamp(0.68rem, 2.75vw, 0.82rem);
     font-weight: 700;
-    color: #095241;
+    color: #fff6d1;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.42);
     text-transform: uppercase;
-    letter-spacing: 0.25px;
+    letter-spacing: 0.15px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     min-width: 0;
     text-align: center;
 }
 
 @media (max-width: 365px) {
     .main-container,
-    .result-card-container {
+    .result-card-container,
+    #step-3 .result-card-container {
         padding: 7px 8px;
     }
     .step2-header-row,
     .result-topbar {
-        padding: 4px 5px;
+        padding: 4px 6px;
         gap: 4px;
     }
     .crop-tool-btn,
     .topbar-btn {
-        padding: 4px 6px;
-        font-size: 0.62rem;
+        padding: 5px 8px;
+        font-size: 0.63rem;
     }
     .step2-header-title {
         font-size: 0.63rem;
         letter-spacing: 0.1px;
     }
     .result-title {
-        font-size: 0.67rem;
-        letter-spacing: 0.15px;
+        font-size: 0.66rem;
+        letter-spacing: 0.1px;
     }
 }
 
@@ -1962,7 +1996,7 @@ input[type="file"] {
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
+    overflow: visible;
     padding: 4px 0;
     perspective: 1100px;
     touch-action: pan-y;
@@ -2276,7 +2310,7 @@ body.u3d-stage-active #step-3 .card-showcase {
     55%, 100% { transform: translate3d(420%, 0, 0) rotate(25deg); }
 }
 
-/* Thanh công cụ nhanh ở Bước 3 (Lưới chia cột đều nhau, không bao giờ tràn màn hình) */
+/* Thanh công cụ nhanh ở Bước 3 (Nổi tinh tế bằng kính mờ viền vàng 24K trên nền Thánh Đường 3D) */
 .showcase-quick-bar {
     flex-shrink: 0;
     display: grid;
@@ -2297,30 +2331,44 @@ body.u3d-stage-active #step-3 .card-showcase {
 .showcase-pill-btn {
     min-width: 0;
     width: 100%;
-    padding: 6px 4px;
-    border-radius: 14px;
-    border: 1.2px solid #cbeadd;
-    background: rgba(255, 255, 255, 0.94);
-    color: #095241;
+    padding: 7px 3px;
+    border-radius: 999px;
+    border: 1px solid rgba(246, 214, 126, 0.52);
+    background: rgba(8, 38, 29, 0.68);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #fffdf7;
     font-family: inherit;
-    font-size: clamp(0.6rem, 2.25vw, 0.72rem);
-    font-weight: 700;
+    font-size: clamp(0.58rem, 2.2vw, 0.72rem);
+    font-weight: 600;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    letter-spacing: -0.1px;
     cursor: pointer;
     transition: all 0.16s ease;
-    box-shadow: 0 2px 8px rgba(15, 123, 95, 0.08);
+    box-shadow: 0 6px 16px rgba(3, 18, 14, 0.28);
     text-align: center;
+}
+
+body[data-recipient-theme="blush"] .showcase-pill-btn,
+body[data-recipient-theme="rosegold"] .showcase-pill-btn {
+    background: rgba(64, 12, 33, 0.68);
+}
+
+body[data-recipient-theme="lavender"] .showcase-pill-btn {
+    background: rgba(38, 16, 68, 0.68);
+}
+
+body[data-recipient-theme="champagne"] .showcase-pill-btn {
+    background: rgba(62, 38, 9, 0.68);
 }
 
 .showcase-pill-btn:active {
     transform: scale(0.95);
-    background: #0f7b5f;
+    background: rgba(245, 211, 114, 0.32);
     color: #fff;
 }
 
-/* ====== CONTROL DECK 4 TAB TẠI BƯỚC 2 (LƯỚI CHỌN TRỰC TIẾP 100%, KHÔNG CẦN KÉO NGANG) ====== */
+/* ====== CONTROL DECK 5 TAB TẠI BƯỚC 2 (LƯỚI CHỌN TRỰC TIẾP 100%, KHÔNG CẦN KÉO NGANG) ====== */
 .control-deck {
     flex-shrink: 0;
     width: 100%;
@@ -2342,15 +2390,13 @@ body.u3d-stage-active #step-3 .card-showcase {
 
 .deck-tab {
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
     border: none;
     background: transparent;
     color: #095241;
     font-family: inherit;
-    font-size: clamp(0.62rem, 2.4vw, 0.72rem);
+    font-size: clamp(0.58rem, 2.2vw, 0.71rem);
     font-weight: 600;
-    padding: 5px 2px;
+    padding: 5px 1px;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.18s ease;
@@ -2390,11 +2436,9 @@ body.u3d-stage-active #step-3 .card-showcase {
     background: #ffffff;
     color: #7a284b;
     font-family: inherit;
-    font-size: clamp(0.61rem, 2.3vw, 0.71rem);
+    font-size: clamp(0.6rem, 2.25vw, 0.71rem);
     font-weight: 700;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     cursor: pointer;
     transition: all 0.16s ease;
 }
@@ -2419,7 +2463,7 @@ body.u3d-stage-active #step-3 .card-showcase {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 4px 2px;
+    padding: 4px 1px;
     border-radius: 10px;
     border: 1.2px solid #f0b8cc;
     background: #fff8fa;
@@ -2429,21 +2473,19 @@ body.u3d-stage-active #step-3 .card-showcase {
     cursor: pointer;
     transition: all 0.16s ease;
     min-width: 0;
-    overflow: hidden;
 }
 
 .concept-chip .chip-idx {
-    font-size: clamp(0.52rem, 1.9vw, 0.59rem);
+    font-size: clamp(0.49rem, 1.8vw, 0.58rem);
     font-weight: 700;
     opacity: 0.78;
 }
 
 .concept-chip .chip-txt {
-    font-size: clamp(0.58rem, 2.15vw, 0.66rem);
+    font-size: clamp(0.52rem, 1.9vw, 0.64rem);
     font-weight: 700;
+    letter-spacing: -0.2px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     max-width: 100%;
 }
 
@@ -2459,10 +2501,10 @@ body.u3d-stage-active #step-3 .card-showcase {
     color: #ffeef4;
 }
 
-/* Công tắc chọn rõ 2 Chế độ Lời chúc: (1) 🌸 Bất ngờ vs (2) ✍️ Tự sửa */
+/* Công tắc chọn rõ 2 Chế độ Lời chúc: (1) 🌸 Câu chúc ngẫu nhiên vs (2) ✍️ Tự soạn (Tỷ lệ 1.32fr : 1fr để không bao giờ tràn chữ) */
 .wish-mode-switch {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.32fr) minmax(0, 1fr);
     gap: 5px;
     width: 100%;
 }
@@ -2479,11 +2521,9 @@ body.u3d-stage-active #step-3 .card-showcase {
     background: #ffffff;
     color: #095241;
     font-family: inherit;
-    font-size: clamp(0.61rem, 2.3vw, 0.72rem);
+    font-size: clamp(0.6rem, 2.25vw, 0.72rem);
     font-weight: 700;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     cursor: pointer;
     transition: all 0.18s ease;
 }
@@ -2492,8 +2532,6 @@ body.u3d-stage-active #step-3 .card-showcase {
     font-weight: 500;
     font-size: 0.88em;
     opacity: 0.88;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .wish-mode-btn.active[data-wish-mode="surprise"] {
@@ -2535,8 +2573,6 @@ body.u3d-stage-active #step-3 .card-showcase {
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     transition: transform 0.15s ease;
 }
 
@@ -2596,17 +2632,15 @@ body.u3d-stage-active #step-3 .card-showcase {
 
 .magic-harmony-chip {
     min-width: 0;
-    padding: 5px 3px;
+    padding: 5px 2px;
     border-radius: 10px;
     border: 1.2px solid #e2b049;
     background: linear-gradient(135deg, #fffdf4 0%, #fce8ef 100%);
     color: #9c2756;
     font-family: inherit;
-    font-size: clamp(0.61rem, 2.3vw, 0.71rem);
+    font-size: clamp(0.58rem, 2.2vw, 0.71rem);
     font-weight: 700;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     cursor: pointer;
     transition: all 0.18s ease;
     box-shadow: 0 2px 5px rgba(226, 176, 73, 0.18);
@@ -2621,17 +2655,16 @@ body.u3d-stage-active #step-3 .card-showcase {
 .topic-chip,
 .style-chip {
     min-width: 0;
-    padding: 5px 3px;
+    padding: 5px 2px;
     border-radius: 10px;
     border: 1px solid #cfe6dc;
     background: #fff;
     color: #095241;
     font-family: inherit;
-    font-size: clamp(0.61rem, 2.3vw, 0.71rem);
+    font-size: clamp(0.56rem, 2.1vw, 0.7rem);
     font-weight: 600;
+    letter-spacing: -0.15px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     cursor: pointer;
     transition: all 0.16s ease;
 }
@@ -2648,18 +2681,17 @@ body.u3d-stage-active #step-3 .card-showcase {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-    padding: 5px 2px;
+    gap: 2px;
+    padding: 5px 1px;
     border-radius: 10px;
     border: 1.2px solid #dce6e1;
     background: #fff;
     color: #333;
     font-family: inherit;
-    font-size: clamp(0.57rem, 2.1vw, 0.67rem);
+    font-size: clamp(0.52rem, 1.88vw, 0.65rem);
     font-weight: 600;
+    letter-spacing: -0.2px;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     cursor: pointer;
     transition: all 0.15s ease;
     min-width: 0;
@@ -2764,18 +2796,16 @@ body.u3d-stage-active #step-3 .card-showcase {
 }
 
 .filter-btn {
-    padding: 5px 4px;
+    padding: 5px 2px;
     border: 1px solid #cfe6dc;
     background: #ffffff;
     color: #095241;
     border-radius: 10px;
     font-family: inherit;
-    font-size: clamp(0.64rem, 2.45vw, 0.72rem);
+    font-size: clamp(0.62rem, 2.35vw, 0.72rem);
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     transition: all 0.16s ease;
 }
 
@@ -2815,8 +2845,6 @@ body.u3d-stage-active #step-3 .card-showcase {
     text-align: center;
     line-height: 1.2;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .frame-item.is-concept {
@@ -3017,14 +3045,13 @@ body.u3d-stage-active #step-3 .card-showcase {
     background: linear-gradient(180deg, #ffffff 0%, #fdf6fa 100%);
     color: #6b1d45;
     font-family: inherit;
-    font-size: clamp(0.6rem, 2.25vw, 0.71rem);
+    font-size: clamp(0.58rem, 2.15vw, 0.7rem);
     font-weight: 700;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     cursor: pointer;
     transition: all 0.18s ease;
     box-shadow: 0 2px 5px rgba(180, 60, 115, 0.08);
+    letter-spacing: -0.15px;
 }
 
 .motion-chip:active {
@@ -3048,38 +3075,55 @@ body.u3d-stage-active #step-3 .card-showcase {
 /* ====== STEP 3 DUAL BUTTONS (TẠO LINK THIỆP 3D + LƯU ẢNH) ====== */
 .result-actions.result-actions-dual {
     display: flex;
-    gap: 7px;
+    gap: 8px;
     align-items: stretch;
     width: 100%;
+    margin-top: 2px;
 }
 
 .result-actions-dual .btn-create-3d-link {
     min-width: 0;
-    flex: 1.55;
+    flex: 1.38;
     margin-bottom: 0;
-    padding: 10px 8px;
-    font-size: clamp(0.73rem, 2.85vw, 0.85rem);
-    background: linear-gradient(135deg, #c83e70 0%, #9b2856 48%, #0f7b5f 100%);
-    box-shadow: 0 5px 16px rgba(185, 48, 98, 0.32);
-    border: 1.2px solid rgba(255, 232, 166, 0.85);
+    padding: 11px 10px;
+    border-radius: 999px;
+    font-size: clamp(0.73rem, 2.75vw, 0.85rem);
+    background: linear-gradient(135deg, #d64579 0%, #9b2856 48%, #0f7b5f 100%);
+    box-shadow: 0 8px 22px rgba(4, 24, 18, 0.42), 0 0 14px rgba(246, 214, 126, 0.25);
+    border: 1.3px solid rgba(255, 232, 166, 0.88);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    letter-spacing: -0.1px;
 }
 
 .result-actions-dual .btn-save-card {
     min-width: 0;
     flex: 1;
     margin-bottom: 0;
-    padding: 10px 6px;
-    font-size: clamp(0.72rem, 2.8vw, 0.83rem);
-    background: rgba(255, 255, 255, 0.94);
-    border: 1.5px solid #0f7b5f;
-    color: #095241;
+    padding: 11px 10px;
+    border-radius: 999px;
+    font-size: clamp(0.73rem, 2.75vw, 0.84rem);
+    background: rgba(8, 42, 33, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1.3px solid rgba(246, 214, 126, 0.68);
+    color: #fff8e6;
     font-weight: 700;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    box-shadow: 0 8px 22px rgba(4, 24, 18, 0.36);
+    letter-spacing: -0.1px;
+}
+
+body[data-recipient-theme="blush"] .result-actions-dual .btn-save-card,
+body[data-recipient-theme="rosegold"] .result-actions-dual .btn-save-card {
+    background: rgba(68, 14, 36, 0.72);
+}
+
+body[data-recipient-theme="lavender"] .result-actions-dual .btn-save-card {
+    background: rgba(42, 18, 72, 0.72);
+}
+
+body[data-recipient-theme="champagne"] .result-actions-dual .btn-save-card {
+    background: rgba(64, 38, 10, 0.74);
 }
 
 /* Khi Sân khấu Phong bì 3D (#u3d-envelope-stage) đang hiển thị:
@@ -3411,16 +3455,15 @@ body.recipient-mode .recipient-luxury-dock {
 
 .link-suggest-chip {
     min-width: 0;
-    padding: 5px 6px;
-    font-size: 0.69rem;
+    padding: 5px 5px;
+    font-size: clamp(0.64rem, 2.3vw, 0.7rem);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
     border-radius: 9px;
     background: #f5fbf8;
     border: 1px solid #cce8dc;
     color: #095241;
     transition: all 0.15s ease;
+    letter-spacing: -0.1px;
 }
 
 .link-suggest-chip:active {
@@ -3533,11 +3576,9 @@ body.recipient-mode .recipient-luxury-dock {
 .share-main-copy-btn {
     margin-bottom: 0;
     padding: 11px 10px;
-    font-size: clamp(0.76rem, 2.9vw, 0.84rem);
+    font-size: clamp(0.74rem, 2.8vw, 0.84rem);
     background: linear-gradient(135deg, #0f7b5f 0%, #095241 100%);
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .share-platform-row {
@@ -3552,14 +3593,12 @@ body.recipient-mode .recipient-luxury-dock {
     border-radius: 12px;
     border: none;
     font-family: inherit;
-    font-size: clamp(0.72rem, 2.75vw, 0.78rem);
+    font-size: clamp(0.7rem, 2.65vw, 0.78rem);
     font-weight: 700;
     color: #fff;
     cursor: pointer;
     transition: transform 0.15s ease, filter 0.15s ease;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .share-platform-btn:active {
@@ -3590,12 +3629,10 @@ body.recipient-mode .recipient-luxury-dock {
     background: #f7fcfa;
     color: #095241;
     font-family: inherit;
-    font-size: 0.7rem;
+    font-size: clamp(0.67rem, 2.5vw, 0.72rem);
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .share-util-btn.highlight-util {
