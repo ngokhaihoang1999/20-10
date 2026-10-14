@@ -4087,7 +4087,7 @@ function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
     // Đồng bộ sang thẻ <img> và căn lại đúng tỷ lệ hiển thị trọn vẹn 100% trên màn hình
     if (isFinal && finalResultImg) {
         try {
-            const dataUrl = targetCanvas.toDataURL('image/jpeg', 0.98);
+            const dataUrl = targetCanvas.toDataURL('image/jpeg', 0.92);
             finalResultImg.src = dataUrl;
             const u3dCardImg = document.getElementById('u3d-card-img');
             if (u3dCardImg) u3dCardImg.src = dataUrl;
@@ -4097,7 +4097,12 @@ function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
                 saveModalImg.src = dataUrl;
             }
             if (!isPreviewOnly && typeof window.markCardCanvasDirty === 'function') {
-                window.markCardCanvasDirty();
+                const imgTag = currentUserImage ? `${currentUserImage.width}x${currentUserImage.height}_${(currentUserImage.src || '').slice(-48)}` : '';
+                const renderSig = `${currentSelectedFrameId}|${currentColorTheme}|${currentBorderStyle}|${getEffectiveFilterCss()}|${activeQuote}|${recipientName}|${imgTag}`;
+                if (window._lastFinalCardRenderSig !== renderSig) {
+                    window._lastFinalCardRenderSig = renderSig;
+                    window.markCardCanvasDirty();
+                }
             }
             fitCardShowcaseToWrap();
         } catch (e) {
