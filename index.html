@@ -14,7 +14,7 @@
     <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
     <meta property="og:type" content="website">
 
-    <link rel="stylesheet" href="style.css?v=10.2">
+    <link rel="stylesheet" href="style.css?v=11.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
@@ -37,38 +37,46 @@
         </div>
     </div>
 
-    <!-- Modal nhập Tiêu đề & Tự viết lời chúc (Tách riêng để bàn phím điện thoại không đẩy lệch thiệp) -->
+    <!-- Modal nhập Tiêu đề & Tự viết lời chúc (Dành cho chế độ Tự soạn / Tặng người khác) -->
     <div id="text-edit-modal" class="custom-modal" style="display: none;">
         <div class="custom-modal-box">
             <div class="custom-modal-header">
-                <span class="custom-modal-title">💌 Tuỳ chỉnh Tiêu đề & Lời chúc</span>
+                <span class="custom-modal-title">💌 Soạn Lời Chúc & Tặng Người Thương</span>
                 <button type="button" id="close-text-modal" class="custom-modal-close" aria-label="Đóng">✕</button>
             </div>
             <div class="custom-modal-body">
                 <div class="input-group">
                     <label for="recipient-input" class="input-label">
-                        <span>Tiêu đề trên thiệp (tuỳ chọn)</span>
+                        <span>Tiêu đề / Người nhận trên thiệp</span>
                         <span id="recipient-count" class="char-counter">0/45</span>
                     </label>
                     <input type="text" id="recipient-input" class="custom-input" maxlength="45"
-                        placeholder="VD: Gửi chị Lan Anh, Happy Women's Day... (để trống nếu không cần)">
+                        placeholder="VD: Kính tặng Mẹ yêu, Gửi chị Lan Anh... (tuỳ chọn)">
+                    <div class="recipient-preset-chips" id="recipient-preset-chips">
+                        <button type="button" class="recipient-preset-chip" data-title="Kính tặng Mẹ yêu dấu">💐 Tặng Mẹ</button>
+                        <button type="button" class="recipient-preset-chip" data-title="Gửi Vợ yêu thương">💖 Tặng Vợ</button>
+                        <button type="button" class="recipient-preset-chip" data-title="Gửi người thương của anh">🌷 Người yêu</button>
+                        <button type="button" class="recipient-preset-chip" data-title="Thân gửi Chị / Em">🌸 Chị / Em</button>
+                        <button type="button" class="recipient-preset-chip" data-title="Gửi cô bạn thân tuyệt vời">✨ Bạn thân</button>
+                        <button type="button" class="recipient-preset-chip" data-title="Happy Women's Day 20/10">👑 20/10</button>
+                    </div>
                 </div>
 
                 <div class="input-group" style="margin-bottom: 12px;">
                     <div class="input-label">
-                        <span>Nội dung lời chúc trên thiệp</span>
+                        <span>Nội dung lời chúc 20/10</span>
                         <span id="wish-char-count" class="char-counter">0/160</span>
                     </div>
                     <textarea id="custom-wish-input" class="custom-textarea" rows="4" maxlength="160"
-                        placeholder="Nhập lời chúc 20/10 của bạn (tối đa 160 ký tự, tự động co chữ vừa khung)..."></textarea>
+                        placeholder="Nhập lời chúc dành tặng người thương hoặc bấm Đổi câu mẫu bên dưới (tự động co chữ vừa khung)..."></textarea>
                     <div class="modal-Inline-tools">
-                        <button type="button" id="modal-random-wish-btn" class="mini-suggest-btn">🎲 Gợi ý câu khác</button>
+                        <button type="button" id="modal-random-wish-btn" class="mini-suggest-btn">🎲 Đổi câu chúc mẫu</button>
                         <button type="button" id="modal-clear-wish-btn" class="mini-suggest-btn">🗑️ Xóa để tự viết</button>
                     </div>
                 </div>
 
                 <button type="button" id="apply-text-modal-btn" class="btn-primary" style="margin-bottom: 0; padding: 11px 16px;">
-                    ✨ Áp dụng lên thiệp
+                    ✨ Áp dụng & Xem trước trên thiệp
                 </button>
             </div>
         </div>
@@ -458,95 +466,51 @@
         </div>
     </div>
 
-    <!-- Bước 2: Căn chỉnh & Lựa chọn phong cách -->
+    <!-- Bước 2: Xưởng Thiết Kế Tổng Hợp (Căn chỉnh ảnh + Chọn 20 khung + Viền & Màu + Chế độ Lời chúc Bất ngờ / Tự soạn) -->
     <div id="step-2" class="screen">
         <div class="glass-container main-container" style="max-width: 500px">
-            <!-- Thanh tiêu đề + 2 nút Lật / Xoay nằm NGOÀI khung hình, tối ưu cho mọi màn hình mobile -->
+            <!-- Thanh điều hướng trên cùng: Đổi ảnh | Tiêu đề | Lật & Xoay nhanh -->
             <div class="step2-header-row">
-                <span class="step2-header-title">Chọn khung & Căn chỉnh</span>
+                <button type="button" id="cancel-btn" class="crop-tool-btn crop-back-btn">
+                    📷 Đổi ảnh
+                </button>
+                <span class="step2-header-title">Thiết kế thiệp 20/10 🌸</span>
                 <div class="crop-outside-tools">
-                    <button type="button" id="flip-h-btn" class="crop-tool-btn">🪞 Lật ảnh</button>
-                    <button type="button" id="rotate-btn" class="crop-tool-btn">🔄 Xoay 90°</button>
+                    <button type="button" id="flip-h-btn" class="crop-tool-btn" title="Lật ngang ảnh">🪞 Lật</button>
+                    <button type="button" id="rotate-btn" class="crop-tool-btn" title="Xoay ảnh 90 độ">🔄 Xoay</button>
                 </div>
             </div>
 
-            <div class="preview-stage">
-                <div class="preview-area" id="preview-area-wrap">
-                    <img id="cropper-image" style="max-width: 100%; max-height: 100%; display: block;">
-                    <img id="frame-overlay" alt="" aria-hidden="true">
-                    <div id="drag-hint" class="drag-hint">
-                        <span class="hint-icon">👆</span>
-                        <span>Kéo & phóng to/thu nhỏ ảnh</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="scroll-hint-wrap" id="frame-hint-wrap">
-                <div class="frame-carousel" id="frame-carousel-scroll">
-                    <div id="frame-list" class="frame-list"></div>
-                </div>
-                <div class="scroll-hint-arrow" aria-hidden="true">›</div>
-            </div>
-
-            <p class="carousel-title" style="margin-top: 4px; margin-bottom: 4px;">Hiệu ứng màu nịnh da</p>
-            <div class="scroll-hint-wrap" id="filter-hint-wrap">
-                <div class="filter-carousel" id="filter-carousel-scroll">
-                    <div class="filter-list" id="filter-list">
-                        <button class="filter-btn active" data-filter="none">✨ Gốc</button>
-                        <button class="filter-btn" data-filter="brightness(1.09) contrast(1.03) saturate(1.18) sepia(0.06) hue-rotate(-6deg)">🌸 Hồng đào</button>
-                        <button class="filter-btn" data-filter="brightness(1.14) contrast(1.04) saturate(1.1)">💎 Trong trẻo</button>
-                        <button class="filter-btn" data-filter="brightness(1.08) contrast(1.05) saturate(1.22) sepia(0.14)">☀️ Nắng thu</button>
-                        <button class="filter-btn" data-filter="hue-rotate(-14deg) saturate(1.3) brightness(1.1)">🌷 Ngọt ngào</button>
-                        <button class="filter-btn" data-filter="brightness(1.06) contrast(1.14) saturate(1.28)">🌟 Rạng rỡ</button>
-                    </div>
-                </div>
-                <div class="scroll-hint-arrow" aria-hidden="true">›</div>
-            </div>
-
-            <div class="action-buttons">
-                <button id="cancel-btn" class="btn-secondary">
-                    <span class="icon">📷</span> Đổi ảnh
-                </button>
-                <button id="generate-final-btn" class="btn-primary btn-shimmer">
-                    <span class="icon">✨</span> Hoàn thiện thiệp
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Bước 3: Hoàn thành & Tuỳ chỉnh trực tiếp (Hiển thị trọn vẹn 100% tấm thiệp) -->
-    <div id="step-3" class="screen screen-result">
-        <div class="glass-container result-card-container">
-            <!-- Thanh điều hướng cân xứng 3 cột trên cùng -->
-            <div class="result-topbar">
-                <button type="button" id="back-step2-btn" class="topbar-btn topbar-btn-left">
-                    ‹ Căn lại ảnh
-                </button>
-                <span class="result-title">Thiệp 20/10 🌸</span>
-                <button type="button" id="redo-btn" class="topbar-btn topbar-btn-right">
-                    📷 Ảnh mới
-                </button>
-            </div>
-
-            <!-- Vùng hiển thị trọn vẹn 100% tấm thiệp (Hỗ trợ vuốt ngang đổi khung & chạm hộp chữ để sửa) -->
-            <div class="result-canvas-wrap" id="result-canvas-wrap">
+            <!-- Sân khấu xem trước TRỌN VẸN TẤM THIỆP (Phần trên: Kéo/Zoom ảnh + Khung; Phần dưới: Hộp lời chúc trực quan) -->
+            <div class="preview-stage" id="step2-preview-stage">
                 <button type="button" id="prev-frame-btn" class="card-nav-arrow card-nav-prev" aria-label="Mẫu khung trước" title="Mẫu trước">‹</button>
 
-                <div id="card-showcase" class="card-showcase">
-                    <canvas id="final-result-canvas" style="display: none;"></canvas>
-                    <img id="final-result-img" alt="Thiệp 20/10 của bạn" draggable="false">
-                    <div class="card-glass-shine" aria-hidden="true"></div>
-                    <div id="card-floating-badge" class="card-floating-badge" aria-hidden="true">✨ 01/20 • Vòm Lụa</div>
+                <div class="step2-full-card-preview" id="step2-full-card-preview">
+                    <!-- 74.08% trên: Vùng ảnh tương tác Cropper + Lớp phủ 20 khung Haute Couture -->
+                    <div class="preview-area" id="preview-area-wrap">
+                        <img id="cropper-image" style="max-width: 100%; max-height: 100%; display: block;">
+                        <img id="frame-overlay" alt="" aria-hidden="true">
+                        <div id="drag-hint" class="drag-hint">
+                            <span class="hint-icon">👆</span>
+                            <span>Kéo & phóng to/thu nhỏ ảnh</span>
+                        </div>
+                        <div id="card-floating-badge" class="card-floating-badge" aria-hidden="true">✨ 01/20 • Vòm Lụa</div>
+                    </div>
+
+                    <!-- 25.92% dưới: Hộp lời chúc trực tiếp (Hiển thị Phong ấn Bất ngờ hoặc Lời chúc Tự soạn) -->
+                    <div class="step2-wish-area" id="step2-wish-area" title="Chạm để tuỳ chỉnh lời chúc">
+                        <canvas id="step2-wish-canvas" width="1024" height="534"></canvas>
+                    </div>
                 </div>
 
                 <button type="button" id="next-frame-btn" class="card-nav-arrow card-nav-next" aria-label="Mẫu khung tiếp theo" title="Mẫu tiếp theo">›</button>
             </div>
 
-            <!-- Bảng điều khiển cố định 3 Tab ngay dưới thiệp (bấm đổi nhìn thấy ngay, không che thiệp) -->
-            <div class="control-deck">
+            <!-- Bảng điều khiển Tổng hợp 4 Tab ngay tại Bước 2 (Dễ thao tác, đồng bộ chiều cao) -->
+            <div class="control-deck" id="step2-control-deck">
                 <div class="deck-tabs">
                     <button type="button" class="deck-tab active" data-tab="tab-concept">
-                        ✨ 20 Khung
+                        🖼️ 20 Khung
                     </button>
                     <button type="button" class="deck-tab" data-tab="tab-wish">
                         💌 Lời chúc
@@ -554,9 +518,12 @@
                     <button type="button" class="deck-tab" data-tab="tab-style">
                         🌸 Viền & Màu
                     </button>
+                    <button type="button" class="deck-tab" data-tab="tab-filter">
+                        ✨ Màu ảnh
+                    </button>
                 </div>
 
-                <!-- Tab 0: Đổi trực tiếp 20 Concept Khung Nghệ Thuật (chia 2 hàng gọn gàng: 01-10 và 11-20) -->
+                <!-- Tab 1: Chọn nhanh 20 Mẫu Khung Haute Couture (Chia 2 hàng 01-10 và 11-20) -->
                 <div id="tab-concept" class="deck-pane active">
                     <div class="deck-row">
                         <div class="concept-chips" id="step3-concept-chips"></div>
@@ -564,21 +531,27 @@
                     <div class="deck-row">
                         <div class="concept-chips" id="step3-classic-frame-chips"></div>
                     </div>
+                    <div id="frame-list" style="display: none;"></div>
                 </div>
 
-                <!-- Tab 1: Đổi câu chúc, Chọn chủ đề, Tự viết / Tiêu đề -->
+                <!-- Tab 2: Làm rõ 2 chế độ Lời chúc: (1) Nhận bất ngờ khi tạo thiệp vs (2) Tự soạn / Tặng người khác -->
                 <div id="tab-wish" class="deck-pane">
-                    <div class="deck-row deck-actions-row">
-                        <button type="button" id="shuffle-quote-btn" class="deck-action-btn primary-pill">
-                            🎲 Đổi câu chúc khác
-                        </button>
-                        <button type="button" id="open-text-modal-btn" class="deck-action-btn secondary-pill">
-                            ✍️ Tiêu đề / Tự viết
-                        </button>
-                    </div>
                     <div class="deck-row">
+                        <div class="wish-mode-switch" role="tablist" aria-label="Chế độ lời chúc">
+                            <button type="button" id="wish-mode-surprise-btn" class="wish-mode-btn active" data-wish-mode="surprise">
+                                🎁 Bất ngờ <span class="mode-sub">(Mở khi tạo)</span>
+                            </button>
+                            <button type="button" id="wish-mode-custom-btn" class="wish-mode-btn" data-wish-mode="custom">
+                                ✍️ Tự sửa <span class="mode-sub">(Tặng người khác)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Hàng phụ A (Khi chọn 🎁 Bất ngờ): Chọn chủ đề yêu thích, câu chúc sẽ giữ bí mật tới lúc bấm Tạo thiệp -->
+                    <div class="deck-row" id="wish-surprise-subrow">
                         <div class="topic-chips" id="topic-chips">
-                            <button type="button" class="topic-chip active" data-topic="all">🎲 Tất cả</button>
+                            <span class="subrow-tag">Chủ đề:</span>
+                            <button type="button" class="topic-chip active" data-topic="all">🎲 Ngẫu nhiên</button>
                             <button type="button" class="topic-chip" data-topic="warm">💕 Ấm áp</button>
                             <button type="button" class="topic-chip" data-topic="beauty">🌷 Xinh đẹp</button>
                             <button type="button" class="topic-chip" data-topic="selflove">✨ Yêu bản thân</button>
@@ -589,9 +562,19 @@
                             <button type="button" class="topic-chip" data-topic="autumn">🍂 Mùa thu</button>
                         </div>
                     </div>
+
+                    <!-- Hàng phụ B (Khi chọn ✍️ Tự sửa / Tặng người khác): Xem trước câu chúc trên thiệp & nhập lời chúc riêng -->
+                    <div class="deck-row deck-actions-row" id="wish-custom-subrow" style="display: none;">
+                        <button type="button" id="open-text-modal-btn" class="deck-action-btn primary-pill">
+                            ✍️ Nhập Tên & Lời chúc riêng
+                        </button>
+                        <button type="button" id="shuffle-quote-btn" class="deck-action-btn secondary-pill">
+                            🎲 Đổi câu mẫu khác
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Tab 2: 5 Thiết kế Khung Lời Chúc Cao Cấp & 5 Tông Màu Nữ Tính -->
+                <!-- Tab 3: 5 Thiết kế Khung Lời Chúc Cao Cấp & 5 Tông Màu Nữ Tính -->
                 <div id="tab-style" class="deck-pane">
                     <div class="deck-row">
                         <div class="style-chips" id="border-style-chips">
@@ -628,6 +611,101 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Tab 4: Bộ lọc màu nịnh da & Công cụ căn chỉnh ảnh nhanh -->
+                <div id="tab-filter" class="deck-pane">
+                    <div class="deck-row">
+                        <div class="filter-list" id="filter-list">
+                            <button type="button" class="filter-btn active" data-filter="none">✨ Gốc</button>
+                            <button type="button" class="filter-btn" data-filter="brightness(1.09) contrast(1.03) saturate(1.18) sepia(0.06) hue-rotate(-6deg)">🌸 Hồng đào</button>
+                            <button type="button" class="filter-btn" data-filter="brightness(1.14) contrast(1.04) saturate(1.1)">💎 Trong trẻo</button>
+                            <button type="button" class="filter-btn" data-filter="brightness(1.08) contrast(1.05) saturate(1.22) sepia(0.14)">☀️ Nắng thu</button>
+                            <button type="button" class="filter-btn" data-filter="hue-rotate(-14deg) saturate(1.3) brightness(1.1)">🌷 Ngọt ngào</button>
+                            <button type="button" class="filter-btn" data-filter="brightness(1.06) contrast(1.14) saturate(1.28)">🌟 Rạng rỡ</button>
+                        </div>
+                    </div>
+                    <div class="deck-row deck-actions-row">
+                        <button type="button" id="reset-crop-btn" class="deck-action-btn secondary-pill">
+                            🎯 Căn giữa lại ảnh
+                        </button>
+                        <button type="button" id="flip-h-btn-2" class="deck-action-btn secondary-pill">
+                            🪞 Lật gương
+                        </button>
+                        <button type="button" id="rotate-btn-2" class="deck-action-btn secondary-pill">
+                            🔄 Xoay 90°
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nút Tạo Thiệp 20/10 chính (Kích hoạt Đại Hoa Trà xoáy nở & Tinh tú xoay) -->
+            <div class="action-buttons">
+                <button id="generate-final-btn" class="btn-primary btn-shimmer">
+                    <span class="icon">✨</span> Tạo thiệp 20/10 <span class="create-btn-sub" id="create-btn-sub">(Mở lời chúc bất ngờ 🎁)</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bước 3: Sân Khấu Trình Bày Thành Phẩm Lung Linh (Grand Masterpiece Showcase) -->
+    <div id="step-3" class="screen screen-result">
+        <div class="glass-container result-card-container">
+            <!-- Thanh điều hướng cân xứng 3 cột trên cùng -->
+            <div class="result-topbar">
+                <button type="button" id="back-step2-btn" class="topbar-btn topbar-btn-left">
+                    ‹ Sửa lại thiệp
+                </button>
+                <span class="result-title">✨ Tuyệt Tác 20/10 🌸</span>
+                <button type="button" id="redo-btn" class="topbar-btn topbar-btn-right">
+                    📷 Ảnh mới
+                </button>
+            </div>
+
+            <!-- Sân khấu trình bày thành phẩm sinh động: Vòng tinh tú 24K xoay, Đom đóm vàng, Cánh hoa bay & Nghiêng 3D -->
+            <div class="result-canvas-wrap" id="result-canvas-wrap">
+                <!-- Lớp hào quang ngọc trai & vòng tinh tú 24K xoay chậm phía sau thiệp -->
+                <div class="showcase-halo-aura" aria-hidden="true"></div>
+                <svg class="showcase-astrolabe-ring" viewBox="0 0 420 420" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="showcaseGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#fff4b8" stop-opacity="0.9" />
+                            <stop offset="50%" stop-color="#e2b049" stop-opacity="0.65" />
+                            <stop offset="100%" stop-color="#d84b7e" stop-opacity="0.75" />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="210" cy="210" r="198" fill="none" stroke="url(#showcaseGoldGrad)" stroke-width="1.4" stroke-dasharray="5 9" />
+                    <circle cx="210" cy="210" r="182" fill="none" stroke="url(#showcaseGoldGrad)" stroke-width="0.9" opacity="0.55" />
+                    <path d="M210,4 L214,15 L225,19 L214,23 L210,34 L206,23 L195,19 L206,15 Z" fill="url(#showcaseGoldGrad)" />
+                    <path d="M210,386 L214,397 L225,401 L214,405 L210,416 L206,405 L195,401 L206,397 Z" fill="url(#showcaseGoldGrad)" />
+                    <path d="M4,210 L15,206 L19,195 L23,206 L34,210 L23,214 L19,225 L15,214 Z" fill="url(#showcaseGoldGrad)" />
+                    <path d="M386,210 L397,206 L401,195 L405,206 L416,210 L405,214 L401,225 L397,214 Z" fill="url(#showcaseGoldGrad)" />
+                </svg>
+                <div id="showcase-ambient-orbs" class="showcase-ambient-orbs" aria-hidden="true"></div>
+
+                <div id="card-showcase" class="card-showcase">
+                    <canvas id="final-result-canvas" style="display: none;"></canvas>
+                    <img id="final-result-img" alt="Thiệp 20/10 của bạn" draggable="false">
+                    <div class="card-foil-glint" id="card-foil-glint" aria-hidden="true"></div>
+                    <div class="card-glass-shine" aria-hidden="true"></div>
+                    <span class="showcase-corner-star star-tl" aria-hidden="true">✦</span>
+                    <span class="showcase-corner-star star-tr" aria-hidden="true">✦</span>
+                    <span class="showcase-corner-star star-bl" aria-hidden="true">✦</span>
+                    <span class="showcase-corner-star star-br" aria-hidden="true">✦</span>
+                    <div id="step3-floating-badge" class="card-floating-badge" aria-hidden="true">✨ Chạm vào lời chúc nếu muốn sửa nhanh</div>
+                </div>
+            </div>
+
+            <!-- Thanh công cụ nhanh dưới sân khấu thành phẩm: Đổi lời chúc khác / Sửa chữ / Bung hoa lấp lánh -->
+            <div class="showcase-quick-bar">
+                <button type="button" id="step3-reroll-quote-btn" class="showcase-pill-btn">
+                    🎲 Đổi câu chúc khác
+                </button>
+                <button type="button" id="step3-edit-quote-btn" class="showcase-pill-btn">
+                    ✍️ Sửa chữ
+                </button>
+                <button type="button" id="replay-sparkle-btn" class="showcase-pill-btn">
+                    ✨ Bung hoa
+                </button>
             </div>
 
             <!-- Nút Lưu / Chia sẻ chính -->
@@ -639,9 +717,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=10.3"></script>
-    <script src="script.js?v=10.3"></script>
-    <script src="intro.js?v=10.3"></script>
+    <script src="wishes.js?v=11.0"></script>
+    <script src="script.js?v=11.0"></script>
+    <script src="intro.js?v=11.0"></script>
 </body>
 
 </html>

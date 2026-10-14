@@ -521,6 +521,7 @@ let currentScaleX = 1;
 let currentAIQuote = "";
 let hasGeneratedQuoteOnce = false;
 let currentTopic = 'all';
+let currentWishMode = 'surprise'; // 'surprise' (Bất ngờ khi bấm Tạo thiệp) | 'custom' (Tự soạn / Tặng người khác)
 let isCustomWishActive = false;
 let customWishText = "";
 let recipientName = "";
@@ -529,33 +530,37 @@ let currentColorTheme = 'emerald';
 let currentSelectedFrameId = 0;
 let loadedFrameImages = [];
 
+const FULL_CARD_ASPECT_RATIO = 1024 / 2060;
 const step1 = document.getElementById('step-1');
 const step2 = document.getElementById('step-2');
 const step3 = document.getElementById('step-3');
+const step2FullCardPreview = document.getElementById('step2-full-card-preview');
+const step2WishCanvas = document.getElementById('step2-wish-canvas');
 const finalResultCanvas = document.getElementById('final-result-canvas');
 const finalResultImg = document.getElementById('final-result-img');
 const cardShowcase = document.getElementById('card-showcase');
 const frameList = document.getElementById('frame-list');
 const frameOverlayEl = document.getElementById('frame-overlay');
 
-// Tính toán kích thước khung Bước 2 chuẩn tỷ lệ 1024 x 1526 tuyệt đối trên mọi màn hình
+// Tính toán kích thước khung xem trước TRỌN VẸN TẤM THIỆP (1024 x 2060) ngay tại Bước 2
 function fitPreviewAreaToStage() {
     if (!step2 || !step2.classList.contains('active')) return;
     const stage = document.querySelector('.preview-stage');
-    const previewArea = document.getElementById('preview-area-wrap');
-    if (!stage || !previewArea) return;
-    const availW = stage.clientWidth - 4;
+    const targetBox = step2FullCardPreview || document.getElementById('preview-area-wrap');
+    if (!stage || !targetBox) return;
+    const availW = stage.clientWidth - 8;
     const availH = stage.clientHeight - 4;
     if (availW <= 0 || availH <= 0) return;
 
-    let w = availH * FRAME_ASPECT_RATIO;
+    const ratio = step2FullCardPreview ? FULL_CARD_ASPECT_RATIO : FRAME_ASPECT_RATIO;
+    let w = availH * ratio;
     let h = availH;
     if (w > availW) {
         w = availW;
-        h = availW / FRAME_ASPECT_RATIO;
+        h = availW / ratio;
     }
-    previewArea.style.width = `${Math.floor(w)}px`;
-    previewArea.style.height = `${Math.floor(h)}px`;
+    targetBox.style.width = `${Math.floor(w)}px`;
+    targetBox.style.height = `${Math.floor(h)}px`;
 }
 
 // Tính toán kích thước hiển thị thực tế để luôn nhìn thấy TRỌN VẸN 100% tấm thiệp ở Bước 3
@@ -563,8 +568,8 @@ function fitCardShowcaseToWrap() {
     if (!step3 || !step3.classList.contains('active')) return;
     const wrap = document.querySelector('.result-canvas-wrap');
     if (!wrap || !cardShowcase) return;
-    const availW = wrap.clientWidth - 4;
-    const availH = wrap.clientHeight - 4;
+    const availW = wrap.clientWidth - 8;
+    const availH = wrap.clientHeight - 6;
     if (availW <= 0 || availH <= 0) return;
 
     const cw = finalResultCanvas.width || 1024;
@@ -2189,23 +2194,36 @@ const CONCEPT_HARMONY_MAP = {
     elle_minimal:    { border: 'daisy',   theme: 'lavender',  label: 'Tím Thơ & Thảo Mộc' }
 };
 
+const TOPIC_LABELS_MAP = {
+    all: 'Ngẫu nhiên mọi chủ đề',
+    warm: 'Ấm áp yêu thương',
+    beauty: 'Xinh đẹp rạng ngời',
+    selflove: 'Yêu thương bản thân',
+    work: 'Thành công rực rỡ',
+    fun: 'Vui nhộn đáng yêu',
+    friends: 'Tình bạn gắn kết',
+    family: 'Gia đình hạnh phúc',
+    autumn: 'Mùa thu dịu dàng'
+};
+
 let floatingBadgeTimer = null;
 
 function showCardFloatingBadge(text) {
-    const badge = document.getElementById('card-floating-badge');
+    const activeBadgeId = (step3 && step3.classList.contains('active')) ? 'step3-floating-badge' : 'card-floating-badge';
+    const badge = document.getElementById(activeBadgeId) || document.getElementById('card-floating-badge');
     if (!badge) return;
     badge.textContent = text;
     badge.classList.add('visible');
     if (floatingBadgeTimer) clearTimeout(floatingBadgeTimer);
     floatingBadgeTimer = setTimeout(() => {
         badge.classList.remove('visible');
-    }, 1450);
+    }, 1600);
 }
 
 // Cuộn mượt phần tử đang chọn ra chính giữa thanh trượt ngang (không bao giờ làm giật trang)
 function scrollChipIntoCenter(el) {
     if (!el) return;
-    const scroller = el.closest('.frame-carousel, .filter-carousel, .concept-chips, .topic-chips, .style-chips, .color-swatches');
+    const scroller = el.closest('.frame-carousel, .filter-carousel, .concept-chips, .topic-chips, .style-chips, .color-swatches, .recipient-preset-chips');
     if (!scroller || scroller.clientWidth <= 0) return;
     const elRect = el.getBoundingClientRect();
     const scrollerRect = scroller.getBoundingClientRect();
@@ -2237,7 +2255,166 @@ function syncColorSwatchesUI(themeKey, shouldScroll = false) {
     });
 }
 
-function selectFrameById(frameId, shouldRedrawStep3 = false, slideDir = 0, autoHarmonize = true) {
+// Vẽ nội dung Phong Ấn Bất Ngờ (khi người dùng chọn chế độ "🎁 Bất ngờ - Mở khi tạo thiệp")
+function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
+    const centerX = boxX + boxW / 2;
+    const centerY = boxY + boxH / 2;
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 1. Dòng tiêu đề trên cùng (Hiển thị Tên người nhận nếu đã nhập, hoặc dòng chữ Món Quà Bất Ngờ 20/10)
+    const topTitle = (recipientName || '').trim() || '🎁 Điều Bất Ngờ Tháng 10 🎁';
+    const titleFontPx = Math.floor(42 * scale);
+    ctx.font = recipientFont(titleFontPx);
+    ctx.fillStyle = theme.recipientColor;
+    ctx.shadowColor = theme.shadowRgba;
+    ctx.shadowBlur = Math.floor(8 * scale);
+    ctx.fillText(topTitle, centerX, boxY + boxH * 0.25, boxW * 0.84);
+
+    // 2. Đường kẻ kim cương ánh vàng ở giữa
+    const divY = boxY + boxH * 0.39;
+    const divW = Math.min(boxW * 0.44, 260 * scale);
+    const divGrad = ctx.createLinearGradient(centerX - divW / 2, divY, centerX + divW / 2, divY);
+    divGrad.addColorStop(0, 'rgba(0,0,0,0)');
+    divGrad.addColorStop(0.5, theme.goldAccent);
+    divGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.strokeStyle = divGrad;
+    ctx.lineWidth = 1.8 * scale;
+    ctx.beginPath();
+    ctx.moveTo(centerX - divW / 2, divY);
+    ctx.lineTo(centerX + divW / 2, divY);
+    ctx.stroke();
+
+    ctx.fillStyle = theme.goldAccent;
+    drawFourPointStarPath(ctx, centerX, divY, 7 * scale);
+    ctx.fill();
+
+    // 3. Dòng thông điệp bí mật ở trung tâm hộp chữ
+    const bodyFontPx = Math.floor(33 * scale);
+    ctx.font = quoteFont(bodyFontPx);
+    const textGrad = ctx.createLinearGradient(0, boxY + boxH * 0.44, 0, boxY + boxH * 0.78);
+    textGrad.addColorStop(0, theme.textTop);
+    textGrad.addColorStop(0.5, theme.textMid);
+    textGrad.addColorStop(1, theme.textBottom);
+    ctx.fillStyle = textGrad;
+
+    ctx.fillText('Lời chúc 20/10 ngẫu nhiên từ hệ thống', centerX, centerY + 12 * scale, boxW * 0.84);
+    ctx.fillText('sẽ mở ra sau khi bạn bấm “Tạo thiệp” ✨', centerX, centerY + 58 * scale, boxW * 0.84);
+
+    // 4. Dòng ghi chú nhỏ phía dưới cùng báo Chủ đề & hướng dẫn chạm để tự viết
+    const topicLabel = TOPIC_LABELS_MAP[currentTopic] || 'Ngẫu nhiên';
+    ctx.font = `600 ${Math.floor(21 * scale)}px "Montserrat", sans-serif`;
+    ctx.fillStyle = theme.borderPrimary;
+    ctx.globalAlpha = 0.88;
+    ctx.fillText(`✦ Chủ đề: ${topicLabel}  •  Chạm vào đây nếu muốn tự viết ✦`, centerX, boxY + boxH * 0.84, boxW * 0.86);
+
+    ctx.restore();
+}
+
+// Vẽ trực tiếp phần Hộp Lời Chúc (1024 x 534) ngay dưới khung ảnh ở Bước 2 (Tốc độ < 2ms, chuẩn tỷ lệ 100%)
+function renderStep2WishPreview() {
+    if (!step2WishCanvas) return;
+    const targetW = 1024;
+    const originH = 1526;
+    const textSpaceHeight = Math.floor(originH * 0.35); // 534
+    const scale = 1;
+
+    if (step2WishCanvas.width !== targetW) step2WishCanvas.width = targetW;
+    if (step2WishCanvas.height !== textSpaceHeight) step2WishCanvas.height = textSpaceHeight;
+
+    const selectedConfig = framesConfig[currentSelectedFrameId] || framesConfig[0];
+    const concept = selectedConfig.concept || 'arch';
+    const theme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.emerald;
+
+    const ctx = step2WishCanvas.getContext('2d');
+    ctx.save();
+    ctx.clearRect(0, 0, targetW, textSpaceHeight);
+
+    // Dịch hệ trục tọa độ lên -originH để tái sử dụng chính xác 100% các hàm vẽ hộp lời chúc của Bước 3
+    ctx.translate(0, -originH);
+
+    const targetH = originH + textSpaceHeight;
+    const fullGrad = ctx.createLinearGradient(0, 0, 0, targetH);
+    fullGrad.addColorStop(0, theme.canvasBgStart);
+    fullGrad.addColorStop(0.5, theme.canvasBgMid);
+    fullGrad.addColorStop(1, theme.canvasBgEnd);
+    ctx.fillStyle = fullGrad;
+    ctx.fillRect(0, originH, targetW, textSpaceHeight);
+
+    drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, theme);
+
+    if (concept !== 'polaroid' && concept !== 'film_kodak' && concept !== 'postcard' && concept !== 'scrapbook') {
+        ctx.save();
+        const outerM = Math.floor(20 * scale);
+        ctx.strokeStyle = theme.borderSecondary;
+        ctx.lineWidth = 1.5 * scale;
+        ctx.strokeRect(outerM, outerM, targetW - outerM * 2, targetH - outerM * 2);
+        ctx.restore();
+    }
+
+    const marginX = Math.floor(targetW * 0.056);
+    const boxX = marginX;
+    const boxY = originH + Math.floor(textSpaceHeight * 0.085);
+    const boxW = targetW - marginX * 2;
+    const boxH = Math.floor(textSpaceHeight * 0.82);
+    const radius = Math.floor(targetW * 0.034);
+
+    drawOrnamentalBridge(ctx, targetW / 2, originH, boxY, scale, theme, concept);
+    drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme, currentBorderStyle, concept);
+
+    if (currentWishMode === 'surprise') {
+        drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale);
+    } else {
+        if (!currentAIQuote && !customWishText) {
+            currentAIQuote = getNextQuoteByTopic(currentTopic);
+        }
+        const activeQuote = getActiveQuoteText();
+        const recipientLine = formatRecipientLine(recipientName);
+        const layout = fitQuoteInBox(ctx, activeQuote, recipientLine, boxW, boxH, scale, currentBorderStyle);
+        drawQuoteContent(ctx, boxX, boxY, boxW, boxH, layout, theme, scale);
+    }
+
+    ctx.restore();
+}
+
+// Chuyển đổi rõ ràng giữa 2 chế độ: (1) "surprise" (Nhận bất ngờ khi bấm Tạo thiệp) vs (2) "custom" (Tự sửa / Tặng người khác)
+function setWishMode(mode, shouldPulse = true) {
+    currentWishMode = (mode === 'custom') ? 'custom' : 'surprise';
+
+    const surpriseBtn = document.getElementById('wish-mode-surprise-btn');
+    const customBtn = document.getElementById('wish-mode-custom-btn');
+    const surpriseSubrow = document.getElementById('wish-surprise-subrow');
+    const customSubrow = document.getElementById('wish-custom-subrow');
+    const createBtnSub = document.getElementById('create-btn-sub');
+
+    if (surpriseBtn) surpriseBtn.classList.toggle('active', currentWishMode === 'surprise');
+    if (customBtn) customBtn.classList.toggle('active', currentWishMode === 'custom');
+
+    if (surpriseSubrow) {
+        surpriseSubrow.style.display = currentWishMode === 'surprise' ? '' : 'none';
+    }
+    if (customSubrow) {
+        customSubrow.style.display = currentWishMode === 'custom' ? 'flex' : 'none';
+    }
+    if (createBtnSub) {
+        createBtnSub.textContent = currentWishMode === 'surprise'
+            ? '(Mở lời chúc bất ngờ 🎁)'
+            : '(Hoàn tất thiệp của bạn ✨)';
+    }
+
+    if (currentWishMode === 'custom' && !currentAIQuote && !customWishText) {
+        currentAIQuote = getNextQuoteByTopic(currentTopic);
+    }
+
+    renderStep2WishPreview();
+    if (shouldPulse) {
+        triggerCardPulse();
+    }
+}
+
+function selectFrameById(frameId, shouldAnimate = false, slideDir = 0, autoHarmonize = true) {
     const total = framesConfig.length;
     currentSelectedFrameId = ((frameId % total) + total) % total;
     const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
@@ -2257,29 +2434,31 @@ function selectFrameById(frameId, shouldRedrawStep3 = false, slideDir = 0, autoH
     document.querySelectorAll('#frame-list .frame-item').forEach((el, idx) => {
         const isActive = idx === currentSelectedFrameId;
         el.classList.toggle('active', isActive);
-        if (isActive && step2 && step2.classList.contains('active')) {
-            scrollChipIntoCenter(el);
-        }
     });
 
     document.querySelectorAll('#step3-concept-chips .concept-chip, #step3-classic-frame-chips .concept-chip').forEach(btn => {
         const id = Number(btn.getAttribute('data-frame-id'));
         const isActive = id === currentSelectedFrameId;
         btn.classList.toggle('active', isActive);
-        if (isActive && shouldRedrawStep3 && step3 && step3.classList.contains('active')) {
+        if (isActive && step2 && step2.classList.contains('active')) {
             scrollChipIntoCenter(btn);
         }
     });
 
     updateFrameOverlay();
+    renderStep2WishPreview();
 
-    if (shouldRedrawStep3 && currentUserImage) {
+    if (step3 && step3.classList.contains('active') && currentUserImage) {
         drawCanvasImageText(finalResultCanvas, true);
-        if (slideDir !== 0 && cardShowcase) {
-            cardShowcase.style.transform = '';
-            cardShowcase.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev');
-            void cardShowcase.offsetWidth;
-            cardShowcase.classList.add(slideDir > 0 ? 'slide-next' : 'slide-prev');
+    }
+
+    if (shouldAnimate) {
+        const targetStage = (step3 && step3.classList.contains('active')) ? cardShowcase : step2FullCardPreview;
+        if (slideDir !== 0 && targetStage) {
+            targetStage.style.transform = '';
+            targetStage.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev');
+            void targetStage.offsetWidth;
+            targetStage.classList.add(slideDir > 0 ? 'slide-next' : 'slide-prev');
         } else {
             triggerCardPulse();
         }
@@ -2291,24 +2470,25 @@ function selectFrameById(frameId, shouldRedrawStep3 = false, slideDir = 0, autoH
 }
 
 function renderFrameList() {
-    frameList.innerHTML = '';
+    if (frameList) frameList.innerHTML = '';
     const row1Chips = document.getElementById('step3-concept-chips');
     const row2Chips = document.getElementById('step3-classic-frame-chips');
     if (row1Chips) row1Chips.innerHTML = '';
     if (row2Chips) row2Chips.innerHTML = '';
 
     framesConfig.forEach((f, i) => {
-        // 1. Item trong Carousel Bước 2 (dùng ảnh thu nhỏ 160x238 siêu tốc)
-        const div = document.createElement('div');
-        div.className = `frame-item is-concept ${i === currentSelectedFrameId ? 'active' : ''}`;
-        div.innerHTML = `
-            <div class="frame-thumb-box" data-frame-thumb="${i}" style="width:100%; height:44px; background: url('${f.thumbPath}') center/contain no-repeat; margin-bottom:3px;"></div>
-            <span>${f.label}</span>
-        `;
-        div.onclick = () => selectFrameById(i, false, 0, true);
-        frameList.appendChild(div);
+        if (frameList) {
+            const div = document.createElement('div');
+            div.className = `frame-item is-concept ${i === currentSelectedFrameId ? 'active' : ''}`;
+            div.innerHTML = `
+                <div class="frame-thumb-box" data-frame-thumb="${i}" style="width:100%; height:44px; background: url('${f.thumbPath}') center/contain no-repeat; margin-bottom:3px;"></div>
+                <span>${f.label}</span>
+            `;
+            div.onclick = () => selectFrameById(i, true, 0, true);
+            frameList.appendChild(div);
+        }
 
-        // 2. Chia đều 20 mẫu vào 2 hàng chọn nhanh ở Bước 3 (Hàng 1: 01-10, Hàng 2: 11-20)
+        // Chia đều 20 mẫu vào 2 hàng chọn nhanh ở Bước 2 (Hàng 1: 01-10, Hàng 2: 11-20)
         const targetRow = i < 10 ? row1Chips : row2Chips;
         if (targetRow) {
             const btn = document.createElement('button');
@@ -2347,18 +2527,31 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
     });
 });
 
-// Nút Lật ảnh gương & Xoay 90° (nằm ngoài khung hình ở Bước 2)
-document.getElementById('flip-h-btn').addEventListener('click', () => {
+function handleFlipHorizontal() {
     if (!cropperObj) return;
     currentScaleX = -currentScaleX;
     cropperObj.scaleX(currentScaleX);
-});
+}
 
-document.getElementById('rotate-btn').addEventListener('click', () => {
+function handleRotate90() {
     if (!cropperObj) return;
     cropperObj.rotate(90);
     const cont = cropperObj.getContainerData();
     cropperObj.setCropBoxData({ left: 0, top: 0, width: cont.width, height: cont.height });
+}
+
+document.getElementById('flip-h-btn')?.addEventListener('click', handleFlipHorizontal);
+document.getElementById('flip-h-btn-2')?.addEventListener('click', handleFlipHorizontal);
+document.getElementById('rotate-btn')?.addEventListener('click', handleRotate90);
+document.getElementById('rotate-btn-2')?.addEventListener('click', handleRotate90);
+
+document.getElementById('reset-crop-btn')?.addEventListener('click', () => {
+    if (!cropperObj) return;
+    currentScaleX = 1;
+    cropperObj.reset();
+    const cont = cropperObj.getContainerData();
+    cropperObj.setCropBoxData({ left: 0, top: 0, width: cont.width, height: cont.height });
+    showCardFloatingBadge('🎯 Đã căn giữa lại ảnh');
 });
 
 async function handleImageInput(e) {
@@ -2371,17 +2564,29 @@ async function handleImageInput(e) {
     step1.classList.remove('active');
     step2.classList.add('active');
 
+    // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
+    const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
+    if (cfg && CONCEPT_HARMONY_MAP[cfg.concept]) {
+        const harmony = CONCEPT_HARMONY_MAP[cfg.concept];
+        currentBorderStyle = harmony.border;
+        currentColorTheme = harmony.theme;
+        syncBorderChipsUI(currentBorderStyle, false);
+        syncColorSwatchesUI(currentColorTheme, false);
+    }
+
     const reader = new FileReader();
     reader.onload = function (event) {
         originalImgSrc = event.target.result;
         requestAnimationFrame(() => {
             fitPreviewAreaToStage();
+            renderStep2WishPreview();
             setTimeout(() => {
                 fitPreviewAreaToStage();
                 initCropper();
+                renderStep2WishPreview();
                 initScrollHints();
-                const activeFrameEl = document.querySelector('#frame-list .frame-item.active');
-                if (activeFrameEl) scrollChipIntoCenter(activeFrameEl);
+                const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
+                if (activeChip) scrollChipIntoCenter(activeChip);
             }, 60);
         });
     };
@@ -2414,12 +2619,15 @@ function initCropper() {
             applyFilterToPreview();
 
             const hint = document.getElementById('drag-hint');
-            hint.classList.remove('hidden');
-
-            const hideHint = () => hint.classList.add('hidden');
-            const previewArea = document.getElementById('preview-area-wrap');
-            previewArea.addEventListener('touchstart', hideHint, { once: true, passive: true });
-            previewArea.addEventListener('mousedown', hideHint, { once: true });
+            if (hint) {
+                hint.classList.remove('hidden');
+                const hideHint = () => hint.classList.add('hidden');
+                const previewArea = document.getElementById('preview-area-wrap');
+                if (previewArea) {
+                    previewArea.addEventListener('touchstart', hideHint, { once: true, passive: true });
+                    previewArea.addEventListener('mousedown', hideHint, { once: true });
+                }
+            }
         }
     });
 }
@@ -2588,12 +2796,47 @@ function populateCoutureBloomVortex() {
     }
 }
 
+// Khởi tạo các hạt đom đóm vàng & cánh hoa lụa bay quanh thiệp ở Sân khấu Bước 3
+function initShowcaseAmbientOrbs() {
+    const container = document.getElementById('showcase-ambient-orbs');
+    if (!container || container.children.length > 0) return;
+
+    const orbs = [
+        { x: '6%',  y: '14%', s: '15px', c: '#f6d365', sym: '✦', dur: '4.2s', del: '0s',   dx: '10px',  dy: '-18px' },
+        { x: '91%', y: '18%', s: '14px', c: '#f48fb1', sym: '🌸', dur: '5.1s', del: '0.6s', dx: '-12px', dy: '-22px' },
+        { x: '5%',  y: '46%', s: '12px', c: '#ffe89e', sym: '•',  dur: '3.8s', del: '1.1s', dx: '14px',  dy: '-16px' },
+        { x: '93%', y: '48%', s: '16px', c: '#f6d365', sym: '✦', dur: '4.6s', del: '0.3s', dx: '-10px', dy: '-20px' },
+        { x: '8%',  y: '78%', s: '14px', c: '#f48fb1', sym: '✿', dur: '5.4s', del: '1.5s', dx: '12px',  dy: '-24px' },
+        { x: '90%', y: '82%', s: '15px', c: '#ffe89e', sym: '✦', dur: '4.0s', del: '0.9s', dx: '-14px', dy: '-18px' },
+        { x: '16%', y: '6%',  s: '13px', c: '#f6d365', sym: '•',  dur: '4.8s', del: '1.8s', dx: '8px',   dy: '14px'  },
+        { x: '84%', y: '7%',  s: '14px', c: '#f48fb1', sym: '🌸', dur: '5.2s', del: '0.4s', dx: '-9px',  dy: '16px'  },
+        { x: '14%', y: '92%', s: '13px', c: '#f6d365', sym: '✦', dur: '4.4s', del: '2.1s', dx: '11px',  dy: '-15px' },
+        { x: '85%', y: '93%', s: '13px', c: '#f48fb1', sym: '✿', dur: '4.9s', del: '1.2s', dx: '-11px', dy: '-16px' }
+    ];
+
+    orbs.forEach(o => {
+        const span = document.createElement('span');
+        span.className = 'showcase-orb';
+        span.textContent = o.sym;
+        span.style.setProperty('--ox', o.x);
+        span.style.setProperty('--oy', o.y);
+        span.style.setProperty('--osize', o.s);
+        span.style.setProperty('--ocolor', o.c);
+        span.style.setProperty('--odur', o.dur);
+        span.style.setProperty('--odelay', o.del);
+        span.style.setProperty('--odx', o.dx);
+        span.style.setProperty('--ody', o.dy);
+        container.appendChild(span);
+    });
+}
+initShowcaseAmbientOrbs();
+
 document.getElementById('generate-final-btn').addEventListener('click', () => {
     if (!cropperObj) return;
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
-    btn.innerHTML = "🌸 Đang nở hoa...";
+    btn.innerHTML = "🌸 Đang nở hoa & kết tinh thiệp...";
     btn.disabled = true;
 
     const overlay = document.getElementById('transition-overlay');
@@ -2612,22 +2855,15 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
         const img = new Image();
         img.onload = function () {
             currentUserImage = img;
-            // Chỉ bốc câu chúc mới ở lần đầu tạo thiệp; khi quay lại Bước 2 đổi khung thì giữ nguyên câu chúc!
-            if (!hasGeneratedQuoteOnce || (!currentAIQuote && !customWishText)) {
+
+            // Nếu người dùng đang chọn chế độ "🎁 Bất ngờ (Mở khi tạo)", hệ thống bốc thăm câu chúc mới tinh ngay lúc hoa bung nở!
+            if (currentWishMode === 'surprise') {
+                isCustomWishActive = false;
                 currentAIQuote = getNextQuoteByTopic(currentTopic);
                 hasGeneratedQuoteOnce = true;
-            }
-
-            // Đồng bộ kiểu viền hộp lời chúc & màu sắc theo mẫu khung đang chọn
-            const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
-            if (cfg && CONCEPT_HARMONY_MAP[cfg.concept]) {
-                const harmony = CONCEPT_HARMONY_MAP[cfg.concept];
-                currentBorderStyle = harmony.border;
-                syncBorderChipsUI(currentBorderStyle, false);
-                if (COLOR_THEMES[harmony.theme]) {
-                    currentColorTheme = harmony.theme;
-                    syncColorSwatchesUI(currentColorTheme, false);
-                }
+            } else if (!hasGeneratedQuoteOnce && !currentAIQuote && !customWishText) {
+                currentAIQuote = getNextQuoteByTopic(currentTopic);
+                hasGeneratedQuoteOnce = true;
             }
 
             ensureQuoteFont().then(() => {
@@ -2643,36 +2879,41 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                 requestAnimationFrame(() => {
                     fitCardShowcaseToWrap();
                     if (cardShowcase) {
-                        cardShowcase.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev');
+                        cardShowcase.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev', 'is-tilting');
+                        cardShowcase.style.transform = '';
                         void cardShowcase.offsetWidth;
                         cardShowcase.classList.add('reveal-playing');
                     }
-                    // Cuộn chip mẫu đang chọn ra chính giữa thanh trượt ở Bước 3
-                    const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
-                    if (activeChip) {
-                        setTimeout(() => scrollChipIntoCenter(activeChip), 80);
+                    if (currentWishMode === 'surprise') {
+                        showCardFloatingBadge('🎁 Lời chúc bất ngờ dành tặng bạn đã mở!');
+                    } else {
+                        showCardFloatingBadge('✨ Tuyệt tác thiệp 20/10 của bạn đã hoàn thiện!');
                     }
                 });
-                setTimeout(() => triggerCelebrationBurst(), 260);
+                setTimeout(() => triggerCelebrationBurst(), 240);
             }, 820);
         };
         img.src = canvas.toDataURL('image/jpeg', 0.95);
     }, 140);
 });
 
-// ====== BẢNG ĐIỀU KHIỂN 3 TAB, VUỐT ĐỔI MẪU & CHẠM TRỰC TIẾP SỬA LỜI CHÚC TẠI BƯỚC 3 ======
+// ====== ĐIỀU KHIỂN XƯỞNG THIẾT KẾ BƯỚC 2 & SÂN KHẤU THÀNH PHẨM BƯỚC 3 ======
 function triggerCardPulse() {
-    if (!cardShowcase) return;
-    cardShowcase.style.transform = '';
-    cardShowcase.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev');
-    void cardShowcase.offsetWidth;
-    cardShowcase.classList.add('pulse-playing');
+    const activeTarget = (step3 && step3.classList.contains('active')) ? cardShowcase : step2FullCardPreview;
+    if (!activeTarget) return;
+    activeTarget.style.transform = '';
+    activeTarget.classList.remove('reveal-playing', 'pulse-playing', 'slide-next', 'slide-prev');
+    void activeTarget.offsetWidth;
+    activeTarget.classList.add('pulse-playing');
 }
 
 // Mở Modal sửa Tiêu đề & Lời chúc kèm hiệu ứng hạt lấp lánh
 function openTextEditModalWithSparkle(clientX, clientY) {
     if (typeof clientX === 'number' && typeof clientY === 'number' && clientX > 0 && clientY > 0) {
         spawnTouchSparkle(clientX, clientY, 7);
+    }
+    if (!currentAIQuote && !customWishText) {
+        currentAIQuote = getNextQuoteByTopic(currentTopic);
     }
     recipientInput.value = recipientName;
     recipientCount.textContent = `${recipientName.length}/45`;
@@ -2682,7 +2923,7 @@ function openTextEditModalWithSparkle(clientX, clientY) {
     textEditModal.style.display = 'flex';
 }
 
-// Nút mũi tên Trái / Phải cạnh tấm thiệp ở Bước 3
+// Nút mũi tên Trái / Phải cạnh tấm thiệp ở Bước 2
 const prevFrameBtn = document.getElementById('prev-frame-btn');
 const nextFrameBtn = document.getElementById('next-frame-btn');
 if (prevFrameBtn) {
@@ -2698,8 +2939,43 @@ if (nextFrameBtn) {
     });
 }
 
-// Vuốt ngang (Swipe Left / Right) trên vùng thiệp để đổi 20 mẫu khung + Chạm trực tiếp vào vùng lời chúc để sửa chữ (không có box thừa)
+// Chạm vào phần Hộp Lời Chúc (#step2-wish-area) ở Bước 2 -> Mở ngay Modal nhập Tiêu đề / Lời chúc
+const step2WishArea = document.getElementById('step2-wish-area');
+if (step2WishArea) {
+    step2WishArea.addEventListener('click', (e) => {
+        openTextEditModalWithSparkle(e.clientX, e.clientY);
+    });
+}
+
+// Tương tác Nghiêng 3D (3D Perspective Tilt) & Ánh kim chạy theo ngón tay/chuột trên Sân khấu Bước 3
 const resultCanvasWrap = document.getElementById('result-canvas-wrap');
+const cardFoilGlint = document.getElementById('card-foil-glint');
+
+function applyShowcase3DTilt(clientX, clientY) {
+    if (!cardShowcase || !step3 || !step3.classList.contains('active')) return;
+    const rect = cardShowcase.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+
+    const relX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const relY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+    const tiltY = (relX - 0.5) * 11; // -5.5deg -> +5.5deg
+    const tiltX = (0.5 - relY) * 9;  // -4.5deg -> +4.5deg
+
+    cardShowcase.classList.add('is-tilting');
+    cardShowcase.style.transform = `perspective(1000px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(1.012)`;
+
+    if (cardFoilGlint) {
+        cardFoilGlint.style.setProperty('--glint-x', `${(relX * 100).toFixed(1)}%`);
+        cardFoilGlint.style.setProperty('--glint-y', `${(relY * 100).toFixed(1)}%`);
+    }
+}
+
+function resetShowcase3DTilt() {
+    if (!cardShowcase) return;
+    cardShowcase.classList.remove('is-tilting');
+    cardShowcase.style.transform = '';
+}
+
 if (resultCanvasWrap && cardShowcase) {
     let startX = 0;
     let startY = 0;
@@ -2709,7 +2985,6 @@ if (resultCanvasWrap && cardShowcase) {
 
     resultCanvasWrap.addEventListener('touchstart', (e) => {
         if (!e.touches || e.touches.length !== 1) return;
-        if (e.target.closest('.card-nav-arrow')) return;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         startTime = Date.now();
@@ -2718,18 +2993,13 @@ if (resultCanvasWrap && cardShowcase) {
 
     resultCanvasWrap.addEventListener('touchmove', (e) => {
         if (!isPointerTracking || !e.touches || e.touches.length !== 1) return;
-        const dx = e.touches[0].clientX - startX;
-        const dy = e.touches[0].clientY - startY;
-        if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-            const clampedDx = Math.max(-42, Math.min(42, dx * 0.35));
-            cardShowcase.style.transform = `translate3d(${clampedDx}px, 0, 0) rotate(${clampedDx * 0.04}deg)`;
-        }
+        applyShowcase3DTilt(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
 
     resultCanvasWrap.addEventListener('touchend', (e) => {
         if (!isPointerTracking || !e.changedTouches || e.changedTouches.length === 0) return;
         isPointerTracking = false;
-        cardShowcase.style.transform = '';
+        resetShowcase3DTilt();
 
         const endX = e.changedTouches[0].clientX;
         const endY = e.changedTouches[0].clientY;
@@ -2737,71 +3007,45 @@ if (resultCanvasWrap && cardShowcase) {
         const dy = endY - startY;
         const elapsed = Date.now() - startTime;
 
-        // 1. Nếu vuốt ngang đủ ngưỡng -> chuyển mẫu khung mượt mà
-        if (Math.abs(dx) > 34 && Math.abs(dx) > Math.abs(dy) * 1.15) {
-            lastTouchEndTime = Date.now();
-            if (dx < 0) {
-                selectFrameById(currentSelectedFrameId + 1, true, 1, true);
-            } else {
-                selectFrameById(currentSelectedFrameId - 1, true, -1, true);
-            }
-            return;
-        }
-
-        // 2. Nếu là chạm nhẹ (Tap nhanh < 350ms, không di chuyển) vào phần hộp lời chúc ở dưới tấm thiệp -> mở ngay Modal sửa chữ
+        // Chạm nhẹ vào vùng hộp lời chúc ở dưới tấm thiệp Bước 3 -> mở Modal sửa chữ
         if (Math.abs(dx) < 12 && Math.abs(dy) < 12 && elapsed < 350) {
             const rect = cardShowcase.getBoundingClientRect();
             if (rect.height > 0 && endX >= rect.left && endX <= rect.right && endY >= rect.top && endY <= rect.bottom) {
                 const relY = (endY - rect.top) / rect.height;
-                if (relY >= 0.64) {
+                if (relY >= 0.68) {
                     lastTouchEndTime = Date.now();
                     openTextEditModalWithSparkle(endX, endY);
+                } else {
+                    spawnTouchSparkle(endX, endY, 6);
                 }
             }
         }
     }, { passive: true });
 
-    // Hỗ trợ cả thao tác kéo/chạm bằng chuột trên Desktop
-    let mouseDownX = 0;
-    let mouseDownY = 0;
-    let isMouseDown = false;
-
-    cardShowcase.addEventListener('mousedown', (e) => {
+    cardShowcase.addEventListener('mousemove', (e) => {
         if (Date.now() - lastTouchEndTime < 500) return;
-        mouseDownX = e.clientX;
-        mouseDownY = e.clientY;
-        isMouseDown = true;
+        applyShowcase3DTilt(e.clientX, e.clientY);
     });
 
-    window.addEventListener('mouseup', (e) => {
-        if (!isMouseDown) return;
-        isMouseDown = false;
+    cardShowcase.addEventListener('mouseleave', () => {
+        resetShowcase3DTilt();
+    });
+
+    cardShowcase.addEventListener('click', (e) => {
         if (Date.now() - lastTouchEndTime < 500) return;
-
-        const dx = e.clientX - mouseDownX;
-        const dy = e.clientY - mouseDownY;
-        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.2) {
-            if (dx < 0) {
-                selectFrameById(currentSelectedFrameId + 1, true, 1, true);
+        const rect = cardShowcase.getBoundingClientRect();
+        if (rect.height > 0) {
+            const relY = (e.clientY - rect.top) / rect.height;
+            if (relY >= 0.68) {
+                openTextEditModalWithSparkle(e.clientX, e.clientY);
             } else {
-                selectFrameById(currentSelectedFrameId - 1, true, -1, true);
-            }
-            return;
-        }
-
-        if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-            const rect = cardShowcase.getBoundingClientRect();
-            if (rect.height > 0 && e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
-                const relY = (e.clientY - rect.top) / rect.height;
-                if (relY >= 0.64) {
-                    openTextEditModalWithSparkle(e.clientX, e.clientY);
-                }
+                spawnTouchSparkle(e.clientX, e.clientY, 7);
             }
         }
     });
 }
 
-// Chuyển đổi giữa 3 Tab tại Bước 3 (kèm tự động cuộn chip đang active ra giữa)
+// Chuyển đổi giữa 4 Tab tại Bước 2 (kèm tự động cuộn chip đang active ra giữa)
 document.querySelectorAll('.deck-tab').forEach(tabBtn => {
     tabBtn.addEventListener('click', () => {
         const targetId = tabBtn.getAttribute('data-tab');
@@ -2812,25 +3056,72 @@ document.querySelectorAll('.deck-tab').forEach(tabBtn => {
         if (pane) {
             pane.classList.add('active');
             setTimeout(() => {
-                pane.querySelectorAll('.concept-chip.active, .topic-chip.active, .style-chip.active, .color-swatch-btn.active').forEach(el => {
+                pane.querySelectorAll('.concept-chip.active, .topic-chip.active, .style-chip.active, .color-swatch-btn.active, .filter-btn.active').forEach(el => {
                     scrollChipIntoCenter(el);
                 });
             }, 30);
         }
-        requestAnimationFrame(fitCardShowcaseToWrap);
+        requestAnimationFrame(() => {
+            fitPreviewAreaToStage();
+            if (cropperObj) {
+                const cont = cropperObj.getContainerData();
+                cropperObj.setCropBoxData({ left: 0, top: 0, width: cont.width, height: cont.height });
+            }
+        });
     });
 });
 
-// 1. Nút "🎲 Đổi câu chúc khác"
-document.getElementById('shuffle-quote-btn').addEventListener('click', () => {
+// Công tắc chọn Chế độ Lời chúc: (1) 🎁 Bất ngờ (Mở khi tạo) vs (2) ✍️ Tự sửa (Tặng người khác)
+document.getElementById('wish-mode-surprise-btn')?.addEventListener('click', () => {
+    setWishMode('surprise', true);
+    showCardFloatingBadge('🎁 Sẽ mở lời chúc bất ngờ khi bạn bấm Tạo thiệp!');
+});
+
+document.getElementById('wish-mode-custom-btn')?.addEventListener('click', () => {
+    setWishMode('custom', true);
+    showCardFloatingBadge('✍️ Đã hiện lời chúc trên thiệp để bạn xem & chỉnh sửa');
+});
+
+// 1. Nút "🎲 Đổi câu mẫu khác" (trong chế độ Tự sửa ở Bước 2)
+document.getElementById('shuffle-quote-btn')?.addEventListener('click', (e) => {
+    setWishMode('custom', false);
     isCustomWishActive = false;
     currentAIQuote = getNextQuoteByTopic(currentTopic);
-    drawCanvasImageText(finalResultCanvas, true);
+    renderStep2WishPreview();
+    if (step3 && step3.classList.contains('active') && currentUserImage) {
+        drawCanvasImageText(finalResultCanvas, true);
+    }
     triggerCardPulse();
+    if (e.clientX && e.clientY) {
+        spawnTouchSparkle(e.clientX, e.clientY, 6);
+    }
+});
 
+// Các nút nhanh dưới sân khấu Bước 3: Đổi câu chúc khác / Sửa chữ / Bung hoa
+document.getElementById('step3-reroll-quote-btn')?.addEventListener('click', (e) => {
+    isCustomWishActive = false;
+    currentAIQuote = getNextQuoteByTopic(currentTopic);
+    renderStep2WishPreview();
+    if (currentUserImage) {
+        drawCanvasImageText(finalResultCanvas, true);
+    }
+    triggerCardPulse();
+    showCardFloatingBadge('🎲 Đã đổi sang một lời chúc 20/10 mới!');
     if (cardShowcase) {
         const rect = cardShowcase.getBoundingClientRect();
-        spawnTouchSparkle(rect.left + rect.width * 0.5, rect.top + rect.height * 0.8, 5);
+        spawnTouchSparkle(e.clientX || (rect.left + rect.width * 0.5), e.clientY || (rect.top + rect.height * 0.8), 8);
+    }
+});
+
+document.getElementById('step3-edit-quote-btn')?.addEventListener('click', (e) => {
+    openTextEditModalWithSparkle(e.clientX, e.clientY);
+});
+
+document.getElementById('replay-sparkle-btn')?.addEventListener('click', (e) => {
+    triggerCelebrationBurst();
+    triggerCardPulse();
+    if (e.clientX && e.clientY) {
+        spawnTouchSparkle(e.clientX, e.clientY, 10);
     }
 });
 
@@ -2843,19 +3134,28 @@ document.querySelectorAll('.topic-chip').forEach(chip => {
         currentTopic = chip.getAttribute('data-topic');
         isCustomWishActive = false;
         currentAIQuote = getNextQuoteByTopic(currentTopic);
-        drawCanvasImageText(finalResultCanvas, true);
+        renderStep2WishPreview();
+        if (step3 && step3.classList.contains('active') && currentUserImage) {
+            drawCanvasImageText(finalResultCanvas, true);
+        }
         triggerCardPulse();
+        const topicName = chip.textContent.trim();
+        if (currentWishMode === 'surprise') {
+            showCardFloatingBadge(`🎁 Đã chọn chủ đề bất ngờ: ${topicName}`);
+        } else {
+            showCardFloatingBadge(`💌 Chủ đề lời chúc: ${topicName}`);
+        }
     });
 });
 
-// 3. Modal "✍️ Tiêu đề / Tự viết"
+// 3. Modal "✍️ Nhập Tên & Lời chúc riêng" (Tặng người thương)
 const textEditModal = document.getElementById('text-edit-modal');
 const recipientInput = document.getElementById('recipient-input');
 const recipientCount = document.getElementById('recipient-count');
 const customWishInput = document.getElementById('custom-wish-input');
 const wishCharCount = document.getElementById('wish-char-count');
 
-document.getElementById('open-text-modal-btn').addEventListener('click', (e) => {
+document.getElementById('open-text-modal-btn')?.addEventListener('click', (e) => {
     openTextEditModalWithSparkle(e.clientX, e.clientY);
 });
 
@@ -2869,6 +3169,16 @@ textEditModal.addEventListener('click', (e) => {
 
 recipientInput.addEventListener('input', (e) => {
     recipientCount.textContent = `${e.target.value.length}/45`;
+});
+
+// Chip gợi ý nhanh Tiêu đề người nhận (Tặng Mẹ, Tặng Vợ, Người yêu, Chị/Em...)
+document.querySelectorAll('.recipient-preset-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        const presetTitle = chip.getAttribute('data-title') || '';
+        recipientInput.value = presetTitle;
+        recipientCount.textContent = `${presetTitle.length}/45`;
+        scrollChipIntoCenter(chip);
+    });
 });
 
 customWishInput.addEventListener('input', (e) => {
@@ -2897,8 +3207,12 @@ document.getElementById('apply-text-modal-btn').addEventListener('click', () => 
         isCustomWishActive = false;
     }
     textEditModal.style.display = 'none';
-    drawCanvasImageText(finalResultCanvas, true);
-    triggerCardPulse();
+    // Tự động chuyển sang chế độ "Tự sửa / Tặng người khác" để hiển thị ngay câu chúc vừa soạn lên thiệp!
+    setWishMode('custom', true);
+    if (step3 && step3.classList.contains('active') && currentUserImage) {
+        drawCanvasImageText(finalResultCanvas, true);
+    }
+    showCardFloatingBadge('💌 Đã cập nhật lời chúc lên thiệp!');
 });
 
 // 4. Chọn Kiểu viền lãng mạn, Tông màu nữ tính & Nút "🪄 Tự phối hợp gu"
@@ -2908,7 +3222,10 @@ document.querySelectorAll('#border-style-chips .style-chip').forEach(chip => {
         if (!borderVal) return;
         currentBorderStyle = borderVal;
         syncBorderChipsUI(borderVal, true);
-        drawCanvasImageText(finalResultCanvas, true);
+        renderStep2WishPreview();
+        if (step3 && step3.classList.contains('active') && currentUserImage) {
+            drawCanvasImageText(finalResultCanvas, true);
+        }
         triggerCardPulse();
         showCardFloatingBadge(`🌸 Khung chữ: ${chip.textContent.trim()}`);
     });
@@ -2921,7 +3238,10 @@ document.querySelectorAll('.color-swatch-btn').forEach(btn => {
         currentColorTheme = themeKey;
         syncColorSwatchesUI(themeKey, true);
         refreshConceptFramesForTheme();
-        drawCanvasImageText(finalResultCanvas, true);
+        renderStep2WishPreview();
+        if (step3 && step3.classList.contains('active') && currentUserImage) {
+            drawCanvasImageText(finalResultCanvas, true);
+        }
         triggerCardPulse();
         showCardFloatingBadge(`🎨 Tông màu: ${btn.textContent.trim()}`);
     });
@@ -2943,7 +3263,6 @@ let harmonyIndex = 0;
 const magicHarmonyBtn = document.getElementById('magic-harmony-btn');
 if (magicHarmonyBtn) {
     magicHarmonyBtn.addEventListener('click', (e) => {
-        // Chọn tổ hợp khác với tổ hợp hiện tại để mỗi lần bấm đều thấy sự thay đổi tức thì
         let combo = CURATED_HARMONY_SETS[harmonyIndex % CURATED_HARMONY_SETS.length];
         if (combo.border === currentBorderStyle && combo.theme === currentColorTheme) {
             harmonyIndex++;
@@ -2957,30 +3276,33 @@ if (magicHarmonyBtn) {
         syncBorderChipsUI(currentBorderStyle, true);
         syncColorSwatchesUI(currentColorTheme, true);
         refreshConceptFramesForTheme();
+        renderStep2WishPreview();
 
-        drawCanvasImageText(finalResultCanvas, true);
+        if (step3 && step3.classList.contains('active') && currentUserImage) {
+            drawCanvasImageText(finalResultCanvas, true);
+        }
         triggerCardPulse();
         showCardFloatingBadge(combo.label);
 
-        if (cardShowcase) {
-            const rect = cardShowcase.getBoundingClientRect();
-            spawnTouchSparkle(
-                e.clientX || (rect.left + rect.width / 2),
-                e.clientY || (rect.top + rect.height * 0.78),
-                8
-            );
+        if (e.clientX && e.clientY) {
+            spawnTouchSparkle(e.clientX, e.clientY, 8);
         }
     });
 }
 
-// 5. Nút "‹ Căn lại ảnh" (Quay về Bước 2 giữ nguyên ảnh & giữ nguyên câu chúc)
+// 5. Nút "‹ Sửa lại thiệp" (Quay về Xưởng Thiết Kế Bước 2 giữ nguyên ảnh, khung & câu chúc)
 document.getElementById('back-step2-btn').addEventListener('click', () => {
     step3.classList.remove('active');
     step2.classList.add('active');
     requestAnimationFrame(() => {
         fitPreviewAreaToStage();
-        const activeFrameEl = document.querySelector('#frame-list .frame-item.active');
-        if (activeFrameEl) scrollChipIntoCenter(activeFrameEl);
+        renderStep2WishPreview();
+        if (cropperObj) {
+            const cont = cropperObj.getContainerData();
+            cropperObj.setCropBoxData({ left: 0, top: 0, width: cont.width, height: cont.height });
+        }
+        const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
+        if (activeChip) scrollChipIntoCenter(activeChip);
     });
 });
 
@@ -3670,6 +3992,7 @@ function ensureQuoteFont() {
 }
 ensureQuoteFont().then(() => {
     refreshConceptFramesForTheme();
+    renderStep2WishPreview();
 });
 
 function inkWidth(ctx, s) {
