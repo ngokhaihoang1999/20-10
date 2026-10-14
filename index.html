@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title></title>
 
-    <link rel="stylesheet" href="style.css?v=24.0">
+    <link rel="stylesheet" href="style.css?v=25.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
@@ -636,12 +636,27 @@
                                 </button>
                             </div>
 
-                            <!-- Trạng thái sau khi bấm: Hiện ghi chú nhỏ + 2 nút Chụp hình / Chọn hình -->
+                            <!-- Trạng thái 2: Chọn giữa "Lời chúc dành cho bạn" (Ngẫu nhiên 100% + Motion thông điệp từ bầu trời) và "Soạn lời chúc cho người thân" (Luồng thiết kế hiện tại) -->
+                            <div class="step1-cta-modes" id="step1-cta-modes" aria-hidden="true">
+                                <div class="step1-cta-modes-inner">
+                                    <button type="button" id="mode-self-wish-btn" class="btn-primary btn-shimmer step1-mode-btn mode-btn-1">
+                                        <span class="icon">✨</span> Lời chúc dành cho bạn <span class="icon">🌸</span>
+                                    </button>
+                                    <button type="button" id="mode-custom-gift-btn" class="btn-secondary step1-mode-btn mode-btn-2">
+                                        <span class="icon">💌</span> Soạn lời chúc cho người thân
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Trạng thái 3: Hiện ghi chú nhỏ "Hãy chọn tấm hình xinh đẹp nhất" + 2 nút Chụp hình / Chọn hình -->
                             <div class="step1-cta-choices" id="step1-cta-choices" aria-hidden="true">
                                 <div class="step1-cta-choices-inner">
-                                    <p class="step1-photo-note">
-                                        <span class="note-sparkle">✨</span> Hãy chọn tấm hình xinh đẹp nhất <span class="note-sparkle">🌸</span>
-                                    </p>
+                                    <div class="step1-photo-note-row">
+                                        <button type="button" id="step1-back-mode-btn" class="step1-back-mode-pill" title="Quay lại chọn chế độ">‹ Đổi chế độ</button>
+                                        <p class="step1-photo-note">
+                                            <span class="note-sparkle">✨</span> Hãy chọn tấm hình xinh đẹp nhất <span class="note-sparkle">🌸</span>
+                                        </p>
+                                    </div>
 
                                     <label for="selfie-btn" class="btn-primary btn-shimmer step1-choice-btn choice-btn-1">
                                         <span class="icon">📸</span> Chụp ảnh trực tiếp
@@ -762,14 +777,14 @@
                     <div id="frame-list" style="display: none;"></div>
                 </div>
 
-                <!-- Tab 2: Làm rõ 2 chế độ Lời chúc: (1) 🌸 Bất ngờ khi tạo thiệp vs (2) ✍️ Tự sửa / Tặng người khác -->
+                <!-- Tab 2: Làm rõ 2 chế độ Lời chúc: (1) 🌸 Câu chúc ngẫu nhiên vs (2) ✍️ Tự soạn -->
                 <div id="tab-wish" class="deck-pane">
                     <div class="wish-mode-switch" role="tablist" aria-label="Chế độ lời chúc">
                         <button type="button" id="wish-mode-surprise-btn" class="wish-mode-btn active" data-wish-mode="surprise">
-                            🌸 Bất ngờ <span class="mode-sub">(Mở khi tạo)</span>
+                            🌸 Câu chúc ngẫu nhiên
                         </button>
                         <button type="button" id="wish-mode-custom-btn" class="wish-mode-btn" data-wish-mode="custom">
-                            ✍️ Tự soạn <span class="mode-sub">(Tặng riêng)</span>
+                            ✍️ Tự soạn
                         </button>
                     </div>
 
@@ -962,9 +977,9 @@
         </div>
     </div>
 
-    <script src="wishes.js?v=24.0"></script>
-    <script src="script.js?v=24.0"></script>
-    <script src="intro.js?v=24.0"></script>
+    <script src="wishes.js?v=25.0"></script>
+    <script src="script.js?v=25.0"></script>
+    <script src="intro.js?v=25.0"></script>
 </body>
 
 </html>

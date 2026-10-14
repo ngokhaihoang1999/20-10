@@ -2270,8 +2270,8 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // 1. Dòng tiêu đề trên cùng lớn rõ (Hiển thị Tên người nhận nếu đã nhập, hoặc dòng chữ Dành Cho Bạn)
-    const topTitle = (recipientName || '').trim() || '🌸 Dành Cho Bạn 🌸';
+    // 1. Dòng tiêu đề trên cùng lớn rõ (Hiển thị Tên người nhận nếu đã nhập, hoặc dòng chữ Câu Chúc Ngẫu Nhiên)
+    const topTitle = (recipientName || '').trim() || '🌸 Câu Chúc Ngẫu Nhiên 🌸';
     const titleFontPx = Math.floor(62 * scale);
     ctx.font = recipientFont(titleFontPx);
     ctx.fillStyle = theme.recipientColor;
@@ -2575,12 +2575,163 @@ document.getElementById('reset-crop-btn')?.addEventListener('click', () => {
     showCardFloatingBadge('🎯 Đã căn giữa lại ảnh');
 });
 
+// Tự động cắt & căn chỉnh ảnh chân dung chuẩn tỷ lệ 1024x1526 (ưu tiên phần đầu & khuôn mặt ở 36% từ đỉnh) cho chế độ "Lời chúc dành cho bạn"
+function createAutoCroppedPortraitCanvas(rawImg, targetW = 1024, targetH = 1526) {
+    const c = document.createElement('canvas');
+    c.width = targetW;
+    c.height = targetH;
+    const ctx = c.getContext('2d');
+    const sw = rawImg.naturalWidth || rawImg.width || targetW;
+    const sh = rawImg.naturalHeight || rawImg.height || targetH;
+    const targetRatio = targetW / targetH;
+    const srcRatio = sw / sh;
+
+    let cropW = sw;
+    let cropH = sh;
+    let sx = 0;
+    let sy = 0;
+
+    if (srcRatio > targetRatio) {
+        cropW = sh * targetRatio;
+        sx = (sw - cropW) * 0.5;
+    } else {
+        cropH = sw / targetRatio;
+        sy = (sh - cropH) * 0.34;
+    }
+
+    ctx.drawImage(rawImg, sx, sy, cropW, cropH, 0, 0, targetW, targetH);
+    return c;
+}
+
+// Tạo huy chương tròn chứa ảnh chân dung người dùng để bay lên bầu trời trong pha mở đầu "Chờ đợi thông điệp từ trên trời"
+function buildSkyOracleUserThumbCanvas(rawImg) {
+    const size = 220;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    const ctx = c.getContext('2d');
+    const sw = rawImg.naturalWidth || rawImg.width || size;
+    const sh = rawImg.naturalHeight || rawImg.height || size;
+    const s = Math.min(sw, sh);
+    const sx = (sw - s) * 0.5;
+    const sy = (sh - s) * 0.32;
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.drawImage(rawImg, sx, sy, s, s, 0, 0, size, size);
+    ctx.restore();
+    return c;
+}
+
+window.isSelfOracleMode = false;
+window.skyOracleUserThumbCanvas = null;
+
+// Luồng "Lời chúc dành cho bạn": Chỉ chụp/chọn ảnh -> Ngẫu nhiên 100% Khung + Viền + Màu + Filter + Lời chúc + Hiệu ứng mở 3D -> Motion chờ đợi thông điệp từ trên trời -> Hiện bì thư để tự tay mở -> Vẫn có Link xem lại!
+function startSelfWishSkyOracleFlow(file) {
+    window.isSelfOracleMode = true;
+    window.isRecipientCardImageReady = false;
+    window.skyOracleUserThumbCanvas = null;
+
+    // 1. Chọn ngẫu nhiên 100% mọi yếu tố nghệ thuật của tấm thiệp
+    currentSelectedFrameId = Math.floor(Math.random() * framesConfig.length);
+    const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
+
+    const themeKeys = ['emerald', 'blush', 'rosegold', 'lavender', 'champagne'];
+    const borderKeys = ['sakura', 'ribbon', 'hearts', 'daisy', 'vintage'];
+    const motionKeys = ['bloom', 'butterflies', 'ribbon', 'galaxy', 'sakura', 'hearts'];
+
+    if (cfg && CONCEPT_HARMONY_MAP[cfg.concept] && Math.random() < 0.65) {
+        const harmony = CONCEPT_HARMONY_MAP[cfg.concept];
+        currentBorderStyle = harmony.border;
+        currentColorTheme = harmony.theme;
+    } else {
+        currentBorderStyle = borderKeys[Math.floor(Math.random() * borderKeys.length)];
+        currentColorTheme = themeKeys[Math.floor(Math.random() * themeKeys.length)];
+    }
+
+    const filterBtns = Array.from(document.querySelectorAll('#filter-list .filter-btn'));
+    if (filterBtns.length > 0) {
+        const pickedBtn = filterBtns[Math.floor(Math.random() * filterBtns.length)];
+        currentSelectedFilter = pickedBtn.getAttribute('data-filter') || 'none';
+    } else {
+        currentSelectedFilter = 'none';
+    }
+
+    const randomMotion = motionKeys[Math.floor(Math.random() * motionKeys.length)];
+    window.currentMotionEffect = randomMotion;
+
+    isCustomWishActive = false;
+    customWishText = '';
+    recipientName = '';
+    currentTopic = 'all';
+    currentAIQuote = getNextQuoteByTopic('all');
+    hasGeneratedQuoteOnce = true;
+    customLinkTitle = '🌸 Lời chúc 20.10 dành cho bạn ✨';
+    const titleInp = document.getElementById('custom-link-title-input');
+    const titleCnt = document.getElementById('link-title-char-count');
+    if (titleInp) titleInp.value = customLinkTitle;
+    if (titleCnt) titleCnt.textContent = `${customLinkTitle.length}/70`;
+
+    syncBorderChipsUI(currentBorderStyle, false);
+    syncColorSwatchesUI(currentColorTheme, false);
+    refreshConceptFramesForTheme();
+
+    // 2. Khởi chạy ngay lập tức Sân Khấu Motion "Chờ Đợi Thông Điệp Từ Trên Trời" (Thuần Motion 100%, không dùng chữ, sau đó bì thư từ bầu trời hạ xuống chờ mở)
+    if (typeof window.launchUnified3DEnvelopeDirector === 'function') {
+        window.launchUnified3DEnvelopeDirector({
+            autoOpen: false,
+            skyOracleMode: true,
+            motionId: randomMotion,
+            themeKey: currentColorTheme,
+            isRealRecipient: false,
+            isStep2Preview: false
+        });
+    }
+
+    // 3. Giải mã ảnh người dùng, tự động cắt khung chân dung, kết xuất thiệp 1024x2060 và tải ngầm lên Telegram để tạo sẵn Link xem lại
+    if (originalImgSrc && originalImgSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(originalImgSrc);
+    }
+    originalImgSrc = URL.createObjectURL(file);
+
+    const rawImg = new Image();
+    rawImg.onload = function () {
+        window.skyOracleUserThumbCanvas = buildSkyOracleUserThumbCanvas(rawImg);
+        const croppedCanvas = createAutoCroppedPortraitCanvas(rawImg, 1024, 1526);
+        const croppedImg = new Image();
+        croppedImg.onload = function () {
+            currentUserImage = croppedImg;
+            ensureQuoteFont().then(() => {
+                drawCanvasImageText(finalResultCanvas, true, false);
+                window.isRecipientCardImageReady = true;
+                if (typeof window.schedulePreUploadCardToTelegram === 'function') {
+                    window.schedulePreUploadCardToTelegram();
+                }
+            });
+        };
+        croppedImg.src = croppedCanvas.toDataURL('image/jpeg', 0.95);
+    };
+    rawImg.src = originalImgSrc;
+}
+
 async function handleImageInput(e) {
     const file = e.target.files[0];
     if (!file) return;
 
     currentScaleX = 1;
     hasGeneratedQuoteOnce = false;
+
+    // Nhánh 1: Nếu người dùng chọn "Lời chúc dành cho bạn" -> Không qua Bước 2, vào thẳng Motion Chờ Đợi Thông Điệp Từ Trên Trời!
+    if (window.selectedCreationFlow === 'self') {
+        startSelfWishSkyOracleFlow(file);
+        return;
+    }
+
+    // Nhánh 2: "Soạn lời chúc cho người thân" -> Vào Xưởng Thiết Kế Bước 2 như luồng hiện tại
+    window.isSelfOracleMode = false;
 
     // Giữ Bước 1 hiển thị ổn định trong ~35ms lúc Bước 2 dựng ngầm Cropper + Canvas phía dưới (không bao giờ chớp màn hình)
     step2.classList.remove('step2-morph-from', 'step2-morph-to', 'step2-morph-active', 'step2-ui-hidden', 'step2-ui-revealing');
@@ -3168,8 +3319,8 @@ if (resultCanvasWrap && cardShowcase) {
             const rect = cardShowcase.getBoundingClientRect();
             if (rect.height > 0 && endX >= rect.left && endX <= rect.right && endY >= rect.top && endY <= rect.bottom) {
                 const relY = (endY - rect.top) / rect.height;
-                // Chỉ mở bảng sửa chữ khi ở chế độ Người Tạo; nếu là Người Nhận thì bung hạt lấp lánh!
-                if (relY >= 0.68 && !window.isRecipientCardLinkMode) {
+                // Chỉ mở bảng sửa chữ khi ở chế độ Người Tạo (Tặng người thân); nếu là Người Nhận hoặc Lời chúc dành cho bạn thì bung hạt lấp lánh!
+                if (relY >= 0.68 && !window.isRecipientCardLinkMode && !window.isSelfOracleMode) {
                     lastTouchEndTime = Date.now();
                     openTextEditModalWithSparkle(endX, endY);
                 } else {
@@ -3193,7 +3344,7 @@ if (resultCanvasWrap && cardShowcase) {
         const rect = cardShowcase.getBoundingClientRect();
         if (rect.height > 0) {
             const relY = (e.clientY - rect.top) / rect.height;
-            if (relY >= 0.68 && !window.isRecipientCardLinkMode) {
+            if (relY >= 0.68 && !window.isRecipientCardLinkMode && !window.isSelfOracleMode) {
                 openTextEditModalWithSparkle(e.clientX, e.clientY);
             } else {
                 spawnTouchSparkle(e.clientX, e.clientY, 8);
@@ -3231,10 +3382,10 @@ document.querySelectorAll('.frame-page-btn').forEach(pageBtn => {
     });
 });
 
-// Công tắc chọn Chế độ Lời chúc: (1) 🌸 Bất ngờ (Mở khi tạo) vs (2) ✍️ Tự sửa (Tặng người khác)
+// Công tắc chọn Chế độ Lời chúc: (1) 🌸 Câu chúc ngẫu nhiên vs (2) ✍️ Tự soạn
 document.getElementById('wish-mode-surprise-btn')?.addEventListener('click', () => {
     setWishMode('surprise', true);
-    showCardFloatingBadge('🌸 Sẽ mở lời chúc bất ngờ khi bạn bấm Tạo thiệp!');
+    showCardFloatingBadge('🌸 Sẽ mở câu chúc ngẫu nhiên khi bạn bấm Tạo thiệp!');
 });
 
 document.getElementById('wish-mode-custom-btn')?.addEventListener('click', () => {
@@ -3300,7 +3451,7 @@ document.querySelectorAll('.topic-chip').forEach(chip => {
         triggerCardPulse();
         const topicName = chip.textContent.trim();
         if (currentWishMode === 'surprise') {
-            showCardFloatingBadge(`🌸 Đã chọn chủ đề bất ngờ: ${topicName}`);
+            showCardFloatingBadge(`🌸 Đã chọn chủ đề câu chúc ngẫu nhiên: ${topicName}`);
         } else {
             showCardFloatingBadge(`💌 Chủ đề lời chúc: ${topicName}`);
         }
@@ -3439,8 +3590,14 @@ if (magicHarmonyBtn) {
     });
 }
 
-// 5. Nút "‹ Sửa lại thiệp" (Quay về Xưởng Thiết Kế Bước 2 giữ nguyên ảnh, khung & câu chúc)
+// 5. Nút "‹ Sửa thiệp" (Hoặc "✉️ Mở lại thư" khi ở chế độ Lời chúc dành cho bạn)
 document.getElementById('back-step2-btn').addEventListener('click', () => {
+    if (window.isSelfOracleMode) {
+        if (typeof previewCreatorEnvelopeOpening === 'function') {
+            previewCreatorEnvelopeOpening();
+        }
+        return;
+    }
     if (typeof window.restoreCreatorStep1UI === 'function') {
         window.restoreCreatorStep1UI(false);
     }
@@ -5450,6 +5607,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         isRealRecipient = window.isRecipientCardLinkMode || false,
         isStep2Preview = false,
         waitForCardReady = false,
+        skyOracleMode = false,
         onComplete = null
     } = options;
 
@@ -5507,6 +5665,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const creatorQuickBar = document.getElementById('creator-quick-bar');
     const recipientLuxuryDock = document.getElementById('recipient-luxury-dock');
     const dlLabel = document.getElementById('download-btn-label');
+    const backStep2Btn = document.getElementById('back-step2-btn');
+    const step3MainTitle = document.getElementById('step3-main-title');
+    const step3FloatingBadge = document.getElementById('step3-floating-badge');
+    const openShareLinkModalBtn = document.getElementById('open-share-link-modal-btn');
 
     if (isStep2Preview) {
         if (creatorTopbar) creatorTopbar.style.display = 'none';
@@ -5517,10 +5679,24 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (creatorQuickBar) creatorQuickBar.style.display = 'none';
         if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'flex';
         if (dlLabel) dlLabel.textContent = 'Lưu thiệp';
+    } else if (window.isSelfOracleMode) {
+        // Chế độ "Lời chúc dành cho bạn": Mọi thứ ngẫu nhiên 100%, ẩn thanh sửa nhanh, giữ nút Lưu Link Xem Lại & Mở lại thư
+        if (creatorTopbar) creatorTopbar.style.display = 'grid';
+        if (creatorQuickBar) creatorQuickBar.style.display = 'none';
+        if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'none';
+        if (step3FloatingBadge) step3FloatingBadge.style.display = 'none';
+        if (backStep2Btn) backStep2Btn.innerHTML = '✉️ Mở lại thư';
+        if (step3MainTitle) step3MainTitle.textContent = '✨ Lời Chúc Dành Cho Bạn 🌸';
+        if (openShareLinkModalBtn) openShareLinkModalBtn.innerHTML = '<span class="icon">🔗</span> Lưu Link Xem Lại Thiệp 3D';
+        if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
     } else {
         if (creatorTopbar) creatorTopbar.style.display = 'grid';
         if (creatorQuickBar) creatorQuickBar.style.display = 'grid';
         if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'none';
+        if (step3FloatingBadge) step3FloatingBadge.style.display = '';
+        if (backStep2Btn) backStep2Btn.innerHTML = '‹ Sửa thiệp';
+        if (step3MainTitle) step3MainTitle.textContent = '✨ Tuyệt Tác 20/10 🌸';
+        if (openShareLinkModalBtn) openShareLinkModalBtn.innerHTML = '<span class="icon">🔗</span> Tạo Link Thiệp 3D Gửi Tặng';
         if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
     }
 
@@ -5662,10 +5838,12 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     window.u3dRefreshTargetRect = measureTargetShowcaseOnce;
 
     // Các biến trạng thái Vật Lý 60fps:
-    // - 'summoning': Vũ điệu Motion 3D kết tinh (ẩn Phong Bì & Ấn Sáp trong lúc chờ tải xong ảnh 100%, không dùng chữ Loading)
-    // - 'arriving' : Ảnh đã sẵn sàng -> Phong Bì 3D lướt vào + Ấn Sáp Vàng giáng xuống đóng dấu sẵn sàng
-    // - 'waiting'  : Phong Bì & Ấn Sáp đã sẵn sàng 100%, chờ người nhận chạm mở
-    // - 'opening'  : Đang mở phong bì & rút thiệp 3D
+    // - 'sky_oracle'    : Motion thuần 100% "Chờ đợi thông điệp từ trên trời" (hạt ngọc chân dung bay lên đỉnh trời -> cổng ánh sáng thiên hà + sóng tín hiệu hạ xuống, không dùng chữ)
+    // - 'sky_descending': Bì thư 3D từ cổng trời lướt dọc cột sáng hạ xuống chính giữa sân khấu + Ấn Sáp Vàng giáng xuống đóng dấu
+    // - 'summoning'     : Vũ điệu Motion 3D kết tinh (ẩn Phong Bì & Ấn Sáp trong lúc chờ tải xong ảnh 100%, không dùng chữ Loading)
+    // - 'arriving'      : Ảnh đã sẵn sàng -> Phong Bì 3D lướt vào + Ấn Sáp Vàng giáng xuống đóng dấu sẵn sàng
+    // - 'waiting'       : Phong Bì & Ấn Sáp đã sẵn sàng 100%, chờ người dùng chạm mở
+    // - 'opening'       : Đang mở phong bì & rút thiệp 3D
     let summonStartTime = performance.now();
     let arriveStartTime = performance.now();
     let openStartTime = 0;
@@ -5673,7 +5851,18 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     let summonSpawnAccum = 0;
     let hasSpawnedArrivalStamp = false;
 
-    if (needSummonPrelude) {
+    if (skyOracleMode) {
+        u3dCurrentDirectorState = 'sky_oracle';
+        stage.classList.add('is-summoning');
+        backRig.style.opacity = '0';
+        frontRig.style.opacity = '0';
+        frontRig.style.pointerEvents = 'none';
+        if (sealBtn) {
+            sealBtn.style.opacity = '0';
+            sealBtn.style.pointerEvents = 'none';
+            sealBtn.style.transform = 'translate3d(0, -40px, 0) scale(2.4)';
+        }
+    } else if (needSummonPrelude) {
         u3dCurrentDirectorState = 'summoning';
         stage.classList.add('is-summoning');
         backRig.style.opacity = '0';
@@ -5726,6 +5915,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         { cx: 0, cy: 0, cz: 0, radius: 124, rx: -0.85, ry: 0.9, rz: 0.5, vrx: -1.3, vry: 0.85, vrz: -1.9, color: '#ff9ebb', glowColor: '#d84b7e', lineWidth: 1.8, dashed: true, alpha: 0.82 },
         { cx: 0, cy: 0, cz: 0, radius: 152, rx: 0.45, ry: -1.1, rz: -0.4, vrx: 0.95, vry: -1.4, vrz: 1.6, color: '#b2ebf2', glowColor: '#4dd0e1', lineWidth: 1.6, dashed: false, alpha: 0.75 }
     ];
+    const skyZenithRings = [
+        { cx: 0, cy: 0, cz: 0, radius: 74, rx: 1.22, ry: 0.22, rz: 0, vrx: 0.45, vry: 1.5, vrz: 2.7, color: '#fff2a6', glowColor: '#f5c242', lineWidth: 2.2, dashed: false, alpha: 0.92 },
+        { cx: 0, cy: 0, cz: 0, radius: 108, rx: -1.08, ry: 0.65, rz: 0.4, vrx: -1.1, vry: 0.8, vrz: -2.1, color: '#ffb2c9', glowColor: '#d84b7e', lineWidth: 1.8, dashed: true, alpha: 0.85 },
+        { cx: 0, cy: 0, cz: 0, radius: 142, rx: 0.95, ry: -0.85, rz: -0.5, vrx: 0.75, vry: -1.25, vrz: 1.8, color: '#b2ebf2', glowColor: '#4dd0e1', lineWidth: 1.5, dashed: false, alpha: 0.78 }
+    ];
+    const skyRipples = [];
+    let skyRippleAccum = 0.48;
+    let skyParticleAccum = 0;
+    let hasTriggeredZenithFlash = false;
     let hasSpawnedSealBreak = false;
     let hasSpawnedMainBurst = false;
     let hasHandedOffCard = false;
@@ -5795,6 +5993,151 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         u3dAutoOpenTimerId = setTimeout(() => {
             startEnvelopePhysicsOpen();
         }, autoOpenDelay);
+    }
+
+    // Vẽ Cổng Trời Thiên Hà & 5 Luồng Ánh Sáng Volumetric chiếu từ đỉnh bầu trời xuống tâm sân khấu (Thuần Motion 100%, không dùng chữ)
+    function drawHeavenlySkyBeamsAndPortal(ctxB, ctxF, elapsed, intensity, screenCx, screenCy, vw, vh) {
+        if (intensity <= 0.01) return;
+        const skyCx = screenCx;
+        const skyCy = vh * 0.135;
+
+        // 1. Nền vòm trời đêm nhung lụa & 5 luồng sáng thiên sứ (Volumetric God Rays) trên ctxBack
+        ctxB.save();
+        const skyVeilGrad = ctxB.createRadialGradient(skyCx, skyCy, 12, skyCx, vh * 0.48, Math.max(vw, vh) * 0.88);
+        skyVeilGrad.addColorStop(0, `rgba(255, 248, 212, ${(0.52 * intensity).toFixed(3)})`);
+        skyVeilGrad.addColorStop(0.24, `rgba(244, 152, 190, ${(0.26 * intensity).toFixed(3)})`);
+        skyVeilGrad.addColorStop(0.62, `rgba(9, 44, 36, ${(0.46 * intensity).toFixed(3)})`);
+        skyVeilGrad.addColorStop(1, `rgba(3, 18, 14, ${(0.62 * intensity).toFixed(3)})`);
+        ctxB.fillStyle = skyVeilGrad;
+        ctxB.fillRect(0, 0, vw, vh);
+
+        const beamConfigs = [
+            { spread: -0.36, topW: 16, botW: vw * 0.34, alpha: 0.20, phase: 0.2 },
+            { spread: -0.17, topW: 22, botW: vw * 0.42, alpha: 0.30, phase: 1.4 },
+            { spread: 0.00,  topW: 32, botW: vw * 0.54, alpha: 0.44, phase: 2.7 },
+            { spread: 0.17,  topW: 22, botW: vw * 0.42, alpha: 0.30, phase: 4.1 },
+            { spread: 0.36,  topW: 16, botW: vw * 0.34, alpha: 0.20, phase: 5.3 }
+        ];
+        const beamEndY = vh * 0.92;
+        for (let b = 0; b < beamConfigs.length; b++) {
+            const bc = beamConfigs[b];
+            const sway = Math.sin(elapsed * 2.1 + bc.phase) * 0.04;
+            const endCx = skyCx + (bc.spread + sway) * vw;
+            const breathe = 0.82 + 0.18 * Math.sin(elapsed * 3.4 + bc.phase);
+            const bAlpha = bc.alpha * breathe * intensity;
+
+            const beamGrad = ctxB.createLinearGradient(skyCx, skyCy - 10, endCx, beamEndY);
+            beamGrad.addColorStop(0, `rgba(255, 250, 218, ${(bAlpha * 1.35).toFixed(3)})`);
+            beamGrad.addColorStop(0.32, `rgba(255, 224, 142, ${(bAlpha * 0.92).toFixed(3)})`);
+            beamGrad.addColorStop(0.68, `rgba(255, 178, 206, ${(bAlpha * 0.45).toFixed(3)})`);
+            beamGrad.addColorStop(1, 'rgba(255, 232, 166, 0)');
+
+            ctxB.fillStyle = beamGrad;
+            ctxB.beginPath();
+            ctxB.moveTo(skyCx - bc.topW * 0.5, skyCy - 8);
+            ctxB.lineTo(skyCx + bc.topW * 0.5, skyCy - 8);
+            ctxB.lineTo(endCx + bc.botW * 0.5, beamEndY);
+            ctxB.lineTo(endCx - bc.botW * 0.5, beamEndY);
+            ctxB.closePath();
+            ctxB.fill();
+        }
+
+        // Vầng hào quang tiếp nhận thông điệp tại tâm sân khấu (nơi bì thư sắp hạ xuống)
+        const floorPulse = 0.85 + 0.15 * Math.sin(elapsed * 4.2);
+        const floorRx = 148 * floorPulse;
+        const floorRy = 52 * floorPulse;
+        ctxB.save();
+        ctxB.translate(screenCx, screenCy + 16);
+        ctxB.scale(1, floorRy / floorRx);
+        const floorGrad = ctxB.createRadialGradient(0, 0, 4, 0, 0, floorRx);
+        floorGrad.addColorStop(0, `rgba(255, 248, 206, ${(0.42 * intensity).toFixed(3)})`);
+        floorGrad.addColorStop(0.48, `rgba(245, 194, 66, ${(0.20 * intensity).toFixed(3)})`);
+        floorGrad.addColorStop(1, 'rgba(245, 194, 66, 0)');
+        ctxB.fillStyle = floorGrad;
+        ctxB.beginPath();
+        ctxB.arc(0, 0, floorRx, 0, Math.PI * 2);
+        ctxB.fill();
+        ctxB.restore();
+        ctxB.restore();
+
+        // 2. Tâm Tinh Cầu Thiên Đỉnh (Zenith Star Core) tỏa sáng trên đỉnh bầu trời ở ctxFront
+        ctxF.save();
+        ctxF.translate(skyCx, skyCy);
+        const corePulse = 1 + 0.14 * Math.sin(elapsed * 5.8);
+        const coronaR = 112 * corePulse;
+        const coronaGrad = ctxF.createRadialGradient(0, 0, 3, 0, 0, coronaR);
+        coronaGrad.addColorStop(0, `rgba(255, 255, 245, ${(0.98 * intensity).toFixed(3)})`);
+        coronaGrad.addColorStop(0.22, `rgba(255, 232, 148, ${(0.76 * intensity).toFixed(3)})`);
+        coronaGrad.addColorStop(0.55, `rgba(255, 168, 202, ${(0.34 * intensity).toFixed(3)})`);
+        coronaGrad.addColorStop(1, 'rgba(255, 232, 148, 0)');
+        ctxF.fillStyle = coronaGrad;
+        ctxF.beginPath();
+        ctxF.arc(0, 0, coronaR, 0, Math.PI * 2);
+        ctxF.fill();
+
+        // Ngôi sao 8 cánh Bắc Đẩu xoay chậm trên cổng trời
+        ctxF.save();
+        ctxF.rotate(elapsed * 0.55);
+        ctxF.globalAlpha = Math.min(1, intensity * 0.92);
+        for (let k = 0; k < 2; k++) {
+            ctxF.save();
+            if (k === 1) ctxF.rotate(Math.PI / 4);
+            const rayLen = (k === 0 ? 54 : 34) * corePulse;
+            const rayW = k === 0 ? 5.5 : 3.6;
+            ctxF.fillStyle = k === 0 ? '#fffef4' : '#ffe484';
+            ctxF.beginPath();
+            ctxF.moveTo(0, -rayLen);
+            ctxF.quadraticCurveTo(rayW, -rayW, rayLen, 0);
+            ctxF.quadraticCurveTo(rayW, rayW, 0, rayLen);
+            ctxF.quadraticCurveTo(-rayW, rayW, -rayLen, 0);
+            ctxF.quadraticCurveTo(-rayW, -rayW, 0, -rayLen);
+            ctxF.closePath();
+            ctxF.fill();
+            ctxF.restore();
+        }
+        ctxF.restore();
+        ctxF.restore();
+    }
+
+    // Sinh các hạt thiên sứ (Hồ điệp vàng, Cánh hoa anh đào/hoa trà, Sao băng, Ngọc trai) bay từ cổng trời xuống dọc theo luồng sáng
+    function spawnSkyOracleDescendingParticle(skyWorldY) {
+        const spreadX = (Math.random() - 0.5) * 90;
+        let pType = 'star';
+        const r = Math.random();
+        if (r < 0.28) pType = 'butterfly';
+        else if (r < 0.62) pType = 'petal';
+        else if (r < 0.85) pType = 'star';
+        else pType = 'pearl';
+
+        particles.push({
+            type: pType,
+            isGold: true,
+            isSakura: Math.random() < 0.5,
+            hasTrail: pType === 'star',
+            x: spreadX,
+            y: skyWorldY + (Math.random() - 0.5) * 18,
+            z: (Math.random() - 0.5) * 200,
+            vx: spreadX * 0.9 + (Math.random() - 0.5) * 55,
+            vy: 155 + Math.random() * 145,
+            vz: (Math.random() - 0.5) * 110,
+            gravity: 38,
+            drag: 0.35,
+            vortex: 1.4,
+            flutter: 75,
+            phase: Math.random() * 6,
+            flapPhase: Math.random() * 6,
+            flapSpeed: 42,
+            size: pType === 'butterfly' ? (13 + Math.random() * 6) : (pType === 'pearl' ? 6 : (8 + Math.random() * 6)),
+            colorMid: '#ffb2c9',
+            colorEnd: '#d83a6f',
+            tintA: '#e0f7fa',
+            tintB: '#fce4ec',
+            rx: Math.random() * 5, ry: Math.random() * 5, rz: Math.random() * 5,
+            vrx: (Math.random() - 0.5) * 6, vry: (Math.random() - 0.5) * 6, vrz: (Math.random() - 0.5) * 6,
+            alpha: 1,
+            life: 0,
+            maxLife: 1.85 + Math.random() * 0.45
+        });
     }
 
     // Hàm tạo hạt năng lượng xoáy hội tụ vào tâm trong pha Triệu Hồi (Summoning Prelude)
@@ -6184,6 +6527,358 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         const pocketScale = Math.min(0.86, (envBaseW * 0.76) / baseW);
         const cardInPocketW = baseW * pocketScale;
         const cardInPocketH = baseH * pocketScale;
+
+        // ====== TRẠNG THÁI 0-SKY-A: CHỜ ĐỢI THÔNG ĐIỆP TỪ TRÊN TRỜI (THUẦN MOTION 100%, HẠN CHẾ CHỮ TUYỆT ĐỐI) ======
+        if (u3dCurrentDirectorState === 'sky_oracle') {
+            const summonElapsed = (now - summonStartTime) / 1000;
+            const skyCy = curVh * 0.135;
+            const skyWorldY = skyCy - screenCy;
+
+            backRig.style.opacity = '0';
+            frontRig.style.opacity = '0';
+            cardActor.style.opacity = '0';
+
+            // 1. Vẽ Cổng Trời Thiên Hà & 5 Luồng Ánh Sáng Volumetric chiếu từ đỉnh trời xuống sân khấu
+            const portalIntensity = Math.min(1, summonElapsed / 0.45);
+            drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, summonElapsed, portalIntensity, screenCx, screenCy, curVw, curVh);
+
+            // 2. Vẽ 3 Vòng Tinh Cầu 3D xoay quanh Cổng Trời Thiên Đỉnh (skyCy)
+            for (let r = 0; r < skyZenithRings.length; r++) {
+                const zr = skyZenithRings[r];
+                zr.cy = skyWorldY;
+                zr.rx += zr.vrx * dt;
+                zr.ry += zr.vry * dt;
+                zr.rz += zr.vrz * dt;
+                zr.radius = (68 + r * 30) + Math.sin(summonElapsed * 3.8 + r) * 9;
+                drawSplit3DRing(ctxBack, ctxFront, zr, screenCx, screenCy, focal, 0);
+            }
+
+            // 3. Màn 1 (0.00s -> 1.05s): Viên Ngọc Chân Dung của người dùng bay từ giữa màn hình lên Cổng Trời để gửi ước nguyện
+            if (summonElapsed < 1.05) {
+                const p = Math.max(0, Math.min(1, (summonElapsed - 0.10) / 0.92));
+                const easeAscend = p * p * (3 - 2 * p);
+                const medX = screenCx + Math.sin(p * Math.PI) * 20;
+                const medY = screenCy + (skyCy - screenCy) * easeAscend;
+                const medScale = (1 - easeAscend * 0.82) * Math.min(1, summonElapsed / 0.20);
+                const medAlpha = p < 0.78 ? Math.min(1, summonElapsed / 0.18) : Math.max(0, (1 - p) / 0.22);
+
+                if (medAlpha > 0.02) {
+                    ctxFront.save();
+                    ctxFront.globalAlpha = medAlpha;
+                    const haloR = 72 * medScale;
+                    const haloGrad = ctxFront.createRadialGradient(medX, medY, 4, medX, medY, Math.max(8, haloR));
+                    haloGrad.addColorStop(0, 'rgba(255, 252, 224, 0.95)');
+                    haloGrad.addColorStop(0.45, 'rgba(245, 194, 66, 0.55)');
+                    haloGrad.addColorStop(1, 'rgba(245, 194, 66, 0)');
+                    ctxFront.fillStyle = haloGrad;
+                    ctxFront.beginPath();
+                    ctxFront.arc(medX, medY, Math.max(8, haloR), 0, Math.PI * 2);
+                    ctxFront.fill();
+
+                    if (window.skyOracleUserThumbCanvas) {
+                        const drawR = 46 * medScale;
+                        ctxFront.drawImage(window.skyOracleUserThumbCanvas, medX - drawR, medY - drawR, drawR * 2, drawR * 2);
+                    }
+                    ctxFront.restore();
+                }
+
+                // Đuôi sao vàng bay theo viên ngọc chân dung lên trời
+                if (Math.random() < 0.65) {
+                    particles.push({
+                        type: Math.random() < 0.6 ? 'star' : 'petal',
+                        isGold: true,
+                        isSakura: true,
+                        hasTrail: true,
+                        x: (medX - screenCx) + (Math.random() - 0.5) * 24,
+                        y: (medY - screenCy) + (Math.random() - 0.5) * 18,
+                        z: (Math.random() - 0.5) * 60,
+                        vx: (Math.random() - 0.5) * 55,
+                        vy: -120 - Math.random() * 90,
+                        vz: (Math.random() - 0.5) * 40,
+                        gravity: -30,
+                        drag: 0.9,
+                        vortex: 0,
+                        flutter: 35,
+                        phase: Math.random() * 6,
+                        size: 7 + Math.random() * 5,
+                        colorMid: '#ffb2c9',
+                        colorEnd: '#d83a6f',
+                        rx: 0, ry: 0, rz: Math.random() * 6,
+                        vrx: 3, vry: 3, vrz: 5,
+                        alpha: 1,
+                        life: 0,
+                        maxLife: 0.65
+                    });
+                }
+            } else if (!hasTriggeredZenithFlash) {
+                // Khoảnh khắc viên ngọc chạm Cổng Trời (t = 1.05s) -> Bùng sáng & phát sóng tín hiệu đầu tiên từ bầu trời xuống!
+                hasTriggeredZenithFlash = true;
+                spawnSealBreakExplosion(skyWorldY);
+                skyRipples.push({
+                    y: skyCy,
+                    targetY: screenCy + 85,
+                    rx: 32,
+                    ry: 12,
+                    life: 0,
+                    maxLife: 1.25,
+                    color: '#ffe898'
+                });
+            }
+
+            // 4. Màn 2 (0.45s -> 2.85s): Sóng Tín Hiệu Thiên Hà (Sky Signal Ripples) lan truyền từ bầu trời xuống + Các Sứ Giả Ánh Sao bay xuống
+            skyRippleAccum += dt;
+            if (skyRippleAccum >= 0.54) {
+                skyRippleAccum = 0;
+                skyRipples.push({
+                    y: skyCy + 6,
+                    targetY: screenCy + 95,
+                    rx: 28,
+                    ry: 10,
+                    life: 0,
+                    maxLife: 1.28,
+                    color: skyRipples.length % 2 === 0 ? '#ffe898' : '#ffb2c9'
+                });
+            }
+
+            for (let wIdx = skyRipples.length - 1; wIdx >= 0; wIdx--) {
+                const rp = skyRipples[wIdx];
+                rp.life += dt;
+                if (rp.life >= rp.maxLife) {
+                    skyRipples.splice(wIdx, 1);
+                    continue;
+                }
+                const prog = rp.life / rp.maxLife;
+                const easeP = 1 - Math.pow(1 - prog, 2.2);
+                const curY = rp.y + (rp.targetY - rp.y) * easeP;
+                const curRx = 30 + easeP * 168;
+                const curRy = 11 + easeP * 54;
+                const wAlpha = prog < 0.2 ? (prog / 0.2) : Math.max(0, (1 - prog) / 0.8);
+
+                ctxFront.save();
+                ctxFront.globalAlpha = wAlpha * 0.78;
+                ctxFront.strokeStyle = rp.color;
+                ctxFront.lineWidth = 2.0 * (1 - prog * 0.45);
+                ctxFront.beginPath();
+                ctxFront.ellipse(screenCx, curY, curRx, curRy, 0, 0, Math.PI * 2);
+                ctxFront.stroke();
+
+                // 4 hạt sao sáng chạy trên vành sóng tín hiệu từ trời giáng xuống
+                for (let s = 0; s < 4; s++) {
+                    const sa = prog * Math.PI * 2.5 + (s * Math.PI) / 2;
+                    const sx = screenCx + Math.cos(sa) * curRx;
+                    const sy = curY + Math.sin(sa) * curRy;
+                    ctxFront.fillStyle = '#fffef4';
+                    ctxFront.beginPath();
+                    ctxFront.arc(sx, sy, 2.6, 0, Math.PI * 2);
+                    ctxFront.fill();
+                }
+                ctxFront.restore();
+            }
+
+            // Phun các hạt Hồ Điệp Vàng, Cánh Hoa, Sao Băng từ Cổng Trời bay dọc luồng sáng xuống sân khấu
+            skyParticleAccum += dt;
+            if (skyParticleAccum >= 0.042) {
+                skyParticleAccum = 0;
+                spawnSkyOracleDescendingParticle(skyWorldY);
+                if (summonElapsed > 0.9) {
+                    spawnSkyOracleDescendingParticle(skyWorldY);
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life += dt;
+                if (p.life >= p.maxLife) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                const dragFactor = Math.max(0, 1 - p.drag * dt);
+                p.vx *= dragFactor;
+                p.vy *= dragFactor;
+                p.vz *= dragFactor;
+                p.vy += p.gravity * dt;
+                if (p.flutter > 0) {
+                    p.phase += dt * 5.2;
+                    p.vx += Math.sin(p.phase) * p.flutter * dt;
+                }
+                if (p.type === 'butterfly') p.flapPhase += p.flapSpeed * dt;
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.z += p.vz * dt;
+                p.rx += p.vrx * dt;
+                p.ry += p.vry * dt;
+                p.rz += p.vrz * dt;
+                const lr = p.life / p.maxLife;
+                p.alpha = lr < 0.16 ? lr / 0.16 : (lr > 0.72 ? (1 - lr) / 0.28 : 1);
+                draw3DProjectedParticle(p.z < 0 ? ctxBack : ctxFront, p, screenCx, screenCy, focal);
+            }
+
+            // Từ 1.75s -> 2.85s: Kết tinh Biểu Tượng Ánh Sáng 3D của thông điệp tại tâm sân khấu
+            if (summonElapsed >= 1.75) {
+                drawSummonCenterMotif(ctxFront, cfg.id, summonElapsed - 1.75, screenCx, screenCy);
+            }
+
+            // Khi hoàn tất 2.85s nghi thức chờ đợi thông điệp từ bầu trời & ảnh thiệp ngẫu nhiên đã kết xuất xong 100% -> Bì thư từ cổng trời hạ xuống!
+            if (window.isRecipientCardImageReady && summonElapsed >= 2.85) {
+                if (cardImg && finalResultImg && finalResultImg.src) {
+                    cardImg.src = finalResultImg.src;
+                }
+                u3dCurrentDirectorState = 'sky_descending';
+                arriveStartTime = now;
+                stage.classList.remove('is-summoning');
+                stage.classList.add('is-arriving');
+                skyRipples.push({
+                    y: skyCy,
+                    targetY: screenCy + 60,
+                    rx: 38,
+                    ry: 15,
+                    life: 0,
+                    maxLife: 0.95,
+                    color: '#fff2a6'
+                });
+            }
+
+            u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
+            return;
+        }
+
+        // ====== TRẠNG THÁI 0-SKY-B: BÌ THƯ 3D TỪ CỔNG TRỜI LƯỚT THEO LUỒNG SÁNG HẠ XUỐNG ĐỂ NGƯỜI DÙNG CHẠM MỞ ======
+        if (u3dCurrentDirectorState === 'sky_descending') {
+            const arriveElapsed = (now - arriveStartTime) / 1000;
+            const SKY_DESCEND_TOTAL = 1.12;
+            const skyCy = curVh * 0.135;
+            const skyOffsetY = skyCy - screenCy;
+
+            // Giữ các luồng sáng từ bầu trời chiếu rọi theo bì thư rồi dịu dần khi bì thư đáp vào giữa màn hình
+            const beamFade = Math.max(0, 1 - Math.pow(arriveElapsed / SKY_DESCEND_TOTAL, 1.65));
+            drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, 2.85 + arriveElapsed, beamFade, screenCx, screenCy, curVw, curVh);
+
+            // Pha 1 (0.00s -> 0.82s): Bì thư 3D xuất hiện từ chính tâm Cổng Trời (skyCy) và lượn êm xuống giữa sân khấu
+            const envP = Math.min(1, arriveElapsed / 0.82);
+            const easeEnv = 1 - Math.pow(1 - envP, 3);
+
+            // Pha 2 (0.64s -> 1.12s): Phong Ấn Vàng 24K từ bầu trời giáng xuống đóng dấu lên nắp phong bì
+            const sealP = Math.max(0, Math.min(1, (arriveElapsed - 0.64) / 0.48));
+            let sealScale = 2.5;
+            let sealTy = -56;
+            let sealOp = 0;
+            let envRecoilY = 0;
+
+            if (sealP > 0) {
+                if (sealP < 0.62) {
+                    const downP = sealP / 0.62;
+                    const easeDown = downP * downP;
+                    sealScale = 2.5 - 1.58 * easeDown;
+                    sealTy = -56 * (1 - easeDown);
+                    sealOp = Math.min(1, downP * 1.85);
+                } else {
+                    const bounceP = (sealP - 0.62) / 0.38;
+                    sealScale = 0.92 + 0.08 * Math.sin(bounceP * Math.PI * 0.5);
+                    sealTy = 0;
+                    sealOp = 1;
+                    envRecoilY = Math.sin(bounceP * Math.PI) * 6;
+                    if (!hasSpawnedArrivalStamp) {
+                        hasSpawnedArrivalStamp = true;
+                        const envMouthWorldY0 = (envBaseCy - envBaseH * 0.24) - screenCy;
+                        const sealWorldY0 = envMouthWorldY0 + envBaseH * 0.28;
+                        spawnSealBreakExplosion(sealWorldY0);
+                    }
+                }
+            }
+
+            const envScale = 0.22 + 0.78 * easeEnv;
+            const envTx = Math.sin(envP * Math.PI) * 18 * (1 - easeEnv);
+            const envTy = skyOffsetY * (1 - easeEnv) + envRecoilY;
+            const envRx = 52 * (1 - easeEnv) + 6;
+            const envRy = -20 * (1 - easeEnv);
+            const envRz = 10 * (1 - easeEnv);
+            const envOp = Math.min(1, envP * 2.1);
+
+            const envTransform = `perspective(1400px) translate3d(${envTx.toFixed(1)}px, ${envTy.toFixed(1)}px, 0px) scale(${envScale.toFixed(3)}) rotateX(${envRx.toFixed(2)}deg) rotateY(${envRy.toFixed(2)}deg) rotateZ(${envRz.toFixed(2)}deg)`;
+            backRig.style.transform = envTransform;
+            frontRig.style.transform = envTransform;
+            backRig.style.opacity = envOp.toFixed(2);
+            frontRig.style.opacity = envOp.toFixed(2);
+
+            if (sealBtn) {
+                sealBtn.style.opacity = sealOp.toFixed(2);
+                sealBtn.style.transform = `translate3d(0px, ${sealTy.toFixed(1)}px, 0px) scale(${sealScale.toFixed(3)})`;
+            }
+
+            if (floorShadow) {
+                floorShadow.style.opacity = (envOp * easeEnv).toFixed(2);
+                floorShadow.style.transform = `scale(${envScale.toFixed(3)})`;
+            }
+
+            cardActor.style.opacity = '0';
+
+            // Hạt sao vàng & cánh hoa tỏa ra dọc đường bì thư hạ xuống từ trời
+            if (envP < 0.82 && Math.random() < 0.7) {
+                particles.push({
+                    type: Math.random() < 0.55 ? 'star' : 'petal',
+                    isGold: true,
+                    isSakura: cfg.id === 'sakura',
+                    hasTrail: false,
+                    x: envTx + (Math.random() - 0.5) * 140 * envScale,
+                    y: envTy + (Math.random() - 0.5) * 60 * envScale,
+                    z: (Math.random() - 0.5) * 120,
+                    vx: (Math.random() - 0.5) * 90,
+                    vy: -60 - Math.random() * 80,
+                    vz: (Math.random() - 0.5) * 80,
+                    gravity: 40,
+                    drag: 0.9,
+                    vortex: 0,
+                    flutter: 50,
+                    phase: Math.random() * 6,
+                    size: 7 + Math.random() * 5,
+                    colorMid: '#ffb2c9',
+                    colorEnd: '#d83a6f',
+                    rx: Math.random() * 5, ry: Math.random() * 5, rz: Math.random() * 5,
+                    vrx: 4, vry: 4, vrz: 4,
+                    alpha: 1,
+                    life: 0,
+                    maxLife: 0.85
+                });
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life += dt;
+                if (p.life >= p.maxLife) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                const dragFactor = Math.max(0, 1 - p.drag * dt);
+                p.vx *= dragFactor;
+                p.vy *= dragFactor;
+                p.vz *= dragFactor;
+                p.vy += p.gravity * dt;
+                if (p.type === 'butterfly') p.flapPhase += p.flapSpeed * dt;
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.z += p.vz * dt;
+                p.rx += p.vrx * dt;
+                p.ry += p.vry * dt;
+                p.rz += p.vrz * dt;
+                const lr = p.life / p.maxLife;
+                p.alpha = lr < 0.15 ? lr / 0.15 : (lr > 0.7 ? (1 - lr) / 0.3 : 1);
+                draw3DProjectedParticle(p.z < 0 ? ctxBack : ctxFront, p, screenCx, screenCy, focal);
+            }
+
+            if (arriveElapsed >= SKY_DESCEND_TOTAL) {
+                u3dCurrentDirectorState = 'waiting';
+                stage.classList.remove('is-arriving');
+                frontRig.style.pointerEvents = 'auto';
+                if (sealBtn) {
+                    sealBtn.style.opacity = '1';
+                    sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
+                    sealBtn.style.pointerEvents = 'auto';
+                }
+            }
+
+            u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
+            return;
+        }
 
         // ====== TRẠNG THÁI 0A: TRIỆU HỒI THIỆP BẰNG MOTION 3D (KHI ĐANG TẢI ẢNH TỪ LINK - KHÔNG DÙNG CHỮ LOADING!) ======
         if (u3dCurrentDirectorState === 'summoning') {
@@ -8060,6 +8755,13 @@ async function uploadCardToTelegramBot() {
         isCardCanvasDirtyForTelegram = false;
         refreshShareModalPreviewUI();
 
+        // Ở chế độ "Lời chúc dành cho bạn", tự động cập nhật thanh địa chỉ trình duyệt thành Link xem lại thiệp 3D để người dùng có thể lưu hoặc mở lại bất cứ lúc nào!
+        if (window.isSelfOracleMode && typeof window.history?.replaceState === 'function') {
+            try {
+                window.history.replaceState({}, document.title, buildShareableCardUrl(fileId));
+            } catch (_) {}
+        }
+
         // Cập nhật luôn Caption trong Bot Telegram thành dạng Hyperlink ẩn URL dưới Tên Thiệp (<a href="URL">Tên Thiệp</a>)
         if (msgId) {
             window.syncTelegramMessageCaptionIfUploaded();
@@ -8632,6 +9334,15 @@ window.restoreCreatorStep1UI = function (setOpenedState = true) {
 
     window.isEnvelopeGiftMode = false;
     window.isRecipientCardLinkMode = false;
+    if (setOpenedState) {
+        window.isSelfOracleMode = false;
+        window.skyOracleUserThumbCanvas = null;
+        if (window.location.search && typeof window.history?.replaceState === 'function') {
+            try {
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch (_) {}
+        }
+    }
     document.body.classList.remove('recipient-mode', 'u3d-stage-active');
 
     const step1CardCol = document.getElementById('step1-card-column');

@@ -1303,21 +1303,64 @@
         });
     }
 
-    // ====== 7. NÚT "TẠO THIỆP MỪNG 20.10" MỞ RỘNG 2 NÚT CHỌN HÌNH + HIỆU ỨNG MORPH MƯỢT SANG BƯỚC EDIT ======
+    // ====== 7. NÚT "TẠO THIỆP MỪNG 20.10" -> CHỌN CHẾ ĐỘ ("LỜI CHÚC DÀNH CHO BẠN" / "SOẠN CHO NGƯỜI THÂN") -> 2 NÚT CHỌN HÌNH ======
+    const step1CtaModes = document.getElementById('step1-cta-modes');
+    const modeSelfWishBtn = document.getElementById('mode-self-wish-btn');
+    const modeCustomGiftBtn = document.getElementById('mode-custom-gift-btn');
+    const step1BackModeBtn = document.getElementById('step1-back-mode-btn');
+
+    window.selectedCreationFlow = 'gift'; // 'self' ("Lời chúc dành cho bạn") | 'gift' ("Soạn lời chúc cho người thân")
+
     if (startCreateCardBtn && uploadWrapperEl) {
         startCreateCardBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            uploadWrapperEl.classList.add('cta-expanded');
+            uploadWrapperEl.classList.remove('cta-expanded');
+            uploadWrapperEl.classList.add('cta-stage-modes');
             startCreateCardBtn.setAttribute('aria-expanded', 'true');
-            if (step1CtaChoices) {
-                step1CtaChoices.setAttribute('aria-hidden', 'false');
-            }
+            if (step1CtaModes) step1CtaModes.setAttribute('aria-hidden', 'false');
+            if (step1CtaChoices) step1CtaChoices.setAttribute('aria-hidden', 'true');
             if (typeof spawnTouchSparkle === 'function') {
                 const rect = startCreateCardBtn.getBoundingClientRect();
-                const cx = rect.left + rect.width / 2;
-                const cy = rect.top + rect.height / 2;
-                spawnTouchSparkle(cx, cy, 10);
+                spawnTouchSparkle(rect.left + rect.width / 2, rect.top + rect.height / 2, 10);
             }
+        });
+    }
+
+    function selectStep1FlowMode(mode, triggerBtn) {
+        window.selectedCreationFlow = mode === 'self' ? 'self' : 'gift';
+        if (uploadWrapperEl) {
+            uploadWrapperEl.classList.remove('cta-stage-modes');
+            uploadWrapperEl.classList.add('cta-expanded');
+        }
+        if (step1CtaModes) step1CtaModes.setAttribute('aria-hidden', 'true');
+        if (step1CtaChoices) step1CtaChoices.setAttribute('aria-hidden', 'false');
+        if (triggerBtn && typeof spawnTouchSparkle === 'function') {
+            const rect = triggerBtn.getBoundingClientRect();
+            spawnTouchSparkle(rect.left + rect.width / 2, rect.top + rect.height / 2, 10);
+        }
+    }
+
+    if (modeSelfWishBtn) {
+        modeSelfWishBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectStep1FlowMode('self', modeSelfWishBtn);
+        });
+    }
+
+    if (modeCustomGiftBtn) {
+        modeCustomGiftBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectStep1FlowMode('gift', modeCustomGiftBtn);
+        });
+    }
+
+    if (step1BackModeBtn && uploadWrapperEl) {
+        step1BackModeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            uploadWrapperEl.classList.remove('cta-expanded');
+            uploadWrapperEl.classList.add('cta-stage-modes');
+            if (step1CtaModes) step1CtaModes.setAttribute('aria-hidden', 'false');
+            if (step1CtaChoices) step1CtaChoices.setAttribute('aria-hidden', 'true');
         });
     }
 
@@ -1436,6 +1479,7 @@
         inputEl.addEventListener('change', (e) => {
             const file = e.target && e.target.files && e.target.files[0];
             if (!file) return;
+            if (window.selectedCreationFlow === 'self') return;
             captureStep1OriginForMorph();
         }, true);
     });
