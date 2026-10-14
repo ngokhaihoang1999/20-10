@@ -2533,12 +2533,59 @@ renderFrameList();
 
 let originalImgSrc = null;
 let currentSelectedFilter = 'none';
+let currentFilterIntensity = 100;
+
+function getEffectiveFilterCss(rawFilter = currentSelectedFilter, intensityPct = currentFilterIntensity) {
+    if (!rawFilter || rawFilter === 'none') return 'none';
+    const pct = Math.max(0, Math.min(100, Number(intensityPct)));
+    if (pct <= 0) return 'none';
+    if (pct >= 99.9) return rawFilter;
+    const t = pct / 100;
+    return rawFilter.replace(/(brightness|contrast|saturate|sepia|hue-rotate)\(([-+]?\d*\.?\d+)(deg)?\)/g, (_, fn, numStr, unit) => {
+        const val = parseFloat(numStr);
+        if (Number.isNaN(val)) return `${fn}(${numStr}${unit || ''})`;
+        if (fn === 'brightness' || fn === 'contrast' || fn === 'saturate') {
+            const interp = 1 + (val - 1) * t;
+            return `${fn}(${interp.toFixed(3)})`;
+        }
+        if (fn === 'sepia') {
+            const interp = val * t;
+            return `${fn}(${interp.toFixed(3)})`;
+        }
+        if (fn === 'hue-rotate') {
+            const interp = val * t;
+            return `${fn}(${interp.toFixed(2)}${unit || 'deg'})`;
+        }
+        return `${fn}(${numStr}${unit || ''})`;
+    });
+}
+
+function syncFilterIntensityUI() {
+    const slider = document.getElementById('filter-intensity-slider');
+    const valLabel = document.getElementById('filter-intensity-value');
+    const row = document.getElementById('filter-intensity-row');
+    const isNone = !currentSelectedFilter || currentSelectedFilter === 'none';
+    const displayPct = isNone ? 0 : Math.round(Math.max(0, Math.min(100, currentFilterIntensity)));
+
+    if (slider) {
+        slider.value = String(displayPct);
+        slider.style.background = `linear-gradient(90deg, #0f7b5f 0%, #d4af37 ${displayPct}%, #dbece5 ${displayPct}%, #dbece5 100%)`;
+    }
+    if (valLabel) {
+        valLabel.textContent = isNone ? 'Gốc' : `${displayPct}%`;
+    }
+    if (row) {
+        row.classList.toggle('is-disabled', isNone);
+    }
+}
 
 function applyFilterToPreview() {
+    const effectiveCss = getEffectiveFilterCss();
     const previewImgs = document.querySelectorAll('.cropper-canvas img, .cropper-view-box img');
     previewImgs.forEach(img => {
-        img.style.filter = currentSelectedFilter;
+        img.style.filter = effectiveCss;
     });
+    syncFilterIntensityUI();
 }
 
 document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -2546,10 +2593,28 @@ document.querySelectorAll('.filter-btn').forEach(btn => {
         const targetBtn = e.currentTarget;
         document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
         targetBtn.classList.add('active');
-        currentSelectedFilter = targetBtn.getAttribute('data-filter');
+        currentSelectedFilter = targetBtn.getAttribute('data-filter') || 'none';
+        if (currentSelectedFilter !== 'none' && currentFilterIntensity <= 5) {
+            currentFilterIntensity = 100;
+        }
         applyFilterToPreview();
         scrollChipIntoCenter(targetBtn);
     });
+});
+
+document.getElementById('filter-intensity-slider')?.addEventListener('input', (e) => {
+    const nextVal = Math.max(0, Math.min(100, Number(e.target.value)));
+    currentFilterIntensity = nextVal;
+    // Nếu đang ở "✨ Gốc" mà người dùng kéo thanh mức độ filter -> Tự động kích hoạt bộ lọc "🌸 Hồng đào" để thấy hiệu ứng ngay lập tức
+    if ((!currentSelectedFilter || currentSelectedFilter === 'none') && nextVal > 0) {
+        const firstColorFilterBtn = document.querySelector('#filter-list .filter-btn:not([data-filter="none"])');
+        if (firstColorFilterBtn) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            firstColorFilterBtn.classList.add('active');
+            currentSelectedFilter = firstColorFilterBtn.getAttribute('data-filter') || 'none';
+        }
+    }
+    applyFilterToPreview();
 });
 
 function handleFlipHorizontal() {
@@ -2607,7 +2672,7 @@ function createAutoCroppedPortraitCanvas(rawImg, targetW = 1024, targetH = 1526)
     return c;
 }
 
-// Tạo huy chương tròn chứa ảnh chân dung người dùng để bay lên bầu trời trong pha mở đầu "Chờ đợi thông điệp từ trên trời"
+// Tạo huy chương tròn chứa ảnh chân dung người dùng (đã áp đúng Filter & Mức độ Filter đã chọn) để gắn trong Lõi Sao Băng
 function buildSkyOracleUserThumbCanvas(rawImg) {
     const size = 220;
     const c = document.createElement('canvas');
@@ -2619,19 +2684,57 @@ function buildSkyOracleUserThumbCanvas(rawImg) {
     const s = Math.min(sw, sh);
     const sx = (sw - s) * 0.5;
     const sy = (sh - s) * 0.32;
+    const effFilter = getEffectiveFilterCss();
 
     ctx.save();
     ctx.beginPath();
     ctx.arc(size / 2, size / 2, size / 2 - 4, 0, Math.PI * 2);
     ctx.closePath();
     ctx.clip();
+    if (effFilter !== 'none') ctx.filter = effFilter;
     ctx.drawImage(rawImg, sx, sy, s, s, 0, 0, size, size);
+    ctx.filter = 'none';
+    ctx.restore();
+    return c;
+}
+
+// Tạo Bức Ảnh Chân Dung Chữ Nhật Bo Góc Vàng 24K (240x358) từ ảnh đã căn chỉnh & áp Filter của người dùng
+// để trình diễn liền mạch quá trình: Bức Ảnh Chữ Nhật -> Cuộn Hoá Thành Lõi Sao Băng -> Mở Ra Thành Tấm Thiệp Trong Bì Thư!
+function buildSkyOracleUserCardPhotoCanvas(rawImg) {
+    const w = 240;
+    const h = 358;
+    const r = 20;
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    const effFilter = getEffectiveFilterCss();
+
+    ctx.save();
+    traceRoundedWindowPath(ctx, 4, 4, w - 8, h - 8, r);
+    ctx.clip();
+    if (effFilter !== 'none') ctx.filter = effFilter;
+    ctx.drawImage(rawImg, 0, 0, rawImg.width || w, rawImg.height || h, 4, 4, w - 8, h - 8);
+    ctx.filter = 'none';
+    ctx.restore();
+
+    // Viền Vàng Hoàng Kim 24K bao quanh bức ảnh
+    ctx.save();
+    const borderGrad = ctx.createLinearGradient(0, 0, w, h);
+    borderGrad.addColorStop(0, '#fff4b8');
+    borderGrad.addColorStop(0.5, '#d4af37');
+    borderGrad.addColorStop(1, '#fff3b0');
+    ctx.strokeStyle = borderGrad;
+    ctx.lineWidth = 4.5;
+    traceRoundedWindowPath(ctx, 4, 4, w - 8, h - 8, r);
+    ctx.stroke();
     ctx.restore();
     return c;
 }
 
 window.isSelfOracleMode = false;
 window.skyOracleUserThumbCanvas = null;
+window.skyOracleUserCardPhotoCanvas = null;
 let cachedSelfOracleCommonOverlayUrl = '';
 
 // Tạo Khuôn Chung Của Thiệp (Universal Common Card Frame Overlay 1024 x 1526) cho chế độ "Lời chúc dành cho bạn":
@@ -2731,7 +2834,8 @@ function buildSelfOracleCommonFrameOverlayDataUrl() {
     return cachedSelfOracleCommonOverlayUrl;
 }
 
-// Hàm bốc thăm ngẫu nhiên 100% Khung + Viền + Tông màu + Filter + Lời chúc + Hiệu ứng mở 3D cho luồng "Lời chúc dành cho bạn" (chạy ngay sau khi người dùng đã căn ảnh ưng ý!)
+// Hàm bốc thăm ngẫu nhiên Khung + Viền + Tông màu + Lời chúc + Hiệu ứng mở 3D cho luồng "Lời chúc dành cho bạn"
+// (GIỮ NGUYÊN 100% Filter màu & Mức độ Filter mà người dùng đã tự chọn!)
 function applyRandomSelfOracleArtSelections() {
     currentSelectedFrameId = Math.floor(Math.random() * framesConfig.length);
     const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
@@ -2747,14 +2851,6 @@ function applyRandomSelfOracleArtSelections() {
     } else {
         currentBorderStyle = borderKeys[Math.floor(Math.random() * borderKeys.length)];
         currentColorTheme = themeKeys[Math.floor(Math.random() * themeKeys.length)];
-    }
-
-    const filterBtns = Array.from(document.querySelectorAll('#filter-list .filter-btn'));
-    if (filterBtns.length > 0) {
-        const pickedBtn = filterBtns[Math.floor(Math.random() * filterBtns.length)];
-        currentSelectedFilter = pickedBtn.getAttribute('data-filter') || 'none';
-    } else {
-        currentSelectedFilter = 'none';
     }
 
     const randomMotion = motionKeys[Math.floor(Math.random() * motionKeys.length)];
@@ -2785,7 +2881,7 @@ async function handleImageInput(e) {
     currentScaleX = 1;
     hasGeneratedQuoteOnce = false;
 
-    // Cả 2 nhánh ("Lời chúc dành cho bạn" và "Soạn lời chúc cho người thân") đều vào Bước 2 để người dùng tự tay căn góc ảnh theo khuôn chung của thiệp!
+    // Cả 2 nhánh ("Lời chúc dành cho bạn" và "Soạn lời chúc cho người thân") đều vào Bước 2 để người dùng tự tay căn góc ảnh + chỉnh Filter theo khuôn chung của thiệp!
     window.isSelfOracleMode = (window.selectedCreationFlow === 'self');
     document.body.classList.toggle('self-oracle-mode', window.isSelfOracleMode);
 
@@ -2793,15 +2889,16 @@ async function handleImageInput(e) {
     const generateBtnEl = document.getElementById('generate-final-btn');
 
     if (window.isSelfOracleMode) {
-        if (headerTitleEl) headerTitleEl.textContent = '✨ Căn Chỉnh Ảnh 🌸';
+        if (headerTitleEl) headerTitleEl.textContent = '✨ Căn Ảnh & Chọn Filter 🌸';
         if (generateBtnEl) generateBtnEl.textContent = 'Nhận lời chúc';
         currentWishMode = 'surprise';
-        currentSelectedFilter = 'none';
         currentBorderStyle = 'sakura';
         currentColorTheme = 'emerald';
+        syncFilterIntensityUI();
     } else {
         if (headerTitleEl) headerTitleEl.textContent = '✨ Thiết Kế Thiệp 🌸';
         if (generateBtnEl) generateBtnEl.textContent = 'Tạo thiệp';
+        syncFilterIntensityUI();
         // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
         const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
         if (cfg && CONCEPT_HARMONY_MAP[cfg.concept]) {
@@ -3098,44 +3195,40 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
 
         const canvas = cropperObj.getCroppedCanvas({ width: targetW, height: targetH });
 
-        // Nhánh 1: Luồng "Lời chúc dành cho bạn" -> Sau khi người dùng đã căn ảnh ưng ý theo khuôn chung, bốc thăm ngẫu nhiên 100% và chạy Motion Chờ Đợi Thông Điệp Từ Trên Trời!
+        // Nhánh 1: Luồng "Lời chúc dành cho bạn" -> Sau khi người dùng đã căn ảnh & chọn Filter ưng ý, kết xuất thiệp trước 100% để không bao giờ gây khựng nhịp trong lúc chạy One-Shot 3D Cutscene!
         if (window.isSelfOracleMode) {
-            window.isRecipientCardImageReady = false;
             window.skyOracleUserThumbCanvas = buildSkyOracleUserThumbCanvas(canvas);
+            window.skyOracleUserCardPhotoCanvas = buildSkyOracleUserCardPhotoCanvas(canvas);
             const randomMotion = applyRandomSelfOracleArtSelections();
+            currentUserImage = canvas;
 
-            document.body.classList.remove('step2-previewing-3d');
-            btn.innerHTML = originalHTML;
-            btn.disabled = false;
+            ensureQuoteFont().then(() => {
+                drawCanvasImageText(finalResultCanvas, true, false);
+                window.isRecipientCardImageReady = true;
+                fitCardShowcaseToWrap();
 
-            if (typeof window.launchUnified3DEnvelopeDirector === 'function') {
-                window.launchUnified3DEnvelopeDirector({
-                    autoOpen: false,
-                    skyOracleMode: true,
-                    motionId: randomMotion,
-                    themeKey: currentColorTheme,
-                    isRealRecipient: false,
-                    isStep2Preview: false,
-                    onComplete: () => {
-                        triggerCelebrationBurst();
-                        showCardFloatingBadge('🌸 Lời chúc 20.10 dành riêng cho bạn đã mở!');
-                    }
-                });
-            }
+                document.body.classList.remove('step2-previewing-3d');
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
 
-            const img = new Image();
-            img.onload = function () {
-                currentUserImage = img;
-                ensureQuoteFont().then(() => {
-                    drawCanvasImageText(finalResultCanvas, true, false);
-                    window.isRecipientCardImageReady = true;
-                    fitCardShowcaseToWrap();
-                    if (typeof window.schedulePreUploadCardToTelegram === 'function') {
-                        window.schedulePreUploadCardToTelegram();
-                    }
-                });
-            };
-            img.src = canvas.toDataURL('image/jpeg', 0.95);
+                if (typeof window.launchUnified3DEnvelopeDirector === 'function') {
+                    window.launchUnified3DEnvelopeDirector({
+                        autoOpen: false,
+                        skyOracleMode: true,
+                        motionId: randomMotion,
+                        themeKey: currentColorTheme,
+                        isRealRecipient: false,
+                        isStep2Preview: false,
+                        onComplete: () => {
+                            triggerCelebrationBurst();
+                            showCardFloatingBadge('🌸 Lời chúc 20.10 dành riêng cho bạn đã mở!');
+                            if (typeof window.schedulePreUploadCardToTelegram === 'function') {
+                                window.schedulePreUploadCardToTelegram();
+                            }
+                        }
+                    });
+                }
+            });
             return;
         }
 
@@ -3880,7 +3973,8 @@ function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
         ctx.beginPath();
         traceConceptPhotoWindow(ctx, concept, targetW, originH, scale);
         ctx.clip();
-        if (currentSelectedFilter !== 'none') ctx.filter = currentSelectedFilter;
+        const effGlassFilter = getEffectiveFilterCss();
+        if (effGlassFilter !== 'none') ctx.filter = effGlassFilter;
         ctx.drawImage(currentUserImage, 0, 0, targetW, originH);
         ctx.filter = 'none';
         ctx.restore();
@@ -3901,13 +3995,14 @@ function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
             drawBottomAmbientDecor(ctx, targetW, originH, textSpaceHeight, scale, theme);
         }
 
-        // 2. Cắt ảnh người dùng chính xác theo cửa sổ của từng mẫu và áp bộ lọc màu
+        // 2. Cắt ảnh người dùng chính xác theo cửa sổ của từng mẫu và áp bộ lọc màu + mức độ ảnh hưởng
         ctx.save();
         ctx.beginPath();
         traceConceptPhotoWindow(ctx, concept, targetW, originH, scale);
         ctx.clip();
-        if (currentSelectedFilter !== 'none') {
-            ctx.filter = currentSelectedFilter;
+        const effMainFilter = getEffectiveFilterCss();
+        if (effMainFilter !== 'none') {
+            ctx.filter = effMainFilter;
         }
         ctx.drawImage(currentUserImage, 0, 0, targetW, originH);
         ctx.filter = 'none';
@@ -6757,83 +6852,113 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         };
     }
 
-    // ====== KỊCH BẢN PHÂN CẢNH 4-CUT CAMERA GENSHIN IMPACT 5 SAO (6.00 GIÂY) ======
-    // Cut 1 (0.00s -> 1.35s): Low-Angle Celestia Cloud Sea & Whip-Tilt Up to Zenith Gate
-    // Cut 2 (1.35s -> 3.45s): HARD CUT -> -38° Diagonal High-Speed Tracking Chase + Hit-Stop (2.20s-2.36s) + 5-Star Gold Awakening (2.36s)
-    // Cut 3 (3.45s -> 4.85s): CAMERA CUT -> Extreme Close-Up Dutch-Roll Elemental Theme Vortex slicing through Volumetric FBM Clouds
-    // Cut 4 (4.85s -> 6.00s): HARD CUT -> Direct Z-Axis Lens Crash (4.85s-5.34s) & Genshin 5-Star Golden Screen Washout (5.34s-6.00s)
+    // ====== KỊCH BẢN ONE-SHOT CAMERA LIỀN MẠCH CÓ SPEED-RAMPING (6.20 GIÂY - KHÔNG HARD CUT!) ======
+    // Pha 1 (0.00s -> 1.45s): Bức Ảnh Chữ Nhật cuộn hoá thành Lõi Sao (Slow-Mo 0.42x) rồi bay vút lên Cổng Trời Thiên Đỉnh (Fast 1.82x)
+    // Pha 2 (1.45s -> 2.65s): Lõi Sao chạm Cổng Trời, nhận Lời Chúc Vàng 5 Sao & uốn vòng cung 180° (Apex U-Turn) trong Bullet-Time Slow-Mo (0.28x)
+    // Pha 3 (2.65s -> 4.85s): Máy quay tăng tốc vượt mặt & BỌC QUA ĐẦU SAO (Front-Lead Orbit), luôn nhìn ngược về Đầu Sao để quay trọn cả Đầu Sao lẫn Biển Mây 3D cuồn cuộn phía dưới (Nhanh 1.78x -> Chậm 0.34x -> Nhanh 1.92x)
+    // Pha 4 (4.85s -> 6.20s): Sao băng 5 Sao lao tới tâm ống kính và mở tung từ Lõi Sao thành Lá Thư Ánh Kim trước khi gói vào Phong Bì 3D!
     function computeSkyGachaCamera(elapsed) {
-        const cam = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0, fov: 700, shakeX: 0, shakeY: 0, cut: 1, zoom: 1.0, whipSpeedMult: 1.0 };
-        if (elapsed < 1.35) {
+        const cam = {
+            x: 0, y: 0, z: 0,
+            pitch: 0, yaw: 0, roll: 0,
+            fov: 700,
+            shakeX: 0, shakeY: 0,
+            cut: 1,
+            zoom: 1.0,
+            whipSpeedMult: 1.0,
+            orbitBlend: 0
+        };
+
+        if (elapsed < 1.45) {
             cam.cut = 1;
-            // Mở đầu nhìn ngang biển mây Celestia (pitch dương nhẹ), sau đó từ t=0.28s Whip-Tilt cực nhanh ngước thẳng lên Cổng Trời Thiên Đỉnh!
-            const p = Math.max(0, Math.min(1, (elapsed - 0.22) / 0.96));
+            // 0.00s -> 0.50s: Slow-Mo (0.42x) ngắm Bức Ảnh cuộn thành Lõi Sao; 0.50s -> 1.45s: Speed-Ramp (1.82x) Tilt-Up mượt mà theo Sao bay lên Cổng Trời!
+            const p = Math.max(0, Math.min(1, (elapsed - 0.36) / 1.09));
             const whipEase = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
-            cam.x = Math.sin(elapsed * 2.4) * 12 * (1 - whipEase);
-            cam.y = 45 - 95 * whipEase;
-            cam.z = 110 - 165 * whipEase;
-            cam.pitch = 0.16 - 0.50 * whipEase;
-            cam.roll = -0.04 * Math.sin(p * Math.PI);
-            cam.fov = 680 + 80 * whipEase;
-            if (elapsed >= 1.05) {
-                const s = (elapsed - 1.05) / 0.30;
-                cam.shakeX = Math.sin(elapsed * 120) * 6 * s;
-                cam.shakeY = Math.cos(elapsed * 105) * 5 * s;
-            }
-        } else if (elapsed < 3.45) {
+            cam.whipSpeedMult = elapsed < 0.48 ? 0.42 : (0.42 + 1.40 * Math.sin(p * Math.PI * 0.5));
+            cam.x = Math.sin(elapsed * 2.2) * 10 * (1 - whipEase);
+            cam.y = 48 - 102 * whipEase;
+            cam.z = 115 - 175 * whipEase;
+            cam.pitch = 0.15 - 0.53 * whipEase; // Từ +0.15 (nhìn ngang biển mây) ngước mượt lên -0.38 (Cổng Trời Thiên Đỉnh)
+            cam.roll = -0.035 * Math.sin(p * Math.PI);
+            cam.fov = 680 + 60 * whipEase;
+        } else if (elapsed < 2.65) {
             cam.cut = 2;
-            // HARD CUT sang góc máy bám đuổi chéo -38 độ kinh điển của Genshin Impact!
-            cam.roll = -0.08;
-            cam.fov = 720;
-            // Pha Dolly Push-In & Hit-Stop Singularity (2.02s -> 2.36s)
-            if (elapsed >= 2.02 && elapsed < 2.36) {
-                const zp = (elapsed - 2.02) / 0.34;
-                const zEase = zp * zp * (3 - 2 * zp);
-                cam.zoom = 1.0 + 0.52 * zEase;
-                // Hit-Stop Time Dilation ở 2.20s -> 2.36s: khựng nhịp 0.16s trước khi nổ Vàng 5 Sao!
-                cam.whipSpeedMult = elapsed >= 2.20 ? 0.08 : (1.0 - 0.65 * zEase);
-                cam.shakeX = Math.sin(elapsed * 150) * 3.5 * zEase;
-                cam.shakeY = Math.cos(elapsed * 135) * 3.5 * zEase;
-            } else if (elapsed >= 2.36) {
-                // Sau khi Thức Tỉnh Vàng 5 Sao (t = 2.36s): Camera giật lùi nhẹ vì xung lực rồi lao vút ở tốc độ 1.48x!
-                const ap = Math.min(1, (elapsed - 2.36) / 0.45);
-                const aEase = 1 - Math.pow(1 - ap, 3);
-                cam.zoom = 1.52 - 0.34 * aEase;
-                cam.whipSpeedMult = 1.48;
-                if (elapsed < 2.82) {
-                    const damper = Math.pow(1 - (elapsed - 2.36) / 0.46, 2);
-                    cam.shakeX = Math.sin(elapsed * 145) * 18 * damper;
-                    cam.shakeY = Math.cos(elapsed * 128) * 15 * damper;
-                }
+            // PHA 2 (1.45s -> 2.65s): ĐỈNH TRỜI BULLET-TIME SLOW-MOTION & VÒNG CUNG U-TURN 180° (KHÔNG CẮT CẢNH!)
+            const p = (elapsed - 1.45) / 1.20; // 0 -> 1
+            const smoothP = p * p * (3 - 2 * p);
+            // Speed-Ramp: Chậm lại ở đỉnh cổng trời (1.55s -> 2.15s: 0.28x) để ngắm Sao nhận Phép Màu Vàng 5 Sao & uốn vòng cung 180°, sau đó tăng tốc lao xuống!
+            if (elapsed < 2.15) {
+                cam.whipSpeedMult = 0.28;
+            } else {
+                const accelP = (elapsed - 2.15) / 0.50;
+                cam.whipSpeedMult = 0.28 + 1.50 * (accelP * accelP);
+            }
+            cam.x = Math.sin(smoothP * Math.PI) * 26;
+            cam.y = -54 + 34 * smoothP;
+            cam.z = -60 + 40 * smoothP;
+            // Máy quay nâng nhẹ lên đỉnh rồi nghiêng dần theo vòng cung U-Turn của ngôi sao
+            cam.pitch = -0.38 + 0.22 * smoothP;
+            cam.roll = -0.07 * Math.sin(smoothP * Math.PI);
+            cam.fov = 740 - 30 * smoothP;
+            cam.zoom = 1.0 + 0.28 * Math.sin(smoothP * Math.PI);
+
+            if (elapsed >= 1.88 && elapsed < 2.32) {
+                const damper = Math.pow(1 - (elapsed - 1.88) / 0.44, 2);
+                cam.shakeX = Math.sin(elapsed * 135) * 12 * damper;
+                cam.shakeY = Math.cos(elapsed * 120) * 10 * damper;
             }
         } else if (elapsed < 4.85) {
             cam.cut = 3;
-            // CAMERA CUT sang Cận Cảnh Xoáy Nguyên Tố Chủ Đề (Extreme Close-Up Barrel-Roll Flyby)
-            const p = (elapsed - 3.45) / 1.40;
-            const ease = p * p * (3 - 2 * p);
-            cam.zoom = 1.68 + 0.18 * Math.sin(p * Math.PI);
-            cam.roll = 0.28 * Math.cos(p * Math.PI); // Nghiêng máy Barrel-Roll từ +16° sang -16°
-            cam.whipSpeedMult = 1.62;
-            cam.shakeX = Math.sin(elapsed * 85) * 3.2;
-            cam.shakeY = Math.cos(elapsed * 78) * 2.8;
+            // PHA 3 (2.65s -> 4.85s): MÁY QUAY VƯỢT MẶT & BỌC QUA ĐẦU SAO (FRONT-LEAD ORBIT), LUÔN NHÌN VỀ ĐẦU SAO & CẢNH VẬT BIỂN MÂY PHÍA DƯỚI!
+            const p = (elapsed - 2.65) / 2.20; // 0 -> 1
+            // orbitBlend: 0 -> 1 trong 0.65s đầu (2.65s -> 3.30s) khi máy quay vượt lên bọc qua mũi sao băng!
+            const orbitP = Math.min(1, (elapsed - 2.65) / 0.68);
+            cam.orbitBlend = orbitP * orbitP * (3 - 2 * orbitP);
+
+            // Speed-Ramping Nghệ Thuật:
+            // - 2.65s -> 3.32s: Tăng tốc vượt mặt & bọc đầu sao (1.78x)
+            // - 3.32s -> 4.18s: Slow-Motion Điện Ảnh (0.34x) cận cảnh đối diện Đầu Sao 5 Sao & Biển Mây Khối 3D cuồn cuộn phía dưới
+            // - 4.18s -> 4.85s: Vọt tốc độ cao (1.92x) lao về điểm kết tinh!
+            if (elapsed < 3.32) {
+                cam.whipSpeedMult = 1.78;
+                cam.zoom = 1.12 + 0.52 * cam.orbitBlend;
+            } else if (elapsed < 4.18) {
+                const slowP = (elapsed - 3.32) / 0.86;
+                cam.whipSpeedMult = 0.34 + 0.12 * Math.cos(slowP * Math.PI);
+                cam.zoom = 1.64 + 0.14 * Math.sin(slowP * Math.PI);
+            } else {
+                const fastP = (elapsed - 4.18) / 0.67;
+                cam.whipSpeedMult = 0.46 + 1.48 * (fastP * fastP);
+                cam.zoom = 1.64 - 0.48 * (fastP * fastP);
+            }
+
+            cam.pitch = -0.16 + 0.28 * cam.orbitBlend;
+            cam.roll = 0.16 * Math.sin(p * Math.PI * 2);
+            cam.fov = 710;
+            cam.shakeX = Math.sin(elapsed * 78) * (2.4 * Math.min(1.2, cam.whipSpeedMult));
+            cam.shakeY = Math.cos(elapsed * 72) * (2.0 * Math.min(1.2, cam.whipSpeedMult));
         } else {
             cam.cut = 4;
-            // HARD CUT sang Góc Ngước Đối Xứng Trực Diện Đón Sao Băng Lao Thẳng Vào Ống Kính (4.85s -> 6.00s)
+            // PHA 4 (4.85s -> 6.20s): ĐÓN ĐẦU SAO BĂNG TẠI TÂM ỐNG KÍNH & MỞ TUNG THÀNH LÁ THƯ ÁNH KIM (STAR-TO-LETTER UNVEIL)
+            const p = (elapsed - 4.85) / 1.35;
+            const settleEase = Math.min(1, p / 0.35);
+            cam.orbitBlend = 1 - settleEase * 0.5;
             cam.x = 0;
             cam.y = 0;
             cam.z = 0;
-            cam.pitch = -0.18;
+            cam.pitch = 0.12 * (1 - settleEase);
             cam.roll = 0;
-            cam.fov = 680;
-            if (elapsed < 5.34) {
-                const cp = (elapsed - 4.85) / 0.49;
-                const tremor = cp * cp * 14;
-                cam.shakeX = Math.sin(elapsed * 140) * tremor;
-                cam.shakeY = Math.cos(elapsed * 125) * tremor;
-            } else if (elapsed < 5.75) {
-                const damper = Math.pow(1 - (elapsed - 5.34) / 0.41, 2);
-                cam.shakeX = Math.sin(elapsed * 130) * 22 * damper;
-                cam.shakeY = Math.cos(elapsed * 115) * 18 * damper;
+            cam.fov = 690;
+            cam.whipSpeedMult = elapsed < 5.26 ? 1.65 : 0.35;
+            if (elapsed < 5.26) {
+                const cp = (elapsed - 4.85) / 0.41;
+                const tremor = cp * cp * 10;
+                cam.shakeX = Math.sin(elapsed * 135) * tremor;
+                cam.shakeY = Math.cos(elapsed * 120) * tremor;
+            } else if (elapsed < 5.62) {
+                const damper = Math.pow(1 - (elapsed - 5.26) / 0.36, 2);
+                cam.shakeX = Math.sin(elapsed * 125) * 14 * damper;
+                cam.shakeY = Math.cos(elapsed * 110) * 11 * damper;
             }
         }
         return cam;
@@ -7048,14 +7173,16 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         ctx.restore();
     }
 
-    // Vẽ bầu trời 3D, Biển Mây Khối FBM Celestia, Cổng Trời Thiên Đỉnh & Hiện tượng Thiên Văn đặc trưng của 6 Chủ Đề 3D
+    // Vẽ bầu trời 3D One-Shot, Biển Mây Khối FBM Celestia phía dưới, Cổng Trời Thiên Đỉnh & Hiện tượng Thiên Văn đặc trưng của 6 Chủ Đề 3D
     function drawHeavenlySkyBeamsAndPortal(ctxB, ctxF, elapsed, intensity, screenCx, screenCy, vw, vh, camOverride) {
         if (intensity <= 0.01) return;
         const atlas = getU3DLuxurySpriteAtlas();
-        const cam = camOverride || { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0, fov: 700, shakeX: 0, shakeY: 0, cut: 1, zoom: 1.0 };
-        const gateProj = project3DWithCam(0, -420, -920, cam, screenCx, screenCy) || { sx: screenCx, sy: vh * 0.18, scale: 0.44 };
-        const skyCx = (cam.cut === 2 || cam.cut === 3) ? vw * 0.78 : gateProj.sx;
-        const skyCy = (cam.cut === 2 || cam.cut === 3) ? vh * 0.16 : gateProj.sy;
+        const cam = camOverride || { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0, fov: 700, shakeX: 0, shakeY: 0, cut: 1, zoom: 1.0, orbitBlend: 0 };
+        const gateProj = project3DWithCam(0, -420, -920, cam, screenCx, screenCy) || { sx: screenCx, sy: vh * 0.16, scale: 0.44 };
+        // Ở Pha 3 (khi máy quay bọc qua đầu sao nhìn ngược lên đầu sao và biển mây phía dưới), Cổng Trời nằm ở phía trên đầu sao băng!
+        const orbitBlend = cam.orbitBlend || 0;
+        const skyCx = gateProj.sx * (1 - orbitBlend * 0.35) + (vw * 0.56) * (orbitBlend * 0.35);
+        const skyCy = gateProj.sy * (1 - orbitBlend * 0.45) + (vh * 0.14) * (orbitBlend * 0.45);
 
         // 1. Nền vòm trời đêm vũ trụ 3D sâu thẳm & tinh vân theo từng chủ đề (ctxBack)
         ctxB.save();
@@ -7113,56 +7240,52 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
         const primaryCloudSprite = (cfg.id === 'butterflies') ? atlas.cloudEmerald : ((cfg.id === 'galaxy' || cfg.id === 'hearts') ? atlas.cloudAstral : atlas.cloudRose);
 
-        // ====== CHẾ ĐỘ CUỘN PARALLAX CHÉO TỐC ĐỘ CAO (CUT 2 & CUT 3) SO VỚI GÓC QUAY CỔNG TRỜI & BIỂN MÂY CELESTIA (CUT 1 & CUT 4) ======
-        if (cam.cut === 2 || cam.cut === 3) {
-            // Ở Cut 2 & Cut 3: Toàn bộ 96 Ngôi Sao & 22 Tầng Mây Khối FBM lao vút chéo từ Trái-Dưới lên Phải-Trên với tốc độ bàn thờ (~2,400 px/s)!
-            const diagAngle = -0.66; // -38 độ (vector bay từ Phải-Trên xuống Trái-Dưới; nền trôi ngược lại từ Trái-Dưới lên Phải-Trên)
-            const bgDirX = Math.cos(diagAngle);
-            const bgDirY = Math.sin(diagAngle);
-            const bgPerpX = -bgDirY;
-            const bgPerpY = bgDirX;
-            const spanW = Math.hypot(vw, vh) * 1.45;
-            const isGoldNow = elapsed >= 2.36;
+        // ====== PHA 3 (2.65s -> 4.85s): GÓC MÁY BỌC QUA ĐẦU SAO NHÌN NGƯỢC VỀ ĐẦU SAO & TOÀN CẢNH BIỂN MÂY 3D CUỒN CUỘN PHÍA DƯỚI! ======
+        if (cam.cut === 3) {
+            const isGoldNow = true;
+            const spanW = Math.hypot(vw, vh) * 1.38;
 
-            // Vẽ 96 Ngôi Sao Vũ Trụ kéo vệt Motion-Blur chéo theo tốc độ Camera Whip
+            // 1. Vẽ 96 Ngôi Sao Vũ Trụ lao vút từ dưới lên trên tạo cảm giác Đầu Sao đang bổ nhào xuống thế giới bên dưới!
             ctxB.save();
             ctxB.globalCompositeOperation = 'lighter';
             for (let s = 0; s < skyBgStars.length; s++) {
                 const st = skyBgStars[s];
-                const travel = (st.u * spanW + skyWhipScrollDist * st.depthLayer * 0.55) % spanW;
-                const across = (st.v - 0.5) * spanW;
-                const sx = screenCx + bgDirX * (travel - spanW * 0.5) + bgPerpX * across + (cam.shakeX || 0);
-                const sy = screenCy + bgDirY * (travel - spanW * 0.5) + bgPerpY * across + (cam.shakeY || 0);
-                if (sx < -60 || sx > vw + 60 || sy < -60 || sy > vh + 60) continue;
+                const laneX = (st.v - 0.5) * vw * 1.25;
+                const flowY = vh - ((st.u * vh * 1.3 + skyWhipScrollDist * st.depthLayer * 0.48) % (vh * 1.3));
+                const sx = screenCx + laneX + (cam.shakeX || 0);
+                const sy = flowY + (cam.shakeY || 0);
+                if (sx < -40 || sx > vw + 40 || sy < -40 || sy > vh + 40) continue;
 
-                const streakLen = Math.max(3, 28 * st.depthLayer * cam.whipSpeedMult);
+                const streakLen = Math.max(4, 26 * st.depthLayer * cam.whipSpeedMult);
                 ctxB.globalAlpha = Math.min(1, intensity * (0.45 + 0.45 * st.depthLayer));
-                ctxB.strokeStyle = isGoldNow && s % 2 === 0 ? '#ffe57f' : st.color;
+                ctxB.strokeStyle = s % 2 === 0 ? '#ffe57f' : st.color;
                 ctxB.lineWidth = Math.max(1.0, st.size * 0.68 * st.depthLayer);
                 ctxB.beginPath();
                 ctxB.moveTo(sx, sy);
-                ctxB.lineTo(sx - bgDirX * streakLen, sy - bgDirY * streakLen);
+                ctxB.lineTo(sx - laneX * 0.04, sy + streakLen);
                 ctxB.stroke();
             }
             ctxB.restore();
 
-            // Vẽ 22 Tầng Mây Khối 3D FBM (Volumetric FBM Cloud Banks) bị Sao Băng xé toạc và nhuộm sáng Vàng 24K / Thiên Thanh khi lướt qua!
+            // 2. Vẽ Thung Lũng Biển Mây Khối 3D FBM Phía Dưới Đầu Sao (Panoramic 3D Cloudscape Rushing Underneath the Meteor Head!)
+            // Các tầng mây nở rộng và rẽ sang 2 bên phía dưới đầu sao khi camera lùi phía trước mũi sao băng!
             for (let c = 0; c < skyClouds3D.length; c++) {
                 const cl = skyClouds3D[c];
-                const travel = (cl.u * spanW * 1.25 + skyWhipScrollDist * cl.depthLayer) % (spanW * 1.25);
-                const across = (cl.v - 0.5) * spanW * 0.95;
-                const cx = screenCx + bgDirX * (travel - spanW * 0.62) + bgPerpX * across + (cam.shakeX || 0);
-                const cy = screenCy + bgDirY * (travel - spanW * 0.62) + bgPerpY * across + (cam.shakeY || 0);
-                const cScale = (0.55 + cl.depthLayer * 0.65) * (cam.cut === 3 ? 1.28 : 1.0);
-                const cw = cl.w * cScale;
-                const ch = cl.h * cScale;
-                if (cx + cw * 0.5 < -80 || cx - cw * 0.5 > vw + 80 || cy + ch * 0.5 < -80 || cy - ch * 0.5 > vh + 80) continue;
+                const cycle = ((cl.u + (skyWhipScrollDist * 0.00038 * cl.depthLayer)) % 1);
+                // Mây trôi từ đáy/chân trời phía dưới ngược lên và tỏa rộng sang 2 bên theo luật phối cảnh 3D
+                const persp = 0.42 + cycle * 1.15;
+                const sideSign = c % 2 === 0 ? -1 : 1;
+                const cx = screenCx + sideSign * (0.12 + Math.abs(cl.v - 0.5) * 0.85) * vw * persp + (cam.shakeX || 0);
+                const cy = vh * (0.98 - cycle * 0.72) + (cam.shakeY || 0);
+                const cw = cl.w * (0.48 + cl.depthLayer * 0.55) * persp;
+                const ch = cl.h * (0.48 + cl.depthLayer * 0.55) * persp;
+                if (cx + cw * 0.5 < -90 || cx - cw * 0.5 > vw + 90 || cy + ch * 0.5 < -90 || cy - ch * 0.5 > vh + 90) continue;
 
-                const targetCtx = (cam.cut === 3 && c % 4 === 0) ? ctxF : ctxB;
+                const targetCtx = (c % 5 === 0 && cycle > 0.62) ? ctxF : ctxB;
                 targetCtx.save();
                 targetCtx.translate(cx, cy);
-                targetCtx.rotate(-cam.roll * 0.65);
-                targetCtx.globalAlpha = Math.min(1, cl.alpha * intensity * (cam.cut === 3 && c % 4 === 0 ? 0.68 : 0.92));
+                targetCtx.rotate(-cam.roll * 0.55);
+                targetCtx.globalAlpha = Math.min(1, cl.alpha * intensity * Math.sin(cycle * Math.PI) * (targetCtx === ctxF ? 0.58 : 0.92));
                 const spr = (isGoldNow && (cl.variant === 'gold' || c % 2 === 0)) ? atlas.cloudGold : primaryCloudSprite;
                 targetCtx.drawImage(spr, -cw * 0.5, -ch * 0.5, cw, ch);
                 targetCtx.restore();
@@ -7171,11 +7294,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             return;
         }
 
-        // ====== CUT 1 & CUT 4: BIỂN MÂY KHỐI FBM CELESTIA (3D CLOUD SEA HORIZON) & CỔNG TRỜI THIÊN ĐỈNH ======
-        // Tính vị trí Đường Chân Trời Biển Mây Celestia (Khi Camera Whip-Tilt ngước lên ở Cut 1, Biển Mây tụt nhanh xuống đáy màn hình!)
+        // ====== PHA 1, PHA 2 & PHA 4: BIỂN MÂY KHỐI FBM CELESTIA (3D CLOUD SEA HORIZON) & CỔNG TRỜI THIÊN ĐỈNH ======
         const horizonY = screenCy + (cam.pitch + 0.08) * vh * 1.45;
 
-        // Vẽ 14 Tầng Mây Khối FBM trải dài tạo thành Đại Hải Vân Celestia (Cloud Sea Horizon)
+        // Vẽ 22 Tầng Mây Khối FBM trải dài tạo thành Đại Hải Vân Celestia (Cloud Sea Horizon)
         for (let c = 0; c < skyClouds3D.length; c++) {
             const cl = skyClouds3D[c];
             const curX = cl.x + Math.sin(elapsed * 0.55 + c) * cl.driftSpd;
@@ -7403,7 +7525,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         }
     }
 
-    // ====== VẼ ĐẦU SAO BĂNG 5 SAO GENSHIN IMPACT & HỘ VỆ NGUYÊN TỐ 3D ĐỘC BẢN (HDR ADDITIVE BLOOM) ======
+    // ====== VẼ ĐẦU SAO BĂNG 5 SAO GENSHIN IMPACT (CÓ CHÂN DUNG NGƯỜI DÙNG TRONG LÕI SAO) & HỘ VỆ NGUYÊN TỐ 3D ĐỘC BẢN ======
     function drawGenshin5StarMeteorScreenCore(ctxF, sx, sy, scale, elapsed, isAwakened5Star, cam, screenCx, screenCy) {
         const atlas = getU3DLuxurySpriteAtlas();
         const s = Math.max(0.35, Math.min(9.5, scale));
@@ -7411,13 +7533,13 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         // 1. Vẽ Thấu Kính Quang Học Anamorphic & 6 Bóng Ma Lục Giác (Hexagonal Optical Lens Flare)
         drawGenshinOpticalLensFlare(ctxF, sx, sy, screenCx, screenCy, isAwakened5Star ? 0.96 : 0.72, isAwakened5Star, Math.min(2.4, s * 0.95));
 
-        // 2. Vẽ Hộ Vệ 3D / Pháp Trận Tinh Cầu Quay Quanh Đầu Sao Băng theo từng Chủ Đề (Đặc biệt rực rỡ ở Cut 3 Cận Cảnh!)
+        // 2. Vẽ Hộ Vệ 3D / Pháp Trận Tinh Cầu Quay Quanh Đầu Sao Băng theo từng Chủ Đề (Đặc biệt rực rỡ ở Pha 3 khi Camera bọc qua Đầu Sao!)
         const orbitCam = { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: cam.roll || 0, fov: 680, shakeX: 0, shakeY: 0 };
         if (cfg.id === 'butterflies') {
             const bCount = cam.cut === 3 ? 6 : 4;
             for (let b = 0; b < bCount; b++) {
                 const orbAng = elapsed * 5.8 + (b * Math.PI * 2) / bCount;
-                const orbRad = (56 + (b % 2) * 18) * s;
+                const orbRad = (58 + (b % 2) * 18) * s;
                 const bx = Math.cos(orbAng) * orbRad;
                 const by = Math.sin(orbAng * 1.3) * (orbRad * 0.64);
                 const bz = Math.sin(orbAng) * 45;
@@ -7441,7 +7563,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     cx: 0,
                     cy: 0,
                     cz: 0,
-                    radius: (48 + r * 26) * Math.min(2.2, s),
+                    radius: (50 + r * 26) * Math.min(2.2, s),
                     rx: elapsed * (4.2 - r * 1.5),
                     ry: elapsed * (2.9 + r * 1.9),
                     rz: elapsed * 4.6,
@@ -7465,7 +7587,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
         // Vòng Tán Sắc Thấu Kính (Chromatic Aberration Iris Ring)
         ctxF.save();
-        ctxF.globalAlpha = isAwakened5Star ? 0.52 : 0.36;
+        ctxF.globalAlpha = isAwakened5Star ? 0.54 : 0.38;
         ctxF.strokeStyle = isAwakened5Star ? '#ffd54f' : '#7dd3fc';
         ctxF.lineWidth = 2.4;
         ctxF.beginPath();
@@ -7496,30 +7618,29 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (cfg.id === 'bloom' || cfg.id === 'sakura') {
             const petalCount = cfg.id === 'sakura' ? 5 : 8;
             const pSprite = cfg.id === 'sakura' ? atlas.sakuraPetal : atlas.camelliaPetal;
-            const pR = 26;
+            const pR = 28;
             for (let i = 0; i < petalCount; i++) {
                 ctxF.save();
                 ctxF.rotate((i / petalCount) * Math.PI * 2);
-                ctxF.translate(0, -18);
+                ctxF.translate(0, -22);
                 ctxF.drawImage(pSprite, -pR, -pR, pR * 2, pR * 2);
                 ctxF.restore();
             }
         } else if (cfg.id === 'hearts') {
-            ctxF.drawImage(atlas.diamond, -42, -42, 84, 84);
+            ctxF.drawImage(atlas.diamond, -44, -44, 88, 88);
         } else if (cfg.id === 'ribbon') {
             for (let i = 0; i < 6; i++) {
                 const a = (i / 6) * Math.PI * 2;
-                ctxF.drawImage(atlas.pearl, Math.cos(a) * 26 - 8, Math.sin(a) * 26 - 8, 16, 16);
+                ctxF.drawImage(atlas.pearl, Math.cos(a) * 28 - 8, Math.sin(a) * 28 - 8, 16, 16);
             }
-            ctxF.drawImage(atlas.pearl, -15, -15, 30, 30);
         }
 
         // Ngôi sao 8 cánh Hoàng Kim 24K / Thiên Thanh sắc lẹm ở tâm
         for (let k = 0; k < 2; k++) {
             ctxF.save();
             if (k === 1) ctxF.rotate(Math.PI / 4);
-            const rL = k === 0 ? 54 : 34;
-            const rW = k === 0 ? 7.0 : 4.5;
+            const rL = k === 0 ? 58 : 38;
+            const rW = k === 0 ? 7.2 : 4.6;
             ctxF.fillStyle = k === 0 ? '#ffffff' : (isAwakened5Star ? '#ffd700' : '#7dd3fc');
             ctxF.beginPath();
             ctxF.moveTo(0, -rL);
@@ -7532,6 +7653,112 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             ctxF.restore();
         }
         ctxF.restore();
+        ctxF.restore();
+
+        // 4. Huy Chương Chân Dung Người Dùng nằm gọn trong Lõi Sao Băng (giúp người xem luôn thấy rõ bức hình của mình đang bay trong Đầu Sao!)
+        if (window.skyOracleUserThumbCanvas && s < 3.6) {
+            ctxF.save();
+            ctxF.translate(sx, sy);
+            ctxF.scale(s, s);
+            ctxF.globalAlpha = Math.max(0.18, Math.min(0.92, 1 - (s - 1.8) * 0.45));
+            const portR = 23;
+            ctxF.drawImage(window.skyOracleUserThumbCanvas, -portR, -portR, portR * 2, portR * 2);
+            ctxF.strokeStyle = isAwakened5Star ? '#ffd700' : '#7dd3fc';
+            ctxF.lineWidth = 2.2;
+            ctxF.beginPath();
+            ctxF.arc(0, 0, portR, 0, Math.PI * 2);
+            ctxF.stroke();
+            ctxF.restore();
+        }
+    }
+
+    // ====== VẼ QUÁ TRÌNH HOÁ THÂN LOGIC Ở CUỐI CẢNH 4: LÕI SAO MỞ TUNG THÀNH LÁ THƯ ÁNH KIM (ẢNH + DÒNG CHỮ VÀNG) & GẤP PHONG BÌ LỤA 3D ======
+    function drawStarToLetterEnvelopeWeave(ctxF, cx, cy, wp, elapsed) {
+        // wp: 0.0 -> 1.0 (từ 5.26s -> 6.20s)
+        const unfoldP = Math.min(1, wp / 0.58);
+        const easeUnfold = 1 - Math.pow(1 - unfoldP, 3);
+        const envWrapP = Math.max(0, Math.min(1, (wp - 0.42) / 0.58));
+
+        const cardW = 190 * (0.28 + 0.72 * easeUnfold);
+        const cardH = 282 * (0.28 + 0.72 * easeUnfold);
+        const cornerR = 18 + (1 - easeUnfold) * 65;
+
+        ctxF.save();
+        ctxF.translate(cx, cy);
+
+        // 1. Hào quang kết tinh phía sau Lá Thư Ánh Kim
+        ctxF.save();
+        ctxF.globalCompositeOperation = 'lighter';
+        const glowGrad = ctxF.createRadialGradient(0, 0, 12, 0, 0, Math.max(cardW, cardH) * 0.95);
+        glowGrad.addColorStop(0, 'rgba(255, 255, 240, 0.95)');
+        glowGrad.addColorStop(0.45, 'rgba(255, 215, 0, 0.65)');
+        glowGrad.addColorStop(1, 'rgba(255, 180, 0, 0)');
+        ctxF.fillStyle = glowGrad;
+        ctxF.beginPath();
+        ctxF.arc(0, 0, Math.max(cardW, cardH) * 0.95, 0, Math.PI * 2);
+        ctxF.fill();
+        ctxF.restore();
+
+        // 2. Thân Lá Thư Ngọc Trai Ánh Kim mở ra từ Lõi Sao
+        ctxF.save();
+        traceRoundedWindowPath(ctxF, -cardW * 0.5, -cardH * 0.5, cardW, cardH, cornerR);
+        const paperGrad = ctxF.createLinearGradient(-cardW * 0.5, -cardH * 0.5, cardW * 0.5, cardH * 0.5);
+        paperGrad.addColorStop(0, '#fffdf7');
+        paperGrad.addColorStop(0.5, '#fff6dc');
+        paperGrad.addColorStop(1, '#f9e8b2');
+        ctxF.fillStyle = paperGrad;
+        ctxF.fill();
+        ctxF.lineWidth = 3.2;
+        ctxF.strokeStyle = '#d4af37';
+        ctxF.stroke();
+        ctxF.clip();
+
+        // 2A. Hiển thị Bức Ảnh đã chỉnh Filter của người dùng ở nửa trên Lá Thư
+        const photoSrc = window.skyOracleUserCardPhotoCanvas || window.skyOracleUserThumbCanvas;
+        if (photoSrc) {
+            const pw = cardW * 0.84;
+            const ph = cardH * 0.58;
+            ctxF.drawImage(photoSrc, -pw * 0.5, -cardH * 0.44, pw, ph);
+            ctxF.strokeStyle = 'rgba(212, 175, 55, 0.85)';
+            ctxF.lineWidth = 1.8;
+            ctxF.strokeRect(-pw * 0.5, -cardH * 0.44, pw, ph);
+        }
+
+        // 2B. Ba dòng Thư Pháp Ánh Vàng 24K đang tự động khắc lời chúc 20.10 lên nửa dưới Lá Thư
+        const writeP = Math.max(0, Math.min(1, (wp - 0.16) / 0.62));
+        for (let line = 0; line < 3; line++) {
+            const lineP = Math.max(0, Math.min(1, (writeP - line * 0.22) / 0.48));
+            if (lineP <= 0) continue;
+            const maxLineW = cardW * (line === 2 ? 0.52 : 0.72);
+            const curLineW = maxLineW * lineP;
+            const ly = cardH * (0.21 + line * 0.085);
+            ctxF.strokeStyle = line === 0 ? '#b8861b' : '#d4af37';
+            ctxF.lineWidth = line === 0 ? 3.2 : 2.2;
+            ctxF.lineCap = 'round';
+            ctxF.beginPath();
+            ctxF.moveTo(-maxLineW * 0.5, ly);
+            ctxF.lineTo(-maxLineW * 0.5 + curLineW, ly);
+            ctxF.stroke();
+        }
+        ctxF.restore();
+
+        // 3. Cánh Phong Bì Lụa Ánh Kim bắt đầu ôm lấy Lá Thư ở nửa cuối (wp: 0.42 -> 1.0) để chuyển giao mượt sang Phong Bì 3D thật!
+        if (envWrapP > 0.01) {
+            const envW = cardW * (1.16 + 0.14 * envWrapP);
+            const envH = cardH * 0.62;
+            const pocketY = cardH * 0.52 * (1 - envWrapP);
+            ctxF.save();
+            ctxF.globalAlpha = Math.min(1, envWrapP * 1.15);
+            ctxF.translate(0, pocketY);
+            ctxF.fillStyle = 'rgba(15, 92, 70, 0.88)';
+            ctxF.strokeStyle = '#ffd700';
+            ctxF.lineWidth = 2.6;
+            traceRoundedWindowPath(ctxF, -envW * 0.5, -envH * 0.35, envW, envH, 14);
+            ctxF.fill();
+            ctxF.stroke();
+            ctxF.restore();
+        }
+
         ctxF.restore();
     }
 
@@ -7976,32 +8203,32 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         const cardInPocketW = baseW * pocketScale;
         const cardInPocketH = baseH * pocketScale;
 
-        // ====== TRẠNG THÁI 0-SKY-A: ĐẠI CẢNH GACHA 5 SAO GENSHIN IMPACT (6.00 GIÂY - 4-CUT HARD CAMERA CUTS + HDR ADDITIVE BLOOM + FBM VOLUMETRIC CLOUD SEA) ======
+        // ====== TRẠNG THÁI 0-SKY-A: ĐẠI CẢNH ONE-SHOT SPEED-RAMP "TỪ BỨC ẢNH HOÁ THÀNH BỨC THƯ 3D" (6.20 GIÂY LIỀN MẠCH) ======
         if (u3dCurrentDirectorState === 'sky_oracle') {
             const summonElapsed = (now - summonStartTime) / 1000;
-            const SKY_ORACLE_TOTAL = 6.00;
+            const SKY_ORACLE_TOTAL = 6.20;
             const atlas = getU3DLuxurySpriteAtlas();
 
             backRig.style.opacity = '0';
             frontRig.style.opacity = '0';
             cardActor.style.opacity = '0';
 
-            // 1. Tính Góc Máy 4-Cut Genshin Impact & Tốc độ cuộn Parallax Chéo
+            // 1. Tính Góc Máy One-Shot Liền Mạch & Speed-Ramping (Nhanh - Chậm tuỳ cảnh)
             const cam = computeSkyGachaCamera(summonElapsed);
-            const isAwakened5Star = summonElapsed >= 2.36;
+            const isAwakened5Star = summonElapsed >= 1.92;
             if (cam.cut === 2 || cam.cut === 3) {
-                skyWhipScrollDist += dt * 2350 * cam.whipSpeedMult;
+                skyWhipScrollDist += dt * 2250 * cam.whipSpeedMult;
             }
 
-            // 2. Vẽ Bầu Trời Vũ Trụ, Biển Mây Khối FBM Celestia & Cổng Trời Thiên Đỉnh
-            const portalIntensity = Math.min(1, summonElapsed / 0.35);
+            // 2. Vẽ Bầu Trời Vũ Trụ, Biển Mây Khối FBM Celestia phía dưới & Cổng Trời Thiên Đỉnh
+            const portalIntensity = Math.min(1, summonElapsed / 0.32);
             drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, summonElapsed, portalIntensity, screenCx, screenCy, curVw, curVh, cam);
 
-            // 3. Ở Cut 1 & Cut 4: Vẽ 3 Vòng Tinh Cầu Chòm Sao 3D xoay quanh Cổng Trời Thiên Đỉnh
-            if (cam.cut === 1 || cam.cut === 4) {
+            // 3. Vẽ 3 Vòng Tinh Cầu Chòm Sao 3D xoay quanh Cổng Trời Thiên Đỉnh (ở Pha 1, Pha 2 và Pha 4)
+            if (cam.cut === 1 || cam.cut === 2 || cam.cut === 4) {
                 for (let r = 0; r < skyZenithRings.length; r++) {
                     const zr = skyZenithRings[r];
-                    const speedBoost = (summonElapsed >= 0.95 && summonElapsed <= 1.35) ? 2.4 : 1.0;
+                    const speedBoost = (summonElapsed >= 1.45 && summonElapsed <= 2.25) ? 2.2 : 1.0;
                     zr.rx += zr.vrx * dt * speedBoost;
                     zr.ry += zr.vry * dt * speedBoost;
                     zr.rz += zr.vrz * dt * speedBoost;
@@ -8011,44 +8238,50 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             }
 
             // =========================================================================
-            // CUT 1 (0.00s -> 1.35s): "THE CELESTIA WISH & WHIP-TILT UP"
-            // Viên Ngọc Chân Dung bay vút từ Biển Mây Celestia lên Cổng Trời Thiên Đỉnh!
+            // PHA 1 (0.00s -> 1.45s): "PHOTO CONDENSATION & SKYWARD ASCENT"
+            // 0.00s -> 0.52s (Slow-Mo 0.42x): Bức ảnh chữ nhật của người dùng được dải lụa vàng quấn quanh, cuộn hoá thành Lõi Tinh Tú!
+            // 0.52s -> 1.45s (Speed-Ramp 1.82x): Lõi Tinh Tú mang theo bức ảnh phóng vút từ Biển Mây lên thẳng Cổng Trời Thiên Đỉnh!
             // =========================================================================
             if (cam.cut === 1) {
-                const p = Math.max(0, Math.min(1, (summonElapsed - 0.04) / 1.18));
-                const easeAscend = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
-                const medWx = Math.sin(p * Math.PI) * 28 * (1 - easeAscend);
-                const medWy = 115 + (-420 - 115) * easeAscend;
-                const medWz = 155 + (-920 - 155) * easeAscend;
-                const medProj = project3DWithCam(medWx, medWy, medWz, cam, screenCx, screenCy);
-                const medAlpha = p < 0.84 ? Math.min(1, summonElapsed / 0.16) : Math.max(0, (1 - p) / 0.16);
+                const condenseP = Math.max(0, Math.min(1, summonElapsed / 0.52));
+                const easeCondense = condenseP * condenseP * (3 - 2 * condenseP);
+                const ascendP = Math.max(0, Math.min(1, (summonElapsed - 0.42) / 1.03));
+                const easeAscend = ascendP < 0.5 ? 2 * ascendP * ascendP : 1 - Math.pow(-2 * ascendP + 2, 2) / 2;
 
-                if (medProj && medAlpha > 0.02) {
-                    const medScale = medProj.scale * Math.min(1, summonElapsed / 0.18);
-                    // Vẽ Dải Đuôi Năng Lượng Thiên Thanh & Hoàng Kim phóng thẳng từ dưới biển mây lên theo Viên Ngọc
-                    drawGenshinTaperedCometRibbon(
-                        ctxFront,
-                        medProj.sx,
-                        medProj.sy,
-                        0,
-                        1,
-                        Math.min(curVh * 0.55, 380 * medScale * (0.3 + p)),
-                        Math.max(14, 48 * medScale),
-                        summonElapsed,
-                        true
-                    );
+                const medWx = Math.sin(ascendP * Math.PI) * 24 * (1 - easeAscend);
+                const medWy = 110 + (-420 - 110) * easeAscend;
+                const medWz = 150 + (-920 - 150) * easeAscend;
+                const medProj = project3DWithCam(medWx, medWy, medWz, cam, screenCx, screenCy);
+
+                if (medProj) {
+                    const medScale = medProj.scale * Math.min(1, summonElapsed / 0.14);
+
+                    // Khi bắt đầu phóng lên (ascendP > 0.02), vẽ Dải Đuôi Sao Băng phóng thẳng từ dưới biển mây lên theo Lõi Tinh Tú
+                    if (ascendP > 0.02) {
+                        drawGenshinTaperedCometRibbon(
+                            ctxFront,
+                            medProj.sx,
+                            medProj.sy,
+                            0,
+                            1,
+                            Math.min(curVh * 0.55, 390 * medScale * (0.25 + ascendP)),
+                            Math.max(14, 46 * medScale),
+                            summonElapsed,
+                            false
+                        );
+                    }
 
                     ctxFront.save();
                     ctxFront.translate(medProj.sx, medProj.sy);
-                    ctxFront.globalAlpha = medAlpha;
 
+                    // Hào quang hội tụ khi Bức Ảnh cuộn thành Lõi Sao
                     ctxFront.save();
                     ctxFront.globalCompositeOperation = 'lighter';
-                    const haloR = Math.max(16, 98 * medScale);
+                    const haloR = Math.max(20, (115 - 22 * easeCondense) * medScale);
                     const haloGrad = ctxFront.createRadialGradient(0, 0, 4, 0, 0, haloR);
                     haloGrad.addColorStop(0, 'rgba(255, 255, 245, 1)');
-                    haloGrad.addColorStop(0.38, 'rgba(255, 215, 0, 0.78)');
-                    haloGrad.addColorStop(0.72, 'rgba(56, 189, 248, 0.42)');
+                    haloGrad.addColorStop(0.38, 'rgba(255, 215, 0, 0.82)');
+                    haloGrad.addColorStop(0.72, 'rgba(56, 189, 248, 0.46)');
                     haloGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
                     ctxFront.fillStyle = haloGrad;
                     ctxFront.beginPath();
@@ -8056,93 +8289,161 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     ctxFront.fill();
                     ctxFront.restore();
 
+                    // Giai đoạn 0.00s -> 0.52s: Bức ảnh chữ nhật (window.skyOracleUserCardPhotoCanvas) thu gọn & bo tròn dần thành Huy Chương Tinh Tú!
+                    if (condenseP < 0.96 && window.skyOracleUserCardPhotoCanvas) {
+                        const rectAlpha = 1 - Math.pow(condenseP, 1.8);
+                        const rectScale = (1 - easeCondense * 0.52) * medScale;
+                        const rw = 165 * rectScale;
+                        const rh = 246 * rectScale;
+                        ctxFront.save();
+                        ctxFront.globalAlpha = rectAlpha;
+                        ctxFront.rotate(easeCondense * 0.35);
+                        ctxFront.drawImage(window.skyOracleUserCardPhotoCanvas, -rw * 0.5, -rh * 0.5, rw, rh);
+                        ctxFront.restore();
+                    }
+
+                    // Huy chương tròn chứa ảnh chân dung trong Lõi Sao Băng hiện rõ dần khi ảnh chữ nhật cuộn lại
                     if (window.skyOracleUserThumbCanvas) {
-                        const drawR = 54 * medScale;
+                        const drawR = (66 - 14 * easeAscend) * medScale * (0.45 + 0.55 * easeCondense);
+                        ctxFront.save();
+                        ctxFront.globalAlpha = Math.min(1, condenseP * 1.45);
                         ctxFront.drawImage(window.skyOracleUserThumbCanvas, -drawR, -drawR, drawR * 2, drawR * 2);
                         ctxFront.strokeStyle = '#ffd700';
-                        ctxFront.lineWidth = Math.max(1.6, 3.4 * medScale);
+                        ctxFront.lineWidth = Math.max(1.8, 3.4 * medScale);
                         ctxFront.beginPath();
                         ctxFront.arc(0, 0, drawR, 0, Math.PI * 2);
                         ctxFront.stroke();
                         for (let b = 0; b < 8; b++) {
-                            const ba = (b / 8) * Math.PI * 2 + summonElapsed * 3.0;
-                            const pr = 5.8 * medScale;
+                            const ba = (b / 8) * Math.PI * 2 + summonElapsed * 3.4;
+                            const pr = 5.6 * medScale;
                             ctxFront.drawImage(atlas.pearl, Math.cos(ba) * drawR - pr, Math.sin(ba) * drawR - pr, pr * 2, pr * 2);
                         }
+                        ctxFront.restore();
                     }
                     ctxFront.restore();
 
-                    if (Math.random() < 0.78) {
-                        spawnSkyMeteorWakeParticle(medWx, medWy, medWz, true, 0.55);
-                    }
-                }
-
-                // Khi Viên Ngọc đâm thủng Cổng Trời Thiên Đỉnh (t = 1.08s -> 1.35s): Bùng Chớp Ngang Anamorphic Khai Mở Thiên Môn!
-                if (summonElapsed >= 1.08) {
-                    if (!hasTriggeredZenithFlash) {
-                        hasTriggeredZenithFlash = true;
-                        for (let k = 0; k < 24; k++) {
-                            spawnSkyMeteorWakeParticle(0, -420, -920, false, 1.5);
-                        }
-                        skyShockwaves.push({
-                            wx: 0, wy: -420, wz: -920,
-                            rx: 1.15, ry: 0.15, rz: 0,
-                            radius: 28, maxRadius: 520,
-                            life: 0, maxLife: 0.75,
-                            color: '#7dd3fc', glow: '#ffffff'
-                        });
-                    }
-                    const gateProj = project3DWithCam(0, -420, -920, cam, screenCx, screenCy);
-                    if (gateProj) {
-                        const fp = (summonElapsed - 1.08) / 0.27;
-                        drawGenshinOpticalLensFlare(ctxFront, gateProj.sx, gateProj.sy, screenCx, screenCy, Math.sin(fp * Math.PI), false, 1.85);
+                    if (Math.random() < 0.72) {
+                        spawnSkyMeteorWakeParticle(medWx, medWy, medWz, false, 0.55);
                     }
                 }
             }
 
             // =========================================================================
-            // CUT 2 (1.35s -> 3.45s) & CUT 3 (3.45s -> 4.85s):
-            // GÓC QUAY BÁM ĐUỔI CHÉO -38° TỐC ĐỘ CAO + HIT-STOP (2.20s-2.36s) + THỨC TỈNH VÀNG 5 SAO (2.36s) + CẬN CẢNH NGUYÊN TỐ CHỦ ĐỀ (CUT 3)
+            // PHA 2 (1.45s -> 2.65s): "BULLET-TIME APEX BLESSING & 180° U-TURN AT CELESTIAL GATE"
+            // Không cắt cảnh! Lõi Sao bay vào tâm Cổng Trời Thiên Đỉnh trong Slow-Motion (0.28x),
+            // hấp thụ Dải Lời Chúc Vàng 20.10 tại t=1.92s để thức tỉnh thành Sao Băng 5 Sao Hoàng Kim,
+            // rồi uốn một vòng cung Parabol 180° mượt mà ngay trên đỉnh trời để chúc mũi lao xuống thế giới bên dưới!
             // =========================================================================
-            if (cam.cut === 2 || cam.cut === 3) {
-                if (!hasTriggeredCut2Flash) {
-                    hasTriggeredCut2Flash = true;
-                    particles.length = 0; // Làm sạch hạt của Cut 1 để Hard Cut sang Cut 2 sắc lẹm chuẩn phim!
-                    skyShockwaves.length = 0;
-                }
-                if (cam.cut === 3 && !hasTriggeredCut3Flash) {
-                    hasTriggeredCut3Flash = true;
+            if (cam.cut === 2) {
+                const uP = (summonElapsed - 1.45) / 1.20; // 0 -> 1
+                const gateProj = project3DWithCam(0, -420, -920, cam, screenCx, screenCy) || { sx: screenCx, sy: curVh * 0.22, scale: 0.52 };
+
+                // Quỹ đạo Vòng Cung Parabol 180° (Apex U-Turn Arch) ngay tại Cổng Trời:
+                // uP = 0.0 -> 0.40: Bay lên chạm đỉnh Cổng Trời; uP = 0.40 -> 1.0: Uốn vòng cung 180° hướng mũi xuống dưới!
+                const archAngle = Math.PI - uP * Math.PI; // PI (trái-dưới cổng trời) -> PI/2 (đỉnh cổng trời) -> 0 (phải-dưới cổng trời)
+                const archRx = Math.min(curVw * 0.22, 135);
+                const archRy = Math.min(curVh * 0.14, 92);
+                const meteorSx = gateProj.sx - Math.cos(archAngle) * archRx * Math.sin(uP * Math.PI) + (cam.shakeX || 0);
+                const meteorSy = gateProj.sy - Math.sin(archAngle) * archRy + (uP > 0.55 ? Math.pow((uP - 0.55) / 0.45, 2) * curVh * 0.22 : 0) + (cam.shakeY || 0);
+
+                // Hướng vận tốc tiếp tuyến dọc theo vòng cung 180° (từ bay lên -> ngang ở đỉnh -> chúc đầu lao xuống!)
+                const tangentAngle = -Math.PI * 0.5 + uP * Math.PI * 0.92; // -90° (bay lên) -> +75° (chúc đầu lao xuống)
+                const tailAngle = tangentAngle + Math.PI; // Đuôi sao băng luôn vươn ngược lại phía sau theo đúng tiếp tuyến vòng cung!
+                const tailDirX = Math.cos(tailAngle);
+                const tailDirY = Math.sin(tailAngle);
+
+                // Vẽ Dải Đuôi Sao Băng uốn theo vòng cung U-Turn trên đỉnh trời
+                drawGenshinTaperedCometRibbon(
+                    ctxFront,
+                    meteorSx,
+                    meteorSy,
+                    tailDirX,
+                    tailDirY,
+                    Math.min(curVh * 0.65, (isAwakened5Star ? 420 : 280) * cam.zoom),
+                    (isAwakened5Star ? 38 : 28) * cam.zoom,
+                    summonElapsed,
+                    isAwakened5Star
+                );
+
+                // Từ 1.50s -> 1.92s: Dải Lụa Chữ Vàng Lời Chúc 20.10 từ Cổng Trời Thiên Đỉnh xoáy hội tụ vào Lõi Sao (Singularity Blessing)
+                if (summonElapsed >= 1.50 && summonElapsed < 1.92) {
+                    const sp = (summonElapsed - 1.50) / 0.42;
+                    const implosionR = (1 - sp * sp) * 165 + 16;
+                    ctxFront.save();
+                    ctxFront.translate(meteorSx, meteorSy);
+                    ctxFront.globalCompositeOperation = 'lighter';
+                    ctxFront.strokeStyle = '#ffd700';
+                    ctxFront.lineWidth = 3.2 + sp * 5.0;
+                    ctxFront.beginPath();
+                    ctxFront.arc(0, 0, implosionR, 0, Math.PI * 2);
+                    ctxFront.stroke();
+                    ctxFront.restore();
                 }
 
-                // Vector đường bay chéo -38° kinh điển của Genshin Impact:
-                // Sao băng lao từ Góc Trên-Phải xuống Góc Dưới-Trái; Đuôi sao băng vươn ngược lên Góc Trên-Phải!
-                const tailAngle = -0.66 + (cam.roll || 0) * 0.35; // Hướng đuôi vươn về Phải-Trên
+                // TẠI ĐỈNH VÒNG CUNG (t = 1.92s): THỨC TỈNH 5 SAO HOÀNG KIM (5-STAR GOLDEN AWAKENING SUPERNOVA)!
+                if (isAwakened5Star && !hasTriggeredAwakeningBoom) {
+                    hasTriggeredAwakeningBoom = true;
+                    for (let k = 0; k < 34; k++) {
+                        spawnSkyMeteorWakeParticle(0, -420, -920, true, 1.75);
+                    }
+                    skyShockwaves.push({
+                        wx: 0, wy: -420, wz: -920,
+                        rx: 1.05, ry: -0.25, rz: 0.2,
+                        radius: 24, maxRadius: 560,
+                        life: 0, maxLife: 0.82,
+                        color: '#ffd700', glow: '#ffffff'
+                    });
+                    skyShockwaves.push({
+                        wx: 0, wy: -420, wz: -920,
+                        rx: -0.82, ry: 0.45, rz: -0.3,
+                        radius: 18, maxRadius: 440,
+                        life: 0, maxLife: 0.72,
+                        color: skyTheme.ringColorA, glow: '#ffd700'
+                    });
+                }
+
+                if (summonElapsed >= 1.92 && summonElapsed < 2.36) {
+                    const ap = (summonElapsed - 1.92) / 0.44;
+                    const aAlpha = Math.pow(1 - ap, 1.85);
+                    ctxFront.save();
+                    ctxFront.globalCompositeOperation = 'lighter';
+                    const goldWash = ctxFront.createRadialGradient(meteorSx, meteorSy, 10, meteorSx, meteorSy, Math.max(curVw, curVh) * 0.78);
+                    goldWash.addColorStop(0, `rgba(255, 255, 240, ${(aAlpha * 0.92).toFixed(3)})`);
+                    goldWash.addColorStop(0.34, `rgba(255, 215, 0, ${(aAlpha * 0.68).toFixed(3)})`);
+                    goldWash.addColorStop(1, 'rgba(255, 160, 0, 0)');
+                    ctxFront.fillStyle = goldWash;
+                    ctxFront.fillRect(0, 0, curVw, curVh);
+                    ctxFront.restore();
+                }
+
+                drawGenshin5StarMeteorScreenCore(ctxFront, meteorSx, meteorSy, (isAwakened5Star ? 1.15 : 0.88) * cam.zoom, summonElapsed, isAwakened5Star, cam, screenCx, screenCy);
+            }
+
+            // =========================================================================
+            // PHA 3 (2.65s -> 4.85s): "CAMERA OVERTAKE & FRONT-LEAD ORBIT LOOKING BACK AT METEOR HEAD + CLOUD SEA BELOW"
+            // Máy quay tăng tốc vượt qua thân sao, BỌC QUA ĐẦU SAO và luôn khoá ống kính nhìn ngược về Đầu Sao,
+            // giúp thấy rõ Đầu Sao Băng 5 Sao (cùng bức ảnh chân dung & hộ vệ 3D) đang lao tới trên nền Biển Mây Khối 3D cuồn cuộn phía dưới!
+            // =========================================================================
+            if (cam.cut === 3) {
+                const c3p = (summonElapsed - 2.65) / 2.20; // 0 -> 1
+                const orbitBlend = cam.orbitBlend || 0;
+
+                // Khi máy quay bọc qua đầu sao (orbitBlend: 0 -> 1):
+                // Đầu Sao Băng được đặt ở tỷ lệ vàng phía trên-giữa khung hình (để toàn bộ 60% khung hình phía dưới mở rộng quay cảnh Biển Mây 3D cuồn cuộn bên dưới!),
+                // còn Đuôi Sao Băng vươn ngược lên đỉnh trời phía sau Đầu Sao!
+                const swayX = Math.sin(c3p * Math.PI * 2) * curVw * 0.06;
+                const swayY = Math.cos(c3p * Math.PI * 2) * curVh * 0.04;
+                const meteorSx = screenCx + swayX + (cam.shakeX || 0);
+                const meteorSy = curVh * (0.44 - 0.05 * orbitBlend) + swayY + (cam.shakeY || 0);
+
+                // Hướng đuôi sao băng: khi mới vào Pha 3 hơi nghiêng chéo (-1.15 rad), sau khi máy quay bọc ra chính diện đầu sao thì vươn ngược lên bầu trời phía sau (-PI/2)
+                const tailAngle = -1.12 * (1 - orbitBlend) + (-Math.PI * 0.5 + Math.sin(c3p * Math.PI * 2) * 0.16) * orbitBlend;
                 const tailDirX = Math.cos(tailAngle);
                 const tailDirY = Math.sin(tailAngle);
                 const tailPerpX = -tailDirY;
                 const tailPerpY = tailDirX;
 
-                // Vị trí Đầu Sao Băng trên khung hình (Bám đuổi chuẩn tỷ lệ vàng điện ảnh!)
-                let meteorSx = screenCx;
-                let meteorSy = screenCy;
-                if (cam.cut === 2) {
-                    const c2p = (summonElapsed - 1.35) / 2.10;
-                    // Từ 1.35s -> 2.36s: Lao từ Phải-Trên xuống vị trí Tỷ Lệ Vàng Trái-Giữa và giữ khóa ống kính
-                    const entryEase = Math.min(1, (summonElapsed - 1.35) / 0.32);
-                    const baseTx = curVw * (0.72 - 0.34 * (1 - Math.pow(1 - entryEase, 3)));
-                    const baseTy = curVh * (0.22 + 0.36 * (1 - Math.pow(1 - entryEase, 3)));
-                    const bobX = Math.sin(summonElapsed * 7.5) * 14;
-                    const bobY = Math.cos(summonElapsed * 6.2) * 11;
-                    meteorSx = baseTx + bobX - (c2p * curVw * 0.08) + (cam.shakeX || 0);
-                    meteorSy = baseTy + bobY + (c2p * curVh * 0.06) + (cam.shakeY || 0);
-                } else {
-                    // Cut 3 (3.45s -> 4.85s): Cận cảnh lướt sát ống kính (Extreme Close-Up Flyby)
-                    const c3p = (summonElapsed - 3.45) / 1.40;
-                    meteorSx = curVw * (0.46 - 0.10 * Math.sin(c3p * Math.PI)) + (cam.shakeX || 0);
-                    meteorSy = curVh * (0.54 + 0.08 * Math.cos(c3p * Math.PI)) + (cam.shakeY || 0);
-                }
-
-                // 1. Vẽ 58 Vệt Xé Gió Chéo Tốc Độ Cao (Genshin Diagonal Whip Speed-Lines) bằng HDR Additive ('lighter')
+                // 1. Vẽ Vệt Xé Gió Điện Ảnh (Speed-Lines) biến thiên theo Speed-Ramping (Nhanh 1.78x -> Chậm 0.34x -> Nhanh 1.92x)
                 const spanDiag = Math.hypot(curVw, curVh) * 1.35;
                 ctxFront.save();
                 ctxFront.globalCompositeOperation = 'lighter';
@@ -8153,10 +8454,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     const laneDist = sl.laneOffset * Math.max(curVw, curVh) * 0.58;
                     const lx = screenCx + tailDirX * distAlong + tailPerpX * laneDist;
                     const ly = screenCy + tailDirY * distAlong + tailPerpY * laneDist;
-                    const sLen = sl.len * cam.whipSpeedMult * (cam.cut === 3 ? 1.35 : 1.0);
-                    ctxFront.globalAlpha = (cam.cut === 3 ? 0.52 : 0.40) * Math.min(1, cam.whipSpeedMult);
-                    ctxFront.strokeStyle = isAwakened5Star ? sl.color : (l % 2 === 0 ? '#7dd3fc' : '#e0f7fa');
-                    ctxFront.lineWidth = sl.thickness * (cam.cut === 3 ? 1.45 : 1.0);
+                    const sLen = sl.len * cam.whipSpeedMult * 1.15;
+                    ctxFront.globalAlpha = 0.42 * Math.min(1, cam.whipSpeedMult * 0.85);
+                    ctxFront.strokeStyle = sl.color;
+                    ctxFront.lineWidth = sl.thickness * 1.25;
                     ctxFront.beginPath();
                     ctxFront.moveTo(lx, ly);
                     ctxFront.lineTo(lx + tailDirX * sLen, ly + tailDirY * sLen);
@@ -8164,9 +8465,9 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 }
                 ctxFront.restore();
 
-                // 2. Vẽ Dải Đuôi Sao Băng Plasma 3 Lớp Vuốt Nhọn HDR kéo dài từ Đầu Sao Băng vút qua góc Trên-Phải màn hình!
-                const tailLength = Math.hypot(curVw, curVh) * (cam.cut === 3 ? 1.15 : 0.98);
-                const headBaseRadius = (isAwakened5Star ? 46 : 32) * cam.zoom;
+                // 2. Vẽ Dải Đuôi Sao Băng Plasma 3 Lớp vươn ngược từ Đầu Sao lên phía Cổng Trời phía sau
+                const tailLength = curVh * (0.78 - 0.18 * orbitBlend);
+                const headBaseRadius = 44 * cam.zoom;
                 drawGenshinTaperedCometRibbon(
                     ctxFront,
                     meteorSx,
@@ -8176,130 +8477,52 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     tailLength,
                     headBaseRadius,
                     summonElapsed,
-                    isAwakened5Star
+                    true
                 );
 
-                // 3. Pha Hit-Stop Singularity (2.16s -> 2.36s): Vòng Điểm Kỳ Dị thu rụt năng lượng vào Lõi Sao trước khi nổ Vàng 5 Sao!
-                if (summonElapsed >= 2.16 && summonElapsed < 2.36) {
-                    const sp = (summonElapsed - 2.16) / 0.20;
-                    const implosionR = (1 - sp * sp) * 195 + 14;
-                    ctxFront.save();
-                    ctxFront.translate(meteorSx, meteorSy);
-                    ctxFront.globalCompositeOperation = 'lighter';
-                    ctxFront.strokeStyle = '#ffd700';
-                    ctxFront.lineWidth = 3.5 + sp * 6.0;
-                    ctxFront.beginPath();
-                    ctxFront.arc(0, 0, implosionR, 0, Math.PI * 2);
-                    ctxFront.stroke();
-                    ctxFront.strokeStyle = '#ffffff';
-                    ctxFront.lineWidth = 2.0;
-                    ctxFront.beginPath();
-                    ctxFront.arc(0, 0, implosionR * 0.65, 0, Math.PI * 2);
-                    ctxFront.stroke();
-                    ctxFront.restore();
-                }
-
-                // 4. KHOẢNH KHẮC THỨC TỈNH 5 SAO HOÀNG KIM (t = 2.36s): BÙNG NỔ SONIC BOOM & CHỚP VÀNG 24K TOÀN MÀN HÌNH!
-                if (isAwakened5Star && !hasTriggeredAwakeningBoom) {
-                    hasTriggeredAwakeningBoom = true;
-                    const worldX = (meteorSx - screenCx);
-                    const worldY = (meteorSy - screenCy);
-                    for (let k = 0; k < 38; k++) {
-                        spawnSkyMeteorWakeParticle(worldX, worldY, 0, true, 1.85);
-                    }
-                    skyShockwaves.push({
-                        wx: worldX, wy: worldY, wz: 0,
-                        rx: 0.92, ry: -0.42, rz: 0.25,
-                        radius: 24, maxRadius: 540,
-                        life: 0, maxLife: 0.78,
-                        color: '#ffd700', glow: '#ffffff'
-                    });
-                    skyShockwaves.push({
-                        wx: worldX, wy: worldY, wz: 0,
-                        rx: -0.78, ry: 0.52, rz: -0.35,
-                        radius: 18, maxRadius: 420,
-                        life: 0, maxLife: 0.68,
-                        color: skyTheme.ringColorA, glow: '#ffd700'
-                    });
-                }
-
-                // Ánh chớp Vàng 5 Sao lóe sáng ở t = 2.36s -> 2.78s & Ánh chớp chuyển Cut ở t = 1.35s / 3.45s
-                if (summonElapsed >= 2.36 && summonElapsed < 2.80) {
-                    const ap = (summonElapsed - 2.36) / 0.44;
-                    const aAlpha = Math.pow(1 - ap, 1.8);
-                    ctxFront.save();
-                    ctxFront.globalCompositeOperation = 'lighter';
-                    const goldWash = ctxFront.createRadialGradient(meteorSx, meteorSy, 10, meteorSx, meteorSy, Math.max(curVw, curVh) * 0.85);
-                    goldWash.addColorStop(0, `rgba(255, 255, 240, ${(aAlpha * 0.96).toFixed(3)})`);
-                    goldWash.addColorStop(0.32, `rgba(255, 215, 0, ${(aAlpha * 0.75).toFixed(3)})`);
-                    goldWash.addColorStop(1, 'rgba(255, 160, 0, 0)');
-                    ctxFront.fillStyle = goldWash;
-                    ctxFront.fillRect(0, 0, curVw, curVh);
-                    ctxFront.restore();
-                }
-                if ((summonElapsed >= 1.35 && summonElapsed < 1.48) || (summonElapsed >= 3.45 && summonElapsed < 3.58)) {
-                    const cutStart = summonElapsed >= 3.45 ? 3.45 : 1.35;
-                    const cp = (summonElapsed - cutStart) / 0.13;
-                    ctxFront.save();
-                    ctxFront.globalCompositeOperation = 'lighter';
-                    ctxFront.fillStyle = summonElapsed >= 3.45
-                        ? `rgba(255, 240, 180, ${((1 - cp) * 0.58).toFixed(3)})`
-                        : `rgba(210, 245, 255, ${((1 - cp) * 0.65).toFixed(3)})`;
-                    ctxFront.fillRect(0, 0, curVw, curVh);
-                    ctxFront.restore();
-                }
-
-                // 5. Phun dòng thác Thực Thể 3D Chủ Đề (Hồ điệp vàng, Cánh hoa nhung, Anh đào, Kim cương, Ngọc trai) bay ngược theo luồng gió chéo!
+                // 3. Phun các Thực Thể 3D Chủ Đề (Hồ điệp vàng, Cánh hoa nhung, Anh đào, Kim cương, Ngọc trai) bay tạt qua ống kính!
                 skyParticleAccum += dt;
-                const spawnInterval = cam.cut === 3 ? 0.018 : 0.026;
+                const spawnInterval = 0.022;
                 if (skyParticleAccum >= spawnInterval) {
                     skyParticleAccum = 0;
                     const worldX = (meteorSx - screenCx);
                     const worldY = (meteorSy - screenCy);
-                    spawnSkyMeteorWakeParticle(worldX, worldY, (Math.random() - 0.5) * 140, isAwakened5Star, cam.cut === 3 ? 1.35 : 1.0);
-                    // Cho hạt vừa sinh ra vận tốc bay ngược về phía Đuôi Sao Băng (Phải-Trên) đúng vật lý khí động học!
+                    spawnSkyMeteorWakeParticle(worldX, worldY, (Math.random() - 0.5) * 140, true, 1.25);
                     const newestP = particles[particles.length - 1];
                     if (newestP) {
-                        const slipSpd = 680 + Math.random() * 540;
+                        const slipSpd = (520 + Math.random() * 440) * Math.max(0.45, cam.whipSpeedMult);
                         newestP.vx += tailDirX * slipSpd;
                         newestP.vy += tailDirY * slipSpd;
                     }
                 }
 
-                // 6. Vẽ Đầu Sao Băng 5 Sao Genshin Impact & Hộ Vệ Nguyên Tố 3D
-                drawGenshin5StarMeteorScreenCore(ctxFront, meteorSx, meteorSy, cam.zoom, summonElapsed, isAwakened5Star, cam, screenCx, screenCy);
+                // 4. Vẽ Đầu Sao Băng 5 Sao (chứa Chân Dung Người Dùng & Hộ Vệ Nguyên Tố 3D xoay quanh mũi sao) đang lao thẳng về phía máy quay!
+                drawGenshin5StarMeteorScreenCore(ctxFront, meteorSx, meteorSy, cam.zoom, summonElapsed, true, cam, screenCx, screenCy);
             }
 
             // =========================================================================
-            // CUT 4 (4.85s -> 6.00s): "DIRECT Z-AXIS LENS CRASH & GENSHIN 5-STAR GOLDEN SCREEN WASHOUT"
-            // 4.85s -> 5.34s: Sao băng 5 Sao lao thẳng từ trên trời đâm trực diện vào chính giữa ống kính Camera!
-            // 5.34s -> 6.00s: Màn hình ngập tràn Hào Quang Hoàng Kim 5 Sao + Bụi Sao Vàng Slow-Motion & Ấn Chương Chủ Đề!
+            // PHA 4 (4.85s -> 6.20s): "LENS ARRIVAL & STAR-TO-LETTER ALCHEMY"
+            // 4.85s -> 5.26s: Sao băng 5 Sao lao tới chính giữa ống kính!
+            // 5.26s -> 6.20s: Từ tâm Hào Quang 5 Sao, Lõi Sao mở tung thành Lá Thư Ánh Kim (có ảnh của bạn + 3 dòng chữ vàng lời chúc)
+            // và được Cánh Phong Bì Lụa ôm lấy trước khi bàn giao sang Phong Bì 3D đóng dấu sáp vàng 24K!
             // =========================================================================
             if (cam.cut === 4) {
-                if (!hasTriggeredLensCrash) {
-                    hasTriggeredLensCrash = true;
-                    particles.length = 0;
-                    skyShockwaves.length = 0;
-                }
-
-                if (summonElapsed < 5.34) {
-                    // Pha 4A (4.85s -> 5.34s): Lao trực diện trục Z vào ống kính (Scale tăng theo hàm mũ từ 0.34x -> 8.80x!)
-                    const cp = (summonElapsed - 4.85) / 0.49;
-                    const expScale = 0.34 + Math.pow(cp, 2.85) * 8.46;
+                if (summonElapsed < 5.26) {
+                    const cp = (summonElapsed - 4.85) / 0.41;
+                    const expScale = 1.25 + Math.pow(cp, 2.4) * 5.6;
                     const crashSx = screenCx + (cam.shakeX || 0);
-                    const crashSy = screenCy - (1 - cp * cp) * curVh * 0.24 + (cam.shakeY || 0);
+                    const crashSy = screenCy - (1 - cp * cp) * curVh * 0.12 + (cam.shakeY || 0);
 
-                    // 32 Vệt Xé Không Gian Tỏa Tròn (Radial Z-Warp Speed Lines) bắn từ tâm ra tứ phía!
                     ctxFront.save();
                     ctxFront.globalCompositeOperation = 'lighter';
                     ctxFront.lineCap = 'round';
                     for (let l = 0; l < 32; l++) {
                         const sl = skySpeedLines[l];
-                        const rInner = (45 + (l % 5) * 32) * (0.4 + cp * 1.8);
-                        const rOuter = rInner + (140 + (l % 4) * 85) * (0.5 + cp * 2.2);
+                        const rInner = (45 + (l % 5) * 32) * (0.4 + cp * 1.6);
+                        const rOuter = rInner + (135 + (l % 4) * 80) * (0.5 + cp * 2.0);
                         ctxFront.globalAlpha = Math.min(1, (0.35 + cp * 0.65));
                         ctxFront.strokeStyle = l % 2 === 0 ? '#ffd700' : '#ffffff';
-                        ctxFront.lineWidth = 1.6 + cp * 3.5;
+                        ctxFront.lineWidth = 1.6 + cp * 3.2;
                         ctxFront.beginPath();
                         ctxFront.moveTo(crashSx + Math.cos(sl.ang) * rInner, crashSy + Math.sin(sl.ang) * rInner);
                         ctxFront.lineTo(crashSx + Math.cos(sl.ang) * rOuter, crashSy + Math.sin(sl.ang) * rOuter);
@@ -8307,50 +8530,41 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     }
                     ctxFront.restore();
 
-                    // Vẽ Đầu Sao Băng 5 Sao phóng đại lao thẳng vào mặt người xem!
                     drawGenshin5StarMeteorScreenCore(ctxFront, crashSx, crashSy, expScale, summonElapsed, true, cam, screenCx, screenCy);
                 } else {
-                    // Pha 4B (5.34s -> 6.00s): CÚ VA CHẠM ỐNG KÍNH & MÀN SƯƠNG HOÀNG KIM 5 SAO (GENSHIN 5-STAR GOLDEN WASHOUT)
                     if (!hasTriggeredImpactSupernova) {
                         hasTriggeredImpactSupernova = true;
-                        for (let k = 0; k < 48; k++) {
-                            spawnSkyMeteorWakeParticle(0, 0, (Math.random() - 0.5) * 220, true, 2.25);
+                        for (let k = 0; k < 36; k++) {
+                            spawnSkyMeteorWakeParticle(0, 0, (Math.random() - 0.5) * 200, true, 1.95);
                         }
                         skyShockwaves.push({
                             wx: 0, wy: 0, wz: 0,
                             rx: 1.12, ry: 0.18, rz: 0,
-                            radius: 26, maxRadius: 560,
-                            life: 0, maxLife: 0.66,
+                            radius: 26, maxRadius: 540,
+                            life: 0, maxLife: 0.72,
                             color: '#ffd700', glow: '#ffffff'
-                        });
-                        skyShockwaves.push({
-                            wx: 0, wy: 0, wz: 0,
-                            rx: -0.95, ry: 0.52, rz: 0.4,
-                            radius: 20, maxRadius: 460,
-                            life: 0, maxLife: 0.62,
-                            color: skyTheme.ringColorA, glow: '#ffd700'
                         });
                     }
 
-                    const wp = (summonElapsed - 5.34) / 0.66; // 0 -> 1
-                    // Lớp Màn Hào Quang Vàng Kim 5 Sao (Golden-White HDR Radiance Veil)
+                    const wp = (summonElapsed - 5.26) / 0.94; // 0 -> 1
                     ctxFront.save();
-                    const washAlpha = wp < 0.25 ? (0.78 + (wp / 0.25) * 0.20) : (0.98 - (wp - 0.25) * 0.32);
+                    const washAlpha = wp < 0.22 ? (0.68 + (wp / 0.22) * 0.24) : (0.92 - (wp - 0.22) * 0.45);
                     const washGrad = ctxFront.createRadialGradient(screenCx, screenCy, 10, screenCx, screenCy, Math.max(curVw, curVh) * 0.85);
                     washGrad.addColorStop(0, `rgba(255, 254, 245, ${washAlpha.toFixed(3)})`);
-                    washGrad.addColorStop(0.45, `rgba(255, 232, 145, ${(washAlpha * 0.88).toFixed(3)})`);
-                    washGrad.addColorStop(1, `rgba(255, 195, 55, ${(washAlpha * 0.68).toFixed(3)})`);
+                    washGrad.addColorStop(0.45, `rgba(255, 232, 145, ${(washAlpha * 0.82).toFixed(3)})`);
+                    washGrad.addColorStop(1, `rgba(255, 195, 55, ${(washAlpha * 0.55).toFixed(3)})`);
                     ctxFront.fillStyle = washGrad;
                     ctxFront.fillRect(0, 0, curVw, curVh);
                     ctxFront.restore();
 
-                    // Kết tinh Đại Pháp Trận Kim Hoàn 3D của Chủ Đề giữa màn sương vàng 5 Sao (5.34s -> 6.00s)
-                    drawSummonCenterMotif(ctxFront, cfg.id, summonElapsed - 5.10, screenCx + (cam.shakeX || 0), screenCy + (cam.shakeY || 0));
+                    // Vẽ Đại Pháp Trận Kim Hoàn 3D làm nền và quá trình Lõi Sao mở tung thành Lá Thư Ánh Kim!
+                    drawSummonCenterMotif(ctxFront, cfg.id, summonElapsed - 5.05, screenCx + (cam.shakeX || 0), screenCy + (cam.shakeY || 0));
+                    drawStarToLetterEnvelopeWeave(ctxFront, screenCx + (cam.shakeX || 0), screenCy + (cam.shakeY || 0), wp, summonElapsed);
                 }
             }
 
             // 7. Cập nhật & Vẽ các Vòng Sóng Xung Kích 3D (skyShockwaves)
-            const ringCam = (cam.cut === 2 || cam.cut === 3)
+            const ringCam = (cam.cut === 3)
                 ? { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: cam.roll || 0, fov: 700, shakeX: cam.shakeX, shakeY: cam.shakeY }
                 : cam;
             for (let sIdx = skyShockwaves.length - 1; sIdx >= 0; sIdx--) {
@@ -8376,7 +8590,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 }, ringCam, screenCx, screenCy);
             }
 
-            // 8. Cập nhật & Vẽ toàn bộ Hạt Vật Lý 3D có Texture Kim Hoàn
+            // 8. Cập nhật & Vẽ toàn bộ Hạt Vật Lý 3D có Texture Kim Hoàn (ZERO HEAP ALLOCATION!)
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.life += dt;
@@ -8405,17 +8619,18 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
                 const pr = project3DWithCam(p.x, p.y, p.z, ringCam, screenCx, screenCy);
                 if (pr) {
-                    const fakeP = {
-                        ...p,
-                        x: (pr.sx - screenCx) / pr.scale,
-                        y: (pr.sy - screenCy) / pr.scale,
-                        z: ringCam.fov - ringCam.fov / pr.scale
-                    };
-                    draw3DProjectedParticle(pr.cz < 0 ? ctxBack : ctxFront, fakeP, screenCx, screenCy, ringCam.fov);
+                    const origX = p.x, origY = p.y, origZ = p.z;
+                    p.x = (pr.sx - screenCx) / pr.scale;
+                    p.y = (pr.sy - screenCy) / pr.scale;
+                    p.z = ringCam.fov - ringCam.fov / pr.scale;
+                    draw3DProjectedParticle(pr.cz < 0 ? ctxBack : ctxFront, p, screenCx, screenCy, ringCam.fov);
+                    p.x = origX;
+                    p.y = origY;
+                    p.z = origZ;
                 }
             }
 
-            // Khi hoàn tất trọn vẹn 6.00 giây Đại Cảnh Gacha 5 Sao 3D & ảnh thiệp đã kết xuất xong 100% -> Chuyển sang Pha Màn Sương Hoàng Kim Tan Mở Hiện Bì Thư!
+            // Khi hoàn tất trọn vẹn 6.20 giây Đại Cảnh One-Shot 3D & ảnh thiệp đã kết xuất xong 100% -> Chuyển sang Pha Phong Bì 3D Khép Lại & Đóng Dấu Sáp Vàng 24K!
             if (window.isRecipientCardImageReady && summonElapsed >= SKY_ORACLE_TOTAL) {
                 if (cardImg && finalResultImg && finalResultImg.src) {
                     cardImg.src = finalResultImg.src;
@@ -8437,7 +8652,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
             // Giữ nền trời 3D dịu dần mượt mà khi Phong Bì 3D hiện ra ở chính tâm sân khấu
             const beamFade = Math.max(0, 1 - Math.pow(arriveElapsed / SKY_DESCEND_TOTAL, 1.55));
-            drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, 6.00 + arriveElapsed, beamFade, screenCx, screenCy, curVw, curVh);
+            drawHeavenlySkyBeamsAndPortal(ctxBack, ctxFront, 6.20 + arriveElapsed, beamFade, screenCx, screenCy, curVw, curVh);
 
             // Màn Sương Hoàng Kim 5 Sao (Golden Washout Veil) từ cuối Cut 4 tan dần mượt mà trong 0.58s đầu của sky_descending
             if (arriveElapsed < 0.58) {

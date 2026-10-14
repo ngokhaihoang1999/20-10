@@ -1736,11 +1736,27 @@ input[type="file"] {
     overflow: hidden;
 }
 
-/* Chế độ "Lời chúc dành cho bạn" (Self-Oracle Mode) ở Bước 2: Ẩn toàn bộ 5 Tab chọn khung/chữ/màu và nút mũi tên đổi khung để người dùng tập trung căn chỉnh góc ảnh theo khuôn chung của thiệp */
-body.self-oracle-mode #step-2 #step2-control-deck,
+/* Chế độ "Lời chúc dành cho bạn" (Self-Oracle Mode) ở Bước 2: Hiển thị riêng bảng chọn Filter ảnh & Thanh kéo mức độ Filter để người dùng tự căn góc + chỉnh màu ảnh ưng ý trước khi Nhận lời chúc */
 body.self-oracle-mode #step-2 #prev-frame-btn,
-body.self-oracle-mode #step-2 #next-frame-btn {
+body.self-oracle-mode #step-2 #next-frame-btn,
+body.self-oracle-mode #step-2 .deck-tabs,
+body.self-oracle-mode #step-2 #tab-concept,
+body.self-oracle-mode #step-2 #tab-wish,
+body.self-oracle-mode #step-2 #tab-style,
+body.self-oracle-mode #step-2 #tab-motion,
+body.self-oracle-mode #step-2 #tab-filter .photo-tools-grid {
     display: none !important;
+}
+
+body.self-oracle-mode #step-2 #step2-control-deck {
+    display: flex !important;
+    padding-top: 6px;
+}
+
+body.self-oracle-mode #step-2 #tab-filter {
+    display: flex !important;
+    flex-direction: column;
+    gap: 6px;
 }
 
 body.self-oracle-mode #step-2 .step2-wish-area {
@@ -2829,6 +2845,76 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
     border-color: transparent;
     color: #fff;
     font-weight: 700;
+}
+
+.filter-intensity-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid #cfe6dc;
+    border-radius: 10px;
+    transition: opacity 0.2s ease, border-color 0.2s ease;
+}
+
+.filter-intensity-row.is-disabled {
+    opacity: 0.55;
+}
+
+.filter-intensity-label {
+    font-size: clamp(0.62rem, 2.2vw, 0.74rem);
+    font-weight: 700;
+    color: #095241;
+    white-space: nowrap;
+}
+
+.filter-intensity-slider {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #0f7b5f 0%, #d4af37 100%);
+    outline: none;
+    cursor: pointer;
+}
+
+.filter-intensity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fffef5 0%, #f5d365 55%, #b8861b 100%);
+    border: 2px solid #095241;
+    box-shadow: 0 2px 6px rgba(9, 82, 65, 0.28);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.filter-intensity-slider::-webkit-slider-thumb:hover,
+.filter-intensity-slider::-webkit-slider-thumb:active {
+    transform: scale(1.14);
+}
+
+.filter-intensity-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fffef5 0%, #f5d365 55%, #b8861b 100%);
+    border: 2px solid #095241;
+    box-shadow: 0 2px 6px rgba(9, 82, 65, 0.28);
+    cursor: pointer;
+}
+
+.filter-intensity-value {
+    min-width: 36px;
+    text-align: right;
+    font-size: clamp(0.64rem, 2.2vw, 0.75rem);
+    font-weight: 800;
+    color: #095241;
+    font-variant-numeric: tabular-nums;
 }
 
 .frame-item {
