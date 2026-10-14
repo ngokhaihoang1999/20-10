@@ -2976,6 +2976,7 @@ body.u3d-stage-active #step-3 .result-card-container {
     -webkit-backdrop-filter: none !important;
 }
 
+body.u3d-stage-active #step-3 .showcase-motion-sanctuary,
 body.u3d-stage-active #step-3 .result-topbar,
 body.u3d-stage-active #step-3 .showcase-quick-bar,
 body.u3d-stage-active #step-3 .result-actions,
@@ -2988,6 +2989,143 @@ body.u3d-stage-active #step-3 .showcase-ambient-orbs {
     pointer-events: none !important;
 }
 
+/* ==========================================================================================
+   ====== 6 THẾ GIỚI NỀN NGHỆ THUẬT 3D ĐỘNG RIÊNG BIỆT SAU KHI MỞ THIỆP (#showcase-motion-sanctuary) ======
+   ========================================================================================== */
+.showcase-motion-sanctuary {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    transition: background 0.65s ease, opacity 0.45s ease;
+    /* Mặc định: 1. bloom (🌺 Đại Hoa Trà - Vườn Thượng Uyển Hoa Trà Đỏ Nhung & Hoàng Kim 24K) */
+    background:
+        radial-gradient(circle at 50% 42%, rgba(255, 248, 224, 0.96) 0%, rgba(249, 172, 198, 0.88) 24%, rgba(154, 24, 74, 0.94) 60%, #240512 100%);
+}
+
+/* 2. butterflies (🦋 Hồ Điệp Vàng - Rừng Thiêng Lục Bảo & Hồ Điệp Ánh Kim) */
+.showcase-motion-sanctuary[data-motion="butterflies"] {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(255, 250, 214, 0.96) 0%, rgba(126, 222, 184, 0.85) 24%, rgba(11, 88, 67, 0.95) 60%, #031b14 100%);
+}
+
+/* 3. ribbon (🎀 Ruy-Băng Lụa - Khán Phòng Lụa Satin Paris & Ngọc Trai) */
+.showcase-motion-sanctuary[data-motion="ribbon"] {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(255, 248, 252, 0.96) 0%, rgba(246, 182, 212, 0.88) 26%, rgba(136, 31, 82, 0.95) 62%, #220618 100%);
+}
+
+/* 4. galaxy (🌌 Ngân Hà Sao - Đài Thiên Văn Tinh Vân & Sao Băng Vũ Trụ) */
+.showcase-motion-sanctuary[data-motion="galaxy"] {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(218, 246, 255, 0.92) 0%, rgba(96, 62, 178, 0.86) 25%, rgba(23, 18, 72, 0.96) 60%, #040616 100%);
+}
+
+/* 5. sakura (🌸 Lốc Anh Đào - Đêm Trăng Kyoto Mưa Hoa Anh Đào) */
+.showcase-motion-sanctuary[data-motion="sakura"] {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(255, 249, 253, 0.96) 0%, rgba(255, 188, 214, 0.88) 26%, rgba(116, 48, 102, 0.94) 62%, #1a0b28 100%);
+}
+
+/* 6. hearts (💎 Kim Cương Sao - Cung Điện Pha Lê Kim Cương Khúc Xạ Cầu Vồng) */
+.showcase-motion-sanctuary[data-motion="hearts"] {
+    background:
+        radial-gradient(circle at 50% 42%, rgba(240, 253, 255, 0.96) 0%, rgba(132, 232, 246, 0.86) 24%, rgba(14, 76, 100, 0.95) 60%, #031420 100%);
+}
+
+/* Luồng Hào Quang Xoay Chậm Phía Sau Tấm Thiệp Theo Từng Chủ Đề Motion */
+.sanctuary-aura-beam {
+    position: absolute;
+    top: 44%;
+    left: 50%;
+    width: min(145vmax, 1180px);
+    height: min(145vmax, 1180px);
+    margin-left: calc(min(145vmax, 1180px) * -0.5);
+    margin-top: calc(min(145vmax, 1180px) * -0.5);
+    border-radius: 50%;
+    background:
+        repeating-conic-gradient(
+            from 0deg,
+            rgba(255, 240, 182, 0.16) 0deg 10deg,
+            transparent 10deg 24deg,
+            rgba(255, 198, 220, 0.11) 24deg 32deg,
+            transparent 32deg 45deg
+        );
+    mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 38%, transparent 70%);
+    -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.5) 38%, transparent 70%);
+    animation: sanctuaryBeamRotate 44s linear infinite;
+    will-change: transform;
+}
+
+.showcase-motion-sanctuary[data-motion="galaxy"] .sanctuary-aura-beam {
+    background:
+        repeating-conic-gradient(
+            from 0deg,
+            rgba(142, 234, 255, 0.18) 0deg 12deg,
+            transparent 12deg 26deg,
+            rgba(255, 226, 138, 0.14) 26deg 35deg,
+            transparent 35deg 45deg
+        );
+}
+
+.showcase-motion-sanctuary[data-motion="hearts"] .sanctuary-aura-beam {
+    background:
+        repeating-conic-gradient(
+            from 0deg,
+            rgba(224, 251, 255, 0.22) 0deg 8deg,
+            rgba(255, 206, 236, 0.12) 8deg 16deg,
+            transparent 16deg 30deg,
+            rgba(255, 243, 176, 0.16) 30deg 38deg,
+            transparent 38deg 45deg
+        );
+}
+
+@keyframes sanctuaryBeamRotate {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Vòng Mandala / Tinh Bàn Nghệ Thuật Lớn Đặt Sau Tấm Thiệp Riêng Cho Mỗi Motion */
+.sanctuary-sacred-wheel {
+    position: absolute;
+    top: 44%;
+    left: 50%;
+    width: min(94vw, 500px);
+    height: min(94vw, 500px);
+    transform: translate3d(-50%, -50%, 0);
+    pointer-events: none;
+    opacity: 0.86;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sanctuary-sacred-wheel svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    animation: sanctuaryWheelSpin 36s linear infinite;
+}
+
+@keyframes sanctuaryWheelSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.showcase-bg-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#step-3 .result-card-container {
+    position: relative;
+    z-index: 2;
+}
+
 /* ====== GIAO DIỆN NGƯỜI NHẬN THIỆP (CEREMONIAL 3D SANCTUARY - LONG TRỌNG, TINH TẾ, TỐI GIẢN) ====== */
 body.recipient-mode #creator-topbar,
 body.recipient-mode #creator-quick-bar,
@@ -2997,24 +3135,7 @@ body.recipient-mode #step3-floating-badge {
 }
 
 body.recipient-mode #step-3 {
-    background:
-        radial-gradient(circle at 50% 44%, #fffbf4 0%, #e0f5ec 42%, #073428 100%);
-}
-
-body.recipient-mode[data-recipient-theme="blush"] #step-3,
-body.recipient-mode[data-recipient-theme="rosegold"] #step-3 {
-    background:
-        radial-gradient(circle at 50% 44%, #fffafc 0%, #fce0eb 44%, #4c0f27 100%);
-}
-
-body.recipient-mode[data-recipient-theme="lavender"] #step-3 {
-    background:
-        radial-gradient(circle at 50% 44%, #fcf9ff 0%, #ebe0fc 44%, #2c144e 100%);
-}
-
-body.recipient-mode[data-recipient-theme="champagne"] #step-3 {
-    background:
-        radial-gradient(circle at 50% 44%, #fffcf4 0%, #f8ebcc 44%, #482e0c 100%);
+    background: transparent;
 }
 
 body.recipient-mode #step-3 .result-card-container {
@@ -3551,25 +3672,34 @@ body.recipient-mode .recipient-luxury-dock {
     inset: 0;
     z-index: 1;
     background:
-        radial-gradient(circle at 50% 48%, #fffbf4 0%, #e0f5ec 40%, #073428 100%);
+        radial-gradient(circle at 50% 48%, #fff8e2 0%, #f8b4ca 28%, #911847 64%, #240512 100%);
     transition: opacity 0.42s ease-out;
     will-change: opacity;
 }
 
-.u3d-envelope-stage[data-theme="blush"] .u3d-backdrop,
-.u3d-envelope-stage[data-theme="rosegold"] .u3d-backdrop {
+.u3d-envelope-stage[data-motion="butterflies"] .u3d-backdrop {
     background:
-        radial-gradient(circle at 50% 48%, #fffafc 0%, #fce0eb 42%, #4c0f27 100%);
+        radial-gradient(circle at 50% 48%, #fffad8 0%, #80deba 28%, #0b5843 64%, #031b14 100%);
 }
 
-.u3d-envelope-stage[data-theme="lavender"] .u3d-backdrop {
+.u3d-envelope-stage[data-motion="ribbon"] .u3d-backdrop {
     background:
-        radial-gradient(circle at 50% 48%, #fcf9ff 0%, #ebe0fc 42%, #2c144e 100%);
+        radial-gradient(circle at 50% 48%, #fff8fc 0%, #f6b6d4 28%, #881f52 64%, #220618 100%);
 }
 
-.u3d-envelope-stage[data-theme="champagne"] .u3d-backdrop {
+.u3d-envelope-stage[data-motion="galaxy"] .u3d-backdrop {
     background:
-        radial-gradient(circle at 50% 48%, #fffcf4 0%, #f8ebcc 42%, #482e0c 100%);
+        radial-gradient(circle at 50% 48%, #dbf5ff 0%, #5e3db0 28%, #171246 64%, #040616 100%);
+}
+
+.u3d-envelope-stage[data-motion="sakura"] .u3d-backdrop {
+    background:
+        radial-gradient(circle at 50% 48%, #fff9fc 0%, #ffbcd6 28%, #743066 64%, #1a0b28 100%);
+}
+
+.u3d-envelope-stage[data-motion="hearts"] .u3d-backdrop {
+    background:
+        radial-gradient(circle at 50% 48%, #f0fdff 0%, #84e8f6 28%, #0e4c64 64%, #031420 100%);
 }
 
 /* --- Hai Nửa Khung Phong Bì 3D (Back Rig z:5 & Front Rig z:10) đồng bộ Ma Trận 3D 60fps --- */
@@ -3980,7 +4110,7 @@ body.recipient-mode .recipient-luxury-dock {
     z-index: 12;
 }
 
-/* --- Chân Trang Hướng Dẫn Chạm Phong Ấn 3D --- */
+/* --- Chân Trang Hướng Dẫn Chạm Phong Ấn 3D (Chỉ hiện sau khi Phong Bì & Ấn Sáp đã sẵn sàng 100%) --- */
 .u3d-footer-prompt {
     position: absolute;
     top: min(calc(100% - 62px), calc(53% + var(--u3d-env-h) * 0.5 + 32px));
@@ -3988,12 +4118,14 @@ body.recipient-mode .recipient-luxury-dock {
     transform: translate3d(-50%, 0, 0);
     z-index: 15;
     pointer-events: none;
-    transition: opacity 0.32s ease, transform 0.35s ease;
+    transition: opacity 0.38s ease, transform 0.38s ease;
     animation: u3dPromptFloat 2.3s ease-in-out infinite;
 }
 
+.u3d-envelope-stage.is-summoning .u3d-footer-prompt,
+.u3d-envelope-stage.is-arriving .u3d-footer-prompt,
 .u3d-envelope-stage.is-opening .u3d-footer-prompt {
-    opacity: 0;
+    opacity: 0 !important;
     transform: translate3d(-50%, 24px, 0) scale(0.9);
 }
 

@@ -5275,6 +5275,146 @@ function drawSealWindupEffect(ctx, modeId, w, cx, cy, sealScreenY) {
     ctx.restore();
 }
 
+// Vẽ Biểu Tượng Ánh Sáng 3D Kết Tinh ở tâm màn hình trong pha Triệu Hồi Thiệp (Pure Motion Prelude - Không dùng chữ Loading!)
+function drawSummonCenterMotif(ctx, modeId, t, cx, cy) {
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    const pulse = 1 + Math.sin(t * 4.5) * 0.1;
+    // Hào quang lõi kim hoàn 2 lớp đồng tâm (không dùng radialGradient nặng GPU)
+    ctx.globalAlpha = 0.22 + 0.08 * Math.sin(t * 3.8);
+    ctx.fillStyle = '#ffe58f';
+    ctx.beginPath();
+    ctx.arc(0, 0, 58 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.42 + 0.14 * Math.cos(t * 4.2);
+    ctx.fillStyle = '#fff9d6';
+    ctx.beginPath();
+    ctx.arc(0, 0, 32 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Vòng cung tiến trình ánh sáng 24K xoay mượt xung quanh tâm
+    for (let k = 0; k < 3; k++) {
+        ctx.save();
+        ctx.rotate(t * (k % 2 === 0 ? 2.6 : -2.1) + (k * Math.PI * 2) / 3);
+        ctx.globalAlpha = 0.85 - k * 0.18;
+        ctx.strokeStyle = k === 0 ? '#fff4b8' : (k === 1 ? '#f5c242' : '#ff9ebb');
+        ctx.lineWidth = 2.4 - k * 0.4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(0, 0, 44 + k * 11, 0, Math.PI * 0.72);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    // Biểu tượng chủ đề Motion đang kết tinh ở chính giữa
+    ctx.globalAlpha = 0.94;
+    if (modeId === 'butterflies') {
+        const wingCos = Math.max(0.18, Math.abs(Math.cos(t * 11)));
+        const s = 26 * pulse;
+        ctx.rotate(Math.sin(t * 2.5) * 0.18);
+        [-1, 1].forEach(dir => {
+            ctx.save();
+            ctx.scale(dir * wingCos, 1);
+            ctx.fillStyle = '#ffd54f';
+            ctx.strokeStyle = '#fff9d2';
+            ctx.lineWidth = 1.3;
+            ctx.beginPath();
+            ctx.moveTo(0, -s * 0.1);
+            ctx.bezierCurveTo(s * 0.6, -s * 1.0, s * 1.2, -s * 0.55, s * 0.9, s * 0.1);
+            ctx.bezierCurveTo(s * 0.65, s * 0.3, s * 0.25, s * 0.18, 0, s * 0.06);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(0, s * 0.06);
+            ctx.bezierCurveTo(s * 0.65, s * 0.24, s * 0.8, s * 0.88, s * 0.38, s * 0.94);
+            ctx.bezierCurveTo(s * 0.14, s * 0.95, s * 0.05, s * 0.48, 0, s * 0.2);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        });
+    } else if (modeId === 'hearts') {
+        ctx.rotate(t * 1.2);
+        const s = 24 * pulse;
+        ctx.fillStyle = '#e0f7fa';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.52, -s * 0.68);
+        ctx.lineTo(s * 0.52, -s * 0.68);
+        ctx.lineTo(s * 0.95, -s * 0.16);
+        ctx.lineTo(0, s * 0.98);
+        ctx.lineTo(-s * 0.95, -s * 0.16);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    } else if (modeId === 'galaxy') {
+        ctx.rotate(t * 1.8);
+        const s = 26 * pulse;
+        ctx.fillStyle = '#fff9d2';
+        ctx.strokeStyle = '#80deea';
+        ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const r = i % 2 === 0 ? s : s * 0.28;
+            if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+            else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+    } else if (modeId === 'ribbon') {
+        ctx.rotate(Math.sin(t * 3) * 0.15);
+        const s = 22 * pulse;
+        ctx.strokeStyle = '#ffd54f';
+        ctx.fillStyle = '#ff80ab';
+        ctx.lineWidth = 2.0;
+        [-1, 1].forEach(dir => {
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(dir * s * 1.1, -s * 0.9, dir * s * 1.25, s * 0.75, 0, s * 0.15);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+        });
+        ctx.fillStyle = '#fff6c4';
+        ctx.beginPath();
+        ctx.arc(0, 0, 5.5, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        // bloom hoặc sakura: Đóa hoa 8 cánh hoặc 5 cánh xoay nở bằng ánh sáng vàng hồng
+        ctx.rotate(t * 1.4);
+        const petals = modeId === 'sakura' ? 5 : 8;
+        const r = 16 * pulse;
+        ctx.fillStyle = modeId === 'sakura' ? '#ffb2c9' : '#ff80ab';
+        ctx.strokeStyle = '#fff3b8';
+        ctx.lineWidth = 1.2;
+        for (let i = 0; i < petals; i++) {
+            ctx.save();
+            ctx.rotate((i / petals) * Math.PI * 2);
+            ctx.beginPath();
+            ctx.ellipse(0, -r * 0.72, 6.2, 11.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            ctx.restore();
+        }
+        ctx.fillStyle = '#ffe57f';
+        ctx.beginPath();
+        ctx.arc(0, 0, 6.5, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+// Trạng thái sẵn sàng 100% của ảnh thiệp người nhận (Chống tuyệt đối hiện tượng mở ra ảnh đen hoặc icon lỗi ảnh)
+window.isRecipientCardImageReady = false;
+
 // ====== ĐẠO DIỄN SÂN KHẤU PHONG BÌ VẬT LÝ 3D HỢP NHẤT ======
 window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const {
@@ -5284,6 +5424,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         motionId = window.currentMotionEffect || 'bloom',
         themeKey = currentColorTheme || 'emerald',
         isRealRecipient = window.isRecipientCardLinkMode || false,
+        waitForCardReady = false,
         onComplete = null
     } = options;
 
@@ -5364,9 +5505,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         cardShowcase.style.transform = '';
     }
 
-    // Đồng bộ ảnh mặt trước của tấm thiệp 3D nằm trong phong bì
-    if (cardImg) {
-        if (finalResultImg && finalResultImg.getAttribute('src')) {
+    // Đồng bộ ảnh mặt trước của tấm thiệp 3D nằm trong phong bì (Chỉ gán khi đã có ảnh thật hợp lệ)
+    if (cardImg && !isRealRecipient) {
+        const finalSrc = finalResultImg ? finalResultImg.getAttribute('src') : '';
+        if (finalSrc && !finalSrc.startsWith('data:image/gif')) {
             cardImg.src = finalResultImg.src;
         } else if (finalResultCanvas && finalResultCanvas.width > 0) {
             try {
@@ -5385,8 +5527,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         pocketBloomCore.style.transform = 'scale(0.15)';
     }
 
-    // Khởi tạo lại trạng thái các lớp DOM của phong bì
-    stage.classList.remove('is-opening', 'pocket-cleared', 'handing-off');
+    // Kiểm tra xem cần chạy Pha Triệu Hồi 3D (Summoning) chờ tải xong ảnh thiệp trước khi hiện Phong Bì & Ấn Sáp hay không
+    const needSummonPrelude = !!(waitForCardReady || (isRealRecipient && !window.isRecipientCardImageReady));
+
+    stage.classList.remove('is-summoning', 'is-arriving', 'is-opening', 'pocket-cleared', 'handing-off');
     stage.style.display = 'block';
     if (backdrop) backdrop.style.opacity = '1';
     if (flapFront) {
@@ -5396,11 +5540,6 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     if (flapBack) {
         flapBack.style.display = 'none';
         flapBack.style.transform = 'perspective(1200px) rotateX(180deg)';
-    }
-    if (sealBtn) {
-        sealBtn.style.opacity = '1';
-        sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
-        sealBtn.style.pointerEvents = 'auto';
     }
     if (pocketLight) {
         pocketLight.style.opacity = '0';
@@ -5484,15 +5623,56 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     measureTargetShowcaseOnce();
     window.u3dRefreshTargetRect = measureTargetShowcaseOnce;
 
-    // Các biến trạng thái Vật Lý 60fps
-    u3dCurrentDirectorState = 'waiting';
+    // Các biến trạng thái Vật Lý 60fps:
+    // - 'summoning': Vũ điệu Motion 3D kết tinh (ẩn Phong Bì & Ấn Sáp trong lúc chờ tải xong ảnh 100%, không dùng chữ Loading)
+    // - 'arriving' : Ảnh đã sẵn sàng -> Phong Bì 3D lướt vào + Ấn Sáp Vàng giáng xuống đóng dấu sẵn sàng
+    // - 'waiting'  : Phong Bì & Ấn Sáp đã sẵn sàng 100%, chờ người nhận chạm mở
+    // - 'opening'  : Đang mở phong bì & rút thiệp 3D
+    let summonStartTime = performance.now();
+    let arriveStartTime = performance.now();
+    let openStartTime = 0;
+    let lastFrameTime = performance.now();
+    let summonSpawnAccum = 0;
+    let hasSpawnedArrivalStamp = false;
+
+    if (needSummonPrelude) {
+        u3dCurrentDirectorState = 'summoning';
+        stage.classList.add('is-summoning');
+        backRig.style.opacity = '0';
+        frontRig.style.opacity = '0';
+        frontRig.style.pointerEvents = 'none';
+        if (sealBtn) {
+            sealBtn.style.opacity = '0';
+            sealBtn.style.pointerEvents = 'none';
+            sealBtn.style.transform = 'translate3d(0, -40px, 0) scale(2.4)';
+        }
+    } else if (!autoOpen) {
+        u3dCurrentDirectorState = 'arriving';
+        stage.classList.add('is-arriving');
+        backRig.style.opacity = '0';
+        frontRig.style.opacity = '0';
+        frontRig.style.pointerEvents = 'none';
+        if (sealBtn) {
+            sealBtn.style.opacity = '0';
+            sealBtn.style.pointerEvents = 'none';
+            sealBtn.style.transform = 'translate3d(0, -40px, 0) scale(2.4)';
+        }
+    } else {
+        u3dCurrentDirectorState = 'waiting';
+        backRig.style.opacity = '1';
+        frontRig.style.opacity = '1';
+        frontRig.style.pointerEvents = 'auto';
+        if (sealBtn) {
+            sealBtn.style.opacity = '1';
+            sealBtn.style.pointerEvents = 'auto';
+            sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
+        }
+    }
+
     u3dPointerTargetRotX = 0;
     u3dPointerTargetRotY = 0;
     u3dPointerCurRotX = 0;
     u3dPointerCurRotY = 0;
-
-    let openStartTime = 0;
-    let lastFrameTime = performance.now();
 
     // Biến vật lý Bản lề Nắp Thư (Damped Spring Oscillator)
     let flapAngle = 0;
@@ -5503,6 +5683,11 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const rings3D = [];
     const ribbons3D = [];
     const escortButterflies = [];
+    const summonRings = [
+        { cx: 0, cy: 0, cz: 0, radius: 96, rx: 1.05, ry: 0.3, rz: 0, vrx: 0.7, vry: 1.6, vrz: 2.4, color: '#ffe898', glowColor: '#f5c242', lineWidth: 2.2, dashed: false, alpha: 0.9 },
+        { cx: 0, cy: 0, cz: 0, radius: 124, rx: -0.85, ry: 0.9, rz: 0.5, vrx: -1.3, vry: 0.85, vrz: -1.9, color: '#ff9ebb', glowColor: '#d84b7e', lineWidth: 1.8, dashed: true, alpha: 0.82 },
+        { cx: 0, cy: 0, cz: 0, radius: 152, rx: 0.45, ry: -1.1, rz: -0.4, vrx: 0.95, vry: -1.4, vrz: 1.6, color: '#b2ebf2', glowColor: '#4dd0e1', lineWidth: 1.6, dashed: false, alpha: 0.75 }
+    ];
     let hasSpawnedSealBreak = false;
     let hasSpawnedMainBurst = false;
     let hasHandedOffCard = false;
@@ -5549,23 +5734,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         });
     }
 
-    // Khởi tạo hàm kích hoạt mở phong bì vật lý 3D
+    // Khởi tạo hàm kích hoạt mở phong bì vật lý 3D (CHỈ cho phép mở khi đã ở trạng thái 'waiting' và ảnh đã sẵn sàng 100%)
     const startEnvelopePhysicsOpen = () => {
         if (u3dCurrentDirectorState !== 'waiting') return;
-
-        const imgNotReady = !cardImg || !cardImg.getAttribute('src') || !cardImg.complete || cardImg.naturalWidth === 0;
-        if (isRealRecipient && imgNotReady) {
-            if (sealBtn) sealBtn.style.transform = 'scale(0.92)';
-            let started = false;
-            const go = () => {
-                if (started) return;
-                started = true;
-                beginOpenSequence();
-            };
-            if (cardImg) cardImg.onload = go;
-            setTimeout(go, 1800);
-            return;
-        }
+        if (isRealRecipient && !window.isRecipientCardImageReady) return;
         beginOpenSequence();
     };
 
@@ -5580,10 +5752,59 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
     u3dTriggerOpenFn = startEnvelopePhysicsOpen;
 
-    if (autoOpen) {
+    if (autoOpen && u3dCurrentDirectorState === 'waiting') {
         u3dAutoOpenTimerId = setTimeout(() => {
             startEnvelopePhysicsOpen();
         }, autoOpenDelay);
+    }
+
+    // Hàm tạo hạt năng lượng xoáy hội tụ vào tâm trong pha Triệu Hồi (Summoning Prelude)
+    function spawnSummonVortexParticle() {
+        const ang = Math.random() * Math.PI * 2;
+        const dist = 185 + Math.random() * 95;
+        const px = Math.cos(ang) * dist;
+        const py = Math.sin(ang) * dist;
+        const tangX = -Math.sin(ang);
+        const tangY = Math.cos(ang);
+        const inwardSpd = 190 + Math.random() * 75;
+        const swirlSpd = 155 + Math.random() * 65;
+
+        let pType = 'petal';
+        if (cfg.id === 'butterflies') pType = Math.random() < 0.65 ? 'butterfly' : 'star';
+        else if (cfg.id === 'ribbon') pType = Math.random() < 0.65 ? 'pearl' : 'star';
+        else if (cfg.id === 'galaxy') pType = 'star';
+        else if (cfg.id === 'hearts') pType = Math.random() < 0.7 ? 'diamond' : 'star';
+        else pType = Math.random() < 0.75 ? 'petal' : 'star';
+
+        particles.push({
+            type: pType,
+            isGold: true,
+            isSakura: cfg.id === 'sakura',
+            hasTrail: pType === 'star',
+            x: px,
+            y: py,
+            z: (Math.random() - 0.5) * 180,
+            vx: -Math.cos(ang) * inwardSpd + tangX * swirlSpd,
+            vy: -Math.sin(ang) * inwardSpd + tangY * swirlSpd,
+            vz: (Math.random() - 0.5) * 90,
+            gravity: 0,
+            drag: 0.45,
+            vortex: 0,
+            flutter: 35,
+            phase: Math.random() * 6,
+            flapPhase: Math.random() * 6,
+            flapSpeed: 42,
+            size: pType === 'butterfly' ? 13 : (pType === 'diamond' ? 9 : (pType === 'pearl' ? 6 : 9)),
+            colorMid: cfg.id === 'sakura' ? '#ffb2c9' : '#f48fb1',
+            colorEnd: cfg.id === 'sakura' ? '#d83a6f' : '#ad1457',
+            tintA: '#e0f7fa',
+            tintB: '#fce4ec',
+            rx: Math.random() * 5, ry: Math.random() * 5, rz: Math.random() * 5,
+            vrx: 5, vry: 6, vrz: 5,
+            alpha: 1,
+            life: 0,
+            maxLife: 0.88
+        });
     }
 
     // Hàm tạo hạt năng lượng hội tụ / thức tỉnh quanh Con Dấu Sáp trong pha Khởi Động (0.00s -> 0.88s)
@@ -5925,6 +6146,177 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         const cardInPocketW = baseW * pocketScale;
         const cardInPocketH = baseH * pocketScale;
 
+        // ====== TRẠNG THÁI 0A: TRIỆU HỒI THIỆP BẰNG MOTION 3D (KHI ĐANG TẢI ẢNH TỪ LINK - KHÔNG DÙNG CHỮ LOADING!) ======
+        if (u3dCurrentDirectorState === 'summoning') {
+            const summonElapsed = (now - summonStartTime) / 1000;
+            backRig.style.opacity = '0';
+            frontRig.style.opacity = '0';
+            cardActor.style.opacity = '0';
+
+            // 1. Vẽ 3 Vòng Quỹ Đạo Ánh Sáng 3D xoay kết tinh quanh tâm sân khấu
+            for (let r = 0; r < summonRings.length; r++) {
+                const sr = summonRings[r];
+                sr.rx += sr.vrx * dt;
+                sr.ry += sr.vry * dt;
+                sr.rz += sr.vrz * dt;
+                sr.radius = (88 + r * 26) + Math.sin(summonElapsed * 3.4 + r) * 12;
+                drawSplit3DRing(ctxBack, ctxFront, sr, screenCx, screenCy, focal, 0);
+            }
+
+            // 2. Sinh các hạt 3D theo chủ đề xoáy hội tụ từ ngoài vào tâm
+            summonSpawnAccum += dt;
+            if (summonSpawnAccum >= 0.045) {
+                summonSpawnAccum = 0;
+                spawnSummonVortexParticle();
+                spawnSummonVortexParticle();
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life += dt;
+                if (p.life >= p.maxLife) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                const dragFactor = Math.max(0, 1 - p.drag * dt);
+                p.vx *= dragFactor;
+                p.vy *= dragFactor;
+                p.vz *= dragFactor;
+                if (p.type === 'butterfly') p.flapPhase += p.flapSpeed * dt;
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.z += p.vz * dt;
+                p.rx += p.vrx * dt;
+                p.ry += p.vry * dt;
+                p.rz += p.vrz * dt;
+                const lr = p.life / p.maxLife;
+                p.alpha = lr < 0.18 ? lr / 0.18 : (lr > 0.72 ? (1 - lr) / 0.28 : 1);
+                draw3DProjectedParticle(p.z < 0 ? ctxBack : ctxFront, p, screenCx, screenCy, focal);
+            }
+
+            // 3. Vẽ Biểu Tượng Ánh Sáng 3D của chủ đề đang kết tinh tại tâm
+            drawSummonCenterMotif(ctxFront, cfg.id, summonElapsed, screenCx, screenCy);
+
+            // Ngay khi ảnh thiệp đã tải & giải mã xong 100% (và hoàn thành tối thiểu 0.72s nhịp điệu mở màn) -> Chuyển sang pha Phong Bì Lướt Vào & Đóng Dấu Sáp!
+            if (window.isRecipientCardImageReady && summonElapsed >= 0.72) {
+                u3dCurrentDirectorState = 'arriving';
+                arriveStartTime = now;
+                stage.classList.remove('is-summoning');
+                stage.classList.add('is-arriving');
+                spawnSealBreakExplosion(0);
+            }
+
+            u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
+            return;
+        }
+
+        // ====== TRẠNG THÁI 0B: PHONG BÌ 3D LƯỚT VÀO & CON DẤU SÁP VÀNG GIÁNG XUỐNG ĐÓNG DẤU SẴN SÀNG ======
+        if (u3dCurrentDirectorState === 'arriving') {
+            const arriveElapsed = (now - arriveStartTime) / 1000;
+            const ARRIVE_TOTAL = 0.76;
+
+            // Pha 1 (0.00s -> 0.48s): Phong bì 3D kết tinh và lướt từ chiều sâu 3D vào giữa sân khấu
+            const envP = Math.min(1, arriveElapsed / 0.48);
+            const easeEnv = 1 - Math.pow(1 - envP, 3);
+
+            // Pha 2 (0.36s -> 0.76s): Con dấu sáp vàng 3D từ trên cao giáng xuống đóng dấu vào nắp phong bì (tại t = 0.60s)
+            const sealP = Math.max(0, Math.min(1, (arriveElapsed - 0.36) / 0.40));
+            let sealScale = 2.45;
+            let sealTy = -42;
+            let sealOp = 0;
+            let envRecoilY = 0;
+
+            if (sealP > 0) {
+                if (sealP < 0.62) {
+                    const downP = sealP / 0.62;
+                    const easeDown = downP * downP;
+                    sealScale = 2.45 - 1.53 * easeDown; // 2.45 -> 0.92
+                    sealTy = -42 * (1 - easeDown);
+                    sealOp = Math.min(1, downP * 1.8);
+                } else {
+                    const bounceP = (sealP - 0.62) / 0.38;
+                    sealScale = 0.92 + 0.08 * Math.sin(bounceP * Math.PI * 0.5);
+                    sealTy = 0;
+                    sealOp = 1;
+                    envRecoilY = Math.sin(bounceP * Math.PI) * 5.5;
+                    if (!hasSpawnedArrivalStamp) {
+                        hasSpawnedArrivalStamp = true;
+                        const envMouthWorldY0 = (envBaseCy - envBaseH * 0.24) - screenCy;
+                        const sealWorldY0 = envMouthWorldY0 + envBaseH * 0.28;
+                        spawnSealBreakExplosion(sealWorldY0);
+                    }
+                }
+            }
+
+            const envScale = 0.54 + 0.46 * easeEnv;
+            const envTy = (1 - easeEnv) * -36 + envRecoilY;
+            const envRx = 32 * (1 - easeEnv) + 6;
+            const envRy = -16 * (1 - easeEnv);
+            const envRz = (1 - easeEnv) * -6;
+            const envOp = Math.min(1, envP * 1.65);
+
+            const envTransform = `perspective(1400px) translate3d(0px, ${envTy.toFixed(1)}px, 0px) scale(${envScale.toFixed(3)}) rotateX(${envRx.toFixed(2)}deg) rotateY(${envRy.toFixed(2)}deg) rotateZ(${envRz.toFixed(2)}deg)`;
+            backRig.style.transform = envTransform;
+            frontRig.style.transform = envTransform;
+            backRig.style.opacity = envOp.toFixed(2);
+            frontRig.style.opacity = envOp.toFixed(2);
+
+            if (sealBtn) {
+                sealBtn.style.opacity = sealOp.toFixed(2);
+                sealBtn.style.transform = `translate3d(0px, ${sealTy.toFixed(1)}px, 0px) scale(${sealScale.toFixed(3)})`;
+            }
+
+            if (floorShadow) {
+                floorShadow.style.opacity = envOp.toFixed(2);
+                floorShadow.style.transform = `scale(${envScale.toFixed(3)})`;
+            }
+
+            cardActor.style.opacity = '0';
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.life += dt;
+                if (p.life >= p.maxLife) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                const dragFactor = Math.max(0, 1 - p.drag * dt);
+                p.vx *= dragFactor;
+                p.vy *= dragFactor;
+                p.vz *= dragFactor;
+                p.vy += p.gravity * dt;
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.z += p.vz * dt;
+                p.rx += p.vrx * dt;
+                p.ry += p.vry * dt;
+                p.rz += p.vrz * dt;
+                const lr = p.life / p.maxLife;
+                p.alpha = lr < 0.15 ? lr / 0.15 : (lr > 0.7 ? (1 - lr) / 0.3 : 1);
+                draw3DProjectedParticle(p.z < 0 ? ctxBack : ctxFront, p, screenCx, screenCy, focal);
+            }
+
+            if (arriveElapsed >= ARRIVE_TOTAL) {
+                u3dCurrentDirectorState = 'waiting';
+                stage.classList.remove('is-arriving');
+                frontRig.style.pointerEvents = 'auto';
+                if (sealBtn) {
+                    sealBtn.style.opacity = '1';
+                    sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
+                    sealBtn.style.pointerEvents = 'auto';
+                }
+                if (autoOpen) {
+                    u3dAutoOpenTimerId = setTimeout(() => {
+                        startEnvelopePhysicsOpen();
+                    }, 180);
+                }
+            }
+
+            u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
+            return;
+        }
+
+        // ====== TRẠNG THÁI 1: PHONG BÌ & ẤN SÁP ĐÃ SẴN SÀNG 100%, CHỜ NGƯỜI NHẬN CHẠM MỞ ======
         if (u3dCurrentDirectorState === 'waiting') {
             const floatT = now * 0.0022;
             const idleY = Math.sin(floatT) * 7;
@@ -6513,8 +6905,470 @@ window.triggerShowcaseMotionReveal = function (motionId = 'bloom') {
     updateShowcaseAmbientForMotion(motionId || window.currentMotionEffect || 'bloom');
 };
 
+// ====== THẾ GIỚI NỀN HẬU CẢNH RIÊNG BIỆT CHO TỪNG KIỂU MOTION SAU KHI MỞ THIỆP ======
+let showcaseBgAnimFrameId = null;
+let showcaseBgCurrentMotion = '';
+let showcaseBgActors = [];
+
+function getSanctuarySacredWheelSVG(motionId) {
+    switch (motionId) {
+        case 'butterflies':
+            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ffd86b" stroke-width="0.9">
+                <circle cx="100" cy="100" r="88" stroke-dasharray="4 6" opacity="0.55"/>
+                <circle cx="100" cy="100" r="70" opacity="0.38"/>
+                <polygon points="100,16 122,78 184,100 122,122 100,184 78,122 16,100 78,78" opacity="0.42"/>
+                <polygon points="100,28 118,82 172,100 118,118 100,172 82,118 28,100 82,82" transform="rotate(45 100 100)" opacity="0.35"/>
+                <circle cx="100" cy="100" r="42" stroke-dasharray="2 4" opacity="0.5"/>
+            </svg>`;
+        case 'ribbon':
+            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ff9ebb" stroke-width="0.9">
+                <circle cx="100" cy="100" r="86" stroke-dasharray="8 5" opacity="0.45"/>
+                <ellipse cx="100" cy="100" rx="82" ry="38" transform="rotate(30 100 100)" opacity="0.42"/>
+                <ellipse cx="100" cy="100" rx="82" ry="38" transform="rotate(-30 100 100)" opacity="0.42"/>
+                <ellipse cx="100" cy="100" rx="82" ry="38" transform="rotate(90 100 100)" opacity="0.42"/>
+                <circle cx="100" cy="100" r="52" opacity="0.35"/>
+            </svg>`;
+        case 'galaxy':
+            return `<svg viewBox="0 0 200 200" fill="none" stroke="#8ec5ff" stroke-width="0.9">
+                <circle cx="100" cy="100" r="90" stroke-dasharray="2 5" opacity="0.65"/>
+                <circle cx="100" cy="100" r="74" opacity="0.42"/>
+                <circle cx="100" cy="100" r="56" stroke-dasharray="10 4" opacity="0.48"/>
+                <polygon points="100,10 124,76 190,100 124,124 100,190 76,124 10,100 76,76" opacity="0.5"/>
+                <polygon points="100,22 118,82 178,100 118,118 100,178 82,118 22,100 82,82" transform="rotate(30 100 100)" opacity="0.35"/>
+                <polygon points="100,22 118,82 178,100 118,118 100,178 82,118 22,100 82,82" transform="rotate(60 100 100)" opacity="0.35"/>
+            </svg>`;
+        case 'sakura':
+            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ffb7d5" stroke-width="0.9">
+                <circle cx="100" cy="100" r="86" stroke-dasharray="5 5" opacity="0.5"/>
+                <circle cx="100" cy="100" r="66" opacity="0.38"/>
+                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" opacity="0.45"/>
+                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" transform="rotate(72 100 100)" opacity="0.45"/>
+                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" transform="rotate(144 100 100)" opacity="0.45"/>
+                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" transform="rotate(216 100 100)" opacity="0.45"/>
+                <path d="M100 18 C118 45 118 75 100 100 C82 75 82 45 100 18 Z" transform="rotate(288 100 100)" opacity="0.45"/>
+            </svg>`;
+        case 'hearts':
+            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ff7aa8" stroke-width="0.9">
+                <circle cx="100" cy="100" r="88" stroke-dasharray="3 5" opacity="0.55"/>
+                <polygon points="100,14 161,39 186,100 161,161 100,186 39,161 14,100 39,39" opacity="0.45"/>
+                <polygon points="100,26 152,48 174,100 152,152 100,174 48,152 26,100 48,48" transform="rotate(22.5 100 100)" opacity="0.4"/>
+                <line x1="100" y1="14" x2="100" y2="186" opacity="0.3"/>
+                <line x1="14" y1="100" x2="186" y2="100" opacity="0.3"/>
+                <line x1="39" y1="39" x2="161" y2="161" opacity="0.3"/>
+                <line x1="161" y1="39" x2="39" y2="161" opacity="0.3"/>
+            </svg>`;
+        case 'bloom':
+        default:
+            return `<svg viewBox="0 0 200 200" fill="none" stroke="#ffb3c6" stroke-width="0.9">
+                <circle cx="100" cy="100" r="88" stroke-dasharray="6 4" opacity="0.5"/>
+                <circle cx="100" cy="100" r="68" opacity="0.38"/>
+                <ellipse cx="100" cy="100" rx="76" ry="30" opacity="0.4"/>
+                <ellipse cx="100" cy="100" rx="76" ry="30" transform="rotate(45 100 100)" opacity="0.4"/>
+                <ellipse cx="100" cy="100" rx="76" ry="30" transform="rotate(90 100 100)" opacity="0.4"/>
+                <ellipse cx="100" cy="100" rx="76" ry="30" transform="rotate(135 100 100)" opacity="0.4"/>
+                <circle cx="100" cy="100" r="40" stroke-dasharray="3 3" opacity="0.48"/>
+            </svg>`;
+    }
+}
+
+function initShowcaseBgActors(motionId, width, height) {
+    const actors = [];
+    const w = Math.max(width, 320);
+    const h = Math.max(height, 480);
+
+    if (motionId === 'bloom') {
+        // Cánh hoa trà hồng đào & phấn nhũ vàng lơ lửng
+        for (let i = 0; i < 28; i++) {
+            actors.push({
+                kind: i % 3 === 0 ? 'pollen' : 'camellia',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: i % 3 === 0 ? (2 + Math.random() * 3.5) : (8 + Math.random() * 11),
+                vx: -0.25 + Math.random() * 0.5,
+                vy: -0.35 - Math.random() * 0.55,
+                rot: Math.random() * Math.PI * 2,
+                vRot: (Math.random() - 0.5) * 0.02,
+                swayPhase: Math.random() * Math.PI * 2,
+                alpha: 0.35 + Math.random() * 0.45,
+                color: ['#ff8fab', '#ffb3c6', '#ffd166', '#ffe5ec'][i % 4]
+            });
+        }
+    } else if (motionId === 'butterflies') {
+        // Đàn bướm hoàng kim vỗ cánh 3D & đom đóm rừng tiên
+        for (let i = 0; i < 14; i++) {
+            actors.push({
+                kind: 'butterfly',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 9 + Math.random() * 8,
+                vx: (Math.random() - 0.5) * 0.7,
+                vy: -0.45 - Math.random() * 0.65,
+                flapPhase: Math.random() * Math.PI * 2,
+                flapSpeed: 0.14 + Math.random() * 0.08,
+                swayPhase: Math.random() * Math.PI * 2,
+                alpha: 0.5 + Math.random() * 0.4,
+                color: i % 2 === 0 ? '#ffd86b' : '#ffb703'
+            });
+        }
+        for (let i = 0; i < 22; i++) {
+            actors.push({
+                kind: 'firefly',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 2 + Math.random() * 3.5,
+                vx: (Math.random() - 0.5) * 0.35,
+                vy: (Math.random() - 0.5) * 0.35,
+                pulsePhase: Math.random() * Math.PI * 2,
+                color: i % 3 === 0 ? '#7ae582' : '#ffe169'
+            });
+        }
+    } else if (motionId === 'ribbon') {
+        // Sóng lụa satin ánh ngọc trai & hạt ngọc bồng bềnh
+        for (let i = 0; i < 4; i++) {
+            actors.push({
+                kind: 'silk_wave',
+                yRatio: 0.2 + i * 0.2,
+                amp: 26 + i * 9,
+                freq: 0.0045 + i * 0.001,
+                speed: 0.8 + i * 0.25,
+                phase: i * 1.4,
+                color: i % 2 === 0 ? 'rgba(255, 158, 187, 0.16)' : 'rgba(255, 229, 236, 0.13)'
+            });
+        }
+        for (let i = 0; i < 24; i++) {
+            actors.push({
+                kind: 'pearl',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 2.5 + Math.random() * 4.5,
+                vy: -0.25 - Math.random() * 0.45,
+                swayPhase: Math.random() * Math.PI * 2,
+                alpha: 0.35 + Math.random() * 0.45
+            });
+        }
+    } else if (motionId === 'galaxy') {
+        // Tinh vân sao lấp lánh & sao băng vệt sáng chéo
+        for (let i = 0; i < 60; i++) {
+            actors.push({
+                kind: 'star',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 1.0 + Math.random() * 2.4,
+                twinklePhase: Math.random() * Math.PI * 2,
+                twinkleSpeed: 1.5 + Math.random() * 2.5,
+                color: ['#ffffff', '#90e0ef', '#cdb4db', '#ffd166'][i % 4]
+            });
+        }
+        for (let i = 0; i < 3; i++) {
+            actors.push({
+                kind: 'meteor',
+                x: Math.random() * w,
+                y: Math.random() * (h * 0.5),
+                vx: -4.5 - Math.random() * 3.0,
+                vy: 2.6 + Math.random() * 2.0,
+                len: 55 + Math.random() * 45,
+                cooldown: i * 95
+            });
+        }
+    } else if (motionId === 'sakura') {
+        // Cánh hoa anh đào Nhật Bản bay chéo theo làn gió xuân
+        for (let i = 0; i < 32; i++) {
+            actors.push({
+                kind: 'sakura_petal',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 7 + Math.random() * 8,
+                vx: 0.45 + Math.random() * 0.75,
+                vy: 0.55 + Math.random() * 0.85,
+                rot: Math.random() * Math.PI * 2,
+                vRot: (Math.random() - 0.5) * 0.03,
+                flipPhase: Math.random() * Math.PI * 2,
+                alpha: 0.42 + Math.random() * 0.42,
+                color: i % 2 === 0 ? '#ffb7d5' : '#ffdbe9'
+            });
+        }
+    } else if (motionId === 'hearts') {
+        // Tinh thể pha lê hồng ngọc & tim lăng kính phản quang
+        for (let i = 0; i < 24; i++) {
+            actors.push({
+                kind: i % 2 === 0 ? 'diamond_gem' : 'crystal_heart',
+                x: Math.random() * w,
+                y: Math.random() * h,
+                size: 7 + Math.random() * 9,
+                vy: -0.35 - Math.random() * 0.55,
+                rot: Math.random() * Math.PI * 2,
+                vRot: (Math.random() - 0.5) * 0.025,
+                shimmerPhase: Math.random() * Math.PI * 2,
+                alpha: 0.35 + Math.random() * 0.45,
+                color: ['#ff4d79', '#ff8fab', '#ffd166', '#ffb3c6'][i % 4]
+            });
+        }
+    }
+    return actors;
+}
+
+function startShowcaseBackgroundWorld(motionId = 'bloom') {
+    const canvas = document.getElementById('showcase-bg-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const resizeCanvas = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const w = window.innerWidth || 390;
+        const h = window.innerHeight || 844;
+        if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
+            canvas.width = Math.floor(w * dpr);
+            canvas.height = Math.floor(h * dpr);
+        }
+        return { w, h, dpr };
+    };
+
+    const dims = resizeCanvas();
+    if (showcaseBgCurrentMotion !== motionId || showcaseBgActors.length === 0) {
+        showcaseBgCurrentMotion = motionId;
+        showcaseBgActors = initShowcaseBgActors(motionId, dims.w, dims.h);
+    }
+
+    if (showcaseBgAnimFrameId) {
+        cancelAnimationFrame(showcaseBgAnimFrameId);
+        showcaseBgAnimFrameId = null;
+    }
+
+    let lastTime = performance.now();
+    const renderLoop = (now) => {
+        showcaseBgAnimFrameId = requestAnimationFrame(renderLoop);
+        if (!step3 || !step3.classList.contains('active')) return;
+
+        const dt = Math.min(0.05, Math.max(0.008, (now - lastTime) / 1000));
+        lastTime = now;
+        const t = now * 0.001;
+
+        const { w, h, dpr } = resizeCanvas();
+        ctx.save();
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+
+        for (let i = 0; i < showcaseBgActors.length; i++) {
+            const a = showcaseBgActors[i];
+
+            if (a.kind === 'camellia') {
+                a.x += a.vx + Math.sin(t * 1.4 + a.swayPhase) * 0.35;
+                a.y += a.vy;
+                a.rot += a.vRot;
+                if (a.y < -30) { a.y = h + 25; a.x = Math.random() * w; }
+                if (a.x < -30) a.x = w + 25;
+                if (a.x > w + 30) a.x = -25;
+
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                ctx.rotate(a.rot);
+                ctx.scale(1, 0.65 + 0.3 * Math.sin(t * 2 + a.swayPhase));
+                ctx.globalAlpha = a.alpha;
+                ctx.fillStyle = a.color;
+                ctx.beginPath();
+                ctx.moveTo(0, -a.size);
+                ctx.bezierCurveTo(a.size * 0.9, -a.size * 0.6, a.size * 0.85, a.size * 0.7, 0, a.size);
+                ctx.bezierCurveTo(-a.size * 0.85, a.size * 0.7, -a.size * 0.9, -a.size * 0.6, 0, -a.size);
+                ctx.fill();
+                ctx.restore();
+            } else if (a.kind === 'pollen' || a.kind === 'firefly' || a.kind === 'pearl') {
+                a.x += (a.vx || 0) + Math.sin(t * 1.6 + (a.swayPhase || a.pulsePhase || 0)) * 0.3;
+                a.y += (a.vy || -0.3);
+                if (a.y < -20) { a.y = h + 18; a.x = Math.random() * w; }
+                if (a.y > h + 20) { a.y = -18; a.x = Math.random() * w; }
+                if (a.x < -20) a.x = w + 18;
+                if (a.x > w + 20) a.x = -18;
+
+                const pulse = 0.55 + 0.45 * Math.sin(t * 3.0 + (a.pulsePhase || a.swayPhase || i));
+                ctx.save();
+                ctx.globalAlpha = (a.alpha || 0.7) * pulse;
+                const grad = ctx.createRadialGradient(a.x, a.y, 0, a.x, a.y, a.size * 2.6);
+                grad.addColorStop(0, '#ffffff');
+                grad.addColorStop(0.45, a.color || '#ffe5ec');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.size * 2.6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else if (a.kind === 'butterfly') {
+                a.flapPhase += a.flapSpeed;
+                a.x += a.vx + Math.sin(t * 1.8 + a.swayPhase) * 0.55;
+                a.y += a.vy;
+                if (a.y < -35) { a.y = h + 30; a.x = Math.random() * w; }
+                if (a.x < -35) a.x = w + 30;
+                if (a.x > w + 35) a.x = -30;
+
+                const wingScale = 0.25 + 0.75 * Math.abs(Math.cos(a.flapPhase));
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                ctx.rotate(Math.sin(t * 1.5 + a.swayPhase) * 0.25);
+                ctx.globalAlpha = a.alpha;
+                ctx.fillStyle = a.color;
+                ctx.shadowColor = '#ffd86b';
+                ctx.shadowBlur = 10;
+
+                for (const dir of [-1, 1]) {
+                    ctx.save();
+                    ctx.scale(dir * wingScale, 1);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.bezierCurveTo(a.size * 1.2, -a.size * 1.1, a.size * 1.5, a.size * 0.2, 0, a.size * 0.4);
+                    ctx.bezierCurveTo(a.size * 0.9, a.size * 0.6, a.size * 0.8, a.size * 1.2, 0, a.size * 0.85);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.restore();
+                }
+                ctx.restore();
+            } else if (a.kind === 'silk_wave') {
+                ctx.save();
+                ctx.strokeStyle = a.color;
+                ctx.lineWidth = 22;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                const baseY = h * a.yRatio;
+                for (let x = 0; x <= w; x += 24) {
+                    const y = baseY + Math.sin(x * a.freq + t * a.speed + a.phase) * a.amp;
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.stroke();
+                ctx.restore();
+            } else if (a.kind === 'star') {
+                const twinkle = 0.25 + 0.75 * Math.pow(0.5 + 0.5 * Math.sin(t * a.twinkleSpeed + a.twinklePhase), 2);
+                ctx.save();
+                ctx.globalAlpha = twinkle;
+                ctx.fillStyle = a.color;
+                ctx.beginPath();
+                ctx.arc(a.x, a.y, a.size, 0, Math.PI * 2);
+                ctx.fill();
+                if (a.size > 2.1 && twinkle > 0.75) {
+                    ctx.strokeStyle = a.color;
+                    ctx.lineWidth = 0.8;
+                    ctx.beginPath();
+                    ctx.moveTo(a.x - a.size * 2.8, a.y);
+                    ctx.lineTo(a.x + a.size * 2.8, a.y);
+                    ctx.moveTo(a.x, a.y - a.size * 2.8);
+                    ctx.lineTo(a.x, a.y + a.size * 2.8);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            } else if (a.kind === 'meteor') {
+                if (a.cooldown > 0) {
+                    a.cooldown -= 60 * dt;
+                    continue;
+                }
+                a.x += a.vx;
+                a.y += a.vy;
+                ctx.save();
+                const tailX = a.x - a.vx * 11;
+                const tailY = a.y - a.vy * 11;
+                const grad = ctx.createLinearGradient(a.x, a.y, tailX, tailY);
+                grad.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
+                grad.addColorStop(0.4, 'rgba(144, 224, 239, 0.45)');
+                grad.addColorStop(1, 'rgba(144, 224, 239, 0)');
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = 2.0;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(a.x, a.y);
+                ctx.lineTo(tailX, tailY);
+                ctx.stroke();
+                ctx.restore();
+
+                if (a.x < -100 || a.y > h + 100) {
+                    a.x = w * (0.35 + Math.random() * 0.65);
+                    a.y = -30;
+                    a.cooldown = 70 + Math.random() * 140;
+                }
+            } else if (a.kind === 'sakura_petal') {
+                a.x += a.vx + Math.sin(t * 1.5 + a.flipPhase) * 0.35;
+                a.y += a.vy;
+                a.rot += a.vRot;
+                if (a.y > h + 25) { a.y = -20; a.x = Math.random() * w; }
+                if (a.x > w + 25) { a.x = -20; a.y = Math.random() * h; }
+
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                ctx.rotate(a.rot);
+                ctx.scale(1, 0.55 + 0.45 * Math.cos(t * 2.2 + a.flipPhase));
+                ctx.globalAlpha = a.alpha;
+                ctx.fillStyle = a.color;
+                ctx.beginPath();
+                ctx.moveTo(0, a.size);
+                ctx.bezierCurveTo(-a.size * 0.85, a.size * 0.3, -a.size * 0.75, -a.size * 0.75, -a.size * 0.22, -a.size);
+                ctx.lineTo(0, -a.size * 0.68);
+                ctx.lineTo(a.size * 0.22, -a.size);
+                ctx.bezierCurveTo(a.size * 0.75, -a.size * 0.75, a.size * 0.85, a.size * 0.3, 0, a.size);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            } else if (a.kind === 'diamond_gem' || a.kind === 'crystal_heart') {
+                a.y += a.vy;
+                a.x += Math.sin(t * 1.3 + a.shimmerPhase) * 0.3;
+                a.rot += a.vRot;
+                if (a.y < -30) { a.y = h + 25; a.x = Math.random() * w; }
+
+                const shimmer = 0.65 + 0.35 * Math.sin(t * 3.5 + a.shimmerPhase);
+                ctx.save();
+                ctx.translate(a.x, a.y);
+                ctx.rotate(a.rot);
+                ctx.globalAlpha = a.alpha * shimmer;
+                ctx.fillStyle = a.color;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+                ctx.lineWidth = 0.9;
+
+                if (a.kind === 'diamond_gem') {
+                    ctx.beginPath();
+                    ctx.moveTo(0, -a.size);
+                    ctx.lineTo(a.size * 0.78, 0);
+                    ctx.lineTo(0, a.size);
+                    ctx.lineTo(-a.size * 0.78, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else {
+                    const s = a.size * 0.08;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 4 * s);
+                    ctx.bezierCurveTo(0, 1 * s, -6 * s, -4 * s, -10 * s, 1 * s);
+                    ctx.bezierCurveTo(-14 * s, 6 * s, -5 * s, 12 * s, 0, 16 * s);
+                    ctx.bezierCurveTo(5 * s, 12 * s, 14 * s, 6 * s, 10 * s, 1 * s);
+                    ctx.bezierCurveTo(6 * s, -4 * s, 0, 1 * s, 0, 4 * s);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+        ctx.restore();
+    };
+
+    showcaseBgAnimFrameId = requestAnimationFrame(renderLoop);
+}
+
 function updateShowcaseAmbientForMotion(motionId) {
-    const cfg = MOTION_EFFECTS_CONFIG[motionId] || MOTION_EFFECTS_CONFIG.bloom;
+    const validMotion = MOTION_EFFECTS_CONFIG[motionId] ? motionId : 'bloom';
+    const cfg = MOTION_EFFECTS_CONFIG[validMotion];
+
+    // Đồng bộ thuộc tính data-motion cho toàn bộ Thánh Đường Hậu Cảnh Bước 3 & Sân Khấu Phong Bì 3D
+    if (step3) step3.setAttribute('data-motion', validMotion);
+    const sanctuary = document.getElementById('showcase-motion-sanctuary');
+    if (sanctuary) sanctuary.setAttribute('data-motion', validMotion);
+    const u3dStage = document.getElementById('u3d-envelope-stage');
+    if (u3dStage) u3dStage.setAttribute('data-motion', validMotion);
+
+    // Cập nhật Vòng Mandala / Tinh Đồ SVG tương ứng chủ đề Motion
+    const wheelEl = document.getElementById('sanctuary-sacred-wheel');
+    if (wheelEl) {
+        wheelEl.innerHTML = getSanctuarySacredWheelSVG(validMotion);
+    }
+
+    // Khởi chạy Thế Giới Hậu Cảnh Canvas 60fps riêng cho từng chủ đề Motion
+    startShowcaseBackgroundWorld(validMotion);
+
     const container = document.getElementById('showcase-ambient-orbs');
     if (!container) return;
     const spans = container.querySelectorAll('.showcase-orb');
@@ -7144,6 +7998,8 @@ document.getElementById('share-zalo-btn')?.addEventListener('click', async () =>
 });
 
 // ====== 5. CHẾ ĐỘ NGƯỜI NHẬN MỞ BÌ THIỆP 3D & CHẾ ĐỘ XEM THỬ MỞ BÌ THIỆP ======
+const SAFE_BLANK_PIXEL_GIF = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
 async function resolveTelegramFileUrl(fileId) {
     if (!fileId || fileId === 'local') return '';
     const cacheKey = `tg_card_url_${fileId}`;
@@ -7151,15 +8007,112 @@ async function resolveTelegramFileUrl(fileId) {
     if (cached) return cached;
 
     const { ep, tk } = _getCloudCfg();
-    const res = await fetch(`${ep}/bot${tk}/getFile?file_id=${encodeURIComponent(fileId)}`);
-    if (!res.ok) throw new Error('Không tải được thông tin file từ Telegram');
-    const data = await res.json();
-    const filePath = data?.result?.file_path;
-    if (!filePath) throw new Error('Không tìm thấy file_path');
+    const apiTarget = `${ep}/bot${tk}/getFile?file_id=${encodeURIComponent(fileId)}`;
+    const endpoints = [
+        apiTarget,
+        `https://corsproxy.io/?${encodeURIComponent(apiTarget)}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(apiTarget)}`
+    ];
+
+    let filePath = '';
+    for (const url of endpoints) {
+        try {
+            const res = await fetch(url);
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data?.result?.file_path) {
+                filePath = data.result.file_path;
+                break;
+            }
+        } catch (_) {}
+    }
+
+    if (!filePath) throw new Error('Không tìm thấy file_path từ Telegram');
 
     const fullUrl = `${ep}/file/bot${tk}/${filePath}`;
-    sessionStorage.setItem(cacheKey, fullUrl);
+    try {
+        sessionStorage.setItem(cacheKey, fullUrl);
+    } catch (_) {}
     return fullUrl;
+}
+
+// Tải và giải mã hoàn chỉnh (GPU Decode 100%) bức ảnh thiệp trước khi cho phép Phong Bì & Ấn Sáp xuất hiện
+async function preloadAndDecodeRecipientCardImage(fileId) {
+    const rawUrl = await resolveTelegramFileUrl(fileId);
+    if (!rawUrl) throw new Error('URL ảnh rỗng');
+
+    const candidateUrls = [
+        rawUrl,
+        `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg&q=95`,
+        `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`
+    ];
+
+    let verifiedUrl = '';
+    for (const candidate of candidateUrls) {
+        try {
+            const probe = new Image();
+            probe.decoding = 'async';
+            const loaded = await new Promise((resolve, reject) => {
+                const timer = setTimeout(() => reject(new Error('Image load timeout')), 9500);
+                probe.onload = () => {
+                    clearTimeout(timer);
+                    resolve(true);
+                };
+                probe.onerror = (e) => {
+                    clearTimeout(timer);
+                    reject(e);
+                };
+                probe.src = candidate;
+            });
+            if (loaded) {
+                if (typeof probe.decode === 'function') {
+                    await probe.decode().catch(() => {});
+                }
+                if (probe.naturalWidth > 2 && probe.naturalHeight > 2) {
+                    verifiedUrl = candidate;
+                    break;
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (!verifiedUrl) {
+        throw new Error('Không thể tải và giải mã ảnh thiệp qua các tuyến CDN');
+    }
+
+    recipientResolvedImgUrl = verifiedUrl;
+
+    const u3dCardImg = document.getElementById('u3d-card-img');
+    const recLetterImg = document.getElementById('recipient-letter-img');
+    const targetImgs = [u3dCardImg, finalResultImg].filter(Boolean);
+
+    await Promise.all(targetImgs.map((imgEl) => new Promise((resolve) => {
+        const done = () => {
+            if (typeof imgEl.decode === 'function') {
+                imgEl.decode().catch(() => {}).finally(resolve);
+            } else {
+                resolve();
+            }
+        };
+        imgEl.onload = done;
+        imgEl.onerror = () => resolve();
+        imgEl.src = verifiedUrl;
+        if (imgEl.complete && imgEl.naturalWidth > 2) {
+            done();
+        }
+    })));
+
+    if (recLetterImg) recLetterImg.src = verifiedUrl;
+    if (saveModalImg) saveModalImg.src = verifiedUrl;
+
+    fitCardShowcaseToWrap();
+    if (typeof window.u3dRefreshTargetRect === 'function') {
+        window.u3dRefreshTargetRect();
+    }
+
+    // Đánh dấu ảnh đã sẵn sàng 100% trên GPU -> Nghi thức Triệu Hồi 3D lập tức đưa Phong Bì & Ấn Sáp hạ xuống!
+    window.isRecipientCardImageReady = true;
+    return verifiedUrl;
 }
 
 function setupEnvelopeGiftStageUI({ title, subtitle, motionId, themeKey, isRealRecipient, autoOpen = false }) {
@@ -7215,7 +8168,7 @@ window.restoreCreatorStep1UI = function (setOpenedState = true) {
     const stage = document.getElementById('u3d-envelope-stage');
     if (stage) {
         stage.style.display = 'none';
-        stage.classList.remove('is-opening', 'pocket-cleared', 'handing-off');
+        stage.classList.remove('is-summoning', 'is-arriving', 'is-opening', 'pocket-cleared', 'handing-off');
     }
     if (cardShowcase) {
         cardShowcase.style.opacity = '1';
@@ -7342,6 +8295,14 @@ async function checkAndInitRecipientLinkOnLoad() {
 
     document.title = linkTitle;
 
+    // Đặt ảnh placeholder trong suốt 1x1 an toàn tuyệt đối (không bao giờ hiện icon crash/broken image)
+    // và khóa trạng thái sẵn sàng cho đến khi ảnh tải + decode xong 100%
+    window.isRecipientCardImageReady = false;
+    const u3dCardImg = document.getElementById('u3d-card-img');
+    if (u3dCardImg) u3dCardImg.src = SAFE_BLANK_PIXEL_GIF;
+    if (finalResultImg) finalResultImg.src = SAFE_BLANK_PIXEL_GIF;
+
+    // Khởi chạy Sân Khấu 3D ở pha 'summoning' (Nghi thức Vũ Đạo Ánh Sáng 3D thuần túy, không chữ Loading, ẩn phong bì & ấn sáp)
     setupEnvelopeGiftStageUI({
         title: linkTitle,
         subtitle: recTitle ? `💌 ${recTitle}` : 'Một món quà 3D đặc biệt đang chờ bạn mở phong bì ✨',
@@ -7351,36 +8312,19 @@ async function checkAndInitRecipientLinkOnLoad() {
         autoOpen: false
     });
 
-    // Tải ngầm (Preload) ảnh chất lượng gốc từ đám mây ngay khi người nhận đang ngắm Bì Thiệp 3D
+    // Tải & giải mã hoàn chỉnh (img.decode()) ảnh chất lượng gốc từ đám mây trước khi triệu hồi Phong Bì & Ấn Sáp
     try {
-        const imgUrl = await resolveTelegramFileUrl(meta.f);
-        recipientResolvedImgUrl = imgUrl;
-        const u3dCardImg = document.getElementById('u3d-card-img');
-        if (u3dCardImg) {
-            u3dCardImg.onload = () => {
-                fitCardShowcaseToWrap();
-                if (typeof window.u3dRefreshTargetRect === 'function') {
-                    window.u3dRefreshTargetRect();
-                }
-            };
-            u3dCardImg.src = imgUrl;
-        }
-        const recLetterImg = document.getElementById('recipient-letter-img');
-        if (recLetterImg) recLetterImg.src = imgUrl;
-        if (finalResultImg) {
-            finalResultImg.onload = () => {
-                fitCardShowcaseToWrap();
-                if (typeof window.u3dRefreshTargetRect === 'function') {
-                    window.u3dRefreshTargetRect();
-                }
-            };
-            finalResultImg.src = imgUrl;
-        }
-        if (saveModalImg) saveModalImg.src = imgUrl;
+        await preloadAndDecodeRecipientCardImage(meta.f);
     } catch (err) {
         console.error('Không thể tải ảnh thiệp:', err);
-        const promptText = document.getElementById('u3d-prompt-text');
-        if (promptText) promptText.textContent = '⚠️ Không thể tải ảnh thiệp, vui lòng kiểm tra lại đường link!';
+        // Thử lại lần 2 sau 1.2s nếu mạng chập chờn
+        setTimeout(async () => {
+            try {
+                await preloadAndDecodeRecipientCardImage(meta.f);
+            } catch (retryErr) {
+                console.error('Thử tải lại ảnh thiệp thất bại:', retryErr);
+            }
+        }, 1200);
     }
 }
 
