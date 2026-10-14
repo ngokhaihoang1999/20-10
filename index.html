@@ -4,17 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Thiệp 20/10 - Tôn vinh phụ nữ Việt Nam</title>
+    <title></title>
 
-    <!-- Meta Tags cho Telegram/Social Preview -->
-    <meta property="og:title" content="🌸 Thiệp 20/10 Rạng Rỡ - Gửi Trọn Yêu Thương">
-    <meta property="og:description"
-        content="Chụp một tấm ảnh, chỉ 30 giây là có ngay thiệp 20/10 độc bản – để tự tôn vinh chính mình hoặc gửi tặng người phụ nữ bạn yêu thương.">
-    <meta property="og:image" content="https://ngokhaihoang1999.github.io/20-10/khung/khung%201.png">
-    <meta property="og:url" content="https://ngokhaihoang1999.github.io/20-10/">
-    <meta property="og:type" content="website">
-
-    <link rel="stylesheet" href="style.css?v=16.0">
+    <link rel="stylesheet" href="style.css?v=17.0">
     <link
         href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,700;0,800;0,900;1,500&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
         rel="stylesheet">
@@ -892,17 +884,7 @@
                 </button>
             </div>
 
-            <div class="result-topbar recipient-topbar" id="recipient-topbar" style="display: none;">
-                <button type="button" id="recipient-back-env-btn" class="topbar-btn topbar-btn-left">
-                    ✉️ Mở lại bì
-                </button>
-                <span class="result-title" id="recipient-showcase-title">💌 Thiệp 3D Tặng Bạn 🌸</span>
-                <button type="button" id="recipient-make-own-btn" class="topbar-btn topbar-btn-right">
-                    ✨ Tạo thiệp mới
-                </button>
-            </div>
-
-            <!-- Sân khấu trình bày thành phẩm sinh động: Vòng tinh tú 24K xoay, Đom đóm vàng, Cánh hoa bay & Nghiêng 3D -->
+            <!-- Sân khấu trình bày thành phẩm sinh động: Vòng tinh tú 24K xoay, Đom đóm vàng, Cánh hoa bay & Nghiêng 3D (Cảm biến Con Quay Hồi Chuyển + Chạm) -->
             <div class="result-canvas-wrap" id="result-canvas-wrap">
                 <!-- Lớp hào quang ngọc trai & vòng tinh tú 24K xoay chậm phía sau thiệp -->
                 <div class="showcase-halo-aura" aria-hidden="true"></div>
@@ -952,20 +934,7 @@
                 </button>
             </div>
 
-            <!-- Thanh công cụ nhanh dưới sân khấu (Chế độ Người Nhận mở từ Link - Lưới 3 cột chuẩn xác không tràn chữ) -->
-            <div class="showcase-quick-bar showcase-grid-3" id="recipient-quick-bar" style="display: none;">
-                <button type="button" id="recipient-replay-env-btn" class="showcase-pill-btn">
-                    ✉️ Mở lại bì thư
-                </button>
-                <button type="button" id="recipient-replay-motion-btn" class="showcase-pill-btn">
-                    🎬 Phát lại 3D
-                </button>
-                <button type="button" id="recipient-sparkle-btn" class="showcase-pill-btn">
-                    ✨ Pháo hoa
-                </button>
-            </div>
-
-            <!-- Cụm nút Hành động chính: Tạo Link Thiệp 3D Gửi Tặng & Lưu Ảnh Gốc -->
+            <!-- Cụm nút Hành động chính cho Người Tạo: Tạo Link Thiệp 3D Gửi Tặng & Lưu Ảnh Gốc -->
             <div class="result-actions result-actions-dual" id="result-actions-wrap">
                 <button type="button" id="open-share-link-modal-btn" class="btn-primary btn-shimmer btn-create-3d-link">
                     <span class="icon">🔗</span> Tạo Link Thiệp 3D Gửi Tặng
@@ -974,12 +943,25 @@
                     <span class="icon">⬇️</span> <span id="download-btn-label">Lưu ảnh</span>
                 </button>
             </div>
+
+            <!-- Thanh Dock Ngọc Trai Tối Giản & Tinh Tế dành riêng cho Người Nhận sau khi mở thư -->
+            <div class="recipient-luxury-dock" id="recipient-luxury-dock" style="display: none;">
+                <button type="button" id="recipient-replay-env-btn" class="recipient-dock-pill" title="Xem lại khoảnh khắc mở bì thư 3D">
+                    <span>✉️</span> <span>Mở lại thư</span>
+                </button>
+                <button type="button" id="recipient-save-card-btn" class="recipient-dock-pill recipient-dock-primary" title="Lưu tấm thiệp kỷ niệm về máy">
+                    <span>📥</span> <span>Lưu thiệp</span>
+                </button>
+                <button type="button" id="recipient-make-own-btn" class="recipient-dock-pill" title="Tự tạo một tấm thiệp 3D mới">
+                    <span>✨</span> <span>Tạo thiệp</span>
+                </button>
+            </div>
         </div>
     </div>
 
-    <script src="wishes.js?v=16.0"></script>
-    <script src="script.js?v=16.0"></script>
-    <script src="intro.js?v=16.0"></script>
+    <script src="wishes.js?v=17.0"></script>
+    <script src="script.js?v=17.0"></script>
+    <script src="intro.js?v=17.0"></script>
 </body>
 
 </html>

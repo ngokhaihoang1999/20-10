@@ -2932,8 +2932,14 @@ function triggerCardPulse() {
     activeTarget.classList.add('pulse-playing');
 }
 
-// Mở Modal sửa Tiêu đề & Lời chúc kèm hiệu ứng hạt lấp lánh
+// Mở Modal sửa Tiêu đề & Lời chúc kèm hiệu ứng hạt lấp lánh (KHÔNG BAO GIỜ mở khi Người Nhận đang xem thiệp!)
 function openTextEditModalWithSparkle(clientX, clientY) {
+    if (window.isRecipientCardLinkMode) {
+        if (typeof clientX === 'number' && typeof clientY === 'number' && clientX > 0 && clientY > 0) {
+            spawnTouchSparkle(clientX, clientY, 9);
+        }
+        return;
+    }
     if (typeof clientX === 'number' && typeof clientY === 'number' && clientX > 0 && clientY > 0) {
         spawnTouchSparkle(clientX, clientY, 7);
     }
@@ -2972,9 +2978,20 @@ if (step2WishArea) {
     });
 }
 
-// Tương tác Nghiêng 3D (3D Perspective Tilt) & Ánh kim chạy theo ngón tay/chuột trên Sân khấu Bước 3
+// ====== TƯƠNG TÁC NGHIÊNG 3D (CON QUAY HỒI CHUYỂN GYROSCOPE ĐIỆN THOẠI + CHẠM NGÓN TAY) & ÁNH KIM 24K ======
 const resultCanvasWrap = document.getElementById('result-canvas-wrap');
 const cardFoilGlint = document.getElementById('card-foil-glint');
+
+let isPointerTrackingShowcase = false;
+let gyroSensorBound = false;
+let gyroHasReading = false;
+let gyroBaseBeta = null;
+let gyroBaseGamma = null;
+let gyroTargetTiltX = 0;
+let gyroTargetTiltY = 0;
+let gyroCurTiltX = 0;
+let gyroCurTiltY = 0;
+let gyroShowcaseRafId = null;
 
 function applyShowcase3DTilt(clientX, clientY) {
     if (!cardShowcase || !step3 || !step3.classList.contains('active')) return;
@@ -2983,11 +3000,14 @@ function applyShowcase3DTilt(clientX, clientY) {
 
     const relX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const relY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
-    const tiltY = (relX - 0.5) * 11; // -5.5deg -> +5.5deg
-    const tiltX = (0.5 - relY) * 9;  // -4.5deg -> +4.5deg
+    const tiltY = (relX - 0.5) * 14; // -7deg -> +7deg
+    const tiltX = (0.5 - relY) * 11; // -5.5deg -> +5.5deg
+
+    gyroCurTiltX = tiltX;
+    gyroCurTiltY = tiltY;
 
     cardShowcase.classList.add('is-tilting');
-    cardShowcase.style.transform = `perspective(1000px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(1.012)`;
+    cardShowcase.style.transform = `perspective(1050px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(1.012)`;
 
     if (cardFoilGlint) {
         cardFoilGlint.style.setProperty('--glint-x', `${(relX * 100).toFixed(1)}%`);
@@ -2997,33 +3017,127 @@ function applyShowcase3DTilt(clientX, clientY) {
 
 function resetShowcase3DTilt() {
     if (!cardShowcase) return;
+    if (gyroHasReading) {
+        // Nếu điện thoại có con quay hồi chuyển, trả quyền điều khiển nghiêng mượt về Gyroscope
+        startGyroShowcaseLoop();
+        return;
+    }
     cardShowcase.classList.remove('is-tilting');
     cardShowcase.style.transform = '';
+}
+
+function stepGyroShowcaseLoop() {
+    if (!gyroHasReading || !step3 || !step3.classList.contains('active')) {
+        gyroShowcaseRafId = null;
+        return;
+    }
+
+    if (!isPointerTrackingShowcase && cardShowcase && !document.body.classList.contains('u3d-stage-active')) {
+        gyroCurTiltX += (gyroTargetTiltX - gyroCurTiltX) * 0.12;
+        gyroCurTiltY += (gyroTargetTiltY - gyroCurTiltY) * 0.12;
+
+        const floatY = Math.sin(performance.now() * 0.002) * 3.5;
+        cardShowcase.classList.add('is-tilting');
+        cardShowcase.style.transform = `perspective(1050px) translate3d(0, ${floatY.toFixed(2)}px, 0) rotateX(${gyroCurTiltX.toFixed(2)}deg) rotateY(${gyroCurTiltY.toFixed(2)}deg) scale(1.012)`;
+
+        if (cardFoilGlint) {
+            const glintX = Math.max(5, Math.min(95, 50 + (gyroCurTiltY / 13.5) * 40));
+            const glintY = Math.max(5, Math.min(95, 38 - (gyroCurTiltX / 11.0) * 36));
+            cardFoilGlint.style.setProperty('--glint-x', `${glintX.toFixed(1)}%`);
+            cardFoilGlint.style.setProperty('--glint-y', `${glintY.toFixed(1)}%`);
+        }
+    }
+
+    gyroShowcaseRafId = requestAnimationFrame(stepGyroShowcaseLoop);
+}
+
+function startGyroShowcaseLoop() {
+    if (!gyroShowcaseRafId && gyroHasReading && step3 && step3.classList.contains('active')) {
+        gyroShowcaseRafId = requestAnimationFrame(stepGyroShowcaseLoop);
+    }
+}
+
+function handleDeviceOrientationEvent(e) {
+    if (e.beta === null || e.gamma === null || isNaN(e.beta) || isNaN(e.gamma)) return;
+    gyroHasReading = true;
+
+    if (gyroBaseBeta === null || gyroBaseGamma === null) {
+        gyroBaseBeta = e.beta;
+        gyroBaseGamma = e.gamma;
+    } else {
+        // Tự động thích nghi chậm với tư thế cầm điện thoại mới của người dùng
+        gyroBaseBeta += (e.beta - gyroBaseBeta) * 0.007;
+        gyroBaseGamma += (e.gamma - gyroBaseGamma) * 0.007;
+    }
+
+    const dGamma = Math.max(-28, Math.min(28, e.gamma - gyroBaseGamma));
+    const dBeta = Math.max(-28, Math.min(28, e.beta - gyroBaseBeta));
+
+    gyroTargetTiltY = (dGamma / 28) * 13.5;
+    gyroTargetTiltX = -(dBeta / 28) * 11.0;
+
+    // Đồng bộ nghiêng 3D cho cả Phong Bì Vật Lý 3D (#u3d-envelope-stage) khi đang chờ mở hoặc đang mở
+    if (typeof window.applyEnvelopeGyroTilt === 'function') {
+        window.applyEnvelopeGyroTilt(gyroTargetTiltX, gyroTargetTiltY);
+    }
+
+    startGyroShowcaseLoop();
+}
+
+function bindCardGyroscopeSensor() {
+    if (gyroSensorBound) return;
+    gyroSensorBound = true;
+    window.addEventListener('deviceorientation', handleDeviceOrientationEvent, { passive: true });
+}
+
+window.recenterCardGyroscope = function () {
+    gyroBaseBeta = null;
+    gyroBaseGamma = null;
+};
+
+window.requestCardGyroscopePermission = function () {
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission()
+            .then((state) => {
+                if (state === 'granted') {
+                    bindCardGyroscopeSensor();
+                }
+            })
+            .catch(() => {});
+    } else if (typeof DeviceOrientationEvent !== 'undefined') {
+        bindCardGyroscopeSensor();
+    }
+};
+
+// Tự động kích hoạt cảm biến con quay hồi chuyển ngay khi tải trang trên Android / trình duyệt không chặn quyền
+if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission !== 'function') {
+    bindCardGyroscopeSensor();
 }
 
 if (resultCanvasWrap && cardShowcase) {
     let startX = 0;
     let startY = 0;
     let startTime = 0;
-    let isPointerTracking = false;
     let lastTouchEndTime = 0;
 
     resultCanvasWrap.addEventListener('touchstart', (e) => {
+        window.requestCardGyroscopePermission?.();
         if (!e.touches || e.touches.length !== 1) return;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         startTime = Date.now();
-        isPointerTracking = true;
+        isPointerTrackingShowcase = true;
     }, { passive: true });
 
     resultCanvasWrap.addEventListener('touchmove', (e) => {
-        if (!isPointerTracking || !e.touches || e.touches.length !== 1) return;
+        if (!isPointerTrackingShowcase || !e.touches || e.touches.length !== 1) return;
         applyShowcase3DTilt(e.touches[0].clientX, e.touches[0].clientY);
     }, { passive: true });
 
     resultCanvasWrap.addEventListener('touchend', (e) => {
-        if (!isPointerTracking || !e.changedTouches || e.changedTouches.length === 0) return;
-        isPointerTracking = false;
+        if (!isPointerTrackingShowcase || !e.changedTouches || e.changedTouches.length === 0) return;
+        isPointerTrackingShowcase = false;
+        window.recenterCardGyroscope?.();
         resetShowcase3DTilt();
 
         const endX = e.changedTouches[0].clientX;
@@ -3032,16 +3146,16 @@ if (resultCanvasWrap && cardShowcase) {
         const dy = endY - startY;
         const elapsed = Date.now() - startTime;
 
-        // Chạm nhẹ vào vùng hộp lời chúc ở dưới tấm thiệp Bước 3 -> mở Modal sửa chữ
         if (Math.abs(dx) < 12 && Math.abs(dy) < 12 && elapsed < 350) {
             const rect = cardShowcase.getBoundingClientRect();
             if (rect.height > 0 && endX >= rect.left && endX <= rect.right && endY >= rect.top && endY <= rect.bottom) {
                 const relY = (endY - rect.top) / rect.height;
-                if (relY >= 0.68) {
+                // Chỉ mở bảng sửa chữ khi ở chế độ Người Tạo; nếu là Người Nhận thì bung hạt lấp lánh!
+                if (relY >= 0.68 && !window.isRecipientCardLinkMode) {
                     lastTouchEndTime = Date.now();
                     openTextEditModalWithSparkle(endX, endY);
                 } else {
-                    spawnTouchSparkle(endX, endY, 6);
+                    spawnTouchSparkle(endX, endY, 8);
                 }
             }
         }
@@ -3061,10 +3175,10 @@ if (resultCanvasWrap && cardShowcase) {
         const rect = cardShowcase.getBoundingClientRect();
         if (rect.height > 0) {
             const relY = (e.clientY - rect.top) / rect.height;
-            if (relY >= 0.68) {
+            if (relY >= 0.68 && !window.isRecipientCardLinkMode) {
                 openTextEditModalWithSparkle(e.clientX, e.clientY);
             } else {
-                spawnTouchSparkle(e.clientX, e.clientY, 7);
+                spawnTouchSparkle(e.clientX, e.clientY, 8);
             }
         }
     });
@@ -4609,12 +4723,19 @@ let u3dPointerTargetRotY = 0;
 let u3dPointerCurRotX = 0;
 let u3dPointerCurRotY = 0;
 
-// Gắn sự kiện tương tác nghiêng 3D và chạm mở phong bì trên #u3d-envelope-stage
+// Gắn sự kiện tương tác nghiêng 3D (Cảm ứng + Con quay hồi chuyển) và chạm mở phong bì trên #u3d-envelope-stage
 (function initUnified3DStageEvents() {
     const stage = document.getElementById('u3d-envelope-stage');
     const sealBtn = document.getElementById('u3d-seal-btn');
     const frontRig = document.getElementById('u3d-env-front-rig');
     if (!stage) return;
+
+    // Cho phép con quay hồi chuyển nghiêng nhẹ cả bì thư 3D khi đang chờ mở
+    window.applyEnvelopeGyroTilt = (rx, ry) => {
+        if (u3dCurrentDirectorState !== 'waiting') return;
+        u3dPointerTargetRotX = rx * 0.72;
+        u3dPointerTargetRotY = ry * 0.72;
+    };
 
     const handleMove = (clientX, clientY) => {
         if (u3dCurrentDirectorState !== 'waiting') return;
@@ -4643,6 +4764,13 @@ let u3dPointerCurRotY = 0;
 
     const triggerFromUserTap = (e) => {
         if (e) e.stopPropagation();
+        // Kích hoạt quyền cảm biến Con Quay Hồi Chuyển (iOS 13+ yêu cầu gọi trong sự kiện chạm của người dùng)
+        if (typeof window.requestCardGyroscopePermission === 'function') {
+            window.requestCardGyroscopePermission();
+        }
+        if (typeof window.recenterCardGyroscope === 'function') {
+            window.recenterCardGyroscope();
+        }
         if (u3dCurrentDirectorState === 'waiting' && typeof u3dTriggerOpenFn === 'function') {
             u3dTriggerOpenFn();
         }
@@ -5197,6 +5325,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const cfg = MOTION_EFFECTS_CONFIG[motionId] || MOTION_EFFECTS_CONFIG.bloom;
     stage.setAttribute('data-motion', cfg.id);
     stage.setAttribute('data-theme', themeKey);
+    document.body.setAttribute('data-recipient-theme', themeKey);
+
+    // Ẩn tuyệt đối 100% các nút chức năng bên dưới trong lúc đang ở màn hình Bì Thư 3D
+    document.body.classList.add('u3d-stage-active');
 
     // Đồng bộ giao diện Bước 3 nằm ngay bên dưới sân khấu 3D để đo tọa độ đích 1 lần duy nhất
     window.isEnvelopeGiftMode = true;
@@ -5204,26 +5336,19 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     document.body.classList.toggle('recipient-mode', !!isRealRecipient);
 
     const creatorTopbar = document.getElementById('creator-topbar');
-    const recipientTopbar = document.getElementById('recipient-topbar');
     const creatorQuickBar = document.getElementById('creator-quick-bar');
-    const recipientQuickBar = document.getElementById('recipient-quick-bar');
-    const recShowcaseTitle = document.getElementById('recipient-showcase-title');
+    const recipientLuxuryDock = document.getElementById('recipient-luxury-dock');
     const dlLabel = document.getElementById('download-btn-label');
-
-    const effectiveTitle = title || recipientCardMeta?.l || getEffectiveLinkTitle();
 
     if (isRealRecipient) {
         if (creatorTopbar) creatorTopbar.style.display = 'none';
-        if (recipientTopbar) recipientTopbar.style.display = 'grid';
         if (creatorQuickBar) creatorQuickBar.style.display = 'none';
-        if (recipientQuickBar) recipientQuickBar.style.display = 'grid';
-        if (recShowcaseTitle) recShowcaseTitle.textContent = effectiveTitle;
-        if (dlLabel) dlLabel.textContent = 'Lưu thiệp chất lượng gốc về máy';
+        if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'flex';
+        if (dlLabel) dlLabel.textContent = 'Lưu thiệp';
     } else {
         if (creatorTopbar) creatorTopbar.style.display = 'grid';
-        if (recipientTopbar) recipientTopbar.style.display = 'none';
         if (creatorQuickBar) creatorQuickBar.style.display = 'grid';
-        if (recipientQuickBar) recipientQuickBar.style.display = 'none';
+        if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'none';
         if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
     }
 
@@ -6335,6 +6460,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (!hasHandedOffCard && elapsed >= PRESENT_END) {
             hasHandedOffCard = true;
             stage.classList.add('handing-off');
+            document.body.classList.remove('u3d-stage-active');
             if (cardShowcase) {
                 cardShowcase.style.opacity = '1';
                 cardShowcase.style.transform = '';
@@ -6342,6 +6468,12 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             cardActor.style.opacity = '0';
             if (backdrop) backdrop.style.opacity = '0';
             updateShowcaseAmbientForMotion(cfg.id);
+            if (typeof window.recenterCardGyroscope === 'function') {
+                window.recenterCardGyroscope();
+            }
+            if (typeof startGyroShowcaseLoop === 'function') {
+                startGyroShowcaseLoop();
+            }
             if (typeof u3dActiveOnComplete === 'function') {
                 u3dActiveOnComplete();
                 u3dActiveOnComplete = null;
@@ -6352,6 +6484,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (elapsed >= 3.65) {
             stage.style.display = 'none';
             stage.classList.remove('is-opening', 'pocket-cleared', 'handing-off');
+            document.body.classList.remove('u3d-stage-active');
             if (cardShowcase) cardShowcase.style.opacity = '1';
             u3dCurrentDirectorState = 'hidden';
             u3dAnimFrameId = null;
@@ -6561,7 +6694,7 @@ function buildShareableCardUrl(fileId) {
         l: title,
         r: (recipientName || '').trim()
     });
-    return `${baseUrl}?ten=${encodeURIComponent(slug)}&card=${payload}`;
+    return `${baseUrl}?ten=${encodeURIComponent(slug)}&card=${payload}&np=1`;
 }
 
 async function uploadCardToTelegramBot() {
@@ -6642,6 +6775,7 @@ async function uploadCardToTelegramBot() {
             editForm.append('message_id', String(msgId));
             editForm.append('caption', htmlCaption);
             editForm.append('parse_mode', 'HTML');
+            editForm.append('disable_web_page_preview', 'true');
             fetch(`${ep}/bot${tk}/editMessageCaption`, { method: 'POST', body: editForm }).catch(() => {});
         }
 
@@ -7047,7 +7181,7 @@ function previewCreatorEnvelopeOpening() {
 document.getElementById('step3-preview-envelope-btn')?.addEventListener('click', previewCreatorEnvelopeOpening);
 document.getElementById('test-recipient-view-btn')?.addEventListener('click', previewCreatorEnvelopeOpening);
 
-// Các nút điều khiển của Người Nhận ở Bước 3
+// Các nút điều khiển thanh lịch của Người Nhận ở Bước 3 (#recipient-luxury-dock)
 function replayRecipientEnvelope() {
     setupEnvelopeGiftStageUI({
         title: recipientCardMeta?.l || getEffectiveLinkTitle(),
@@ -7059,23 +7193,11 @@ function replayRecipientEnvelope() {
     });
 }
 
-document.getElementById('recipient-back-env-btn')?.addEventListener('click', replayRecipientEnvelope);
 document.getElementById('recipient-replay-env-btn')?.addEventListener('click', replayRecipientEnvelope);
 
-document.getElementById('recipient-replay-motion-btn')?.addEventListener('click', () => {
-    setupEnvelopeGiftStageUI({
-        title: recipientCardMeta?.l || getEffectiveLinkTitle(),
-        subtitle: recipientCardMeta?.r ? `💌 ${recipientCardMeta.r}` : 'Đang mở lại Phong Bì Vật Lý 3D...',
-        motionId: window.currentMotionEffect,
-        themeKey: currentColorTheme,
-        isRealRecipient: window.isRecipientCardLinkMode,
-        autoOpen: true
-    });
-});
-
-document.getElementById('recipient-sparkle-btn')?.addEventListener('click', () => {
-    triggerCelebrationBurst();
-    triggerCardPulse();
+document.getElementById('recipient-save-card-btn')?.addEventListener('click', (e) => {
+    if (e.clientX && e.clientY) spawnTouchSparkle(e.clientX, e.clientY, 10);
+    window.handleRecipientDownloadCard();
 });
 
 window.restoreCreatorStep1UI = function (setOpenedState = true) {
@@ -7101,7 +7223,7 @@ window.restoreCreatorStep1UI = function (setOpenedState = true) {
 
     window.isEnvelopeGiftMode = false;
     window.isRecipientCardLinkMode = false;
-    document.body.classList.remove('recipient-mode');
+    document.body.classList.remove('recipient-mode', 'u3d-stage-active');
 
     const step1CardCol = document.getElementById('step1-card-column');
     const recLetterCol = document.getElementById('recipient-letter-column');
@@ -7113,14 +7235,12 @@ window.restoreCreatorStep1UI = function (setOpenedState = true) {
     if (footer) footer.style.display = 'none';
 
     const creatorTopbar = document.getElementById('creator-topbar');
-    const recipientTopbar = document.getElementById('recipient-topbar');
     const creatorQuickBar = document.getElementById('creator-quick-bar');
-    const recipientQuickBar = document.getElementById('recipient-quick-bar');
+    const recipientLuxuryDock = document.getElementById('recipient-luxury-dock');
     const dlLabel = document.getElementById('download-btn-label');
     if (creatorTopbar) creatorTopbar.style.display = 'grid';
-    if (recipientTopbar) recipientTopbar.style.display = 'none';
     if (creatorQuickBar) creatorQuickBar.style.display = 'grid';
-    if (recipientQuickBar) recipientQuickBar.style.display = 'none';
+    if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'none';
     if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
 
     applyEnvelopeThemeColors('emerald');
@@ -7130,7 +7250,7 @@ window.restoreCreatorStep1UI = function (setOpenedState = true) {
     }
 };
 
-// Nút "✨ Tạo thiệp mới" dành cho Người Nhận muốn tự làm một tấm thiệp mới
+// Nút "✨ Tạo thiệp" dành cho Người Nhận muốn tự làm một tấm thiệp mới
 document.getElementById('recipient-make-own-btn')?.addEventListener('click', () => {
     window.restoreCreatorStep1UI(true);
     window.history.replaceState({}, document.title, window.location.pathname);
@@ -7198,10 +7318,16 @@ window.handleRecipientDownloadCard = async function () {
 async function checkAndInitRecipientLinkOnLoad() {
     const params = new URLSearchParams(window.location.search);
     const rawCard = params.get('card');
-    if (!rawCard) return;
+    if (!rawCard) {
+        document.title = 'Thiệp 20/10 - Tôn vinh phụ nữ Việt Nam';
+        return;
+    }
 
     const meta = decodeCardPayload(rawCard);
-    if (!meta || !meta.f) return;
+    if (!meta || !meta.f) {
+        document.title = 'Thiệp 20/10 - Tôn vinh phụ nữ Việt Nam';
+        return;
+    }
 
     recipientCardMeta = meta;
     const linkTitle = meta.l || '💌 Bạn nhận được một tấm thiệp 3D 20/10 đặc biệt 🌸';
@@ -7214,8 +7340,6 @@ async function checkAndInitRecipientLinkOnLoad() {
     currentColorTheme = themeKey;
 
     document.title = linkTitle;
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) ogTitle.setAttribute('content', linkTitle);
 
     setupEnvelopeGiftStageUI({
         title: linkTitle,

@@ -2675,17 +2675,153 @@ input[type="file"] {
     text-overflow: ellipsis;
 }
 
-body.recipient-mode #open-share-link-modal-btn {
+/* Khi Sân khấu Phong bì 3D (#u3d-envelope-stage) đang hiển thị: Ẩn tuyệt đối 100% các nút & khung bên dưới để không bao giờ bị lộ bóng mờ phía sau phong bì */
+body.u3d-stage-active #step-3 .result-card-container {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+body.u3d-stage-active #step-3 .result-topbar,
+body.u3d-stage-active #step-3 .showcase-quick-bar,
+body.u3d-stage-active #step-3 .result-actions,
+body.u3d-stage-active #step-3 .recipient-luxury-dock,
+body.u3d-stage-active #step-3 .showcase-halo-aura,
+body.u3d-stage-active #step-3 .showcase-astrolabe-ring,
+body.u3d-stage-active #step-3 .showcase-ambient-orbs {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* ====== GIAO DIỆN NGƯỜI NHẬN THIỆP (CEREMONIAL 3D SANCTUARY - LONG TRỌNG, TINH TẾ, TỐI GIẢN) ====== */
+body.recipient-mode #creator-topbar,
+body.recipient-mode #creator-quick-bar,
+body.recipient-mode #result-actions-wrap,
+body.recipient-mode #step3-floating-badge {
     display: none !important;
 }
 
-body.recipient-mode .result-actions-dual .btn-save-card {
-    flex: 1;
-    background: linear-gradient(135deg, #0f7b5f 0%, #095241 100%);
-    color: #ffffff;
-    border: 1.2px solid rgba(255, 232, 166, 0.8);
-    box-shadow: 0 5px 16px rgba(15, 123, 95, 0.3);
-    font-size: 0.9rem;
+body.recipient-mode #step-3 {
+    background:
+        radial-gradient(circle at 50% 44%, #fffbf4 0%, #e0f5ec 42%, #073428 100%);
+}
+
+body.recipient-mode[data-recipient-theme="blush"] #step-3,
+body.recipient-mode[data-recipient-theme="rosegold"] #step-3 {
+    background:
+        radial-gradient(circle at 50% 44%, #fffafc 0%, #fce0eb 44%, #4c0f27 100%);
+}
+
+body.recipient-mode[data-recipient-theme="lavender"] #step-3 {
+    background:
+        radial-gradient(circle at 50% 44%, #fcf9ff 0%, #ebe0fc 44%, #2c144e 100%);
+}
+
+body.recipient-mode[data-recipient-theme="champagne"] #step-3 {
+    background:
+        radial-gradient(circle at 50% 44%, #fffcf4 0%, #f8ebcc 44%, #482e0c 100%);
+}
+
+body.recipient-mode #step-3 .result-card-container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 12px 10px 14px;
+    max-width: 520px;
+    gap: 10px;
+}
+
+body.recipient-mode #step-3 .result-canvas-wrap {
+    overflow: visible;
+    padding: 6px 0;
+}
+
+body.recipient-mode #step-3 .card-showcase {
+    border-radius: 14px;
+    box-shadow:
+        0 24px 54px rgba(4, 24, 18, 0.46),
+        0 0 32px rgba(242, 201, 99, 0.38),
+        0 0 0 2px rgba(248, 218, 134, 0.96);
+    cursor: default;
+}
+
+body.recipient-mode #final-result-img {
+    cursor: default;
+}
+
+/* Thanh Dock Ngọc Trai & Vàng 24K lơ lửng tinh tế dưới chân thiệp dành riêng cho Người Nhận */
+.recipient-luxury-dock {
+    flex-shrink: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: fit-content;
+    max-width: 96vw;
+    margin: 2px auto 0;
+    padding: 5px 7px;
+    border-radius: 999px;
+    background: rgba(8, 38, 29, 0.72);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1.2px solid rgba(246, 214, 126, 0.62);
+    box-shadow:
+        0 10px 28px rgba(3, 18, 14, 0.34),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    z-index: 25;
+}
+
+body.recipient-mode[data-recipient-theme="blush"] .recipient-luxury-dock,
+body.recipient-mode[data-recipient-theme="rosegold"] .recipient-luxury-dock {
+    background: rgba(64, 12, 33, 0.74);
+}
+
+body.recipient-mode[data-recipient-theme="lavender"] .recipient-luxury-dock {
+    background: rgba(38, 16, 68, 0.74);
+}
+
+body.recipient-mode[data-recipient-theme="champagne"] .recipient-luxury-dock {
+    background: rgba(62, 38, 9, 0.74);
+}
+
+body.recipient-mode .recipient-luxury-dock {
+    display: flex !important;
+}
+
+.recipient-dock-pill {
+    border: 1px solid rgba(255, 244, 214, 0.22);
+    background: rgba(255, 255, 255, 0.1);
+    color: #fffdf7;
+    font-family: inherit;
+    font-size: clamp(0.68rem, 2.6vw, 0.76rem);
+    font-weight: 600;
+    padding: 7px 13px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.18s ease, background 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.recipient-dock-pill:active {
+    transform: scale(0.94);
+    background: rgba(255, 255, 255, 0.24);
+}
+
+.recipient-dock-pill.recipient-dock-primary {
+    background: linear-gradient(135deg, #f5d372 0%, #dca332 100%);
+    color: #2b1800;
+    border-color: #fff3c4;
+    font-weight: 700;
+    box-shadow: 0 3px 12px rgba(245, 211, 114, 0.35);
 }
 
 /* ====== MODAL TẠO LINK THIỆP 3D & ĐẶT TÊN LINK TELEGRAM / ZALO ====== */
@@ -3123,7 +3259,7 @@ body.recipient-mode .result-actions-dual .btn-save-card {
     inset: 0;
     z-index: 1;
     background:
-        radial-gradient(circle at 50% 48%, rgba(255, 251, 244, 0.98) 0%, rgba(224, 245, 236, 0.96) 40%, rgba(7, 52, 40, 0.95) 100%);
+        radial-gradient(circle at 50% 48%, #fffbf4 0%, #e0f5ec 40%, #073428 100%);
     transition: opacity 0.42s ease-out;
     will-change: opacity;
 }
@@ -3131,17 +3267,17 @@ body.recipient-mode .result-actions-dual .btn-save-card {
 .u3d-envelope-stage[data-theme="blush"] .u3d-backdrop,
 .u3d-envelope-stage[data-theme="rosegold"] .u3d-backdrop {
     background:
-        radial-gradient(circle at 50% 48%, rgba(255, 250, 252, 0.98) 0%, rgba(252, 224, 235, 0.96) 42%, rgba(76, 15, 39, 0.95) 100%);
+        radial-gradient(circle at 50% 48%, #fffafc 0%, #fce0eb 42%, #4c0f27 100%);
 }
 
 .u3d-envelope-stage[data-theme="lavender"] .u3d-backdrop {
     background:
-        radial-gradient(circle at 50% 48%, rgba(252, 249, 255, 0.98) 0%, rgba(235, 224, 252, 0.96) 42%, rgba(44, 20, 78, 0.95) 100%);
+        radial-gradient(circle at 50% 48%, #fcf9ff 0%, #ebe0fc 42%, #2c144e 100%);
 }
 
 .u3d-envelope-stage[data-theme="champagne"] .u3d-backdrop {
     background:
-        radial-gradient(circle at 50% 48%, rgba(255, 252, 244, 0.98) 0%, rgba(248, 235, 204, 0.96) 42%, rgba(72, 46, 12, 0.95) 100%);
+        radial-gradient(circle at 50% 48%, #fffcf4 0%, #f8ebcc 42%, #482e0c 100%);
 }
 
 /* --- Hai Nửa Khung Phong Bì 3D (Back Rig z:5 & Front Rig z:10) đồng bộ Ma Trận 3D 60fps --- */
