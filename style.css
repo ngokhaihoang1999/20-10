@@ -1894,18 +1894,19 @@ input[type="file"] {
     color: #fff;
 }
 
-/* ====== CONTROL DECK 4 TAB TẠI BƯỚC 2 (ĐỒNG BỘ CHIỀU CAO, RÕ RÀNG, DỄ BẤM) ====== */
+/* ====== CONTROL DECK 4 TAB TẠI BƯỚC 2 (LƯỚI CHỌN TRỰC TIẾP 100%, KHÔNG CẦN KÉO NGANG) ====== */
 .control-deck {
     flex-shrink: 0;
     width: 100%;
     background: #f6fbf9;
     border: 1.2px solid #cbeadd;
     border-radius: 14px;
-    padding: 5px 7px 6px;
+    padding: 5px 6px 6px;
 }
 
 .deck-tabs {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 3px;
     margin-bottom: 5px;
     background: #e6f5ee;
@@ -1914,7 +1915,6 @@ input[type="file"] {
 }
 
 .deck-tab {
-    flex: 1 1 0;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1922,9 +1922,9 @@ input[type="file"] {
     background: transparent;
     color: #095241;
     font-family: inherit;
-    font-size: clamp(0.62rem, 2.45vw, 0.72rem);
+    font-size: clamp(0.62rem, 2.4vw, 0.72rem);
     font-weight: 600;
-    padding: 5px 3px;
+    padding: 5px 2px;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.18s ease;
@@ -1948,33 +1948,91 @@ input[type="file"] {
     display: flex;
 }
 
-.deck-row {
+/* Công tắc chuyển nhanh 2 trang Khung ảnh (Mẫu 01-10 vs Mẫu 11-20) */
+.frame-page-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
     width: 100%;
+}
+
+.frame-page-btn {
+    padding: 4px 6px;
+    border-radius: 10px;
+    border: 1.2px solid #dfcada;
+    background: #ffffff;
+    color: #7a284b;
+    font-family: inherit;
+    font-size: clamp(0.63rem, 2.4vw, 0.71rem);
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    transition: all 0.16s ease;
+}
+
+.frame-page-btn.active {
+    background: linear-gradient(135deg, #fce8f0 0%, #f7d4e3 100%);
+    border-color: #d84b7e;
+    color: #9c1f50;
+    box-shadow: 0 2px 6px rgba(216, 75, 126, 0.18);
+}
+
+/* Lưới 5x2 hiển thị trọn 10 mẫu khung mỗi trang - Bấm chọn ngay không cần cuộn ngang */
+.concept-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+}
+
+.concept-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 2px;
+    border-radius: 10px;
+    border: 1.2px solid #f0b8cc;
+    background: #fff8fa;
+    color: #9c2756;
+    font-family: inherit;
+    line-height: 1.15;
+    cursor: pointer;
+    transition: all 0.16s ease;
+    min-width: 0;
     overflow: hidden;
 }
 
-.deck-actions-row {
-    display: flex;
-    gap: 6px;
+.concept-chip .chip-idx {
+    font-size: clamp(0.54rem, 2vw, 0.6rem);
+    font-weight: 700;
+    opacity: 0.78;
 }
 
-.deck-action-btn {
-    flex: 1;
-    padding: 6px 9px;
-    border-radius: 16px;
-    font-family: inherit;
-    font-size: clamp(0.68rem, 2.7vw, 0.75rem);
-    font-weight: 600;
-    cursor: pointer;
+.concept-chip .chip-txt {
+    font-size: clamp(0.6rem, 2.25vw, 0.67rem);
+    font-weight: 700;
     white-space: nowrap;
-    transition: transform 0.15s ease;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
-.deck-action-btn:active {
-    transform: scale(0.96);
+.concept-chip.active {
+    background: linear-gradient(135deg, #d84b7e 0%, #b53464 100%);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 2px 7px rgba(216, 75, 126, 0.3);
 }
 
-/* Công tắc chọn rõ 2 Chế độ Lời chúc: (1) 🎁 Bất ngờ khi tạo thiệp vs (2) ✍️ Tự sửa / Tặng người khác */
+.concept-chip.active .chip-idx {
+    opacity: 0.95;
+    color: #ffeef4;
+}
+
+/* Công tắc chọn rõ 2 Chế độ Lời chúc: (1) 🌸 Bất ngờ khi tạo thiệp vs (2) ✍️ Tự sửa / Tặng người khác */
 .wish-mode-switch {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1987,13 +2045,13 @@ input[type="file"] {
     align-items: center;
     justify-content: center;
     gap: 3px;
-    padding: 6px 6px;
-    border-radius: 14px;
+    padding: 6px 5px;
+    border-radius: 12px;
     border: 1.3px solid #cbe4da;
     background: #ffffff;
     color: #095241;
     font-family: inherit;
-    font-size: clamp(0.65rem, 2.55vw, 0.73rem);
+    font-size: clamp(0.64rem, 2.5vw, 0.73rem);
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
@@ -2020,15 +2078,37 @@ input[type="file"] {
     box-shadow: 0 3px 10px rgba(216, 75, 126, 0.28);
 }
 
-.subrow-tag {
-    display: inline-flex;
-    align-items: center;
-    font-size: 0.68rem;
+/* Lưới 4x2 Chủ đề lời chúc (Tab 2) */
+.topic-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+}
+
+/* Lưới 2 cột nút hành động khi tự sửa lời chúc (Tab 2) */
+.deck-actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    width: 100%;
+}
+
+.deck-action-btn {
+    padding: 7px 6px;
+    border-radius: 12px;
+    font-family: inherit;
+    font-size: clamp(0.66rem, 2.55vw, 0.74rem);
     font-weight: 700;
-    color: #095241;
-    padding: 0 4px 0 2px;
+    cursor: pointer;
     white-space: nowrap;
-    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: transform 0.15s ease;
+}
+
+.deck-action-btn:active {
+    transform: scale(0.96);
 }
 
 .create-btn-sub {
@@ -2051,150 +2131,119 @@ input[type="file"] {
     color: #b53464;
 }
 
-.concept-chips,
-.topic-chips,
-.style-chips,
-.color-swatches,
-.recipient-preset-chips {
-    display: flex;
-    gap: 6px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    padding: 1px 0;
-    scroll-behavior: smooth;
-    align-items: center;
+/* Lưới 3x2 Kiểu viền hộp lời chúc & Lưới 5 cột Tông màu (Tab 3) */
+.style-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
 }
 
-.concept-chips::-webkit-scrollbar,
-.topic-chips::-webkit-scrollbar,
-.style-chips::-webkit-scrollbar,
-.color-swatches::-webkit-scrollbar,
-.recipient-preset-chips::-webkit-scrollbar {
-    display: none;
+.color-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
 }
 
-.recipient-preset-chips {
-    margin-top: 6px;
+/* Lưới 3x2 Bộ lọc màu ảnh & Lưới 3 cột Công cụ xoay/lật (Tab 4) */
+.filter-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
 }
 
-.recipient-preset-chip {
-    padding: 5px 10px;
-    border-radius: 14px;
-    border: 1px solid #f0b8cc;
-    background: #fff7fa;
-    color: #9c2756;
-    font-family: inherit;
-    font-size: 0.72rem;
-    font-weight: 600;
-    white-space: nowrap;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: all 0.15s ease;
-}
-
-.recipient-preset-chip:active {
-    transform: scale(0.95);
-    background: #d84b7e;
-    color: #fff;
-}
-
-.concept-chip {
-    padding: 5px 10px;
-    border-radius: 16px;
-    border: 1.2px solid #f0b8cc;
-    background: #fff8fa;
-    color: #9c2756;
-    font-family: inherit;
-    font-size: 0.73rem;
-    font-weight: 700;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: all 0.18s ease;
-    flex-shrink: 0;
-}
-
-.concept-chip.active {
-    background: linear-gradient(135deg, #d84b7e 0%, #b53464 100%);
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(216, 75, 126, 0.28);
+.photo-tools-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+    width: 100%;
 }
 
 .magic-harmony-chip {
-    padding: 5px 11px;
-    border-radius: 16px;
+    padding: 5px 4px;
+    border-radius: 10px;
     border: 1.2px solid #e2b049;
     background: linear-gradient(135deg, #fffdf4 0%, #fce8ef 100%);
     color: #9c2756;
     font-family: inherit;
-    font-size: 0.73rem;
+    font-size: clamp(0.64rem, 2.45vw, 0.72rem);
     font-weight: 700;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     cursor: pointer;
     transition: all 0.18s ease;
-    flex-shrink: 0;
-    box-shadow: 0 2px 6px rgba(226, 176, 73, 0.2);
+    box-shadow: 0 2px 5px rgba(226, 176, 73, 0.18);
 }
 
 .magic-harmony-chip:active {
-    transform: scale(0.94);
+    transform: scale(0.95);
     background: linear-gradient(135deg, #d84b7e 0%, #c59b27 100%);
     color: #fff;
 }
 
 .topic-chip,
 .style-chip {
-    padding: 5px 10px;
-    border-radius: 16px;
-    border: 1px solid #d8ebe2;
+    padding: 5px 4px;
+    border-radius: 10px;
+    border: 1px solid #cfe6dc;
     background: #fff;
     color: #095241;
     font-family: inherit;
-    font-size: 0.73rem;
+    font-size: clamp(0.64rem, 2.45vw, 0.72rem);
     font-weight: 600;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     cursor: pointer;
-    transition: all 0.18s ease;
-    flex-shrink: 0;
+    transition: all 0.16s ease;
 }
 
 .topic-chip.active,
 .style-chip.active {
-    background: #0f7b5f;
+    background: linear-gradient(135deg, #0f7b5f 0%, #095241 100%);
     border-color: #0f7b5f;
     color: #fff;
+    font-weight: 700;
 }
 
 .color-swatch-btn {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 10px;
-    border-radius: 16px;
-    border: 1.2px solid #e0e8e4;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 3px;
+    border-radius: 10px;
+    border: 1.2px solid #dce6e1;
     background: #fff;
-    color: #444;
+    color: #333;
     font-family: inherit;
-    font-size: 0.72rem;
+    font-size: clamp(0.6rem, 2.25vw, 0.68rem);
     font-weight: 600;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     cursor: pointer;
     transition: all 0.15s ease;
-    flex-shrink: 0;
+    min-width: 0;
 }
 
 .color-swatch-btn.active {
     border-color: #d84b7e;
-    background: #fff5f8;
+    background: #fff2f6;
     color: #b53464;
+    font-weight: 700;
+    box-shadow: 0 2px 5px rgba(216, 75, 126, 0.16);
 }
 
 .swatch-dot {
-    width: 14px;
-    height: 14px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     display: inline-block;
-    border: 1px solid rgba(0, 0, 0, 0.12);
+    border: 1px solid rgba(0, 0, 0, 0.14);
     flex-shrink: 0;
 }
 
@@ -2279,114 +2328,27 @@ input[type="file"] {
     opacity: 0.9;
 }
 
-/* ====== CAROUSELS IN STEP 2 ====== */
-.carousel-title {
-    font-size: 0.82rem;
-    font-weight: 700;
-    color: #0f7b5f;
-    line-height: 1.3;
-    flex-shrink: 0;
-    text-transform: uppercase;
-    letter-spacing: 1.2px;
-}
-
-.scroll-hint-wrap {
-    position: relative;
-    width: 100%;
-    flex-shrink: 0;
-}
-
-.scroll-hint-wrap::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 44px;
-    height: 100%;
-    background: linear-gradient(to right, transparent, rgba(240, 252, 247, 0.96));
-    pointer-events: none;
-    border-radius: 0 8px 8px 0;
-    z-index: 5;
-    transition: opacity 0.35s ease;
-}
-
-.scroll-hint-wrap.scrolled-end::after,
-.scroll-hint-wrap.scrolled-end .scroll-hint-arrow {
-    opacity: 0;
-}
-
-.scroll-hint-arrow {
-    position: absolute;
-    right: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 6;
-    font-size: 1.25rem;
-    color: #1f9a78;
-    font-weight: bold;
-    pointer-events: none;
-    animation: arrowBounce 1.4s ease-in-out infinite;
-    transition: opacity 0.35s ease;
-}
-
-@keyframes arrowBounce {
-    0%, 100% { transform: translateY(-50%) translateX(0px); opacity: 0.5; }
-    50% { transform: translateY(-50%) translateX(4px); opacity: 1; }
-}
-
-.frame-carousel {
-    width: 100%;
-    margin-bottom: 4px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    flex-shrink: 0;
-    border-radius: 8px;
-    background: rgba(242, 247, 245, 0.9);
-    padding: 5px;
-}
-
-.frame-carousel::-webkit-scrollbar,
-.filter-carousel::-webkit-scrollbar {
-    display: none;
-}
-
-.frame-list {
-    display: flex;
-    gap: 8px;
-}
-
-.filter-carousel {
-    width: 100%;
-    margin-bottom: 6px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    flex-shrink: 0;
-}
-
-.filter-list {
-    display: flex;
-    gap: 6px;
-    padding-bottom: 2px;
-}
-
 .filter-btn {
-    padding: 6px 12px;
-    border: 1px solid #8fcdb7;
-    background: rgba(255, 255, 255, 0.9);
-    color: #0f7b5f;
-    border-radius: 18px;
+    padding: 5px 4px;
+    border: 1px solid #cfe6dc;
+    background: #ffffff;
+    color: #095241;
+    border-radius: 10px;
     font-family: inherit;
-    font-size: 0.76rem;
+    font-size: clamp(0.64rem, 2.45vw, 0.72rem);
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: all 0.16s ease;
 }
 
 .filter-btn.active {
     background: linear-gradient(135deg, #0f7b5f 0%, #095241 100%);
     border-color: transparent;
     color: #fff;
+    font-weight: 700;
 }
 
 .frame-item {

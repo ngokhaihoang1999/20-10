@@ -2255,60 +2255,59 @@ function syncColorSwatchesUI(themeKey, shouldScroll = false) {
     });
 }
 
-// Vẽ nội dung Phong Ấn Bất Ngờ (khi người dùng chọn chế độ "🎁 Bất ngờ - Mở khi tạo thiệp")
+// Vẽ nội dung Phong Ấn Bất Ngờ (khi người dùng chọn chế độ "🌸 Bất ngờ - Mở khi tạo thiệp") - Chữ to rõ, nổi bật trên điện thoại
 function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     const centerX = boxX + boxW / 2;
-    const centerY = boxY + boxH / 2;
 
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // 1. Dòng tiêu đề trên cùng (Hiển thị Tên người nhận nếu đã nhập, hoặc dòng chữ Món Quà Bất Ngờ 20/10)
-    const topTitle = (recipientName || '').trim() || '🎁 Điều Bất Ngờ Tháng 10 🎁';
-    const titleFontPx = Math.floor(42 * scale);
+    // 1. Dòng tiêu đề trên cùng lớn rõ (Hiển thị Tên người nhận nếu đã nhập, hoặc dòng chữ Điều Bất Ngờ Tháng 10)
+    const topTitle = (recipientName || '').trim() || '🌸 Điều Bất Ngờ Tháng 10 🌸';
+    const titleFontPx = Math.floor(62 * scale);
     ctx.font = recipientFont(titleFontPx);
     ctx.fillStyle = theme.recipientColor;
     ctx.shadowColor = theme.shadowRgba;
-    ctx.shadowBlur = Math.floor(8 * scale);
-    ctx.fillText(topTitle, centerX, boxY + boxH * 0.25, boxW * 0.84);
+    ctx.shadowBlur = Math.floor(10 * scale);
+    ctx.fillText(topTitle, centerX, boxY + boxH * 0.22, boxW * 0.90);
 
     // 2. Đường kẻ kim cương ánh vàng ở giữa
-    const divY = boxY + boxH * 0.39;
-    const divW = Math.min(boxW * 0.44, 260 * scale);
+    const divY = boxY + boxH * 0.37;
+    const divW = Math.min(boxW * 0.52, 340 * scale);
     const divGrad = ctx.createLinearGradient(centerX - divW / 2, divY, centerX + divW / 2, divY);
     divGrad.addColorStop(0, 'rgba(0,0,0,0)');
     divGrad.addColorStop(0.5, theme.goldAccent);
     divGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.strokeStyle = divGrad;
-    ctx.lineWidth = 1.8 * scale;
+    ctx.lineWidth = 2.2 * scale;
     ctx.beginPath();
     ctx.moveTo(centerX - divW / 2, divY);
     ctx.lineTo(centerX + divW / 2, divY);
     ctx.stroke();
 
     ctx.fillStyle = theme.goldAccent;
-    drawFourPointStarPath(ctx, centerX, divY, 7 * scale);
+    drawFourPointStarPath(ctx, centerX, divY, 9 * scale);
     ctx.fill();
 
-    // 3. Dòng thông điệp bí mật ở trung tâm hộp chữ
-    const bodyFontPx = Math.floor(33 * scale);
+    // 3. Dòng thông điệp bí mật cỡ lớn ở trung tâm hộp chữ
+    const bodyFontPx = Math.floor(48 * scale);
     ctx.font = quoteFont(bodyFontPx);
-    const textGrad = ctx.createLinearGradient(0, boxY + boxH * 0.44, 0, boxY + boxH * 0.78);
+    const textGrad = ctx.createLinearGradient(0, boxY + boxH * 0.42, 0, boxY + boxH * 0.76);
     textGrad.addColorStop(0, theme.textTop);
     textGrad.addColorStop(0.5, theme.textMid);
     textGrad.addColorStop(1, theme.textBottom);
     ctx.fillStyle = textGrad;
 
-    ctx.fillText('Lời chúc 20/10 ngẫu nhiên từ hệ thống', centerX, centerY + 12 * scale, boxW * 0.84);
-    ctx.fillText('sẽ mở ra sau khi bạn bấm “Tạo thiệp” ✨', centerX, centerY + 58 * scale, boxW * 0.84);
+    ctx.fillText('Lời chúc 20/10 ngẫu nhiên từ hệ thống', centerX, boxY + boxH * 0.53, boxW * 0.90);
+    ctx.fillText('sẽ mở ra khi bạn bấm “Tạo thiệp” 🌸', centerX, boxY + boxH * 0.68, boxW * 0.90);
 
-    // 4. Dòng ghi chú nhỏ phía dưới cùng báo Chủ đề & hướng dẫn chạm để tự viết
+    // 4. Dòng ghi chú phía dưới báo Chủ đề & hướng dẫn chạm để tự viết (cỡ chữ rõ ràng dễ đọc)
     const topicLabel = TOPIC_LABELS_MAP[currentTopic] || 'Ngẫu nhiên';
-    ctx.font = `600 ${Math.floor(21 * scale)}px "Montserrat", sans-serif`;
+    ctx.font = `700 ${Math.floor(29 * scale)}px "Montserrat", sans-serif`;
     ctx.fillStyle = theme.borderPrimary;
-    ctx.globalAlpha = 0.88;
-    ctx.fillText(`✦ Chủ đề: ${topicLabel}  •  Chạm vào đây nếu muốn tự viết ✦`, centerX, boxY + boxH * 0.84, boxW * 0.86);
+    ctx.globalAlpha = 0.92;
+    ctx.fillText(`✦ Chủ đề: ${topicLabel}  •  Chạm để tự viết ✦`, centerX, boxY + boxH * 0.85, boxW * 0.90);
 
     ctx.restore();
 }
@@ -2396,11 +2395,11 @@ function setWishMode(mode, shouldPulse = true) {
         surpriseSubrow.style.display = currentWishMode === 'surprise' ? '' : 'none';
     }
     if (customSubrow) {
-        customSubrow.style.display = currentWishMode === 'custom' ? 'flex' : 'none';
+        customSubrow.style.display = currentWishMode === 'custom' ? 'grid' : 'none';
     }
     if (createBtnSub) {
         createBtnSub.textContent = currentWishMode === 'surprise'
-            ? '(Mở lời chúc bất ngờ 🎁)'
+            ? '(Mở lời chúc bất ngờ 🌸)'
             : '(Hoàn tất thiệp của bạn ✨)';
     }
 
@@ -2414,10 +2413,26 @@ function setWishMode(mode, shouldPulse = true) {
     }
 }
 
+// Chuyển trang Lưới khung ảnh (Trang 1: Mẫu 01-10 | Trang 2: Mẫu 11-20)
+function setFrameGridPage(page) {
+    const pageNum = Number(page) === 2 ? 2 : 1;
+    const grid1 = document.getElementById('step3-concept-chips');
+    const grid2 = document.getElementById('step3-classic-frame-chips');
+    if (grid1) grid1.style.display = pageNum === 1 ? 'grid' : 'none';
+    if (grid2) grid2.style.display = pageNum === 2 ? 'grid' : 'none';
+
+    document.querySelectorAll('.frame-page-btn').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.getAttribute('data-frame-page')) === pageNum);
+    });
+}
+
 function selectFrameById(frameId, shouldAnimate = false, slideDir = 0, autoHarmonize = true) {
     const total = framesConfig.length;
     currentSelectedFrameId = ((frameId % total) + total) % total;
     const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
+
+    // Tự động lật đúng trang lưới khung (01-10 hoặc 11-20) chứa mẫu đang chọn
+    setFrameGridPage(currentSelectedFrameId < 10 ? 1 : 2);
 
     // Tự động phối hợp cả Kiểu viền hộp lời chúc & Tông màu ăn khớp với mẫu khung vừa chọn
     if (autoHarmonize && cfg && CONCEPT_HARMONY_MAP[cfg.concept]) {
@@ -2440,9 +2455,6 @@ function selectFrameById(frameId, shouldAnimate = false, slideDir = 0, autoHarmo
         const id = Number(btn.getAttribute('data-frame-id'));
         const isActive = id === currentSelectedFrameId;
         btn.classList.toggle('active', isActive);
-        if (isActive && step2 && step2.classList.contains('active')) {
-            scrollChipIntoCenter(btn);
-        }
     });
 
     updateFrameOverlay();
@@ -2488,14 +2500,16 @@ function renderFrameList() {
             frameList.appendChild(div);
         }
 
-        // Chia đều 20 mẫu vào 2 hàng chọn nhanh ở Bước 2 (Hàng 1: 01-10, Hàng 2: 11-20)
+        // Chia 20 mẫu vào 2 trang Lưới 5x2 (Trang 1: 01-10, Trang 2: 11-20) để bấm chọn trực tiếp không cần kéo ngang
         const targetRow = i < 10 ? row1Chips : row2Chips;
         if (targetRow) {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = `concept-chip ${i === currentSelectedFrameId ? 'active' : ''}`;
             btn.setAttribute('data-frame-id', String(i));
-            btn.textContent = f.fullLabel;
+            const numStr = String(i + 1).padStart(2, '0');
+            const shortName = f.label.replace(/^\d+\.\s*/, '');
+            btn.innerHTML = `<span class="chip-idx">Mẫu ${numStr}</span><span class="chip-txt">${shortName}</span>`;
             btn.onclick = () => {
                 const dir = i > currentSelectedFrameId ? 1 : (i < currentSelectedFrameId ? -1 : 0);
                 selectFrameById(i, true, dir, true);
@@ -2856,7 +2870,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
         img.onload = function () {
             currentUserImage = img;
 
-            // Nếu người dùng đang chọn chế độ "🎁 Bất ngờ (Mở khi tạo)", hệ thống bốc thăm câu chúc mới tinh ngay lúc hoa bung nở!
+            // Nếu người dùng đang chọn chế độ "🌸 Bất ngờ (Mở khi tạo)", hệ thống bốc thăm câu chúc mới tinh ngay lúc hoa bung nở!
             if (currentWishMode === 'surprise') {
                 isCustomWishActive = false;
                 currentAIQuote = getNextQuoteByTopic(currentTopic);
@@ -2885,7 +2899,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                         cardShowcase.classList.add('reveal-playing');
                     }
                     if (currentWishMode === 'surprise') {
-                        showCardFloatingBadge('🎁 Lời chúc bất ngờ dành tặng bạn đã mở!');
+                        showCardFloatingBadge('🌸 Lời chúc bất ngờ dành tặng bạn đã mở!');
                     } else {
                         showCardFloatingBadge('✨ Tuyệt tác thiệp 20/10 của bạn đã hoàn thiện!');
                     }
@@ -3045,7 +3059,7 @@ if (resultCanvasWrap && cardShowcase) {
     });
 }
 
-// Chuyển đổi giữa 4 Tab tại Bước 2 (kèm tự động cuộn chip đang active ra giữa)
+// Chuyển đổi giữa 4 Tab tại Bước 2
 document.querySelectorAll('.deck-tab').forEach(tabBtn => {
     tabBtn.addEventListener('click', () => {
         const targetId = tabBtn.getAttribute('data-tab');
@@ -3055,11 +3069,6 @@ document.querySelectorAll('.deck-tab').forEach(tabBtn => {
         const pane = document.getElementById(targetId);
         if (pane) {
             pane.classList.add('active');
-            setTimeout(() => {
-                pane.querySelectorAll('.concept-chip.active, .topic-chip.active, .style-chip.active, .color-swatch-btn.active, .filter-btn.active').forEach(el => {
-                    scrollChipIntoCenter(el);
-                });
-            }, 30);
         }
         requestAnimationFrame(() => {
             fitPreviewAreaToStage();
@@ -3071,10 +3080,18 @@ document.querySelectorAll('.deck-tab').forEach(tabBtn => {
     });
 });
 
-// Công tắc chọn Chế độ Lời chúc: (1) 🎁 Bất ngờ (Mở khi tạo) vs (2) ✍️ Tự sửa (Tặng người khác)
+// Công tắc chuyển trang Lưới Khung Ảnh (Trang 1: Mẫu 01-10 | Trang 2: Mẫu 11-20)
+document.querySelectorAll('.frame-page-btn').forEach(pageBtn => {
+    pageBtn.addEventListener('click', () => {
+        const page = Number(pageBtn.getAttribute('data-frame-page')) || 1;
+        setFrameGridPage(page);
+    });
+});
+
+// Công tắc chọn Chế độ Lời chúc: (1) 🌸 Bất ngờ (Mở khi tạo) vs (2) ✍️ Tự sửa (Tặng người khác)
 document.getElementById('wish-mode-surprise-btn')?.addEventListener('click', () => {
     setWishMode('surprise', true);
-    showCardFloatingBadge('🎁 Sẽ mở lời chúc bất ngờ khi bạn bấm Tạo thiệp!');
+    showCardFloatingBadge('🌸 Sẽ mở lời chúc bất ngờ khi bạn bấm Tạo thiệp!');
 });
 
 document.getElementById('wish-mode-custom-btn')?.addEventListener('click', () => {
@@ -3130,7 +3147,6 @@ document.querySelectorAll('.topic-chip').forEach(chip => {
     chip.addEventListener('click', () => {
         document.querySelectorAll('.topic-chip').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
-        scrollChipIntoCenter(chip);
         currentTopic = chip.getAttribute('data-topic');
         isCustomWishActive = false;
         currentAIQuote = getNextQuoteByTopic(currentTopic);
@@ -3141,7 +3157,7 @@ document.querySelectorAll('.topic-chip').forEach(chip => {
         triggerCardPulse();
         const topicName = chip.textContent.trim();
         if (currentWishMode === 'surprise') {
-            showCardFloatingBadge(`🎁 Đã chọn chủ đề bất ngờ: ${topicName}`);
+            showCardFloatingBadge(`🌸 Đã chọn chủ đề bất ngờ: ${topicName}`);
         } else {
             showCardFloatingBadge(`💌 Chủ đề lời chúc: ${topicName}`);
         }
@@ -3169,16 +3185,6 @@ textEditModal.addEventListener('click', (e) => {
 
 recipientInput.addEventListener('input', (e) => {
     recipientCount.textContent = `${e.target.value.length}/45`;
-});
-
-// Chip gợi ý nhanh Tiêu đề người nhận (Tặng Mẹ, Tặng Vợ, Người yêu, Chị/Em...)
-document.querySelectorAll('.recipient-preset-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-        const presetTitle = chip.getAttribute('data-title') || '';
-        recipientInput.value = presetTitle;
-        recipientCount.textContent = `${presetTitle.length}/45`;
-        scrollChipIntoCenter(chip);
-    });
 });
 
 customWishInput.addEventListener('input', (e) => {
@@ -4037,14 +4043,14 @@ function wrapLines(ctx, text, maxWidth) {
 
 function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle) {
     const hasTopOrnament = borderStyle === 'ribbon' || borderStyle === 'hearts';
-    const padTop = Math.floor(boxH * (hasTopOrnament ? 0.125 : 0.095));
-    const padBottom = Math.floor(boxH * 0.095);
+    const padTop = Math.floor(boxH * (hasTopOrnament ? 0.115 : 0.085));
+    const padBottom = Math.floor(boxH * 0.085);
     const maxH = boxH - padTop - padBottom;
     const minSize = Math.max(10, Math.floor(14 * scale));
     let layout = null;
 
-    for (let fontSize = Math.floor(54 * scale); fontSize >= minSize; fontSize--) {
-        const padX = Math.max(Math.floor(boxW * 0.072), Math.ceil(54 * scale));
+    for (let fontSize = Math.floor(62 * scale); fontSize >= minSize; fontSize--) {
+        const padX = Math.max(Math.floor(boxW * 0.062), Math.ceil(46 * scale));
         const maxWidth = boxW - padX * 2;
 
         let recFontSize = 0;
@@ -4055,8 +4061,8 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
         let widestTitle = 0;
 
         if (recipientLine) {
-            // Tăng kích cỡ dòng Tiêu đề lớn vượt trội (~1.3x câu chúc, tối đa 68px trên canvas 1024)
-            recFontSize = Math.min(Math.floor(68 * scale), Math.floor(fontSize * 1.32));
+            // Tăng kích cỡ dòng Tiêu đề lớn vượt trội (~1.3x câu chúc, tối đa 74px trên canvas 1024)
+            recFontSize = Math.min(Math.floor(74 * scale), Math.floor(fontSize * 1.32));
             const minSingleLineTitle = Math.max(Math.floor(18 * scale), Math.floor(fontSize * 1.12));
             ctx.font = recipientFont(recFontSize);
 
@@ -4068,7 +4074,7 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
 
             // Nếu tiêu đề rất dài vẫn vượt maxWidth, giữ cỡ chữ lớn (1.16x fontSize) và tự động ngắt thành 2 dòng cân đối
             if (inkWidth(ctx, recipientLine) > maxWidth) {
-                recFontSize = Math.min(Math.floor(62 * scale), Math.floor(fontSize * 1.16));
+                recFontSize = Math.min(Math.floor(66 * scale), Math.floor(fontSize * 1.16));
                 ctx.font = recipientFont(recFontSize);
                 titleLines = wrapLines(ctx, recipientLine, maxWidth);
             } else {
