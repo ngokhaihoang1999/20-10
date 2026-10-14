@@ -1243,6 +1243,89 @@ function getU3DLuxurySpriteAtlas() {
         atlas.diamond = tbC; // Tương thích ngược hoàn toàn cho mọi thực thể cũ
     }
 
+    // 5E. NƠ LỤA SATIN HOÀNG GIA PHÁP ĐÍNH NGỌC TRAI 3D (3D Haute Couture French Satin Bow & Pearl - 180x160)
+    {
+        const { c: sbC, ctx: sbCtx } = makeCanvas(180, 160);
+        sbCtx.translate(90, 74);
+        const bs = 48;
+        const bAura = sbCtx.createRadialGradient(0, 0, bs * 0.15, 0, 0, bs * 1.48);
+        bAura.addColorStop(0, 'rgba(255, 241, 242, 0.78)');
+        bAura.addColorStop(0.55, 'rgba(244, 114, 182, 0.36)');
+        bAura.addColorStop(1, 'rgba(244, 114, 182, 0)');
+        sbCtx.fillStyle = bAura;
+        sbCtx.beginPath();
+        sbCtx.arc(0, 0, bs * 1.48, 0, Math.PI * 2);
+        sbCtx.fill();
+
+        // Đuôi ruy-băng lụa mềm rủ xuống 2 bên (Swallowtail Silk Ribbons)
+        [-1, 1].forEach(dir => {
+            sbCtx.save();
+            const tailG = sbCtx.createLinearGradient(0, 4, dir * bs * 0.75, bs * 1.25);
+            tailG.addColorStop(0, '#881337');
+            tailG.addColorStop(0.45, '#db2777');
+            tailG.addColorStop(0.82, '#f472b6');
+            tailG.addColorStop(1, '#fde68a');
+            sbCtx.fillStyle = tailG;
+            sbCtx.strokeStyle = '#fef08a';
+            sbCtx.lineWidth = 1.25;
+            sbCtx.beginPath();
+            sbCtx.moveTo(dir * 4, 6);
+            sbCtx.bezierCurveTo(dir * bs * 0.42, bs * 0.45, dir * bs * 0.88, bs * 0.78, dir * bs * 0.72, bs * 1.28);
+            sbCtx.lineTo(dir * bs * 0.48, bs * 1.08);
+            sbCtx.lineTo(dir * bs * 0.32, bs * 1.24);
+            sbCtx.bezierCurveTo(dir * bs * 0.36, bs * 0.75, dir * bs * 0.12, bs * 0.40, 0, 10);
+            sbCtx.closePath();
+            sbCtx.fill();
+            sbCtx.stroke();
+            sbCtx.restore();
+        });
+
+        // 2 Cánh Nơ Lụa Phồng 3D (Sculpted Double-Loop Satin Bow)
+        [-1, 1].forEach(dir => {
+            sbCtx.save();
+            const loopG = sbCtx.createLinearGradient(0, -bs * 0.4, dir * bs * 1.15, bs * 0.25);
+            loopG.addColorStop(0, '#9d174d');
+            loopG.addColorStop(0.38, '#e11d48');
+            loopG.addColorStop(0.72, '#f472b6');
+            loopG.addColorStop(0.92, '#fce7f3');
+            loopG.addColorStop(1, '#fef08a');
+            sbCtx.fillStyle = loopG;
+            sbCtx.strokeStyle = '#fde68a';
+            sbCtx.lineWidth = 1.45;
+            sbCtx.beginPath();
+            sbCtx.moveTo(0, -2);
+            sbCtx.bezierCurveTo(dir * bs * 0.48, -bs * 0.86, dir * bs * 1.26, -bs * 0.54, dir * bs * 1.12, bs * 0.08);
+            sbCtx.bezierCurveTo(dir * bs * 0.96, bs * 0.56, dir * bs * 0.38, bs * 0.36, 0, 6);
+            sbCtx.closePath();
+            sbCtx.fill();
+            sbCtx.stroke();
+
+            // Nếp gấp lụa 3D bắt sáng ở tâm cánh nơ
+            sbCtx.strokeStyle = 'rgba(255, 251, 235, 0.68)';
+            sbCtx.lineWidth = 1.2;
+            sbCtx.beginPath();
+            sbCtx.moveTo(dir * 8, 1);
+            sbCtx.quadraticCurveTo(dir * bs * 0.55, -bs * 0.22, dir * bs * 0.88, -bs * 0.06);
+            sbCtx.stroke();
+            sbCtx.restore();
+        });
+
+        // Nút thắt Ngọc Trai Nam Hải & Vàng 24K ở chính tâm nơ
+        const knotG = sbCtx.createRadialGradient(-3, -3, 1, 0, 2, 12);
+        knotG.addColorStop(0, '#ffffff');
+        knotG.addColorStop(0.55, '#fef9c3');
+        knotG.addColorStop(1, '#d97706');
+        sbCtx.fillStyle = knotG;
+        sbCtx.strokeStyle = '#ffffff';
+        sbCtx.lineWidth = 1.5;
+        sbCtx.beginPath();
+        sbCtx.arc(0, 2, 10.5, 0, Math.PI * 2);
+        sbCtx.fill();
+        sbCtx.stroke();
+
+        atlas.silkBow = sbC;
+    }
+
     // 6. BIỂN MÂY 3D CELESTIA BẰNG THUẬT TOÁN PIXEL SHADER 5-OCTAVE FBM NOISE + NORMAL RIM-LIGHTING (320x160)
     // Tạo đám mây khối 3D thật như trong game Genshin Impact (có đỉnh mây bắt sáng bạc/vàng và đáy mây tán xạ khí quyển sâu)
     const hash2D = (ix, iy) => {
@@ -1451,6 +1534,16 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
         ctx.save();
         ctx.scale(turnX, 1);
         ctx.drawImage(atlas.tulipBloom, -drawR, -drawR, drawR * 2, drawR * 2);
+        ctx.restore();
+    } else if (p.type === 'silk_bow') {
+        ctx.rotate(p.rz * 0.35);
+        const turnX = 0.74 + 0.26 * Math.abs(Math.cos(p.ry));
+        const turnY = 0.82 + 0.18 * Math.abs(Math.cos(p.rx));
+        ctx.save();
+        ctx.scale(turnX, turnY);
+        const drawW = p.size * 1.62;
+        const drawH = p.size * 1.44;
+        ctx.drawImage(atlas.silkBow, -drawW, -drawH, drawW * 2, drawH * 2);
         ctx.restore();
     } else if (p.type === 'pearl') {
         const drawR = p.size * 1.28;
@@ -3781,84 +3874,86 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 });
             });
         } else if (cfg.id === 'ribbon') {
-            const colors = ['#e02f6e', '#f5c242', '#ff74a4', '#d49b27'];
-            for (let r = 0; r < 4; r++) {
-                ribbons3D.push({
-                    baseAngle: (r * Math.PI) / 2,
-                    phase: 0,
-                    originX: 0,
-                    originY: mouthY + 40 * motionScale,
-                    startRadius: (132 + (r % 2) * 26) * motionScale,
-                    heightSpan: 430 * motionScale,
-                    progress: 0,
-                    alpha: 1,
-                    color: colors[r]
+            // 🎀 VƯƠNG MIỆN NƠ LỤA PHÁP HAUTE COUTURE & SUỐI NGỌC TRAI NAM HẢI (Hoàn toàn bỏ dây xoắn rác -> Thay bằng Vương Miện Nơ Lụa Đỉnh Thiệp + Nơ Lụa Eo Thiệp + Suối Ngọc Trai & Nơ Lụa 3D!)
+            const ribbonCrownNodes = [
+                { type: 'silk_bow', nx: 0, ny: -0.485, scale: 1.56, zOff: 34, baseTilt: 0 },
+                { type: 'pearl', nx: -0.16, ny: -0.495, scale: 0.56, zOff: 30, baseTilt: 0 },
+                { type: 'pearl', nx: 0.16, ny: -0.495, scale: 0.56, zOff: 30, baseTilt: 0 },
+                { type: 'silk_bow', nx: -0.485, ny: -0.08, scale: 1.16, zOff: 28, baseTilt: -0.22 },
+                { type: 'silk_bow', nx: 0.485, ny: -0.08, scale: 1.16, zOff: 28, baseTilt: 0.22 },
+                { type: 'pearl', nx: -0.49, ny: 0.05, scale: 0.48, zOff: 26, baseTilt: 0 },
+                { type: 'pearl', nx: 0.49, ny: 0.05, scale: 0.48, zOff: 26, baseTilt: 0 }
+            ];
+            ribbonCrownNodes.forEach((rn, idx) => {
+                escortFlowers.push({
+                    type: rn.type,
+                    nx: rn.nx,
+                    ny: rn.ny,
+                    zOff: rn.zOff,
+                    baseTilt: rn.baseTilt,
+                    phase: idx * 0.75,
+                    rotSpeed: 1.35,
+                    size: 20 * rn.scale * motionScale
                 });
-            }
-            for (let i = 0; i < 32; i++) {
-                const isPearl = i % 2 === 0;
-                const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.3;
-                const spd = (360 + Math.random() * 400) * motionScale;
+            });
+            for (let i = 0; i < 56; i++) {
+                const pType = i % 5 === 0 ? 'silk_bow' : (i % 2 === 0 ? 'pearl' : 'star');
+                const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.35;
+                const spd = (350 + Math.random() * 420) * motionScale;
                 particles.push({
-                    type: isPearl ? 'pearl' : 'star',
-                    hasTrail: false,
-                    x: (Math.random() - 0.5) * 110 * motionScale,
+                    type: pType,
+                    hasTrail: pType === 'star',
+                    x: (Math.random() - 0.5) * 120 * motionScale,
                     y: mouthY + 15 * motionScale,
-                    z: (Math.random() - 0.5) * 240,
+                    z: (Math.random() - 0.5) * 250,
                     vx: Math.cos(ang) * spd,
-                    vy: Math.sin(ang) * spd,
+                    vy: Math.sin(ang) * spd - 85 * motionScale,
                     vz: (Math.random() - 0.5) * 300,
-                    gravity: (isPearl ? 500 : 170) * motionScale,
-                    drag: 1.1,
-                    vortex: 1.8,
-                    flutter: 55 * motionScale,
-                    phase: Math.random() * 6,
-                    size: (isPearl ? (6 + Math.random() * 5) : (9 + Math.random() * 7)) * motionScale,
-                    rx: 0, ry: 0, rz: Math.random() * 6,
-                    vrx: 0, vry: 0, vrz: (Math.random() - 0.5) * 8,
+                    gravity: (pType === 'pearl' ? 420 : (pType === 'silk_bow' ? 95 : 150)) * motionScale,
+                    drag: 1.15,
+                    vortex: pType === 'silk_bow' ? 0.65 : 1.15,
+                    flutter: (pType === 'silk_bow' ? 95 : 55) * motionScale,
+                    phase: Math.random() * 6.28,
+                    size: (pType === 'silk_bow' ? (17 + Math.random() * 8) : (pType === 'pearl' ? (6.5 + Math.random() * 5.5) : (9 + Math.random() * 7))) * motionScale,
+                    rx: Math.random() * 4,
+                    ry: Math.random() * 4,
+                    rz: (Math.random() - 0.5) * 0.8,
+                    vrx: (Math.random() - 0.5) * 3.2,
+                    vry: (Math.random() - 0.5) * 3.8,
+                    vrz: (Math.random() - 0.5) * (pType === 'silk_bow' ? 1.8 : 6.5),
                     alpha: 1,
                     life: 0,
-                    maxLife: 2.3 + Math.random() * 0.6
+                    maxLife: 2.45 + Math.random() * 0.6
                 });
             }
         } else if (cfg.id === 'galaxy') {
-            // 🌹 ĐẠI TIỆC VƯỜN HỒNG NHUNG PHÁP HOÀNG GIA 3D (Bỏ hoàn toàn vòng tròn cũ -> Thay bằng Vòm Hoa Hồng Pháp Hộ Tống + Dải Lụa Vàng Hồng + Suối Hoa 68 Hạt 3D!)
-            const roseRibbonColors = ['#e11d48', '#fbbf24'];
-            for (let r = 0; r < 2; r++) {
-                ribbons3D.push({
-                    baseAngle: r * Math.PI,
-                    phase: r * 0.8,
-                    originX: 0,
-                    originY: mouthY + 36 * motionScale,
-                    startRadius: (136 + r * 22) * motionScale,
-                    heightSpan: 440 * motionScale,
-                    progress: 0,
-                    alpha: 0.92,
-                    color: roseRibbonColors[r]
-                });
-            }
-            const roseArchCoords = [
-                { sx: -1.04, sy: -0.45, scale: 1.18, zOff: 32 },
-                { sx: 1.04, sy: -0.45, scale: 1.18, zOff: 32 },
-                { sx: -1.12, sy: -0.14, scale: 0.96, zOff: -18 },
-                { sx: 1.12, sy: -0.14, scale: 0.96, zOff: -18 },
-                { sx: -1.10, sy: 0.18, scale: 1.08, zOff: 26 },
-                { sx: 1.10, sy: 0.18, scale: 1.08, zOff: 26 },
-                { sx: -0.96, sy: 0.46, scale: 1.22, zOff: 36 },
-                { sx: 0.96, sy: 0.46, scale: 1.22, zOff: 36 }
+            // 🌹 CỤM HOA HỒNG NHUNG PHÁP CHÉO GÓC VƯƠNG GIẢ (Bỏ hoàn toàn đường xoắn -> Thay bằng 2 Cụm Hoa Hồng Pháp Bất Đối Xứng Ôm Khít Góc Trên-Trái & Dưới-Phải + Bão Cánh Hồng Nhung Xoáy Lãng Mạn!)
+            const roseCornerBouquets = [
+                // Cụm Hoa Hồng Pháp Góc Trên - Bên Trái (Top-Left Diagonal Bouquet Cluster)
+                { type: 'rose_bloom', nx: -0.44, ny: -0.45, scale: 1.44, zOff: 34 },
+                { type: 'rose_bloom', nx: -0.26, ny: -0.48, scale: 1.10, zOff: 28 },
+                { type: 'rose_bloom', nx: -0.48, ny: -0.28, scale: 1.06, zOff: 26 },
+                { type: 'rose_petal', nx: -0.14, ny: -0.49, scale: 0.84, zOff: 22 },
+                { type: 'rose_petal', nx: -0.49, ny: -0.15, scale: 0.84, zOff: 22 },
+                // Cụm Hoa Hồng Pháp Góc Dưới - Bên Phải (Bottom-Right Diagonal Bouquet Cluster)
+                { type: 'rose_bloom', nx: 0.44, ny: 0.45, scale: 1.44, zOff: 34 },
+                { type: 'rose_bloom', nx: 0.26, ny: 0.48, scale: 1.10, zOff: 28 },
+                { type: 'rose_bloom', nx: 0.48, ny: 0.28, scale: 1.06, zOff: 26 },
+                { type: 'rose_petal', nx: 0.14, ny: 0.49, scale: 0.84, zOff: 22 },
+                { type: 'rose_petal', nx: 0.49, ny: 0.15, scale: 0.84, zOff: 22 }
             ];
-            roseArchCoords.forEach((rc, idx) => {
+            roseCornerBouquets.forEach((rc, idx) => {
                 escortFlowers.push({
-                    type: 'rose_bloom',
-                    sx: rc.sx,
-                    sy: rc.sy,
+                    type: rc.type,
+                    nx: rc.nx,
+                    ny: rc.ny,
                     zOff: rc.zOff,
-                    phase: idx * 0.9,
-                    rotSpeed: (idx % 2 === 0 ? 1 : -1) * (1.2 + (idx % 3) * 0.35),
-                    size: 24 * rc.scale * motionScale
+                    phase: idx * 0.85,
+                    rotSpeed: (idx % 2 === 0 ? 1 : -1) * (1.1 + (idx % 3) * 0.3),
+                    size: 20 * rc.scale * motionScale
                 });
             });
-            for (let i = 0; i < 68; i++) {
+            for (let i = 0; i < 72; i++) {
                 const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.68;
                 const spd = (320 + Math.random() * 480) * motionScale;
                 const pType = i % 3 === 0 ? 'rose_bloom' : (i % 7 === 0 ? 'star' : (i % 9 === 0 ? 'bokeh' : 'rose_petal'));
@@ -3890,74 +3985,61 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 });
             }
         } else if (cfg.id === 'hearts') {
-            // 🌷 ĐẠI TIỆC VƯỜN TULIP HOÀNG GIA HÀ LAN NẮNG MAI 3D (Bỏ hoàn toàn vòng tròn cũ -> Thay bằng Khung Vườn Tulip Hộ Tống + Lụa Nắng Mai + Suối Hoa 68 Hạt 3D!)
-            const tulipRibbonColors = ['#fb7185', '#fde047'];
-            for (let r = 0; r < 2; r++) {
-                ribbons3D.push({
-                    baseAngle: r * Math.PI + Math.PI / 4,
-                    phase: r * 1.1,
-                    originX: 0,
-                    originY: mouthY + 36 * motionScale,
-                    startRadius: (134 + r * 22) * motionScale,
-                    heightSpan: 435 * motionScale,
-                    progress: 0,
-                    alpha: 0.90,
-                    color: tulipRibbonColors[r]
-                });
-            }
-            const tulipGardenCoords = [
-                { sx: -1.02, sy: -0.44, scale: 1.16, zOff: 30, baseTilt: -0.22 },
-                { sx: 1.02, sy: -0.44, scale: 1.16, zOff: 30, baseTilt: 0.22 },
-                { sx: -1.12, sy: -0.12, scale: 0.98, zOff: -16, baseTilt: -0.30 },
-                { sx: 1.12, sy: -0.12, scale: 0.98, zOff: -16, baseTilt: 0.30 },
-                { sx: -1.08, sy: 0.18, scale: 1.10, zOff: 28, baseTilt: -0.25 },
-                { sx: 1.08, sy: 0.18, scale: 1.10, zOff: 28, baseTilt: 0.25 },
-                { sx: -0.94, sy: 0.46, scale: 1.24, zOff: 36, baseTilt: -0.18 },
-                { sx: 0.94, sy: 0.46, scale: 1.24, zOff: 36, baseTilt: 0.18 }
+            // 🌷 THẢM HOA TULIP HÀ LAN VƯƠN LÊN ÔM ĐÁY THIỆP & SUỐI NẮNG BAN MAI BAY LÊN (Bỏ hoàn toàn đường xoắn & xoáy lốc -> Thay bằng Dải 9 Đóa Tulip Đỡ Chân Thiệp + Làn Gió Nắng Ấm Bay Thẳng Lên Trời!)
+            const tulipMeadowRow = [
+                { nx: -0.45, ny: 0.455, scale: 1.18, zOff: 32, baseTilt: -0.26 },
+                { nx: -0.34, ny: 0.475, scale: 1.06, zOff: 26, baseTilt: -0.18 },
+                { nx: -0.23, ny: 0.485, scale: 1.26, zOff: 34, baseTilt: -0.11 },
+                { nx: -0.11, ny: 0.490, scale: 1.10, zOff: 28, baseTilt: -0.05 },
+                { nx: 0.00, ny: 0.492, scale: 1.34, zOff: 36, baseTilt: 0.00 },
+                { nx: 0.11, ny: 0.490, scale: 1.10, zOff: 28, baseTilt: 0.05 },
+                { nx: 0.23, ny: 0.485, scale: 1.26, zOff: 34, baseTilt: 0.11 },
+                { nx: 0.34, ny: 0.475, scale: 1.06, zOff: 26, baseTilt: 0.18 },
+                { nx: 0.45, ny: 0.455, scale: 1.18, zOff: 32, baseTilt: 0.26 }
             ];
-            tulipGardenCoords.forEach((tc, idx) => {
+            tulipMeadowRow.forEach((tc, idx) => {
                 escortFlowers.push({
                     type: 'tulip_bloom',
-                    sx: tc.sx,
-                    sy: tc.sy,
+                    nx: tc.nx,
+                    ny: tc.ny,
                     zOff: tc.zOff,
                     baseTilt: tc.baseTilt,
-                    phase: idx * 0.85,
-                    rotSpeed: 1.8,
-                    size: 24 * tc.scale * motionScale
+                    phase: idx * 0.72,
+                    rotSpeed: 1.65,
+                    size: 20 * tc.scale * motionScale
                 });
             });
-            for (let i = 0; i < 68; i++) {
-                const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.65;
-                const spd = (320 + Math.random() * 465) * motionScale;
-                const pType = i % 3 === 0 ? 'tulip_bloom' : (i % 6 === 0 ? 'bokeh' : (i % 7 === 0 ? 'star' : 'tulip_petal'));
+            for (let i = 0; i < 72; i++) {
+                // Không dùng xoáy vortex tròn như Hoa Hồng Pháp -> Bay bổng nhẹ nhàng hướng thẳng lên đón nắng mai!
+                const pType = i % 3 === 0 ? 'tulip_bloom' : (i % 5 === 0 ? 'bokeh' : (i % 8 === 0 ? 'star' : 'tulip_petal'));
+                const spreadX = (Math.random() - 0.5) * 220 * motionScale;
                 particles.push({
                     type: pType,
                     hasTrail: pType === 'star',
-                    x: (Math.random() - 0.5) * 145 * motionScale,
-                    y: mouthY + 18 * motionScale,
-                    z: (Math.random() - 0.5) * 285,
-                    vx: Math.cos(ang) * spd,
-                    vy: Math.sin(ang) * spd - 112 * motionScale,
-                    vz: (Math.random() - 0.5) * 350,
-                    gravity: (pType === 'bokeh' ? -68 : -28) * motionScale,
-                    drag: 1.22,
-                    vortex: 2.05,
-                    flutter: 150 * motionScale,
+                    x: spreadX,
+                    y: mouthY + (10 + Math.random() * 35) * motionScale,
+                    z: (Math.random() - 0.5) * 260,
+                    vx: (Math.random() - 0.5) * 190 * motionScale,
+                    vy: (-280 - Math.random() * 380) * motionScale,
+                    vz: (Math.random() - 0.5) * 240,
+                    gravity: (pType === 'bokeh' ? -95 : -55) * motionScale,
+                    drag: 1.08,
+                    vortex: 0,
+                    flutter: 135 * motionScale,
                     phase: Math.random() * Math.PI * 2,
-                    size: (pType === 'tulip_bloom' ? (19 + Math.random() * 12) : (pType === 'bokeh' ? (14 + Math.random() * 12) : (pType === 'star' ? (9 + Math.random() * 6) : (13 + Math.random() * 9)))) * motionScale,
+                    size: (pType === 'tulip_bloom' ? (19 + Math.random() * 11) : (pType === 'bokeh' ? (15 + Math.random() * 14) : (pType === 'star' ? (9 + Math.random() * 6) : (13 + Math.random() * 8)))) * motionScale,
                     tintA: '#fff8e1',
                     tintB: '#fce4ec',
-                    bokehColor: i % 2 === 0 ? 'rgba(254, 240, 138, 0.54)' : 'rgba(251, 113, 133, 0.48)',
+                    bokehColor: i % 2 === 0 ? 'rgba(254, 240, 138, 0.56)' : 'rgba(251, 113, 133, 0.48)',
                     rx: Math.random() * 6,
                     ry: Math.random() * 6,
-                    rz: (Math.random() - 0.5) * 1.1,
-                    vrx: (Math.random() - 0.5) * 5.8,
-                    vry: (Math.random() - 0.5) * 6.8,
-                    vrz: (Math.random() - 0.5) * 3.8,
+                    rz: (Math.random() - 0.5) * 0.65,
+                    vrx: (Math.random() - 0.5) * 4.2,
+                    vry: (Math.random() - 0.5) * 5.2,
+                    vrz: (Math.random() - 0.5) * 2.2,
                     alpha: 1,
                     life: 0,
-                    maxLife: 2.65 + Math.random() * 0.65
+                    maxLife: 2.75 + Math.random() * 0.65
                 });
             }
         } else {
@@ -4947,42 +5029,44 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         // Luồng hạt 3D phun liên tục từ miệng phong bì trong lúc thiệp đang từ trong bì thư đi ra (1.00s -> 2.25s)
         if (elapsed >= EXTRACT_START && elapsed <= EXTRACT_END) {
             streamSpawnAccum += dt;
-            const streamInterval = (cfg.id === 'galaxy' || cfg.id === 'hearts') ? 0.042 : 0.065;
+            const streamInterval = (cfg.id === 'galaxy' || cfg.id === 'hearts' || cfg.id === 'ribbon') ? 0.044 : 0.065;
             if (streamSpawnAccum >= streamInterval) {
                 streamSpawnAccum = 0;
                 const rVal = Math.random();
                 const pType = cfg.id === 'butterflies' ? 'butterfly'
                     : (cfg.id === 'galaxy' ? (rVal < 0.36 ? 'rose_bloom' : (rVal < 0.48 ? 'star' : 'rose_petal'))
-                        : (cfg.id === 'hearts' ? (rVal < 0.38 ? 'tulip_bloom' : (rVal < 0.50 ? 'star' : 'tulip_petal'))
-                            : (cfg.id === 'ribbon' ? 'pearl' : 'petal')));
+                        : (cfg.id === 'hearts' ? (rVal < 0.36 ? 'tulip_bloom' : (rVal < 0.54 ? 'bokeh' : (rVal < 0.64 ? 'star' : 'tulip_petal')))
+                            : (cfg.id === 'ribbon' ? (rVal < 0.24 ? 'silk_bow' : (rVal < 0.68 ? 'pearl' : 'star')) : 'petal')));
+                const isTulipMode = cfg.id === 'hearts';
                 particles.push({
                     type: pType,
                     isGold: Math.random() > 0.35,
                     isSakura: cfg.id === 'sakura',
                     hasTrail: pType === 'star',
-                    x: (Math.random() - 0.5) * 155 * motionScale,
+                    x: (Math.random() - 0.5) * (isTulipMode ? 195 : 155) * motionScale,
                     y: envMouthWorldY + 26 * motionScale,
                     z: (Math.random() - 0.5) * 280 * motionScale,
-                    vx: (Math.random() - 0.5) * 290 * motionScale,
+                    vx: (Math.random() - 0.5) * (isTulipMode ? 185 : 290) * motionScale,
                     vy: (-330 - Math.random() * 350) * motionScale,
-                    vz: (Math.random() - 0.5) * 320 * motionScale,
-                    gravity: (pType === 'butterfly' || cfg.id === 'sakura' || pType === 'star') ? -45 : 95,
-                    drag: 1.2,
-                    vortex: 2.3,
+                    vz: (Math.random() - 0.5) * (isTulipMode ? 220 : 320) * motionScale,
+                    gravity: (pType === 'butterfly' || cfg.id === 'sakura' || pType === 'star' || isTulipMode) ? -55 : 95,
+                    drag: isTulipMode ? 1.08 : 1.2,
+                    vortex: isTulipMode ? 0 : (pType === 'silk_bow' ? 0.65 : 2.3),
                     flutter: 140 * motionScale,
                     phase: Math.random() * 6,
                     flapPhase: Math.random() * 6,
                     flapSpeed: 40,
-                    size: (pType === 'butterfly' ? 16 : (pType === 'rose_bloom' || pType === 'tulip_bloom' ? (17 + Math.random() * 7) : (pType === 'pearl' ? 6 : (pType === 'star' ? 9 : 12.5)))) * motionScale,
+                    size: (pType === 'butterfly' ? 16 : (pType === 'rose_bloom' || pType === 'tulip_bloom' || pType === 'silk_bow' ? (17 + Math.random() * 7) : (pType === 'bokeh' ? (14 + Math.random() * 10) : (pType === 'pearl' ? 6.5 : (pType === 'star' ? 9 : 12.5))))) * motionScale,
                     tintA: '#ffe5ec',
                     tintB: '#fff3b0',
+                    bokehColor: rVal < 0.45 ? 'rgba(254, 240, 138, 0.54)' : 'rgba(251, 113, 133, 0.46)',
                     colorMid: cfg.id === 'sakura' ? '#ffb2c9' : '#f48fb1',
                     colorEnd: cfg.id === 'sakura' ? '#d83a6f' : '#ad1457',
-                    rx: Math.random() * 6, ry: Math.random() * 6, rz: Math.random() * 6,
-                    vrx: (Math.random() - 0.5) * 7, vry: (Math.random() - 0.5) * 7, vrz: (Math.random() - 0.5) * 6,
+                    rx: Math.random() * 6, ry: Math.random() * 6, rz: isTulipMode || pType === 'silk_bow' ? (Math.random() - 0.5) * 0.6 : Math.random() * 6,
+                    vrx: (Math.random() - 0.5) * 5, vry: (Math.random() - 0.5) * 5, vrz: (Math.random() - 0.5) * (isTulipMode || pType === 'silk_bow' ? 2.0 : 6),
                     alpha: 1,
                     life: 0,
-                    maxLife: 2.2
+                    maxLife: 2.25
                 });
             }
         }
@@ -5209,69 +5293,69 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
         const cardWorldX = cardCx - screenCx;
         const cardWorldY = cardCy - screenCy;
+        const cardGrowRatio = cardScale / Math.max(0.28, pocketScale);
 
-        // Cập nhật Dải Lụa Hoàng Kim & Hoa Lụa Xoắn 3D (Ribbon / Hồng Pháp / Tulip Nắng Mai)
-        for (let i = 0; i < ribbons3D.length; i++) {
-            const rb = ribbons3D[i];
-            rb.originX = cardWorldX;
-            rb.originY = cardWorldY + curCardH * 0.42;
-            rb.progress = Math.min(1, (elapsed - EXTRACT_START) / 0.95);
-            rb.phase += dt * 4.2;
-            if (elapsed > 2.40) {
-                rb.alpha = Math.max(0, 1 - (elapsed - 2.40) / 0.85);
-            }
-            drawSplit3DRibbonHelix(ctxBack, ctxFront, rb, screenCx, screenCy, focal, cardZ);
-        }
-
-        // Cập nhật 4 Hồ Điệp Chúa Hộ Tống 4 góc tấm thiệp (Butterflies)
+        // Cập nhật 4 Hồ Điệp Chúa Hộ Tống 4 góc tấm thiệp (Butterflies) — Khóa chuẩn 1:1 theo kích thước thực của thiệp
         if (escortButterflies.length > 0 && elapsed >= EXTRACT_START && elapsed <= 3.35) {
-            const fadeEscort = elapsed > 2.60 ? Math.max(0, 1 - (elapsed - 2.60) / 0.75) : 1;
-            const spread = elapsed > 2.45 ? (elapsed - 2.45) * 135 : 0;
+            const fadeEscort = elapsed > 2.68 ? Math.max(0, 1 - (elapsed - 2.68) / 0.65) : 1;
+            const outroGlide = elapsed > 2.75 ? (elapsed - 2.75) * 0.18 : 0;
             escortButterflies.forEach(eb => {
                 eb.flapPhase += eb.flapSpeed * dt;
-                const ex = cardWorldX + eb.sx * (curCardW * 0.48 + spread);
-                const ey = cardWorldY + eb.sy * (curCardH * 0.44 + spread * 0.6);
                 const ez = cardZ + 28;
+                const projScale = focal / Math.max(120, focal - ez);
+                const targetScreenX = cardCx + eb.sx * curCardW * (0.48 + outroGlide);
+                const targetScreenY = cardCy + eb.sy * curCardH * (0.44 + outroGlide * 0.7);
                 draw3DProjectedParticle(ctxFront, {
                     type: 'butterfly',
                     isGold: true,
-                    x: ex,
-                    y: ey,
+                    x: (targetScreenX - screenCx) / projScale,
+                    y: (targetScreenY - screenCy) / projScale,
                     z: ez,
                     vx: eb.sx * 20,
                     vy: -60,
                     flapPhase: eb.flapPhase,
                     phase: eb.flapPhase,
-                    size: eb.size,
+                    size: (eb.size * cardGrowRatio) / projScale,
                     alpha: fadeEscort
                 }, screenCx, screenCy, focal);
             });
         }
 
-        // Cập nhật 8 Đại Đóa Hồng Pháp / Tulip Hoàng Gia Hộ Tống 2 bên & 4 góc tấm thiệp (Galaxy / Hearts)
+        // Cập nhật Trang Trí 3D Bám Khít Khung Thiệp (Nơ Lụa Vương Miện / Cụm Hồng Pháp Chéo Góc / Thảm Tulip Đỡ Đáy Thiệp)
+        // Khử hoàn toàn sai lệch phối cảnh projScale để hoa/nơ luôn ôm khít mép thiệp và phóng to 1:1 cùng tấm thiệp!
         if (escortFlowers.length > 0 && elapsed >= EXTRACT_START && elapsed <= 3.38) {
-            const bloomIn = Math.min(1, (elapsed - EXTRACT_START) / 0.36);
+            const bloomIn = Math.min(1, (elapsed - EXTRACT_START) / 0.38);
             const easeBloomIn = 1 - Math.pow(1 - bloomIn, 3);
-            const fadeEscort = elapsed > 2.58 ? Math.max(0, 1 - (elapsed - 2.58) / 0.78) : 1;
-            const spread = elapsed > 2.42 ? (elapsed - 2.42) * 115 : 0;
+            const fadeEscort = elapsed > 2.68 ? Math.max(0, 1 - (elapsed - 2.68) / 0.68) : 1;
+            const outroBreath = elapsed > 2.78 ? (elapsed - 2.78) * 0.08 : 0;
             escortFlowers.forEach(ef => {
                 ef.phase += dt * ef.rotSpeed;
-                const swayX = Math.sin(ef.phase * 1.4) * 10 * motionScale;
-                const swayY = Math.cos(ef.phase * 1.1) * 8 * motionScale;
-                const ex = cardWorldX + ef.sx * (curCardW * 0.49 + spread) + swayX;
-                const ey = cardWorldY + ef.sy * (curCardH * 0.45 + spread * 0.45) + swayY;
+                const swayAmp = (ef.type === 'silk_bow' || ef.type === 'pearl') ? 3.5 : 6.5;
+                const swayX = Math.sin(ef.phase * 1.35) * swayAmp * motionScale * cardGrowRatio;
+                const swayY = Math.cos(ef.phase * 1.1) * (swayAmp * 0.75) * motionScale * cardGrowRatio;
                 const ez = cardZ + ef.zOff;
+                const projScale = focal / Math.max(120, focal - ez);
+                const targetScreenX = cardCx + ef.nx * curCardW * (1 + outroBreath) + swayX;
+                const targetScreenY = cardCy + ef.ny * curCardH * (1 + outroBreath) + swayY;
+                const screenSize = ef.size * cardGrowRatio * (0.28 + 0.72 * easeBloomIn);
                 const targetCtx = ez < cardZ ? ctxBack : ctxFront;
                 draw3DProjectedParticle(targetCtx, {
                     type: ef.type,
-                    x: ex,
-                    y: ey,
+                    x: (targetScreenX - screenCx) / projScale,
+                    y: (targetScreenY - screenCy) / projScale,
                     z: ez,
-                    rx: Math.sin(ef.phase * 0.7) * 0.25,
-                    ry: Math.cos(ef.phase * 0.9) * 0.32,
-                    rz: ef.type === 'tulip_bloom' ? (ef.baseTilt || 0) + Math.sin(ef.phase) * 0.18 : ef.phase * 0.65,
-                    size: ef.size * (0.25 + 0.75 * easeBloomIn),
-                    alpha: fadeEscort * Math.min(1, bloomIn * 1.8)
+                    isSakura: false,
+                    tintA: '#fff0f5',
+                    tintB: '#ffe4e6',
+                    colorMid: '#fb7185',
+                    colorEnd: '#be123c',
+                    rx: Math.sin(ef.phase * 0.7) * 0.22,
+                    ry: Math.cos(ef.phase * 0.9) * 0.26,
+                    rz: (ef.type === 'tulip_bloom' || ef.type === 'silk_bow')
+                        ? (ef.baseTilt || 0) + Math.sin(ef.phase) * 0.12
+                        : ef.phase * 0.45,
+                    size: screenSize / projScale,
+                    alpha: fadeEscort * Math.min(1, bloomIn * 1.85)
                 }, screenCx, screenCy, focal);
             });
         }
