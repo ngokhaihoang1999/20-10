@@ -3004,7 +3004,8 @@ body.u3d-stage-active #step-2 {
     z-index: -1 !important;
 }
 
-body.u3d-stage-active #step-3 .result-card-container {
+body.u3d-stage-active #step-3 .result-card-container,
+body.step2-previewing-3d #step-3 .result-card-container {
     background: transparent !important;
     border-color: transparent !important;
     box-shadow: none !important;
@@ -3030,6 +3031,19 @@ body.u3d-stage-active #step-3 .showcase-halo-aura,
 body.u3d-stage-active #step-3 .showcase-astrolabe-ring,
 body.u3d-stage-active #step-3 .showcase-ambient-orbs {
     opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+body.step2-previewing-3d #step-3 .result-topbar,
+body.step2-previewing-3d #step-3 .showcase-quick-bar,
+body.step2-previewing-3d #step-3 .result-actions,
+body.step2-previewing-3d #step-3 .recipient-luxury-dock,
+body.step2-previewing-3d #step-3 .showcase-halo-aura,
+body.step2-previewing-3d #step-3 .showcase-astrolabe-ring,
+body.step2-previewing-3d #step-3 .showcase-ambient-orbs {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
     pointer-events: none !important;
 }
 

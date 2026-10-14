@@ -2882,7 +2882,8 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
             }
 
             ensureQuoteFont().then(() => {
-                drawCanvasImageText(finalResultCanvas, true);
+                document.body.classList.remove('step2-previewing-3d');
+                drawCanvasImageText(finalResultCanvas, true, false);
                 if (typeof window.schedulePreUploadCardToTelegram === 'function') {
                     window.schedulePreUploadCardToTelegram();
                 }
@@ -2900,6 +2901,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                         autoOpen: true,
                         autoOpenDelay: 340,
                         isRealRecipient: false,
+                        isStep2Preview: false,
                         onComplete: () => {
                             if (currentWishMode === 'surprise') {
                                 showCardFloatingBadge('🌸 Lời chúc bất ngờ dành tặng bạn đã mở!');
@@ -3550,7 +3552,7 @@ function getActiveQuoteText() {
     return currentAIQuote || wishes2010[0];
 }
 
-function drawCanvasImageText(targetCanvas, isFinal) {
+function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
     if (!currentUserImage) return;
 
     const selectedConfig = framesConfig[currentSelectedFrameId] || framesConfig[0];
@@ -3681,7 +3683,7 @@ function drawCanvasImageText(targetCanvas, isFinal) {
             if (saveModalImg && saveGuideModal.style.display !== 'none') {
                 saveModalImg.src = dataUrl;
             }
-            if (typeof window.markCardCanvasDirty === 'function') {
+            if (!isPreviewOnly && typeof window.markCardCanvasDirty === 'function') {
                 window.markCardCanvasDirty();
             }
             fitCardShowcaseToWrap();
@@ -4459,6 +4461,7 @@ window.isRecipientCardLinkMode = false; // true khi mở trang từ đường li
 
 let customLinkTitle = '';
 let cachedTelegramFileId = null;
+let cachedTelegramMsgId = null;
 let isCardCanvasDirtyForTelegram = true;
 let activeTelegramUploadPromise = null;
 let recipientResolvedImgUrl = '';
@@ -4468,6 +4471,7 @@ let recipientCardMeta = null;
 window.markCardCanvasDirty = function () {
     isCardCanvasDirtyForTelegram = true;
     cachedTelegramFileId = null;
+    cachedTelegramMsgId = null;
 };
 
 // ====== 1. ĐỒNG BỘ MÀU SẮC PHONG BÌ 3D THEO TÔNG MÀU THIỆP ĐÃ CHỌN ======
@@ -5444,6 +5448,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         motionId = window.currentMotionEffect || 'bloom',
         themeKey = currentColorTheme || 'emerald',
         isRealRecipient = window.isRecipientCardLinkMode || false,
+        isStep2Preview = false,
         waitForCardReady = false,
         onComplete = null
     } = options;
@@ -5491,6 +5496,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
     // Ẩn tuyệt đối 100% các nút chức năng bên dưới trong lúc đang ở màn hình Bì Thư 3D
     document.body.classList.add('u3d-stage-active');
+    document.body.classList.toggle('step2-previewing-3d', !!isStep2Preview);
 
     // Đồng bộ giao diện Bước 3 nằm ngay bên dưới sân khấu 3D để đo tọa độ đích 1 lần duy nhất
     window.isEnvelopeGiftMode = true;
@@ -5502,7 +5508,11 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const recipientLuxuryDock = document.getElementById('recipient-luxury-dock');
     const dlLabel = document.getElementById('download-btn-label');
 
-    if (isRealRecipient) {
+    if (isStep2Preview) {
+        if (creatorTopbar) creatorTopbar.style.display = 'none';
+        if (creatorQuickBar) creatorQuickBar.style.display = 'none';
+        if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'none';
+    } else if (isRealRecipient) {
         if (creatorTopbar) creatorTopbar.style.display = 'none';
         if (creatorQuickBar) creatorQuickBar.style.display = 'none';
         if (recipientLuxuryDock) recipientLuxuryDock.style.display = 'flex';
@@ -6907,16 +6917,18 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 cardShowcase.style.opacity = '1';
                 cardShowcase.style.transform = 'translate3d(0, 0, 0) scale(1)';
             }
-            document.body.classList.remove('u3d-stage-active');
-            if (typeof window.recenterCardGyroscope === 'function') {
-                window.recenterCardGyroscope();
-            }
-            if (typeof startGyroShowcaseLoop === 'function') {
-                startGyroShowcaseLoop();
-            }
-            if (typeof u3dActiveOnComplete === 'function') {
-                u3dActiveOnComplete();
-                u3dActiveOnComplete = null;
+            if (!isStep2Preview) {
+                document.body.classList.remove('u3d-stage-active');
+                if (typeof window.recenterCardGyroscope === 'function') {
+                    window.recenterCardGyroscope();
+                }
+                if (typeof startGyroShowcaseLoop === 'function') {
+                    startGyroShowcaseLoop();
+                }
+                if (typeof u3dActiveOnComplete === 'function') {
+                    u3dActiveOnComplete();
+                    u3dActiveOnComplete = null;
+                }
             }
         }
 
@@ -6928,6 +6940,11 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             if (cardShowcase) cardShowcase.style.opacity = '1';
             u3dCurrentDirectorState = 'hidden';
             u3dAnimFrameId = null;
+
+            // Nếu đang Xem thử mở 3D từ Bước 2 -> Tự động trả ngay về màn hình Edit Bước 2 (không ở lại Bước 3!)
+            if (isStep2Preview && typeof window.finishStep2MotionPreview === 'function') {
+                window.finishStep2MotionPreview();
+            }
             return;
         }
 
@@ -7766,10 +7783,53 @@ function setMotionEffect(motionId, showToast = true) {
     }
 }
 
-// Helper kết xuất nhanh thiệp hiện tại ở Bước 2 rồi chuyển hẳn sang Màn Hình 3D Đầy Đủ (Bước 3 + Sân Khấu Phong Bì 3D)
+// Hàm kết thúc Xem thử 3D Motion ở Bước 2 -> Trả ngay về màn hình đang Edit (#step-2) giữ nguyên mọi tùy chỉnh
+window.finishStep2MotionPreview = function () {
+    if (u3dAnimFrameId) {
+        cancelAnimationFrame(u3dAnimFrameId);
+        u3dAnimFrameId = null;
+    }
+    if (u3dAutoOpenTimerId) {
+        clearTimeout(u3dAutoOpenTimerId);
+        u3dAutoOpenTimerId = null;
+    }
+    u3dCurrentDirectorState = 'hidden';
+
+    const stage = document.getElementById('u3d-envelope-stage');
+    if (stage) {
+        stage.style.display = 'none';
+        stage.classList.remove('is-summoning', 'is-arriving', 'is-opening', 'pocket-cleared', 'handing-off');
+    }
+
+    document.body.classList.remove('u3d-stage-active', 'step2-previewing-3d');
+    window.isEnvelopeGiftMode = false;
+
+    const creatorTopbar = document.getElementById('creator-topbar');
+    const creatorQuickBar = document.getElementById('creator-quick-bar');
+    if (creatorTopbar) creatorTopbar.style.display = 'grid';
+    if (creatorQuickBar) creatorQuickBar.style.display = 'grid';
+
+    step3?.classList.remove('active');
+    step1?.classList.remove('active');
+    if (step2) {
+        step2.classList.remove('step2-preloading', 'step2-morph-from');
+        step2.classList.add('active', 'step2-morph-to');
+    }
+
+    requestAnimationFrame(() => {
+        fitPreviewAreaToStage();
+        renderStep2WishPreview();
+        const cfg = MOTION_EFFECTS_CONFIG[window.currentMotionEffect] || MOTION_EFFECTS_CONFIG.bloom;
+        showCardFloatingBadge(`✨ Đã xem thử: ${cfg.fullLabel}`);
+    });
+};
+
+// Helper kết xuất nhanh thiệp hiện tại ở Bước 2 để XEM THỬ hiệu ứng mở 3D (KHÔNG lưu Telegram, xem xong trả về màn hình Edit Bước 2)
 function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = true) {
     if (shareLinkModal) shareLinkModal.style.display = 'none';
-    if (cropperObj && step2 && step2.classList.contains('active')) {
+    const isFromStep2 = (step2 && step2.classList.contains('active')) || document.body.classList.contains('step2-previewing-3d');
+
+    if (isFromStep2 && cropperObj) {
         const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
         if (canvas) {
             const img = new Image();
@@ -7780,19 +7840,19 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = true) {
                     hasGeneratedQuoteOnce = true;
                 }
                 ensureQuoteFont().then(() => {
-                    drawCanvasImageText(finalResultCanvas, true);
-                    if (typeof window.schedulePreUploadCardToTelegram === 'function') {
-                        window.schedulePreUploadCardToTelegram();
-                    }
+                    // Vẽ chế độ isPreviewOnly = true: KHÔNG đánh dấu dirty và TUYỆT ĐỐI KHÔNG gửi lên Telegram!
+                    drawCanvasImageText(finalResultCanvas, true, true);
+                    document.body.classList.add('step2-previewing-3d');
                     step2.classList.remove('active', 'step2-preloading', 'step2-morph-from');
                     step3.classList.add('active');
                     fitCardShowcaseToWrap();
                     window.launchUnified3DEnvelopeDirector({
-                        autoOpen,
-                        autoOpenDelay: 280,
+                        autoOpen: true,
+                        autoOpenDelay: 240,
                         motionId: window.currentMotionEffect,
                         themeKey: currentColorTheme,
-                        isRealRecipient: false
+                        isRealRecipient: false,
+                        isStep2Preview: true
                     });
                 });
             };
@@ -7800,18 +7860,15 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = true) {
             return;
         }
     }
-    if (currentUserImage && !window.isRecipientCardLinkMode) {
-        drawCanvasImageText(finalResultCanvas, true);
-    }
-    step2?.classList.remove('active', 'step2-preloading', 'step2-morph-from');
-    step3?.classList.add('active');
-    fitCardShowcaseToWrap();
+
+    // Trường hợp đang ở Bước 3 (sau khi đã bấm Tạo thiệp) và bấm "✉️ Mở thử bì"
     window.launchUnified3DEnvelopeDirector({
         autoOpen,
         autoOpenDelay: 260,
         motionId: window.currentMotionEffect,
         themeKey: currentColorTheme,
-        isRealRecipient: window.isRecipientCardLinkMode
+        isRealRecipient: window.isRecipientCardLinkMode,
+        isStep2Preview: isFromStep2
     });
 }
 
@@ -7821,13 +7878,16 @@ document.querySelectorAll('.motion-chip').forEach(chip => {
         const m = chip.getAttribute('data-motion');
         if (!m) return;
         setMotionEffect(m, true);
+        if (typeof window.syncTelegramMessageCaptionIfUploaded === 'function') {
+            window.syncTelegramMessageCaptionIfUploaded();
+        }
         if (e.clientX && e.clientY) {
             spawnTouchSparkle(e.clientX, e.clientY, 6);
         }
     });
 });
 
-// Nút "👁️ Xem thử hiệu ứng mở 3D" ở Bước 2 & trong Modal -> Mở trực tiếp Phong Bì Vật Lý 3D chứa tấm thiệp thật!
+// Nút "👁️ Xem thử hiệu ứng mở 3D" ở Bước 2 & trong Modal -> Mở trực tiếp Phong Bì Vật Lý 3D rồi trả về màn hình Edit Bước 2!
 document.getElementById('step2-preview-motion-btn')?.addEventListener('click', () => {
     renderCurrentStep2CardAndPreviewEnvelope(true);
 });
@@ -7836,17 +7896,21 @@ document.getElementById('modal-test-motion-btn')?.addEventListener('click', () =
     renderCurrentStep2CardAndPreviewEnvelope(true);
 });
 
-// Nút "🌺 Hoa Trà" ở Bước 3 -> Đổi sang hiệu ứng tiếp theo & chạy ngay cảnh Mở Phong Bì Vật Lý 3D!
+// Nút "🌺 Hoa Trà" ở Bước 3 -> Đổi sang hiệu ứng tiếp theo & chạy ngay cảnh Mở Phong Bì Vật Lý 3D (chỉ cập nhật caption nếu đã tạo thiệp, không gửi lặp ảnh)!
 document.getElementById('step3-cycle-motion-btn')?.addEventListener('click', () => {
     const idx = MOTION_KEYS_ORDER.indexOf(window.currentMotionEffect);
     const nextKey = MOTION_KEYS_ORDER[(idx + 1) % MOTION_KEYS_ORDER.length];
     setMotionEffect(nextKey, false);
+    if (typeof window.syncTelegramMessageCaptionIfUploaded === 'function') {
+        window.syncTelegramMessageCaptionIfUploaded();
+    }
     window.launchUnified3DEnvelopeDirector({
         autoOpen: true,
         autoOpenDelay: 220,
         motionId: nextKey,
         themeKey: currentColorTheme,
         isRealRecipient: window.isRecipientCardLinkMode,
+        isStep2Preview: false,
         onComplete: () => {
             const cfg = MOTION_EFFECTS_CONFIG[nextKey];
             if (cfg) showCardFloatingBadge(`🎬 Đã mở thư với: ${cfg.fullLabel}`);
@@ -7992,20 +8056,13 @@ async function uploadCardToTelegramBot() {
         }
 
         cachedTelegramFileId = fileId;
+        cachedTelegramMsgId = msgId || null;
         isCardCanvasDirtyForTelegram = false;
         refreshShareModalPreviewUI();
 
         // Cập nhật luôn Caption trong Bot Telegram thành dạng Hyperlink ẩn URL dưới Tên Thiệp (<a href="URL">Tên Thiệp</a>)
         if (msgId) {
-            const finalShareUrl = buildShareableCardUrl(fileId);
-            const htmlCaption = `💌 <a href="${escapeHtmlEntities(finalShareUrl)}"><b>${escapeHtmlEntities(title)}</b></a>\n🎬 Hiệu ứng: ${escapeHtmlEntities(motionCfg.fullLabel)}`;
-            const editForm = new FormData();
-            editForm.append('chat_id', cid);
-            editForm.append('message_id', String(msgId));
-            editForm.append('caption', htmlCaption);
-            editForm.append('parse_mode', 'HTML');
-            editForm.append('disable_web_page_preview', 'true');
-            fetch(`${ep}/bot${tk}/editMessageCaption`, { method: 'POST', body: editForm }).catch(() => {});
+            window.syncTelegramMessageCaptionIfUploaded();
         }
 
         return fileId;
@@ -8018,10 +8075,34 @@ async function uploadCardToTelegramBot() {
     }
 }
 
-// Tự động lưu ngầm lên Telegram ngay khi tạo thiệp xong ở Bước 3 để khi bấm Tạo Link là có ngay tức khắc!
+// Cập nhật trực tiếp Caption của tin nhắn đã gửi trên Telegram khi đổi Hiệu ứng Motion hoặc Tên Thiệp ở Bước 3 (không bao giờ gửi trùng lặp file ảnh!)
+window.syncTelegramMessageCaptionIfUploaded = function () {
+    if (!cachedTelegramFileId || !cachedTelegramMsgId || isCardCanvasDirtyForTelegram) return;
+    if (document.body.classList.contains('step2-previewing-3d')) return;
+    const { ep, tk, cid } = _getCloudCfg();
+    const title = getEffectiveLinkTitle();
+    const motionCfg = MOTION_EFFECTS_CONFIG[window.currentMotionEffect] || MOTION_EFFECTS_CONFIG.bloom;
+    const finalShareUrl = buildShareableCardUrl(cachedTelegramFileId);
+    const htmlCaption = `💌 <a href="${escapeHtmlEntities(finalShareUrl)}"><b>${escapeHtmlEntities(title)}</b></a>\n🎬 Hiệu ứng: ${escapeHtmlEntities(motionCfg.fullLabel)}`;
+    const editForm = new FormData();
+    editForm.append('chat_id', cid);
+    editForm.append('message_id', String(cachedTelegramMsgId));
+    editForm.append('caption', htmlCaption);
+    editForm.append('parse_mode', 'HTML');
+    editForm.append('disable_web_page_preview', 'true');
+    fetch(`${ep}/bot${tk}/editMessageCaption`, { method: 'POST', body: editForm }).catch(() => {});
+};
+
+// Tự động lưu ngầm lên Telegram CHỈ KHI người dùng đã bấm "Tạo thiệp" chuyển sang Bước 3 (TUYỆT ĐỐI không chạy khi đang Xem thử 3D ở Bước 2!)
 window.schedulePreUploadCardToTelegram = function () {
     setTimeout(() => {
-        if (currentUserImage && finalResultCanvas) {
+        if (
+            currentUserImage &&
+            finalResultCanvas &&
+            step3 &&
+            step3.classList.contains('active') &&
+            !document.body.classList.contains('step2-previewing-3d')
+        ) {
             uploadCardToTelegramBot().catch((err) => {
                 console.warn('Pre-upload Telegram sẽ thử lại khi mở bảng chia sẻ:', err);
             });
