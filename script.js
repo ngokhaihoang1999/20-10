@@ -2790,18 +2790,18 @@ async function handleImageInput(e) {
     document.body.classList.toggle('self-oracle-mode', window.isSelfOracleMode);
 
     const headerTitleEl = document.querySelector('#step-2 .step2-header-title');
-    const createBtnMainEl = document.querySelector('#generate-final-btn .create-btn-main');
+    const generateBtnEl = document.getElementById('generate-final-btn');
 
     if (window.isSelfOracleMode) {
         if (headerTitleEl) headerTitleEl.textContent = '✨ Căn Chỉnh Ảnh 🌸';
-        if (createBtnMainEl) createBtnMainEl.textContent = '✨ Nhận lời chúc 20.10 🌸';
+        if (generateBtnEl) generateBtnEl.textContent = 'Nhận lời chúc';
         currentWishMode = 'surprise';
         currentSelectedFilter = 'none';
         currentBorderStyle = 'sakura';
         currentColorTheme = 'emerald';
     } else {
         if (headerTitleEl) headerTitleEl.textContent = '✨ Thiết Kế Thiệp 🌸';
-        if (createBtnMainEl) createBtnMainEl.textContent = 'Tạo thiệp';
+        if (generateBtnEl) generateBtnEl.textContent = 'Tạo thiệp';
         // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
         const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
         if (cfg && CONCEPT_HARMONY_MAP[cfg.concept]) {
