@@ -1,10 +1,14 @@
 // ====== TRANG MỞ ĐẦU VẬT LÝ 3D: PHONG BÌ LỤA NGỌC BÍCH + CON DẤU SÁP SIÊU THỰC + 3 THIỆP MẪU ĐA DẠNG KIỂU TÓC & NHÁY MẮT SỐNG ĐỘNG ======
 (function () {
     const step1El = document.getElementById('step-1');
+    const step2El = document.getElementById('step-2');
     const physicalStage = document.getElementById('step1-physical-stage');
     const waxSealBtn = document.getElementById('env-wax-seal');
     const replayEnvBtn = document.getElementById('replay-envelope-btn');
     const heroFanShowcase = document.getElementById('hero-fan-showcase');
+    const uploadWrapperEl = document.getElementById('upload-wrapper');
+    const startCreateCardBtn = document.getElementById('start-create-card-btn');
+    const step1CtaChoices = document.getElementById('step1-cta-choices');
 
     const fanCard0 = document.getElementById('fan-card-0');
     const fanCard1 = document.getElementById('fan-card-1');
@@ -41,6 +45,18 @@
         'Mong bạn luôn giữ trọn nét duyên dáng, tự tin tỏa sáng và gặt hái thật nhiều điều ngọt ngào trong cuộc sống.'
     ];
 
+    function resetStep1CtaToInitial() {
+        if (uploadWrapperEl) {
+            uploadWrapperEl.classList.remove('cta-expanded');
+        }
+        if (startCreateCardBtn) {
+            startCreateCardBtn.setAttribute('aria-expanded', 'false');
+        }
+        if (step1CtaChoices) {
+            step1CtaChoices.setAttribute('aria-hidden', 'true');
+        }
+    }
+
     // ====== 1. HIỆU ỨNG PHONG BÌ HIỆN LÊN KỲ DIỆU TRÊN NỀN HOA RƠI (MAGICAL APPEAR) ======
     function spawnMagicalAppearSparkles() {
         if (typeof spawnTouchSparkle !== 'function') return;
@@ -76,6 +92,7 @@
         isAnimatingEnvelope = false;
         stopFanAutoCycle();
         stopNaturalBlinkLoop();
+        resetStep1CtaToInitial();
         step1El.classList.remove('env-flap-open', 'env-flap-behind', 'env-letter-pull', 'env-letter-front', 'envelope-opened');
         step1El.classList.add('env-appeared', 'env-idle-float');
     };
@@ -159,6 +176,7 @@
         setTimeout(() => {
             step1El.classList.remove('env-letter-front');
             step1El.classList.remove('env-letter-pull');
+            resetStep1CtaToInitial();
         }, 550);
 
         // Pha R3 (1100ms): Ẩn lá thư trong lòng túi, gập nắp phong bì đóng lại & đóng con dấu sáp vàng trở lại
@@ -1285,6 +1303,166 @@
         });
     }
 
+    // ====== 7. NÚT "TẠO THIỆP MỪNG 20.10" MỞ RỘNG 2 NÚT CHỌN HÌNH + HIỆU ỨNG MORPH MƯỢT SANG BƯỚC EDIT ======
+    if (startCreateCardBtn && uploadWrapperEl) {
+        startCreateCardBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            uploadWrapperEl.classList.add('cta-expanded');
+            startCreateCardBtn.setAttribute('aria-expanded', 'true');
+            if (step1CtaChoices) {
+                step1CtaChoices.setAttribute('aria-hidden', 'false');
+            }
+            if (typeof spawnTouchSparkle === 'function') {
+                const rect = startCreateCardBtn.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                spawnTouchSparkle(cx, cy, 10);
+            }
+        });
+    }
+
+    let activeMorphCleanupTimer = null;
+
+    function runPhotoMorphToStep2(file) {
+        if (!file || !step2El) return;
+
+        // Dọn dẹp actor cũ nếu người dùng thao tác liên tiếp
+        const oldActor = document.querySelector('.step2-photo-morph-actor');
+        if (oldActor) {
+            oldActor.remove();
+        }
+        if (activeMorphCleanupTimer) {
+            clearTimeout(activeMorphCleanupTimer);
+            activeMorphCleanupTimer = null;
+        }
+
+        // Lấy tọa độ xuất phát ngay tại khu vực trung tâm 3 tấm thiệp mẫu trước khi Bước 1 ẩn đi
+        let originCx = window.innerWidth / 2;
+        let originCy = window.innerHeight * 0.46;
+        let startW = Math.min(window.innerWidth * 0.56, 210);
+        let startH = startW;
+
+        const centerCard = activeFanSlots[1] || heroFanShowcase;
+        if (centerCard) {
+            const cRect = centerCard.getBoundingClientRect();
+            if (cRect.width > 20 && cRect.height > 20) {
+                originCx = cRect.left + cRect.width / 2;
+                originCy = cRect.top + cRect.height * 0.45;
+                startW = Math.max(cRect.width * 1.18, 176);
+                startH = startW;
+            }
+        }
+
+        const startLeft = originCx - startW / 2;
+        const startTop = originCy - startH / 2;
+
+        // Chuẩn bị trạng thái ẩn tạm các thanh công cụ Bước 2 để chờ tấm hình morph vào đúng khung
+        step2El.classList.remove('step2-ui-revealing');
+        step2El.classList.add('step2-morph-active', 'step2-ui-hidden');
+
+        const blobUrl = URL.createObjectURL(file);
+        const actor = document.createElement('div');
+        actor.className = 'step2-photo-morph-actor';
+        actor.style.left = `${startLeft}px`;
+        actor.style.top = `${startTop}px`;
+        actor.style.width = `${startW}px`;
+        actor.style.height = `${startH}px`;
+        actor.style.borderRadius = '22px';
+        actor.style.transform = 'translate3d(0, 12px, 0) scale(0.84) rotate(-2deg)';
+
+        const img = document.createElement('img');
+        img.src = blobUrl;
+        img.alt = '';
+        actor.appendChild(img);
+        document.body.appendChild(actor);
+
+        // Nhịp 1: Tấm hình vừa chọn nổi bật lên mượt mà ở trung tâm
+        requestAnimationFrame(() => {
+            actor.style.transform = 'translate3d(0, 0, 0) scale(1.03) rotate(0deg)';
+        });
+
+        const morphStartTime = performance.now();
+        let pollingFrames = 0;
+
+        function waitForStep2AndGlide() {
+            pollingFrames++;
+            const previewAreaWrap = document.getElementById('preview-area-wrap');
+            const isStep2Active = step2El.classList.contains('active');
+            const destRect = previewAreaWrap ? previewAreaWrap.getBoundingClientRect() : null;
+
+            if (isStep2Active && destRect && destRect.width > 30 && destRect.height > 30) {
+                const elapsed = performance.now() - morphStartTime;
+                const holdDelay = Math.max(0, 95 - elapsed);
+
+                setTimeout(() => {
+                    // Đọc lại tọa độ đích chính xác của khung hình Bước 2 và morph tấm ảnh về đúng vị trí đó
+                    const finalRect = previewAreaWrap.getBoundingClientRect();
+                    if (finalRect.width > 30 && finalRect.height > 30) {
+                        actor.style.left = `${finalRect.left}px`;
+                        actor.style.top = `${finalRect.top}px`;
+                        actor.style.width = `${finalRect.width}px`;
+                        actor.style.height = `${finalRect.height}px`;
+                        actor.style.borderRadius = '12px';
+                        actor.style.transform = 'translate3d(0, 0, 0) scale(1) rotate(0deg)';
+                    }
+
+                    // Khi tấm hình vừa đáp vào đúng khung -> hiện khung thiệp & các thanh công cụ edit xung quanh lên mượt mà
+                    setTimeout(() => {
+                        step2El.classList.remove('step2-ui-hidden');
+                        step2El.classList.add('step2-ui-revealing');
+                        actor.classList.add('morph-fade-out');
+
+                        if (typeof spawnTouchSparkle === 'function' && finalRect.width > 0) {
+                            spawnTouchSparkle(
+                                finalRect.left + finalRect.width / 2,
+                                finalRect.top + finalRect.height / 2,
+                                8
+                            );
+                        }
+                    }, 430);
+
+                    setTimeout(() => {
+                        if (actor.parentNode) {
+                            actor.remove();
+                        }
+                        URL.revokeObjectURL(blobUrl);
+                    }, 720);
+
+                    activeMorphCleanupTimer = setTimeout(() => {
+                        step2El.classList.remove('step2-morph-active', 'step2-ui-revealing');
+                        activeMorphCleanupTimer = null;
+                    }, 1050);
+                }, holdDelay);
+                return;
+            }
+
+            if (pollingFrames < 90) {
+                requestAnimationFrame(waitForStep2AndGlide);
+            } else {
+                // Phòng hờ quá thời gian chờ thì trả lại giao diện Bước 2 bình thường
+                step2El.classList.remove('step2-ui-hidden', 'step2-morph-active', 'step2-ui-revealing');
+                if (actor.parentNode) {
+                    actor.remove();
+                }
+                URL.revokeObjectURL(blobUrl);
+            }
+        }
+
+        requestAnimationFrame(waitForStep2AndGlide);
+    }
+
+    const selfieInputEl = document.getElementById('selfie-btn');
+    const uploadInputEl = document.getElementById('upload-btn');
+
+    [selfieInputEl, uploadInputEl].forEach((inputEl) => {
+        if (!inputEl) return;
+        inputEl.addEventListener('change', (e) => {
+            const file = e.target && e.target.files && e.target.files[0];
+            if (!file) return;
+            runPhotoMorphToStep2(file);
+        }, true);
+    });
+
     // Khởi tạo ngay khi tải trang
     function initStep1Experience() {
         initFanShowcaseTrio(0);
@@ -1302,3 +1480,4 @@
         initStep1Experience();
     }
 })();
+

@@ -629,15 +629,31 @@
                         </div>
 
                         <div class="upload-wrapper" id="upload-wrapper">
-                            <label for="selfie-btn" class="btn-primary btn-shimmer">
-                                <span class="icon">📸</span> Chụp ảnh trực tiếp
-                            </label>
-                            <input type="file" id="selfie-btn" accept="image/*" capture="user">
+                            <!-- Trạng thái ban đầu: 1 nút duy nhất "Tạo thiệp mừng 20.10" -->
+                            <div class="step1-cta-initial" id="step1-cta-initial">
+                                <button type="button" id="start-create-card-btn" class="btn-primary btn-shimmer step1-start-btn">
+                                    <span class="icon">✨</span> Tạo thiệp mừng 20.10 <span class="icon">🌸</span>
+                                </button>
+                            </div>
 
-                            <label for="upload-btn" class="btn-secondary" style="margin-top: 10px;">
-                                <span class="icon">🖼️</span> Chọn ảnh từ thư viện
-                            </label>
-                            <input type="file" id="upload-btn" accept="image/png, image/jpeg, image/jpg, image/webp">
+                            <!-- Trạng thái sau khi bấm: Hiện ghi chú nhỏ + 2 nút Chụp hình / Chọn hình -->
+                            <div class="step1-cta-choices" id="step1-cta-choices" aria-hidden="true">
+                                <div class="step1-cta-choices-inner">
+                                    <p class="step1-photo-note">
+                                        <span class="note-sparkle">✨</span> Hãy chọn tấm hình xinh đẹp nhất <span class="note-sparkle">🌸</span>
+                                    </p>
+
+                                    <label for="selfie-btn" class="btn-primary btn-shimmer step1-choice-btn choice-btn-1">
+                                        <span class="icon">📸</span> Chụp ảnh trực tiếp
+                                    </label>
+                                    <input type="file" id="selfie-btn" accept="image/*" capture="user">
+
+                                    <label for="upload-btn" class="btn-secondary step1-choice-btn choice-btn-2">
+                                        <span class="icon">🖼️</span> Chọn ảnh từ thư viện
+                                    </label>
+                                    <input type="file" id="upload-btn" accept="image/png, image/jpeg, image/jpg, image/webp">
+                                </div>
+                            </div>
                         </div>
                     </div>
 
