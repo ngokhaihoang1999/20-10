@@ -31,11 +31,16 @@
     let convolver = null;
     let bgmBus = null;
     let bgmMuffleFilter = null;
+    let bgmMuteGain = null;
+    let bgmReverbBus = null;
     let sfxBus = null;
+    let sfxMuteGain = null;
+    let sfxReverbBus = null;
     let noiseBuffer = null;
     let pinkNoiseBuffer = null;
 
-    let isMuted = false;
+    let isBgmMuted = false;
+    let isSfxMuted = false;
     let isUnlocked = false;
     let isPageHidden = false;
     let currentMotionTheme = 'bloom';
@@ -220,7 +225,7 @@
             compressor.release.setValueAtTime(0.18, ctx.currentTime);
 
             masterGain = ctx.createGain();
-            masterGain.gain.setValueAtTime(isMuted ? 0.0001 : 0.85, ctx.currentTime);
+            masterGain.gain.setValueAtTime(0.85, ctx.currentTime);
 
             compressor.connect(masterGain);
             masterGain.connect(ctx.destination);
@@ -238,7 +243,7 @@
             reverbBus.connect(convolver);
             convolver.connect(compressor);
 
-            // Nhạc nền đi qua bộ lọc không gian (Muffle Lowpass khi phong bì đóng)
+            // Kênh 1: Nhạc nền (BGM Bus) đi qua bộ lọc không gian & khóa Mute riêng
             bgmBus = ctx.createGain();
             bgmBus.gain.setValueAtTime(0.46, ctx.currentTime);
 
@@ -247,14 +252,31 @@
             bgmMuffleFilter.frequency.setValueAtTime(isEnvelopeClosedMuffled ? 880 : 16000, ctx.currentTime);
             bgmMuffleFilter.Q.setValueAtTime(0.65, ctx.currentTime);
 
-            bgmBus.connect(bgmMuffleFilter);
-            bgmMuffleFilter.connect(dryBus);
-            bgmMuffleFilter.connect(reverbBus);
+            bgmMuteGain = ctx.createGain();
+            bgmMuteGain.gain.setValueAtTime(isBgmMuted ? 0.0001 : 1.0, ctx.currentTime);
 
-            // SFX Bus
+            bgmReverbBus = ctx.createGain();
+            bgmReverbBus.gain.setValueAtTime(isBgmMuted ? 0.0001 : 1.0, ctx.currentTime);
+
+            bgmBus.connect(bgmMuffleFilter);
+            bgmMuffleFilter.connect(bgmMuteGain);
+            bgmMuteGain.connect(dryBus);
+            bgmMuteGain.connect(reverbBus);
+            bgmReverbBus.connect(reverbBus);
+
+            // Kênh 2: Hiệu ứng âm thanh (SFX Bus) có khóa Mute hoàn toàn độc lập với Nhạc nền
             sfxBus = ctx.createGain();
             sfxBus.gain.setValueAtTime(0.88, ctx.currentTime);
-            sfxBus.connect(dryBus);
+
+            sfxMuteGain = ctx.createGain();
+            sfxMuteGain.gain.setValueAtTime(isSfxMuted ? 0.0001 : 1.0, ctx.currentTime);
+
+            sfxReverbBus = ctx.createGain();
+            sfxReverbBus.gain.setValueAtTime(isSfxMuted ? 0.0001 : 1.0, ctx.currentTime);
+
+            sfxBus.connect(sfxMuteGain);
+            sfxMuteGain.connect(dryBus);
+            sfxReverbBus.connect(reverbBus);
 
             // Tạo sẵn bộ đệm White Noise & Pink/Velvet Noise cho hiệu ứng Lụa, Giấy & Sáp
             buildNoiseBuffers(ctx);
@@ -321,7 +343,7 @@
     }
 
     function canPlayAudio() {
-        if (isMuted || isPageHidden) return false;
+        if (isSfxMuted || isPageHidden) return false;
         const c = ensureAudioContext();
         if (!c) return false;
         if (c.state === 'suspended' || c.state === 'interrupted') {
@@ -348,12 +370,16 @@
             sourceNode.connect(panner);
             outNode = panner;
         }
-        outNode.connect(destBus || sfxBus);
-        if (reverbSendAmount > 0 && reverbBus) {
-            const sendGain = ctx.createGain();
-            sendGain.gain.setValueAtTime(reverbSendAmount, ctx.currentTime);
-            outNode.connect(sendGain);
-            sendGain.connect(reverbBus);
+        const targetBus = destBus || sfxBus;
+        outNode.connect(targetBus);
+        if (reverbSendAmount > 0) {
+            const revTarget = (targetBus === bgmBus) ? bgmReverbBus : sfxReverbBus;
+            if (revTarget) {
+                const sendGain = ctx.createGain();
+                sendGain.gain.setValueAtTime(reverbSendAmount, ctx.currentTime);
+                outNode.connect(sendGain);
+                sendGain.connect(revTarget);
+            }
         }
     }
 
@@ -363,9 +389,10 @@
 
     // Tiếng Hộp Nhạc Thụy Sĩ / Celesta Pha Lê / Piano Ấm
     function playMelodyNote(freq, startTime, duration, velocity = 0.22, style = 'music_box', pan = 0, targetBus = null) {
-        if (!ctx || isMuted || isPageHidden) return;
-        const t0 = Math.max(ctx.currentTime + 0.004, startTime);
         const outBus = targetBus || bgmBus;
+        const channelMuted = (outBus === bgmBus) ? isBgmMuted : isSfxMuted;
+        if (!ctx || channelMuted || isPageHidden) return;
+        const t0 = Math.max(ctx.currentTime + 0.004, startTime);
 
         const env = ctx.createGain();
         env.gain.setValueAtTime(0.0001, t0);
@@ -488,9 +515,10 @@
 
     // Tiếng gảy Đàn Harp (Concert Harp Pluck) mượt mà
     function playHarpPluck(freq, startTime, duration = 1.35, velocity = 0.14, pan = 0, targetBus = null) {
-        if (!ctx || isMuted || isPageHidden) return;
-        const t0 = Math.max(ctx.currentTime + 0.004, startTime);
         const outBus = targetBus || bgmBus;
+        const channelMuted = (outBus === bgmBus) ? isBgmMuted : isSfxMuted;
+        if (!ctx || channelMuted || isPageHidden) return;
+        const t0 = Math.max(ctx.currentTime + 0.004, startTime);
 
         const env = ctx.createGain();
         env.gain.setValueAtTime(0.0001, t0);
@@ -528,9 +556,10 @@
 
     // Bè Đệm Dây Ấm (Warm Velvet Strings Pad)
     function playWarmPadChord(noteNames, startTime, duration, velocity = 0.045, targetBus = null) {
-        if (!ctx || isMuted || isPageHidden || !Array.isArray(noteNames)) return;
-        const t0 = Math.max(ctx.currentTime + 0.005, startTime);
         const outBus = targetBus || bgmBus;
+        const channelMuted = (outBus === bgmBus) ? isBgmMuted : isSfxMuted;
+        if (!ctx || channelMuted || isPageHidden || !Array.isArray(noteNames)) return;
+        const t0 = Math.max(ctx.currentTime + 0.005, startTime);
 
         const flt = ctx.createBiquadFilter();
         flt.type = 'lowpass';
@@ -561,7 +590,7 @@
     // 4. BỘ LẬP LỊCH NHẠC NỀN (ADAPTIVE BGM LOOKAHEAD SEQUENCER)
     // =========================================================================
     function scheduleBgmTick() {
-        if (!isBgmRunning || !ctx || isMuted || isPageHidden) return;
+        if (!isBgmRunning || !ctx || isBgmMuted || isPageHidden) return;
         if (ctx.state !== 'running') return;
 
         const suite = THEME_SUITES[currentMotionTheme] || THEME_SUITES.bloom;
@@ -635,6 +664,63 @@
     }
 
     // =========================================================================
+    // 4B. HỆ THỐNG RUNG XÚC GIÁC TINH TẾ (SUBTLE HAPTIC & OPTICAL MICRO-PULSE)
+    // =========================================================================
+    // Kết hợp nhịp rung Taptic ngắn (7ms-18ms) trên thiết bị hỗ trợ navigator.vibrate
+    // và xung nhịp quang học siêu nhẹ (1.5px) cho iOS Safari / Desktop để cảm nhận rõ lực vật lý mà vẫn cực kỳ tinh tế.
+    let lastHapticTime = 0;
+
+    function triggerSubtleHaptic(kind = 'light') {
+        if (isSfxMuted || isPageHidden) return;
+        const nowPerf = performance.now();
+        if (kind === 'light' && nowPerf - lastHapticTime < 45) return;
+        lastHapticTime = nowPerf;
+
+        // 1. Hardware Haptic Vibration (Android / Supported Mobile Browsers)
+        if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+            try {
+                if (kind === 'light') {
+                    navigator.vibrate(7);
+                } else if (kind === 'nudge') {
+                    navigator.vibrate([10, 45, 12]);
+                } else if (kind === 'heartbeat') {
+                    navigator.vibrate(11);
+                } else if (kind === 'seal_pop') {
+                    navigator.vibrate(18);
+                } else if (kind === 'stamp') {
+                    navigator.vibrate([18, 32, 10]);
+                } else if (kind === 'water_drop') {
+                    navigator.vibrate([16, 38, 10]);
+                } else if (kind === 'success') {
+                    navigator.vibrate([10, 35, 14]);
+                }
+            } catch (_) {}
+        }
+
+        // 2. Optical Micro-Pulse (1.4px, 115ms) cho các khoảnh khắc vật lý trọng tâm (Dấu sáp & Giọt nước)
+        if (kind === 'stamp' || kind === 'seal_pop' || kind === 'water_drop' || kind === 'heartbeat') {
+            const isU3d = Boolean(document.body && document.body.classList && document.body.classList.contains('u3d-stage-active'));
+            const targetEl = kind === 'water_drop'
+                ? document.getElementById('u3d-canvas-world')
+                : (isU3d
+                    ? document.getElementById('u3d-envelope-stage')
+                    : document.getElementById('step1-physical-stage'));
+            if (targetEl && targetEl.classList) {
+                if (targetEl.style && typeof targetEl.style.setProperty === 'function') {
+                    const amp = kind === 'stamp' ? '1.15' : (kind === 'heartbeat' ? '0.65' : '1');
+                    targetEl.style.setProperty('--haptic-amp', amp);
+                }
+                targetEl.classList.remove('haptic-micro-pulse');
+                void targetEl.offsetWidth;
+                targetEl.classList.add('haptic-micro-pulse');
+                setTimeout(() => {
+                    targetEl.classList.remove('haptic-micro-pulse');
+                }, 140);
+            }
+        }
+    }
+
+    // =========================================================================
     // 5. HIỆU ỨNG FOLEY VẬT LÝ & TƯƠNG TÁC VI MÔ (SFX SYNTHESIZERS)
     // =========================================================================
 
@@ -662,6 +748,7 @@
         const nowPerf = performance.now();
         if (nowPerf - lastUiTapTime < 35) return;
         lastUiTapTime = nowPerf;
+        triggerSubtleHaptic('light');
 
         const t0 = ctx.currentTime + 0.003;
         const osc = ctx.createOscillator();
@@ -712,6 +799,7 @@
     // 5.3. Tiếng Chuông Nhắc Nhẹ khi bấm lệch ngoài Con Dấu Sáp ("Ting-ting~")
     function playSealAttentionHint() {
         if (!canPlayAudio()) return;
+        triggerSubtleHaptic('nudge');
         const t0 = ctx.currentTime + 0.01;
         playMelodyNote(n('E6'), t0, 0.38, 0.14, 'celesta', -0.15, sfxBus);
         playMelodyNote(n('B6'), t0 + 0.09, 0.55, 0.16, 'celesta', 0.15, sfxBus);
@@ -720,6 +808,7 @@
     // 5.4. Tiếng Đũa Thần "🪄 Tự phối gu" & "🎲 Đổi câu chúc"
     function playMagicGlissando(isReroll = false) {
         if (!canPlayAudio()) return;
+        triggerSubtleHaptic('light');
         const suite = THEME_SUITES[currentMotionTheme] || THEME_SUITES.bloom;
         const notes = isReroll
             ? suite.pentatonic.slice(0, 4)
@@ -763,6 +852,7 @@
     // 5.6. Tiếng Tách Con Dấu Sáp Vàng 24K Giòn Tan & Bụi Kim Tuyến (Crisp Wax Seal Pop)
     function playWaxSealCrack() {
         if (!canPlayAudio()) return;
+        triggerSubtleHaptic('seal_pop');
         const t0 = ctx.currentTime + 0.005;
 
         // Lớp 1: Cộng hưởng thân sáp vàng tách giòn (Warm Body Thump 195Hz -> 68Hz)
@@ -808,6 +898,7 @@
     // 5.7. Tiếng Đóng Ấn Sáp Vàng 24K Uy Lực (Khi Phong Bì 3D vừa đáp xuống và đóng dấu sáp)
     function playWaxSealStampImpact() {
         if (!canPlayAudio()) return;
+        triggerSubtleHaptic('stamp');
         const t0 = ctx.currentTime + 0.005;
 
         // Âm trầm đóng dấu uy lực
@@ -834,9 +925,9 @@
 
     // 5.8. Tiếng Mở Phong Bì Vật Lý Bước 1 (Full Choreography)
     function playStep1EnvelopeOpenSequence() {
-        if (!canPlayAudio()) return;
-        // Mở khóa bộ lọc âm thanh BGM từ trong phong bì ra toàn dải sáng rõ
+        // Mở khóa bộ lọc âm thanh BGM từ trong phong bì ra toàn dải sáng rõ (ngay cả khi tắt SFX)
         setEnvelopeSpatialMuffle(false, 1.05);
+        if (!canPlayAudio()) return;
 
         // 0ms: Tách dấu sáp vàng & Lật mở nắp phong bì 180°
         playWaxSealCrack();
@@ -858,6 +949,9 @@
 
     // 5.9. Tiếng Đóng Thiệp Vào Lại Phong Bì Bước 1 (Reverse Choreography)
     function playStep1EnvelopeCloseSequence() {
+        setTimeout(() => {
+            setEnvelopeSpatialMuffle(true, 0.85);
+        }, 1100);
         if (!canPlayAudio()) return;
         // 0ms: Nhấc tấm thiệp lên ngang miệng phong bì
         playSilkPaperWhoosh(0.35, 520, 860, 0.15, 0, 0.02);
@@ -865,10 +959,9 @@
         // 550ms: Trượt tấm thiệp sâu vào lòng túi chữ V
         playSilkPaperWhoosh(0.45, 920, 340, 0.19, 0, 0.55);
 
-        // 1100ms: Gập nắp phong bì & khóa con dấu sáp vàng + Đưa BGM về lại chế độ ấm trong phong bì
+        // 1100ms: Gập nắp phong bì & khóa con dấu sáp vàng
         setTimeout(() => {
             if (!canPlayAudio()) return;
-            setEnvelopeSpatialMuffle(true, 0.85);
             playSilkPaperWhoosh(0.25, 620, 280, 0.14, 0, 0);
             playWaxSealStampImpact();
         }, 1100);
@@ -891,6 +984,7 @@
     // 5.11. Tiếng Xòe Quạt 3 Tấm Thiệp Mẫu & Nháy Mắt Chào
     function playCardFanSwipe(isManual = true) {
         if (!canPlayAudio()) return;
+        if (isManual) triggerSubtleHaptic('light');
         const gain = isManual ? 0.16 : 0.055; // Tự động chuyển mỗi 4s thì cực khẽ để không làm phiền
         playSilkPaperWhoosh(0.22, 480, 960, gain, 0, 0);
         if (isManual) {
@@ -910,6 +1004,7 @@
     // 5.12. Hợp âm Hoàn Tất Sang Trọng (Khi bấm Tạo Thiệp / Sao chép Link / Lưu Ảnh)
     function playSuccessChime() {
         if (!canPlayAudio()) return;
+        triggerSubtleHaptic('success');
         const suite = THEME_SUITES[currentMotionTheme] || THEME_SUITES.bloom;
         const t0 = ctx.currentTime + 0.01;
         const notes = suite.revealChord.slice(2, 6);
@@ -935,11 +1030,14 @@
     }
 
     function updateWishBloomAudioByTau(tau, isSkipped) {
-        if (!canPlayAudio()) return;
+        if (!ctx || !isUnlocked || isPageHidden) return;
         if (isSkipped) {
             if (!wishBloomCueState.lift) {
                 wishBloomCueState.lift = true;
-                playSilkPaperWhoosh(0.45, 380, 960, 0.18, 0, 0);
+                setEnvelopeSpatialMuffle(true, 0.6);
+                if (canPlayAudio()) {
+                    playSilkPaperWhoosh(0.45, 380, 960, 0.18, 0, 0);
+                }
             }
             return;
         }
@@ -952,103 +1050,120 @@
             wishBloomCueState.started = true;
             setBgmDuck(0.28, 5.8);
             setEnvelopeSpatialMuffle(false, 0.4);
-            playWarmPadChord(suite.bars[0].pad, now, 2.2, 0.065, sfxBus);
+            if (canPlayAudio()) {
+                playWarmPadChord(suite.bars[0].pad, now, 2.2, 0.065, sfxBus);
+            }
         }
 
         // 2. Đốm sáng ước nguyện hóa sao băng lao xuống (tau >= 0.70s = T.FALL)
         if (!wishBloomCueState.fall && tau >= 0.70) {
             wishBloomCueState.fall = true;
-            // Tiếng sao băng ngân lấp lánh lao từ đỉnh trời xuống mặt hồ
-            const osc = ctx.createOscillator();
-            const env = ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(1760, now);
-            osc.frequency.exponentialRampToValueAtTime(520, now + 0.52);
-            env.gain.setValueAtTime(0.0001, now);
-            env.gain.linearRampToValueAtTime(0.11, now + 0.12);
-            env.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
-            osc.connect(env);
-            connectWithPanAndReverb(env, sfxBus, 0.55, 0);
-            osc.start(now);
-            osc.stop(now + 0.58);
+            if (canPlayAudio()) {
+                // Tiếng sao băng ngân lấp lánh lao từ đỉnh trời xuống mặt hồ
+                const osc = ctx.createOscillator();
+                const env = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1760, now);
+                osc.frequency.exponentialRampToValueAtTime(520, now + 0.52);
+                env.gain.setValueAtTime(0.0001, now);
+                env.gain.linearRampToValueAtTime(0.11, now + 0.12);
+                env.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+                osc.connect(env);
+                connectWithPanAndReverb(env, sfxBus, 0.55, 0);
+                osc.start(now);
+                osc.stop(now + 0.58);
 
-            playSilkPaperWhoosh(0.50, 980, 420, 0.14, 0, 0.02);
+                playSilkPaperWhoosh(0.50, 980, 420, 0.14, 0, 0.02);
+            }
         }
 
         // 3. Chạm mặt Hồ Gương & Bullet-Time Slow-Mo (tau >= 1.60s = T.IMPACT)
         if (!wishBloomCueState.impact && tau >= 1.59) {
             wishBloomCueState.impact = true;
+            if (canPlayAudio()) {
+                triggerSubtleHaptic('water_drop');
 
-            // A. Giọt nước pha lê Minnaert (tần số bọt nước quét cong lên 390Hz -> 1120Hz)
-            const dropOsc = ctx.createOscillator();
-            const dropEnv = ctx.createGain();
-            dropOsc.type = 'sine';
-            dropOsc.frequency.setValueAtTime(390, now);
-            dropOsc.frequency.exponentialRampToValueAtTime(1120, now + 0.072);
-            dropEnv.gain.setValueAtTime(0.0001, now);
-            dropEnv.gain.exponentialRampToValueAtTime(0.32, now + 0.008);
-            dropEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-            dropOsc.connect(dropEnv);
-            connectWithPanAndReverb(dropEnv, sfxBus, 0.72, 0);
-            dropOsc.start(now);
-            dropOsc.stop(now + 0.22);
+                // A. Giọt nước pha lê Minnaert (tần số bọt nước quét cong lên 390Hz -> 1120Hz)
+                const dropOsc = ctx.createOscillator();
+                const dropEnv = ctx.createGain();
+                dropOsc.type = 'sine';
+                dropOsc.frequency.setValueAtTime(390, now);
+                dropOsc.frequency.exponentialRampToValueAtTime(1120, now + 0.072);
+                dropEnv.gain.setValueAtTime(0.0001, now);
+                dropEnv.gain.exponentialRampToValueAtTime(0.32, now + 0.008);
+                dropEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+                dropOsc.connect(dropEnv);
+                connectWithPanAndReverb(dropEnv, sfxBus, 0.72, 0);
+                dropOsc.start(now);
+                dropOsc.stop(now + 0.22);
 
-            // B. Sub-bass sóng nước 3D & cột sáng thiên đỉnh trong Bullet-Time
-            const subOsc = ctx.createOscillator();
-            const subEnv = ctx.createGain();
-            subOsc.type = 'sine';
-            subOsc.frequency.setValueAtTime(115, now);
-            subOsc.frequency.exponentialRampToValueAtTime(38, now + 0.55);
-            subEnv.gain.setValueAtTime(0.0001, now);
-            subEnv.gain.exponentialRampToValueAtTime(0.36, now + 0.02);
-            subEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.62);
-            subOsc.connect(subEnv);
-            subEnv.connect(sfxBus);
-            subOsc.start(now);
-            subOsc.stop(now + 0.65);
+                // B. Sub-bass sóng nước 3D & cột sáng thiên đỉnh trong Bullet-Time
+                const subOsc = ctx.createOscillator();
+                const subEnv = ctx.createGain();
+                subOsc.type = 'sine';
+                subOsc.frequency.setValueAtTime(115, now);
+                subOsc.frequency.exponentialRampToValueAtTime(38, now + 0.55);
+                subEnv.gain.setValueAtTime(0.0001, now);
+                subEnv.gain.exponentialRampToValueAtTime(0.36, now + 0.02);
+                subEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.62);
+                subOsc.connect(subEnv);
+                subEnv.connect(sfxBus);
+                subOsc.start(now);
+                subOsc.stop(now + 0.65);
 
-            // C. Chùm chuông pha lê phản chiếu sóng nước
-            suite.pentatonic.slice(0, 5).forEach((noteName, idx) => {
-                playMelodyNote(n(noteName) * 2, now + 0.05 + idx * 0.07, 1.25, 0.11, 'celesta', (idx - 2) * 0.25, sfxBus);
-            });
+                // C. Chùm chuông pha lê phản chiếu sóng nước
+                suite.pentatonic.slice(0, 5).forEach((noteName, idx) => {
+                    playMelodyNote(n(noteName) * 2, now + 0.05 + idx * 0.07, 1.25, 0.11, 'celesta', (idx - 2) * 0.25, sfxBus);
+                });
+            }
         }
 
         // 4. Nụ hoa 3D trồi lên từ mặt nước (tau >= 1.95s = T.BUD)
         if (!wishBloomCueState.bud && tau >= 1.95) {
             wishBloomCueState.bud = true;
-            playSilkPaperWhoosh(0.42, 260, 640, 0.15, 0, 0);
-            playHarpPluck(n(suite.bars[0].pad[0]), now, 1.6, 0.16, 0, sfxBus);
+            if (canPlayAudio()) {
+                playSilkPaperWhoosh(0.42, 260, 640, 0.15, 0, 0);
+                playHarpPluck(n(suite.bars[0].pad[0]), now, 1.6, 0.16, 0, sfxBus);
+            }
         }
 
         // 5. Đại đóa hoa bung nở từng tầng cánh Bezier 3D (tau >= 2.50s = T.OPEN)
         if (!wishBloomCueState.open && tau >= 2.50) {
             wishBloomCueState.open = true;
-            suite.revealChord.forEach((noteName, idx) => {
-                const pan = ((idx / Math.max(1, suite.revealChord.length - 1)) - 0.5) * 0.7;
-                playHarpPluck(n(noteName), now + idx * 0.075, 1.9, 0.15, pan, sfxBus);
-            });
+            if (canPlayAudio()) {
+                suite.revealChord.forEach((noteName, idx) => {
+                    const pan = ((idx / Math.max(1, suite.revealChord.length - 1)) - 0.5) * 0.7;
+                    playHarpPluck(n(noteName), now + idx * 0.075, 1.9, 0.15, pan, sfxBus);
+                });
+            }
         }
 
         // 6. Vương miện 42 nhụy vàng tỏa sáng (tau >= 3.05s = T.HEART)
         if (!wishBloomCueState.heart && tau >= 3.05) {
             wishBloomCueState.heart = true;
-            suite.pentatonic.slice(3, 8).forEach((noteName, idx) => {
-                playMelodyNote(n(noteName) * 2, now + idx * 0.05, 1.1, 0.12, 'music_box', (idx - 2) * 0.22, sfxBus);
-            });
+            if (canPlayAudio()) {
+                suite.pentatonic.slice(3, 8).forEach((noteName, idx) => {
+                    playMelodyNote(n(noteName) * 2, now + idx * 0.05, 1.1, 0.12, 'music_box', (idx - 2) * 0.22, sfxBus);
+                });
+            }
         }
 
         // 7. Phong bì 3D kết tinh trên đài hoa (tau >= 3.55s = T.ENV_IN)
         if (!wishBloomCueState.envIn && tau >= 3.55) {
             wishBloomCueState.envIn = true;
-            playMelodyNote(n(suite.pentatonic[4]) * 2, now, 0.85, 0.13, 'celesta', -0.2, sfxBus);
-            playMelodyNote(n(suite.pentatonic[6]) * 2, now + 0.06, 0.95, 0.14, 'celesta', 0.2, sfxBus);
+            if (canPlayAudio()) {
+                playMelodyNote(n(suite.pentatonic[4]) * 2, now, 0.85, 0.13, 'celesta', -0.2, sfxBus);
+                playMelodyNote(n(suite.pentatonic[6]) * 2, now + 0.06, 0.95, 0.14, 'celesta', 0.2, sfxBus);
+            }
         }
 
         // 8. Đài hoa nâng phong bì dâng tặng về phía người xem (tau >= 4.45s = T.LIFT)
         if (!wishBloomCueState.lift && tau >= 4.45) {
             wishBloomCueState.lift = true;
-            playSilkPaperWhoosh(0.68, 320, 880, 0.17, 0, 0);
             setEnvelopeSpatialMuffle(true, 1.1);
+            if (canPlayAudio()) {
+                playSilkPaperWhoosh(0.68, 320, 880, 0.17, 0, 0);
+            }
         }
     }
 
@@ -1062,13 +1177,22 @@
         if (motionId && THEME_SUITES[motionId]) {
             currentMotionTheme = motionId;
         }
+        // Mở khóa dần bộ lọc không gian BGM khi nắp phong bì hé mở (kể cả khi tắt SFX)
+        setEnvelopeSpatialMuffle(false, 1.15);
+
         if (!canPlayAudio()) return;
 
         const suite = THEME_SUITES[currentMotionTheme] || THEME_SUITES.bloom;
         const t0 = ctx.currentTime + 0.005;
 
-        // Mở khóa dần bộ lọc không gian BGM khi nắp phong bì hé mở
-        setEnvelopeSpatialMuffle(false, 1.15);
+        // Nhịp rung tim cực mảnh khi con dấu sáp xoay tích tụ năng lượng (0.00s -> 0.54s)
+        triggerSubtleHaptic('heartbeat');
+        setTimeout(() => {
+            if (canPlayAudio()) triggerSubtleHaptic('heartbeat');
+        }, 280);
+        setTimeout(() => {
+            if (canPlayAudio()) triggerSubtleHaptic('heartbeat');
+        }, 540);
 
         // --- PHA A (0.00s -> 0.88s): Âm thanh Khởi Động Con Dấu Sáp theo từng chủ đề ---
         if (currentMotionTheme === 'ribbon') {
@@ -1137,27 +1261,37 @@
     }
 
     // =========================================================================
-    // 8. NÚT ĐIỀU KHIỂN ÂM THANH NGỌC TRAI & VÀNG 24K NỔI TRÊN MÀN HÌNH
+    // 8. CỤM 2 NÚT ĐỘC LẬP: TẮT/BẬT NHẠC NỀN (BGM) & TẮT/BẬT HIỆU ỨNG (SFX)
     // =========================================================================
-    let audioToggleBtn = null;
-    let labelCollapseTimer = null;
+    let audioClusterEl = null;
+    let bgmToggleBtn = null;
+    let sfxToggleBtn = null;
 
-    function createFloatingAudioButton() {
-        if (document.getElementById('luxury-audio-toggle')) return;
+    function createFloatingAudioCluster() {
+        if (document.getElementById('luxury-audio-cluster')) return;
 
         try {
-            const savedMute = sessionStorage.getItem('btlmvn_2010_audio_muted');
-            if (savedMute === '1') isMuted = true;
+            const savedBgmMute = sessionStorage.getItem('btlmvn_2010_bgm_muted');
+            const savedSfxMute = sessionStorage.getItem('btlmvn_2010_sfx_muted');
+            if (savedBgmMute === '1') isBgmMuted = true;
+            if (savedSfxMute === '1') isSfxMuted = true;
         } catch (_) {}
 
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.id = 'luxury-audio-toggle';
-        btn.className = 'luxury-audio-toggle' + (isMuted ? ' is-muted' : ' is-playing') + ' show-label';
-        btn.setAttribute('aria-label', isMuted ? 'Bật âm thanh' : 'Tắt âm thanh');
-        btn.setAttribute('title', isMuted ? 'Bật âm thanh thiệp 3D' : 'Tắt/Bật âm thanh');
+        const cluster = document.createElement('div');
+        cluster.id = 'luxury-audio-cluster';
+        cluster.className = 'luxury-audio-cluster';
+        cluster.setAttribute('role', 'group');
+        cluster.setAttribute('aria-label', 'Điều khiển Nhạc nền và Âm thanh hiệu ứng');
 
-        btn.innerHTML = `
+        // 1. Nút Nhạc Nền (BGM) độc lập
+        const bgmBtn = document.createElement('button');
+        bgmBtn.type = 'button';
+        bgmBtn.id = 'luxury-bgm-toggle';
+        bgmBtn.className = 'luxury-audio-btn luxury-bgm-btn' + (isBgmMuted ? ' is-muted' : ' is-playing');
+        bgmBtn.setAttribute('aria-pressed', String(!isBgmMuted));
+        bgmBtn.setAttribute('aria-label', isBgmMuted ? 'Bật nhạc nền' : 'Tắt nhạc nền');
+        bgmBtn.setAttribute('title', isBgmMuted ? 'Bật nhạc nền giao hưởng' : 'Tắt nhạc nền');
+        bgmBtn.innerHTML = `
             <span class="audio-orb-ring" aria-hidden="true"></span>
             <span class="audio-icon-wrap" aria-hidden="true">
                 <svg class="audio-svg-on" viewBox="0 0 24 24" fill="none">
@@ -1166,70 +1300,139 @@
                     <circle cx="16.5" cy="16" r="2.8" fill="currentColor"/>
                 </svg>
                 <svg class="audio-svg-off" viewBox="0 0 24 24" fill="none">
-                    <path d="M9 18V6L19 4V16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.55"/>
-                    <circle cx="6.5" cy="18" r="2.6" fill="currentColor" opacity="0.55"/>
-                    <circle cx="16.5" cy="16" r="2.6" fill="currentColor" opacity="0.55"/>
-                    <path d="M4 4L20 20" stroke="#ff6b8b" stroke-width="2.4" stroke-linecap="round"/>
+                    <path d="M9 18V6L19 4V16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.52"/>
+                    <circle cx="6.5" cy="18" r="2.6" fill="currentColor" opacity="0.52"/>
+                    <circle cx="16.5" cy="16" r="2.6" fill="currentColor" opacity="0.52"/>
+                    <path d="M4 4L20 20" stroke="#ff6b8b" stroke-width="2.3" stroke-linecap="round"/>
                 </svg>
             </span>
             <span class="audio-bars" aria-hidden="true">
                 <i></i><i></i><i></i>
             </span>
-            <span class="audio-pill-label" id="luxury-audio-label">${isMuted ? 'Đã tắt tiếng' : 'Nhạc thiệp'}</span>
+            <span class="audio-pill-label" id="luxury-bgm-label">${isBgmMuted ? 'Tắt nhạc' : 'Nhạc nền'}</span>
         `;
 
-        btn.addEventListener('click', (e) => {
+        // 2. Nút Âm Thanh Hiệu Ứng (SFX & Rung Tinh Tế) độc lập
+        const sfxBtn = document.createElement('button');
+        sfxBtn.type = 'button';
+        sfxBtn.id = 'luxury-sfx-toggle';
+        sfxBtn.className = 'luxury-audio-btn luxury-sfx-btn' + (isSfxMuted ? ' is-muted' : ' is-playing');
+        sfxBtn.setAttribute('aria-pressed', String(!isSfxMuted));
+        sfxBtn.setAttribute('aria-label', isSfxMuted ? 'Bật âm thanh hiệu ứng' : 'Tắt âm thanh hiệu ứng');
+        sfxBtn.setAttribute('title', isSfxMuted ? 'Bật hiệu ứng âm thanh & rung nhẹ' : 'Tắt hiệu ứng âm thanh & rung nhẹ');
+        sfxBtn.innerHTML = `
+            <span class="audio-icon-wrap" aria-hidden="true">
+                <svg class="audio-svg-on" viewBox="0 0 24 24" fill="none">
+                    <path d="M11 5L6 9H2V15H6L11 19V5Z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M15.5 8.5C16.8 9.8 16.8 14.2 15.5 15.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                    <path d="M19 5.5L20.2 3.2L21.4 5.5L23.7 6.7L21.4 7.9L20.2 10.2L19 7.9L16.7 6.7L19 5.5Z" fill="currentColor"/>
+                </svg>
+                <svg class="audio-svg-off" viewBox="0 0 24 24" fill="none">
+                    <path d="M11 5L6 9H2V15H6L11 19V5Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" opacity="0.52"/>
+                    <path d="M22 9L16 15" stroke="#ff6b8b" stroke-width="2.3" stroke-linecap="round"/>
+                    <path d="M16 9L22 15" stroke="#ff6b8b" stroke-width="2.3" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <span class="audio-pill-label" id="luxury-sfx-label">${isSfxMuted ? 'Tắt SFX' : 'Hiệu ứng'}</span>
+        `;
+
+        bgmBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             unlockAudioOnFirstGesture();
-            toggleMute();
+            toggleBgmMute();
         });
 
-        document.body.appendChild(btn);
-        audioToggleBtn = btn;
+        sfxBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            unlockAudioOnFirstGesture();
+            toggleSfxMute();
+        });
 
-        // Tự động thu gọn nhãn chữ sau 3.8 giây để chỉ còn Viên Ngọc Âm Thanh nhỏ gọn
-        labelCollapseTimer = setTimeout(() => {
-            if (audioToggleBtn) audioToggleBtn.classList.remove('show-label');
-        }, 3800);
-    }
+        cluster.appendChild(bgmBtn);
+        cluster.appendChild(sfxBtn);
+        document.body.appendChild(cluster);
 
-    function updateAudioButtonUI() {
-        if (!audioToggleBtn) return;
-        audioToggleBtn.classList.toggle('is-muted', isMuted);
-        audioToggleBtn.classList.toggle('is-playing', !isMuted);
-        audioToggleBtn.setAttribute('aria-label', isMuted ? 'Bật âm thanh' : 'Tắt âm thanh');
-        const lbl = document.getElementById('luxury-audio-label');
-        if (lbl) lbl.textContent = isMuted ? 'Đã tắt tiếng' : 'Nhạc thiệp';
+        audioClusterEl = cluster;
+        bgmToggleBtn = bgmBtn;
+        sfxToggleBtn = sfxBtn;
 
-        audioToggleBtn.classList.add('show-label');
-        if (labelCollapseTimer) clearTimeout(labelCollapseTimer);
-        labelCollapseTimer = setTimeout(() => {
-            if (audioToggleBtn) audioToggleBtn.classList.remove('show-label');
-        }, 2200);
-    }
-
-    function toggleMute(forceState) {
-        isMuted = typeof forceState === 'boolean' ? forceState : !isMuted;
+        // Cập nhật lại đo đạc khung thiệp nếu đang ở Bước 2 hoặc Bước 3
         try {
-            sessionStorage.setItem('btlmvn_2010_audio_muted', isMuted ? '1' : '0');
+            window.dispatchEvent(new Event('resize'));
+        } catch (_) {}
+    }
+
+    function updateBgmButtonUI() {
+        if (!bgmToggleBtn) return;
+        bgmToggleBtn.classList.toggle('is-muted', isBgmMuted);
+        bgmToggleBtn.classList.toggle('is-playing', !isBgmMuted);
+        bgmToggleBtn.setAttribute('aria-pressed', String(!isBgmMuted));
+        bgmToggleBtn.setAttribute('aria-label', isBgmMuted ? 'Bật nhạc nền' : 'Tắt nhạc nền');
+        bgmToggleBtn.setAttribute('title', isBgmMuted ? 'Bật nhạc nền giao hưởng' : 'Tắt nhạc nền');
+        const lbl = document.getElementById('luxury-bgm-label');
+        if (lbl) lbl.textContent = isBgmMuted ? 'Tắt nhạc' : 'Nhạc nền';
+    }
+
+    function updateSfxButtonUI() {
+        if (!sfxToggleBtn) return;
+        sfxToggleBtn.classList.toggle('is-muted', isSfxMuted);
+        sfxToggleBtn.classList.toggle('is-playing', !isSfxMuted);
+        sfxToggleBtn.setAttribute('aria-pressed', String(!isSfxMuted));
+        sfxToggleBtn.setAttribute('aria-label', isSfxMuted ? 'Bật âm thanh hiệu ứng' : 'Tắt âm thanh hiệu ứng');
+        sfxToggleBtn.setAttribute('title', isSfxMuted ? 'Bật hiệu ứng âm thanh & rung nhẹ' : 'Tắt hiệu ứng âm thanh & rung nhẹ');
+        const lbl = document.getElementById('luxury-sfx-label');
+        if (lbl) lbl.textContent = isSfxMuted ? 'Tắt SFX' : 'Hiệu ứng';
+    }
+
+    function toggleBgmMute(forceState) {
+        isBgmMuted = typeof forceState === 'boolean' ? forceState : !isBgmMuted;
+        try {
+            sessionStorage.setItem('btlmvn_2010_bgm_muted', isBgmMuted ? '1' : '0');
         } catch (_) {}
 
-        updateAudioButtonUI();
+        updateBgmButtonUI();
 
-        if (!ctx || !masterGain) return;
+        if (!ctx || !bgmMuteGain) return;
         const now = ctx.currentTime;
-        masterGain.gain.cancelScheduledValues(now);
-        if (isMuted) {
-            masterGain.gain.setValueAtTime(Math.max(0.0001, masterGain.gain.value), now);
-            masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+        bgmMuteGain.gain.cancelScheduledValues(now);
+        if (isBgmMuted) {
+            bgmMuteGain.gain.setValueAtTime(Math.max(0.0001, bgmMuteGain.gain.value), now);
+            bgmMuteGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
         } else {
             if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
                 ctx.resume().catch(() => {});
             }
-            masterGain.gain.setValueAtTime(0.0001, now);
-            masterGain.gain.exponentialRampToValueAtTime(0.85, now + 0.22);
-            nextNoteTime = Math.max(ctx.currentTime + 0.06, nextNoteTime);
-            playUiTap('tab', 2);
+            bgmMuteGain.gain.setValueAtTime(0.0001, now);
+            bgmMuteGain.gain.exponentialRampToValueAtTime(1.0, now + 0.24);
+            nextNoteTime = Math.max(ctx.currentTime + 0.05, nextNoteTime);
+            startBgmScheduler();
+            if (!isSfxMuted) {
+                playUiTap('tab', 1);
+            }
+        }
+    }
+
+    function toggleSfxMute(forceState) {
+        isSfxMuted = typeof forceState === 'boolean' ? forceState : !isSfxMuted;
+        try {
+            sessionStorage.setItem('btlmvn_2010_sfx_muted', isSfxMuted ? '1' : '0');
+        } catch (_) {}
+
+        updateSfxButtonUI();
+
+        if (!ctx || !sfxMuteGain) return;
+        const now = ctx.currentTime;
+        sfxMuteGain.gain.cancelScheduledValues(now);
+        if (isSfxMuted) {
+            sfxMuteGain.gain.setValueAtTime(Math.max(0.0001, sfxMuteGain.gain.value), now);
+            sfxMuteGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
+        } else {
+            if (ctx.state === 'suspended' || ctx.state === 'interrupted') {
+                ctx.resume().catch(() => {});
+            }
+            sfxMuteGain.gain.setValueAtTime(0.0001, now);
+            sfxMuteGain.gain.exponentialRampToValueAtTime(1.0, now + 0.14);
+            playUiTap('tab', 3);
         }
     }
 
@@ -1275,7 +1478,7 @@
                 if (ctx.state === 'running') {
                     ctx.suspend().catch(() => {});
                 }
-            } else if (!isMuted && isUnlocked) {
+            } else if ((!isBgmMuted || !isSfxMuted) && isUnlocked) {
                 ctx.resume().then(() => {
                     nextNoteTime = ctx.currentTime + 0.08;
                 }).catch(() => {});
@@ -1287,8 +1490,8 @@
             const target = e.target;
             if (!target || typeof target.closest !== 'function') return;
 
-            // Bỏ qua nút bật/tắt âm thanh hoặc con dấu sáp (đã có âm thanh riêng)
-            if (target.closest('#luxury-audio-toggle') || target.closest('#env-wax-seal') || target.closest('#u3d-seal-btn')) {
+            // Bỏ qua cụm 2 nút bật/tắt âm thanh hoặc con dấu sáp (đã có âm thanh riêng)
+            if (target.closest('#luxury-audio-cluster') || target.closest('#env-wax-seal') || target.closest('#u3d-seal-btn')) {
                 return;
             }
 
@@ -1347,11 +1550,11 @@
     // Khởi tạo giao diện & sự kiện
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
-            createFloatingAudioButton();
+            createFloatingAudioCluster();
             bindGlobalInteractionSounds();
         });
     } else {
-        createFloatingAudioButton();
+        createFloatingAudioCluster();
         bindGlobalInteractionSounds();
     }
 
@@ -1363,6 +1566,11 @@
                 currentMotionTheme = motionId;
             }
         },
+        toggleBgmMute,
+        toggleSfxMute,
+        isBgmMuted: () => isBgmMuted,
+        isSfxMuted: () => isSfxMuted,
+        triggerSubtleHaptic,
         setEnvelopeMuffle: setEnvelopeSpatialMuffle,
         setBgmDuck,
         playTouchSparkle,

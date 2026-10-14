@@ -4856,87 +4856,96 @@ body.recipient-mode .recipient-luxury-dock {
 }
 
 /* =========================================================================
-   NÚT ĐIỀU KHIỂN ÂM THANH NGỌC TRAI & VÀNG 24K (LUXURY FLOATING AUDIO ORB)
+   CỤM 2 NÚT ĐỘC LẬP: NHẠC NỀN (BGM) & HIỆU ỨNG (SFX) + RUNG VI MÔ TINH TẾ
+   Đảm bảo 100% không bao giờ lấn vào khung thiệp hay khung giao diện ở mọi thiết bị
    ========================================================================= */
-.luxury-audio-toggle {
+.luxury-audio-cluster {
     position: fixed;
-    top: max(14px, env(safe-area-inset-top, 14px));
+    top: max(12px, env(safe-area-inset-top, 12px));
     left: max(14px, env(safe-area-inset-left, 14px));
     z-index: 9995;
     display: inline-flex;
     align-items: center;
-    gap: 0;
-    height: 38px;
-    padding: 0 10px;
+    gap: 7px;
+    pointer-events: none;
+}
+
+.luxury-audio-btn {
+    pointer-events: auto;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 32px;
+    padding: 0 11px;
     border-radius: 999px;
-    border: 1px solid rgba(246, 211, 101, 0.48);
-    background: linear-gradient(135deg, rgba(22, 12, 28, 0.78) 0%, rgba(44, 18, 38, 0.68) 100%);
+    border: 1px solid rgba(246, 211, 101, 0.46);
+    background: linear-gradient(135deg, rgba(22, 12, 28, 0.82) 0%, rgba(44, 18, 38, 0.72) 100%);
     backdrop-filter: blur(14px) saturate(150%);
     -webkit-backdrop-filter: blur(14px) saturate(150%);
     color: #fceabb;
     box-shadow:
-        0 6px 20px rgba(0, 0, 0, 0.36),
-        0 0 14px rgba(246, 211, 101, 0.18),
+        0 4px 14px rgba(0, 0, 0, 0.32),
+        0 0 12px rgba(246, 211, 101, 0.14),
         inset 0 1px 1px rgba(255, 255, 255, 0.22);
     cursor: pointer;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
     transition:
-        top 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-        left 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-        padding 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-        transform 0.22s ease,
-        border-color 0.28s ease,
-        box-shadow 0.28s ease,
-        background 0.28s ease;
+        transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        background 0.25s ease,
+        opacity 0.25s ease;
 }
 
-.luxury-audio-toggle:hover {
-    transform: translateY(-1px) scale(1.03);
-    border-color: rgba(255, 223, 128, 0.82);
+.luxury-audio-btn:hover {
+    transform: translateY(-1px) scale(1.02);
+    border-color: rgba(255, 223, 128, 0.84);
     box-shadow:
-        0 8px 24px rgba(0, 0, 0, 0.44),
-        0 0 20px rgba(246, 211, 101, 0.34),
+        0 6px 18px rgba(0, 0, 0, 0.42),
+        0 0 16px rgba(246, 211, 101, 0.28),
         inset 0 1px 2px rgba(255, 255, 255, 0.32);
 }
 
-.luxury-audio-toggle:active {
+.luxury-audio-btn:active {
     transform: scale(0.95);
 }
 
-.luxury-audio-toggle .audio-orb-ring {
+.luxury-audio-btn .audio-orb-ring {
     position: absolute;
-    inset: -3px;
+    inset: -2.5px;
     border-radius: 999px;
-    border: 1px solid rgba(246, 211, 101, 0.32);
+    border: 1px solid rgba(246, 211, 101, 0.30);
     pointer-events: none;
     opacity: 0;
     animation: luxuryAudioPulseRing 2.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }
 
-.luxury-audio-toggle.is-playing .audio-orb-ring {
+.luxury-audio-btn.is-playing .audio-orb-ring {
     opacity: 1;
 }
 
 @keyframes luxuryAudioPulseRing {
     0% {
-        transform: scale(0.96);
-        opacity: 0.65;
+        transform: scale(0.97);
+        opacity: 0.6;
     }
     70% {
-        transform: scale(1.14);
+        transform: scale(1.10);
         opacity: 0;
     }
     100% {
-        transform: scale(1.14);
+        transform: scale(1.10);
         opacity: 0;
     }
 }
 
-.luxury-audio-toggle .audio-icon-wrap {
+.luxury-audio-btn .audio-icon-wrap {
     position: relative;
-    width: 18px;
-    height: 18px;
+    width: 15px;
+    height: 15px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -4944,64 +4953,67 @@ body.recipient-mode .recipient-luxury-dock {
     color: #ffe08a;
 }
 
-.luxury-audio-toggle .audio-icon-wrap svg {
-    width: 17px;
-    height: 17px;
+.luxury-audio-btn .audio-icon-wrap svg {
+    width: 15px;
+    height: 15px;
     display: block;
-    filter: drop-shadow(0 1px 4px rgba(246, 211, 101, 0.35));
+    filter: drop-shadow(0 1px 3px rgba(246, 211, 101, 0.32));
 }
 
-.luxury-audio-toggle.is-playing .audio-svg-off {
+.luxury-audio-btn.is-playing .audio-svg-off {
     display: none;
 }
 
-.luxury-audio-toggle.is-muted .audio-svg-on {
+.luxury-audio-btn.is-muted .audio-svg-on {
     display: none;
 }
 
-.luxury-audio-toggle.is-muted {
-    border-color: rgba(255, 255, 255, 0.22);
-    color: rgba(255, 240, 245, 0.68);
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+.luxury-audio-btn.is-muted {
+    border-color: rgba(255, 255, 255, 0.20);
+    background: linear-gradient(135deg, rgba(20, 14, 24, 0.68) 0%, rgba(32, 20, 30, 0.58) 100%);
+    color: rgba(255, 240, 245, 0.62);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.24);
 }
 
-/* 3 Cột Sóng Nhạc Vàng 24K nhảy theo nhịp khi đang phát */
-.luxury-audio-toggle .audio-bars {
+.luxury-audio-btn.is-muted .audio-icon-wrap {
+    color: rgba(255, 224, 235, 0.65);
+}
+
+/* 3 Cột Sóng Nhạc Vàng 24K nhảy theo nhịp trên nút Nhạc Nền */
+.luxury-audio-btn .audio-bars {
     display: inline-flex;
     align-items: flex-end;
-    gap: 2px;
-    height: 12px;
-    margin-left: 5px;
+    gap: 1.8px;
+    height: 10px;
+    width: 10px;
     overflow: hidden;
-    transition: width 0.28s ease, opacity 0.28s ease, margin 0.28s ease;
-    width: 12px;
+    transition: width 0.24s ease, opacity 0.24s ease;
 }
 
-.luxury-audio-toggle.is-muted .audio-bars {
+.luxury-audio-btn.is-muted .audio-bars {
     width: 0;
     opacity: 0;
-    margin-left: 0;
 }
 
-.luxury-audio-toggle .audio-bars i {
+.luxury-audio-btn .audio-bars i {
     display: block;
-    width: 2.2px;
+    width: 2px;
     border-radius: 2px;
     background: linear-gradient(180deg, #fff6d6 0%, #f6d365 60%, #fda085 100%);
     animation: luxuryAudioBarDance 1.15s ease-in-out infinite alternate;
 }
 
-.luxury-audio-toggle .audio-bars i:nth-child(1) {
-    height: 5px;
+.luxury-audio-btn .audio-bars i:nth-child(1) {
+    height: 4px;
     animation-duration: 0.75s;
 }
-.luxury-audio-toggle .audio-bars i:nth-child(2) {
-    height: 11px;
+.luxury-audio-btn .audio-bars i:nth-child(2) {
+    height: 10px;
     animation-duration: 0.55s;
     animation-delay: 0.15s;
 }
-.luxury-audio-toggle .audio-bars i:nth-child(3) {
-    height: 7px;
+.luxury-audio-btn .audio-bars i:nth-child(3) {
+    height: 6px;
     animation-duration: 0.9s;
     animation-delay: 0.3s;
 }
@@ -5015,38 +5027,94 @@ body.recipient-mode .recipient-luxury-dock {
     }
 }
 
-.luxury-audio-toggle .audio-pill-label {
+.luxury-audio-btn .audio-pill-label {
     font-family: var(--font-sans, 'Plus Jakarta Sans', sans-serif);
-    font-size: 0.74rem;
+    font-size: 0.72rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
+    line-height: 1;
     white-space: nowrap;
-    max-width: 0;
-    opacity: 0;
-    overflow: hidden;
-    margin-left: 0;
-    transition:
-        max-width 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-        opacity 0.28s ease,
-        margin-left 0.32s ease;
 }
 
-.luxury-audio-toggle.show-label .audio-pill-label,
-.luxury-audio-toggle:hover .audio-pill-label {
-    max-width: 96px;
-    opacity: 0.95;
-    margin-left: 6px;
+/* Hiệu ứng Rung Vi Mô Tinh Tế (Optical + Tactile Micro-Haptic) đồng bộ cho cả iOS & Desktop */
+@keyframes luxuryHapticMicroPulse {
+    0% {
+        translate: 0 0;
+    }
+    30% {
+        translate: 0 calc(-1.4px * var(--haptic-amp, 1));
+    }
+    65% {
+        translate: 0 calc(0.9px * var(--haptic-amp, 1));
+    }
+    100% {
+        translate: 0 0;
+    }
 }
 
-/* Trên điện thoại ở Bước 2 & Bước 3 (Creator Mode): Dịch nhẹ nút âm thanh xuống ngay dưới thanh Header để không chạm nút "📷 Đổi ảnh" hay "‹ Sửa thiệp" */
-@media (max-width: 767px) {
-    .luxury-audio-toggle {
-        height: 34px;
-        padding: 0 8.5px;
+.haptic-micro-pulse {
+    animation: luxuryHapticMicroPulse 115ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* =========================================================================
+   ĐẢM BẢO TUYỆT ĐỐI 2 NÚT KHÔNG LẤN VÀO KHUNG THIỆP Ở BẤT KỲ THIẾT BỊ NÀO
+   Trên mọi màn hình <= 1099px (Mobile dọc/ngang, iPad, Tablet), dành riêng
+   dải Safe-Strip 32px phía trên cùng cho 2 nút âm thanh, đẩy toàn bộ khung
+   thiệp (.screen, .glass-container) nằm gọn bên dưới 100% không chồng lấp.
+   ========================================================================= */
+@media (max-width: 1099px) {
+    .luxury-audio-cluster {
+        top: max(4px, env(safe-area-inset-top, 4px));
+        left: max(8px, env(safe-area-inset-left, 8px));
+        gap: 6px;
     }
 
-    body:not(.u3d-stage-active):not(.recipient-mode):has(#step-2.active, #step-3.active) .luxury-audio-toggle {
-        top: max(56px, calc(env(safe-area-inset-top, 8px) + 50px));
-        left: 10px;
+    .luxury-audio-btn {
+        height: 25px;
+        padding: 0 8.5px;
+        gap: 4px;
+    }
+
+    .luxury-audio-btn .audio-icon-wrap,
+    .luxury-audio-btn .audio-icon-wrap svg {
+        width: 13px;
+        height: 13px;
+    }
+
+    .luxury-audio-btn .audio-bars {
+        height: 9px;
+        width: 9px;
+    }
+
+    .luxury-audio-btn .audio-pill-label {
+        font-size: 0.66rem;
+    }
+
+    .screen {
+        padding-top: calc(max(4px, env(safe-area-inset-top, 4px)) + 30px) !important;
+    }
+
+    .glass-container,
+    .step1-card-column,
+    .step1-card,
+    .main-container,
+    .result-card-container {
+        max-height: calc(100dvh - max(10px, env(safe-area-inset-top, 4px) + env(safe-area-inset-bottom, 6px)) - 31px) !important;
+    }
+}
+
+@media (max-width: 360px) {
+    .luxury-audio-cluster {
+        gap: 4px;
+        left: max(6px, env(safe-area-inset-left, 6px));
+    }
+
+    .luxury-audio-btn {
+        height: 24px;
+        padding: 0 7px;
+    }
+
+    .luxury-audio-btn .audio-pill-label {
+        font-size: 0.62rem;
     }
 }
