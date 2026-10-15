@@ -87,17 +87,79 @@
         }, 680);
     }
 
+    const envAuraGlow = step1El ? step1El.querySelector('.envelope-aura-glow') : null;
+    const envBackLayer = step1El ? step1El.querySelector('.env-back-layer') : null;
+    const envFrontPocketLayer = step1El ? step1El.querySelector('.env-front-pocket-layer') : null;
+    const envTopFlapLayer = step1El ? step1El.querySelector('.env-top-flap-layer') : null;
+    const envWaxSealLayer = step1El ? step1El.querySelector('.env-wax-seal-layer') : null;
+    const step1CardColumn = document.getElementById('step1-card-column');
+
+    let envRafId = 0;
+
+    function clamp01(v) {
+        return v < 0 ? 0 : (v > 1 ? 1 : v);
+    }
+
+    function smoothstep(a, b, x) {
+        const u = clamp01((x - a) / (b - a));
+        return u * u * (3 - 2 * u);
+    }
+
+    function smootherstep01(u) {
+        return u * u * u * (u * (u * 6 - 15) + 10);
+    }
+
+    function cubicBezier(s, p0, p1, p2, p3) {
+        const inv = 1 - s;
+        const inv2 = inv * inv;
+        const s2 = s * s;
+        return inv2 * inv * p0 + 3 * inv2 * s * p1 + 3 * inv * s2 * p2 + s2 * s * p3;
+    }
+
+    function clearEnvelopeInlineStyles() {
+        const els = [envAuraGlow, envBackLayer, envFrontPocketLayer, envTopFlapLayer, envWaxSealLayer, waxSealBtn, step1CardColumn];
+        for (let i = 0; i < els.length; i++) {
+            if (els[i]) {
+                els[i].style.transform = '';
+                els[i].style.opacity = '';
+                els[i].style.visibility = '';
+            }
+        }
+    }
+
+    function readCurrentEnvelopeY() {
+        if (!envBackLayer || typeof window.getComputedStyle !== 'function') return 0;
+        try {
+            const tf = window.getComputedStyle(envBackLayer).transform;
+            if (!tf || tf === 'none') return 0;
+            if (typeof DOMMatrixReadOnly === 'function') {
+                return new DOMMatrixReadOnly(tf).m42 || 0;
+            }
+            const m = tf.match(/matrix\(([^)]+)\)/);
+            if (m) {
+                const parts = m[1].split(',');
+                return parseFloat(parts[5]) || 0;
+            }
+        } catch (_) {}
+        return 0;
+    }
+
     // Hàm đặt lại phong bì 3D về trạng thái đóng lơ lửng (dùng khi Mở lại bì thiệp 3D hoặc Xem thử mở bì thư)
     window.resetEnvelopeToClosedIdle = function () {
+        if (envRafId) {
+            cancelAnimationFrame(envRafId);
+            envRafId = 0;
+        }
         isAnimatingEnvelope = false;
         stopFanAutoCycle();
         stopNaturalBlinkLoop();
         resetStep1CtaToInitial();
-        step1El.classList.remove('env-flap-open', 'env-flap-behind', 'env-letter-pull', 'env-letter-front', 'env-closing-silk', 'envelope-opened');
+        clearEnvelopeInlineStyles();
+        step1El.classList.remove('env-animating', 'env-flap-open', 'env-flap-behind', 'env-letter-pull', 'env-letter-front', 'env-closing-silk', 'envelope-opened');
         step1El.classList.add('env-appeared', 'env-idle-float');
     };
 
-    // ====== 2. HOẠT ẢNH VẬT LÝ MỞ PHONG BÌ LỤA 3D LIỀN MẠCH (CHỈ TÍNH KHI BẤM ĐÚNG VÀO CON DẤU SÁP) ======
+    // ====== 2. HOẠT ẢNH VẬT LÝ MỞ PHONG BÌ LỤA 3D LIỀN MẠCH 60FPS (SINGLE RAF POLYNOMIAL CURVES) ======
     function openPhysicalEnvelope(e) {
         if (e) e.stopPropagation();
         if (isAnimatingEnvelope || step1El.classList.contains('envelope-opened')) return;
@@ -112,9 +174,12 @@
         }
 
         isAnimatingEnvelope = true;
-        window.CardAudio?.playStep1EnvelopeOpenSequence();
+        if (envRafId) {
+            cancelAnimationFrame(envRafId);
+            envRafId = 0;
+        }
 
-        // Đọc tọa độ con dấu sáp TRƯỚC khi ghi classList để tránh 100% Forced Synchronous Layout Reflow trên frame click!
+        // Đọc tọa độ con dấu sáp & vị trí lơ lửng hiện tại TRƯỚC khi ghi DOM để 0ms reflow và 0.00px giật
         let sealCx = window.innerWidth * 0.5;
         let sealCy = window.innerHeight * 0.5;
         if (waxSealBtn) {
@@ -124,85 +189,239 @@
                 sealCy = rect.top + rect.height * 0.5;
             }
         }
+        const startEnvY = readCurrentEnvelopeY();
 
-        step1El.classList.remove('env-idle-float', 'env-closing-silk');
-        step1El.classList.add('env-flap-open');
+        window.CardAudio?.playStep1EnvelopeOpenSequence();
 
-        // Hiệu ứng bung sao vàng ngay tại vị trí con dấu sáp
-        if (typeof spawnTouchSparkle === 'function') {
-            spawnTouchSparkle(sealCx, sealCy, 12);
+        step1El.classList.remove('env-idle-float', 'env-closing-silk', 'env-flap-behind', 'env-letter-front');
+        step1El.classList.add('env-animating', 'env-flap-open');
+        if (step1CardColumn) {
+            step1CardColumn.style.visibility = 'visible';
         }
 
-        // Đưa nắp phong bì ra lớp sau lá thư (z:3) đúng khoảnh khắc nắp xoay qua góc vuông 90° (320ms)
-        setTimeout(() => {
-            step1El.classList.add('env-flap-behind');
-        }, 320);
+        if (typeof spawnTouchSparkle === 'function') {
+            spawnTouchSparkle(sealCx, sealCy, 8);
+        }
 
-        // Tung pháo hoa chúc mừng khi lá thư đang lướt vút qua miệng túi lụa (520ms)
-        setTimeout(() => {
-            if (typeof triggerCelebrationBurst === 'function') {
-                triggerCelebrationBurst();
+        const OPEN_DUR = 1.46;
+        const t0 = performance.now();
+        let flapBehindSet = false;
+        let letterFrontSet = false;
+
+        function stepOpen(now) {
+            const t = Math.min(OPEN_DUR, Math.max(0, (now - t0) * 0.001));
+
+            // 1. Con dấu sáp vàng: nhún nhẹ rồi bay vút lên & tan biến mượt mà (0.00s -> 0.44s)
+            if (waxSealBtn) {
+                const uSeal = clamp01(t / 0.44);
+                const sSeal = 1 - Math.pow(1 - uSeal, 3);
+                const sealY = cubicBezier(sSeal, 0, 2.5, -22, -32);
+                const sealScale = cubicBezier(sSeal, 1.0, 0.94, 1.18, 1.28);
+                const sealRot = sSeal * 10;
+                const sealAlpha = 1 - smoothstep(0.14, 0.96, uSeal);
+                waxSealBtn.style.transform = `translate3d(-50%, calc(-50% + ${sealY.toFixed(2)}px), 0) scale(${sealScale.toFixed(4)}) rotate(${sealRot.toFixed(2)}deg)`;
+                waxSealBtn.style.opacity = sealAlpha.toFixed(4);
             }
-        }, 520);
 
-        // Ngay khi đáy lá thư vượt qua đỉnh vòng cung parabol 3D trên miệng túi (670ms),
-        // chuyển khe chứa thư lên lớp trước (z-index: 14) và mở khóa toàn màn hình để lá thư đáp êm về giữa
-        setTimeout(() => {
-            step1El.classList.add('env-letter-front');
-        }, 670);
+            // 2. Nắp phong bì: lật mở 3D từ 0° -> 180° có độ đàn hồi lụa mềm (0.02s -> 0.62s)
+            const uFlap = clamp01((t - 0.02) / 0.60);
+            const flapEase = smootherstep01(uFlap);
+            const flapOvershoot = Math.sin(uFlap * Math.PI) * 4.2 * smoothstep(0.45, 1.0, uFlap);
+            const flapDeg = flapEase * 180 + flapOvershoot;
 
-        // Khi lá thư đáp nhẹ vào trung tâm màn hình (1160ms): Mở tương tác nút bấm, hiện nút đóng thư & nháy mắt chào
-        setTimeout(() => {
-            step1El.classList.add('envelope-opened');
-            triggerCardBlink(activeFanSlots[1], true);
-            window.CardAudio?.playCardWinkTwinkle();
-        }, 1160);
+            // Đúng frame nắp đi qua góc vuông 90° (độ dày hình chiếu = 0px), chuyển nắp ra sau lá thư
+            if (!flapBehindSet && flapDeg >= 90) {
+                flapBehindSet = true;
+                step1El.classList.add('env-flap-behind');
+            }
 
-        // Kết thúc trọn vẹn chuỗi keyframe lụa 3D (1550ms) và bắt đầu chu kỳ tự động xoay quạt 3 thiệp mẫu
-        setTimeout(() => {
-            step1El.classList.remove('env-flap-open', 'env-letter-front', 'env-letter-pull');
-            isAnimatingEnvelope = false;
-            startFanAutoCycle();
-            startNaturalBlinkLoop();
-        }, 1550);
+            // 3. Thân phong bì: nhún nhẹ lấy đà rồi lướt êm xuống làm đối trọng cho lá thư bay lên (0.08s -> 1.02s)
+            const uEnv = clamp01((t - 0.08) / 0.94);
+            const sEnv = 0.45 * smootherstep01(uEnv) + 0.55 * (1 - Math.pow(1 - uEnv, 2.4));
+            const pressDip = Math.sin(clamp01(t / 0.24) * Math.PI) * 3.5 * (1 - sEnv);
+            const envY = cubicBezier(sEnv, startEnvY, startEnvY + 32, 148, 168) + pressDip;
+            const envScale = cubicBezier(sEnv, 1.0, 0.985, 0.86, 0.84);
+            const envAlpha = 1 - smoothstep(0.26, 0.94, uEnv);
+
+            const bodyTf = `translate3d(0, ${envY.toFixed(2)}px, 0) scale(${envScale.toFixed(4)}) perspective(1100px) rotateX(0deg)`;
+            const flapTf = `translate3d(0, ${envY.toFixed(2)}px, 0) scale(${envScale.toFixed(4)}) perspective(1100px) rotateX(${flapDeg.toFixed(2)}deg)`;
+            const envAlphaStr = envAlpha.toFixed(4);
+
+            if (envBackLayer) {
+                envBackLayer.style.transform = bodyTf;
+                envBackLayer.style.opacity = envAlphaStr;
+            }
+            if (envFrontPocketLayer) {
+                envFrontPocketLayer.style.transform = bodyTf;
+                envFrontPocketLayer.style.opacity = envAlphaStr;
+            }
+            if (envAuraGlow) {
+                envAuraGlow.style.transform = bodyTf;
+                envAuraGlow.style.opacity = envAlphaStr;
+            }
+            if (envWaxSealLayer) {
+                envWaxSealLayer.style.transform = bodyTf;
+            }
+            if (envTopFlapLayer) {
+                envTopFlapLayer.style.transform = flapTf;
+                envTopFlapLayer.style.opacity = envAlphaStr;
+            }
+
+            // 4. Lá thư "Tháng 10 Rạng Rỡ": 1 đường cong Cubic Bezier C-infinity duy nhất từ trong túi lụa ra giữa màn hình (0.12s -> 1.46s)
+            const uCard = clamp01((t - 0.12) / 1.34);
+            const sCard = 0.50 * smootherstep01(uCard) + 0.50 * (1 - Math.pow(1 - uCard, 2.55));
+            const cardY = cubicBezier(sCard, 16, -172, -20, 0);
+            const cardScale = cubicBezier(sCard, 0.46, 0.46, 0.97, 1.00);
+            const cardRotX = cubicBezier(sCard, 7.0, -4.2, 0.6, 0.0);
+            const cardAlpha = smoothstep(0.0, 0.14, uCard);
+
+            // Tại sCard >= 0.42, đáy lá thư đã vượt cao hơn miệng túi phong bì hơn 20px (0px giao cắt) -> chuyển lên z-index: 14
+            if (!letterFrontSet && sCard >= 0.42) {
+                letterFrontSet = true;
+                step1El.classList.add('env-letter-front');
+            }
+
+            if (step1CardColumn) {
+                step1CardColumn.style.opacity = cardAlpha.toFixed(4);
+                step1CardColumn.style.transform = `translate3d(0, ${cardY.toFixed(2)}px, 0) scale(${cardScale.toFixed(4)}) perspective(1100px) rotateX(${cardRotX.toFixed(2)}deg)`;
+            }
+
+            if (t < OPEN_DUR) {
+                envRafId = requestAnimationFrame(stepOpen);
+            } else {
+                envRafId = 0;
+                step1El.classList.add('envelope-opened');
+                step1El.classList.remove('env-animating', 'env-flap-open', 'env-letter-front', 'env-letter-pull');
+                clearEnvelopeInlineStyles();
+                isAnimatingEnvelope = false;
+                triggerCardBlink(activeFanSlots[1], true);
+                window.CardAudio?.playCardWinkTwinkle();
+                startFanAutoCycle();
+                startNaturalBlinkLoop();
+            }
+        }
+
+        envRafId = requestAnimationFrame(stepOpen);
     }
 
-    // ====== 3. HOẠT ẢNH ĐẢO NGƯỢC VẬT LÝ: ĐÚT TẤM THIỆP VÀO LẠI PHONG BÌ & ĐÓNG DẤU SÁP MƯỢT MÀ ======
+    // ====== 3. HOẠT ẢNH ĐẢO NGƯỢC VẬT LÝ 60FPS: ĐÚT TẤM THIỆP VÀO LẠI PHONG BÌ & ĐÓNG DẤU SÁP MƯỢT MÀ ======
     function closePhysicalEnvelope(e) {
         if (e) e.stopPropagation();
         if (isAnimatingEnvelope || !step1El.classList.contains('envelope-opened')) return;
         isAnimatingEnvelope = true;
+        if (envRafId) {
+            cancelAnimationFrame(envRafId);
+            envRafId = 0;
+        }
 
         stopFanAutoCycle();
         stopNaturalBlinkLoop();
+        window.CardAudio?.playStep1EnvelopeCloseSequence();
 
-        // Khởi chạy đồng bộ chuỗi keyframe thu lá thư theo vòng cung 3D & nâng vỏ phong bì lên đón
-        step1El.classList.remove('envelope-opened', 'env-flap-open', 'env-letter-pull');
-        step1El.classList.add('env-closing-silk', 'env-letter-front', 'env-flap-behind');
+        step1El.classList.remove('envelope-opened', 'env-flap-open', 'env-letter-pull', 'env-idle-float');
+        step1El.classList.add('env-animating', 'env-closing-silk', 'env-letter-front', 'env-flap-behind');
+        if (step1CardColumn) {
+            step1CardColumn.style.visibility = 'visible';
+        }
 
-        // Ngay khi lá thư uốn qua đỉnh vòng cung (515ms), đưa lá thư vào khe giữa Lưng bao thư (z:2)/Nắp mở (z:3) và Túi chữ V (z:6)
-        setTimeout(() => {
-            step1El.classList.remove('env-letter-front');
-            resetStep1CtaToInitial();
-        }, 515);
+        const CLOSE_DUR = 1.38;
+        const t0 = performance.now();
+        let letterFrontCleared = false;
+        let flapFrontRestored = false;
 
-        // Khi nắp phong bì gập qua góc 90 độ (1100ms), trả nắp về lớp trước (z:8) đè lên túi chữ V & đóng dấu sáp vàng
-        setTimeout(() => {
-            step1El.classList.remove('env-flap-behind');
-            if (typeof spawnTouchSparkle === 'function' && waxSealBtn) {
-                const rect = waxSealBtn.getBoundingClientRect();
-                if (rect.width > 0) {
-                    spawnTouchSparkle(rect.left + rect.width / 2, rect.top + rect.height / 2, 8);
+        function stepClose(now) {
+            const t = Math.min(CLOSE_DUR, Math.max(0, (now - t0) * 0.001));
+
+            // 1. Lá thư lướt vòng cung 3D thu gọn vào lòng túi chữ V (0.00s -> 1.04s)
+            const uCard = clamp01(t / 1.04);
+            const sCard = 1 - (0.52 * smootherstep01(uCard) + 0.48 * Math.pow(uCard, 2.2));
+            const cardY = cubicBezier(sCard, 16, -172, -20, 0);
+            const cardScale = cubicBezier(sCard, 0.46, 0.46, 0.97, 1.00);
+            const cardRotX = cubicBezier(sCard, 7.0, -4.2, 0.6, 0.0);
+            const cardAlpha = smoothstep(0.0, 0.14, 1 - uCard);
+
+            if (!letterFrontCleared && sCard <= 0.42) {
+                letterFrontCleared = true;
+                step1El.classList.remove('env-letter-front');
+                resetStep1CtaToInitial();
+            }
+
+            if (step1CardColumn) {
+                step1CardColumn.style.opacity = cardAlpha.toFixed(4);
+                step1CardColumn.style.transform = `translate3d(0, ${cardY.toFixed(2)}px, 0) scale(${cardScale.toFixed(4)}) perspective(1100px) rotateX(${cardRotX.toFixed(2)}deg)`;
+            }
+
+            // 2. Thân phong bì trỗi dậy đón lá thư (0.08s -> 1.06s)
+            const uEnv = 1 - clamp01((t - 0.08) / 0.98);
+            const sEnv = smootherstep01(uEnv);
+            const settleBounce = Math.sin(clamp01((t - 0.96) / 0.36) * Math.PI) * 2.5;
+            const envY = cubicBezier(sEnv, 0, 28, 148, 168) + settleBounce;
+            const envScale = cubicBezier(sEnv, 1.0, 0.985, 0.86, 0.84);
+            const envAlpha = 1 - smoothstep(0.30, 0.95, uEnv);
+
+            // 3. Nắp phong bì khép từ 180° về 0° (0.68s -> 1.24s)
+            const uFlap = 1 - clamp01((t - 0.68) / 0.56);
+            const flapDeg = smootherstep01(uFlap) * 180;
+
+            if (!flapFrontRestored && flapDeg <= 90) {
+                flapFrontRestored = true;
+                step1El.classList.remove('env-flap-behind');
+            }
+
+            const bodyTf = `translate3d(0, ${envY.toFixed(2)}px, 0) scale(${envScale.toFixed(4)}) perspective(1100px) rotateX(0deg)`;
+            const flapTf = `translate3d(0, ${envY.toFixed(2)}px, 0) scale(${envScale.toFixed(4)}) perspective(1100px) rotateX(${flapDeg.toFixed(2)}deg)`;
+            const envAlphaStr = envAlpha.toFixed(4);
+
+            if (envBackLayer) {
+                envBackLayer.style.transform = bodyTf;
+                envBackLayer.style.opacity = envAlphaStr;
+            }
+            if (envFrontPocketLayer) {
+                envFrontPocketLayer.style.transform = bodyTf;
+                envFrontPocketLayer.style.opacity = envAlphaStr;
+            }
+            if (envAuraGlow) {
+                envAuraGlow.style.transform = bodyTf;
+                envAuraGlow.style.opacity = envAlphaStr;
+            }
+            if (envWaxSealLayer) {
+                envWaxSealLayer.style.transform = bodyTf;
+            }
+            if (envTopFlapLayer) {
+                envTopFlapLayer.style.transform = flapTf;
+                envTopFlapLayer.style.opacity = envAlphaStr;
+            }
+
+            // 4. Con dấu sáp vàng đóng ấn khóa chặt nắp thư (1.02s -> 1.38s)
+            if (waxSealBtn) {
+                const uSeal = 1 - clamp01((t - 1.02) / 0.36);
+                const sSeal = smootherstep01(uSeal);
+                const sealY = cubicBezier(sSeal, 0, 2, -20, -32);
+                const sealScale = cubicBezier(sSeal, 1.0, 0.95, 1.18, 1.28);
+                const sealRot = sSeal * 10;
+                const sealAlpha = 1 - smoothstep(0.10, 0.92, uSeal);
+                waxSealBtn.style.transform = `translate3d(-50%, calc(-50% + ${sealY.toFixed(2)}px), 0) scale(${sealScale.toFixed(4)}) rotate(${sealRot.toFixed(2)}deg)`;
+                waxSealBtn.style.opacity = sealAlpha.toFixed(4);
+            }
+
+            if (t < CLOSE_DUR) {
+                envRafId = requestAnimationFrame(stepClose);
+            } else {
+                envRafId = 0;
+                step1El.classList.remove('env-animating', 'env-closing-silk', 'env-letter-front', 'env-flap-behind');
+                clearEnvelopeInlineStyles();
+                step1El.classList.add('env-idle-float');
+                isAnimatingEnvelope = false;
+                if (typeof spawnTouchSparkle === 'function' && waxSealBtn) {
+                    const rect = waxSealBtn.getBoundingClientRect();
+                    if (rect.width > 0) {
+                        spawnTouchSparkle(rect.left + rect.width * 0.5, rect.top + rect.height * 0.5, 6);
+                    }
                 }
             }
-        }, 1100);
+        }
 
-        // Hoàn tất đóng phong bì (1440ms) và trở về nhịp thở lơ lửng nhẹ nhàng
-        setTimeout(() => {
-            step1El.classList.remove('env-closing-silk', 'env-letter-front', 'env-flap-behind');
-            step1El.classList.add('env-idle-float');
-            isAnimatingEnvelope = false;
-        }, 1440);
+        envRafId = requestAnimationFrame(stepClose);
     }
 
     if (waxSealBtn) {

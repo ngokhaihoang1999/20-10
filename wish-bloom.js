@@ -73,13 +73,13 @@
         BUD: 1.95,      // nụ hoa 3D trồi lên từ mặt nước
         OPEN: 2.50,     // cánh hoa bắt đầu bung nở từng lớp
         HEART: 3.05,    // lòng hoa & vương miện nhụy vàng 3D toả sáng
-        ENV_IN: 3.55,   // 4 cánh hoa lớp trong cùng gấp Origami 3D thành 4 vạt phong bì
-        LIFT: 4.45,     // đài hoa nâng phong bì tiến về phía người xem
-        LAND: 5.45,     // phong bì dừng đúng tâm màn hình
-        END: 5.60
+        ENV_IN: 3.65,   // 4 cánh hoa lớp trong cùng gấp Origami 3D thành 4 vạt phong bì
+        LIFT: 5.35,     // đài hoa nâng phong bì tiến về phía người xem
+        LAND: 6.35,     // phong bì dừng đúng tâm màn hình
+        END: 6.50
     };
     const T_ORIGAMI_START = 2.85; // 4 cánh hoa trong cùng bắt đầu tách khỏi nhụy hoa bay lên
-    const T_ORIGAMI_LOCK  = 4.06; // 4 vạt thư gấp khớp 180° hoàn chỉnh và bàn giao 1:1 sang DOM
+    const T_ORIGAMI_LOCK  = 4.96; // 4 vạt thư gấp khớp 180° hoàn chỉnh và bàn giao 1:1 sang DOM
 
     function speedAt(t) {
         if (t < 0.70) return 1.0;
@@ -87,10 +87,11 @@
         if (t < 1.60) return 1.75;
         if (t < 1.80) return 0.27;
         if (t < 2.30) return lerp(0.27, 1.10, smooth((t - 1.80) / 0.50));
-        if (t < 2.85) return lerp(1.10, 1.18, smooth((t - 2.30) / 0.55));
-        if (t < 4.20) return lerp(1.18, 0.80, smooth((t - 2.85) / 1.35));
-        if (t < 4.65) return lerp(0.80, 0.92, smooth((t - 4.20) / 0.45));
-        return lerp(0.92, 0.80, smooth((t - 4.65) / 0.95));
+        if (t < 2.85) return lerp(1.10, 0.96, smooth((t - 2.30) / 0.55));
+        if (t < 3.30) return lerp(0.96, 0.66, smooth((t - 2.85) / 0.45));
+        if (t < 4.95) return 0.66;
+        if (t < 5.45) return lerp(0.66, 0.86, smooth((t - 4.95) / 0.50));
+        return lerp(0.86, 0.78, smooth((t - 5.45) / 1.05));
     }
 
 
@@ -104,11 +105,11 @@
         [1.60, -0.90, 540, 62, 24],
         [1.95, -0.80, 500, 52, 36],
         [2.60, -0.52, 465, 96, 70],
-        [3.20, -0.24, 415, 185, 86],
-        [3.75, -0.06, 330, 298, 96],
-        [4.40, 0.00, 218, 354, 96],
-        [5.00, 0.00, 264, 298, 100],
-        [5.60, 0.00, 312, 246, 104]
+        [3.25, -0.22, 405, 195, 88],
+        [4.15, -0.05, 315, 308, 96],
+        [5.25, 0.00, 218, 354, 96],
+        [5.90, 0.00, 264, 298, 100],
+        [6.50, 0.00, 312, 246, 104]
     ];
     const CAM_TAN = CAM_KEYS.map((k, i) => {
         const out = [0, 0, 0, 0, 0];
@@ -2129,17 +2130,17 @@
 
             // 1. Lực đẩy nổi Archimedes (Archimedes Buoyancy): Nụ hoa phóng vọt từ cột nước Worthington, nhô cao rồi nhún xuống mặt nước!
             const archimedesBounce = Math.exp(-tBud * 2.9) * Math.sin(tBud * 8.6) * 7.8;
-            // 2. Phản lực nâng khi 4 cánh hoa trong tách khỏi nhụy (tau = 2.85s) & Độ nhún tải trọng khi 4 vạt thư gấp khép lại trên đài hoa (tau = 3.78s)
+            // 2. Phản lực nâng khi 4 cánh hoa trong tách khỏi nhụy (tau = 2.85s) & Độ nhún tải trọng khi 4 vạt thư gấp khép lại trên đài hoa (tau = 4.84s)
             const tDet = Math.max(0, tau - T_ORIGAMI_START);
             const detachDip = (tau >= T_ORIGAMI_START && tau < 3.65)
                 ? -3.6 * Math.exp(-tDet * 4.4) * Math.sin(tDet * 10.5)
                 : 0;
-            const tLock = Math.max(0, tau - 3.78);
-            const lockDip = (tau >= 3.78 && tau < T.LIFT + 0.25)
+            const tLock = Math.max(0, tau - 4.84);
+            const lockDip = (tau >= 4.84 && tau < T.LIFT + 0.25)
                 ? -8.8 * Math.exp(-tLock * 3.9) * Math.sin(tLock * 11.2)
                 : 0;
             const envWeightDip = detachDip + lockDip;
-            const envPetalFlex = (tau >= 3.78 && tau < T.LIFT + 0.25)
+            const envPetalFlex = (tau >= 4.84 && tau < T.LIFT + 0.25)
                 ? 5.6 * Math.exp(-tLock * 3.6) * Math.sin(tLock * 11.2)
                 : (tau >= T_ORIGAMI_START && tau < 3.65 ? 2.2 * Math.exp(-tDet * 4.2) * Math.sin(tDet * 10.5) : 0);
 
@@ -2955,8 +2956,8 @@
         // Điểm điều khiển Vạt Phong Bì: m=2,3,4 và m=6,7,8 thẳng hàng tuyệt đối trên đường chéo u + |v| = 1.00 để cạnh chữ V phẳng căng 100% như SVG DOM!
         const U_FLAP = [0.00, 0.00, 0.035, 0.50, 0.92, 1.00, 0.92, 0.50, 0.035, 0.00, 0.48];
         const V_FLAP = [0.00, -0.985, -0.965, -0.50, -0.08, 0.00, 0.08, 0.50, 0.965, 0.985, 0.00];
-        const FOLD_STARTS = [3.20, 3.25, 3.42, 3.60]; // Thứ tự gấp vật lý chuẩn: Vạt Trái -> Vạt Phải -> Vạt Đáy -> Nắp Trên
-        const FOLD_DURS   = [0.52, 0.52, 0.50, 0.48];
+        const FOLD_STARTS = [3.42, 3.64, 3.92, 4.22]; // Thứ tự gấp vật lý chuẩn giãn nhịp thong thả: Vạt Trái -> Vạt Phải -> Vạt Đáy -> Nắp Trên
+        const FOLD_DURS   = [0.78, 0.78, 0.76, 0.74];
         const origamiPts = Array.from({ length: 11 }, () => ({ x: 0, y: 0, z: 0, k: 0, v: false }));
         const corePts    = Array.from({ length: 8 },  () => ({ x: 0, y: 0, z: 0, k: 0, v: false }));
         const origamiPathObj = {
@@ -2969,18 +2970,18 @@
         function computeEnvelope(tau, hs, vw, vh, envBaseW, idleY, idleRotZ) {
             if (tau < T_ORIGAMI_START) return { visible: false, origamiActive: false, shadowAlpha: 0, depth: 1e9 };
             const lift = easeInOutCubic(clamp01((tau - T.LIFT) / (T.LAND - T.LIFT)));
-            // Khi 4 vạt thư vừa gấp khép lại tại tau = 3.78s, phong bì nhún nhẹ xuống đài hoa tạo cảm giác có sức nặng vật lý thật
-            const tLock = Math.max(0, tau - 3.78);
-            const dropSettle = (tau >= 3.78)
+            // Khi 4 vạt thư vừa gấp khép lại tại tau = 4.84s, phong bì nhún nhẹ xuống đài hoa tạo cảm giác có sức nặng vật lý thật
+            const tLock = Math.max(0, tau - 4.84);
+            const dropSettle = (tau >= 4.84)
                 ? -10.5 * Math.exp(-tLock * 5.2) * Math.sin(tLock * 11.2)
                 : 0;
-            const envY = hs.H + Math.max(10, finalCrown, hs.crownTop) + 12 + dropSettle + th.hero.envLift * smooth((tau - 3.98) / 0.52);
+            const envY = hs.H + Math.max(10, finalCrown, hs.crownTop) + 12 + dropSettle + th.hero.envLift * smooth((tau - 4.92) / 0.52);
             const envX = hs.sway * 1.15 * (1 - lift);
             project(envX, envY, 0, P0);
             project(envX - cam.rx * ENV_W * 0.5, envY, -cam.rz * ENV_W * 0.5, P1);
             project(envX + cam.rx * ENV_W * 0.5, envY,  cam.rz * ENV_W * 0.5, P2);
             const cradleW = Math.hypot(P2.x - P1.x, P2.y - P1.y);
-            const lockPulse = (tau >= 3.78 && tau < 4.40)
+            const lockPulse = (tau >= 4.84 && tau < 5.32)
                 ? 1 + 0.022 * Math.exp(-tLock * 6.2) * Math.sin(tLock * 14.0)
                 : 1;
             const cradleScale = clamp01(cradleW / Math.max(200, envBaseW)) * lockPulse;
@@ -3015,15 +3016,15 @@
             const eny = sX * u1y - cX * cam.fy;
             const enz = sX * u1z - cX * cam.fz;
 
-            // Chỉ bật DOM Envelope khi 4 cánh hoa trên Canvas 3D đã gấp khép 180° thành hình phong bì (tau >= T_ORIGAMI_LOCK = 4.06s)
+            // Chỉ bật DOM Envelope khi 4 cánh hoa trên Canvas 3D đã gấp khép 180° thành hình phong bì (tau >= T_ORIGAMI_LOCK = 4.96s)
             const domVisible = tau >= T_ORIGAMI_LOCK;
-            const domOpacity = domVisible ? smooth((tau - T_ORIGAMI_LOCK) / 0.24) : 0;
+            const domOpacity = domVisible ? smooth((tau - T_ORIGAMI_LOCK) / 0.26) : 0;
             const shadowAlpha = smooth((tau - 2.95) / 0.55) * (1 - lift * 0.88) * 0.85;
 
             return {
                 visible: domVisible,
                 opacity: domOpacity,
-                origamiActive: tau >= T_ORIGAMI_START && tau < 4.40,
+                origamiActive: tau >= T_ORIGAMI_START && tau < 5.34,
                 shadowAlpha,
                 tx: lerp(cradleTx, 0, lift),
                 ty: lerp(cradleTy, idleY || 0, lift),
@@ -3085,7 +3086,7 @@
 
         function drawPetalOrigamiEnvelope3D(gW, gF, tau, hs, env) {
             if (!env.origamiActive || !hs.visible) return;
-            const canvasAlpha = 1 - smooth((tau - 4.20) / 0.18);
+            const canvasAlpha = 1 - smooth((tau - 5.10) / 0.20);
             if (canvasAlpha <= 0.005) return;
 
             const themeAttr = (stageEl && stageEl.getAttribute('data-theme')) || 'emerald';
@@ -3095,20 +3096,20 @@
 
             const hw = ENV_W * 0.5 * env.lockPulse;
             const hh = ENV_H * 0.5 * env.lockPulse;
-            const detachP = easeInOutCubic(clamp01((tau - T_ORIGAMI_START) / 0.46));
+            const detachP = easeInOutCubic(clamp01((tau - T_ORIGAMI_START) / 0.62));
 
             gW.save();
             gW.globalCompositeOperation = 'source-over';
             gW.lineJoin = 'round';
             gW.lineCap = 'round';
 
-            // 1. Luồng phấn hoa hoàng kim & hào quang ấm áp dâng từ vương miện nhụy vàng lên nâng đỡ 4 cánh hoa (tau = 2.85s -> 3.75s)
-            const filamentFade = smooth((tau - T_ORIGAMI_START) / 0.22) * (1 - smooth((tau - 3.58) / 0.28)) * canvasAlpha;
+            // 1. Luồng phấn hoa hoàng kim & hào quang ấm áp dâng từ vương miện nhụy vàng lên nâng đỡ 4 cánh hoa (tau = 2.85s -> 4.50s)
+            const filamentFade = smooth((tau - T_ORIGAMI_START) / 0.26) * (1 - smooth((tau - 4.15) / 0.38)) * canvasAlpha;
             if (filamentFade > 0.01 && project(hs.sway, hs.H + 10 * hs.scale, 0, P0)) {
                 const auraW = 135 * P0.k, auraH = 95 * P0.k;
                 drawAdditive(gW, S.softAccent, P0.x, P0.y - auraH * 0.25, auraW, auraH, filamentFade * 0.42);
                 for (let f = 0; f < 8; f++) {
-                    const cyc = ((tau - T_ORIGAMI_START) * 1.6 + f * 0.125) % 1;
+                    const cyc = ((tau - T_ORIGAMI_START) * 1.4 + f * 0.125) % 1;
                     const a = (f / 8) * TAU + sc.clock * 1.1;
                     const uEdge = Math.cos(a) * hw * 0.48 * cyc;
                     const vEdge = Math.sin(a) * hh * 0.48 * cyc;
@@ -3121,16 +3122,16 @@
             }
 
             // 2. Lõi Lót Lụa Ngọc Trai (Inner Lining):
-            // QUAN TRỌNG: Không vẽ khung chữ nhật trước khi 4 cánh hoa gấp! Khung chữ nhật chỉ mở rộng từ tâm (0.58 -> 1.0)
-            // ĐỒNG BỘ với quá trình 4 cánh hoa gấp khép vào nhau (tau = 3.22s -> 3.78s), để chính 4 cánh hoa định hình nên chiếc phong bì!
-            const sideFoldProgress = clamp01((tau - 3.22) / 0.52);
-            const liningAppear = smooth((tau - 2.92) / 0.24) * canvasAlpha;
+            // QUAN TRỌNG: Không vẽ khung chữ nhật trước khi 4 cánh hoa gấp! Khung chữ nhật chỉ mở rộng từ tâm (0.56 -> 1.0)
+            // ĐỒNG BỘ với quá trình 4 cánh hoa gấp khép vào nhau (tau = 3.44s -> 4.32s), để chính 4 cánh hoa định hình nên chiếc phong bì!
+            const sideFoldProgress = clamp01((tau - 3.44) / 0.88);
+            const liningAppear = smooth((tau - 2.94) / 0.30) * canvasAlpha;
             if (liningAppear > 0.01) {
                 const perspDamp = 0.45 * sideFoldProgress;
                 const lHw = hw * lerp(0.56, 1.00, easeInOutCubic(sideFoldProgress));
                 const lHh = hh * lerp(0.56, 1.00, easeInOutCubic(sideFoldProgress));
                 const rCorner = lerp(0.42, 0.082, easeInOutCubic(sideFoldProgress));
-                const innerLiningAlpha = smooth((tau - 3.14) / 0.26) * canvasAlpha;
+                const innerLiningAlpha = smooth((tau - 3.32) / 0.34) * canvasAlpha;
 
                 // 2A. Nền lưng & Lót lụa ngọc trai (bo tròn mềm như đài sen khi mới hé, chỉ vuông góc cạnh khi Vạt Trái & Phải gấp vào!)
                 if (sideFoldProgress > 0.25 && traceProjectedRoundedRect(gW, env, lHw, lHh, 0, perspDamp, rCorner)) {
@@ -3159,9 +3160,9 @@
 
             // Hàm nội bộ vẽ tấm Thiệp Ước Nguyện Hoàng Gia (được gọi đúng thứ tự chiều sâu 3D: nằm TRƯỚC cánh hoa phía sau đang mở, và nằm SAU các vạt thư đang gập đè lên mặt trước!)
             function renderSymbolicWishCard3D() {
-                const cardVis = smooth((tau - 2.94) / 0.20) * (1 - smooth((tau - 3.86) / 0.18));
+                const cardVis = smooth((tau - 2.94) / 0.26) * (1 - smooth((tau - 4.74) / 0.22));
                 if (cardVis <= 0.02) return;
-                const cardGrow = lerp(0.58, 1.00, smooth((tau - 2.94) / 0.38));
+                const cardGrow = lerp(0.58, 1.00, smooth((tau - 2.94) / 0.48));
                 const cHw = hw * 0.72 * cardGrow;
                 const cHh = hh * 0.68 * cardGrow;
                 const wCard = 0.22;
@@ -3237,7 +3238,7 @@
 
                     // 4 Dòng chữ thư pháp ánh kim tự khắc mềm mại từ trái sang phải (tượng trưng cho lời chúc đang kết tinh)
                     for (let ln = 0; ln < 4; ln++) {
-                        const writeP = clamp01((tau - (2.96 + ln * 0.07)) / 0.28);
+                        const writeP = clamp01((tau - (2.98 + ln * 0.10)) / 0.36);
                         if (writeP <= 0.02) continue;
                         const lv = cHh * (0.04 - ln * 0.165);
                         const uStart = ln === 0 ? -cHw * 0.32 : (ln === 3 ? -cHw * 0.48 : -cHw * 0.60);
@@ -3267,7 +3268,7 @@
                     }
 
                     // Con dấu mộc đỏ-vàng tượng trưng ở góc dưới bên phải tấm thiệp
-                    const sealAppear = smooth((tau - 3.16) / 0.20);
+                    const sealAppear = smooth((tau - 3.28) / 0.24);
                     if (sealAppear > 0.02) {
                         evalEnvWorldPoint(env, cHw * 0.42, -cHh * 0.44, wCard + 0.04, cardPersp, W0);
                         if (project(W0.x, W0.y, W0.z, P0)) {
@@ -3297,16 +3298,16 @@
 
                 // Khi bắt đầu gấp vào (foldRaw: 0 -> 1), sóng biến hình chạy từ Gốc bản lề (baseMorph) -> Thân cạnh (midMorph) -> Đỉnh chữ V (tipMorph)
                 // giúp cánh hoa vuốt thẳng thành vạt thư tam giác ngay khi vừa dựng qua góc 90°, không bao giờ bị phình cong!
-                const baseMorph = smooth(clamp01(foldRaw / 0.36));
-                const midMorph  = smooth(clamp01((foldRaw - 0.04) / 0.40));
-                const tipMorph  = smooth(clamp01((foldRaw - 0.08) / 0.46));
+                const baseMorph = smooth(clamp01(foldRaw / 0.48));
+                const midMorph  = smooth(clamp01((foldRaw - 0.05) / 0.52));
+                const tipMorph  = smooth(clamp01((foldRaw - 0.10) / 0.58));
                 const perspDamp = 0.45 * tipMorph;
 
                 const openHingeRad = (56 - slot * 1.5) * DEG;
                 const alpha = lerp(openHingeRad, Math.PI, foldP);
                 const cA = Math.cos(alpha), sA = Math.sin(alpha);
 
-                const hingeExpand = lerp(0.38, 1.00, smooth(clamp01(foldRaw / 0.46)));
+                const hingeExpand = lerp(0.38, 1.00, smooth(clamp01(foldRaw / 0.56)));
                 let Hu = 0, Hv = 0, Inu = 0, Inv = 0, Tu = 0, Tv = 0, halfSpan = 0, flapReach = 0, apexShiftV = 0;
                 let petSpanTarget = 0, petReachTarget = 0;
                 if (slot === 0) {
@@ -3491,8 +3492,8 @@
                 if (!isBehindCard) renderOrigamiSlot(slot);
             }
 
-            // 4. Ánh sao kết tinh tại đỉnh Nắp Chữ V đúng khoảnh khắc 4 cánh hoa vừa khép kín thành Phong Bì (tau = 3.96s -> 4.34s)
-            const lockGlow = smooth((tau - 3.94) / 0.14) * (1 - smooth((tau - 4.18) / 0.18));
+            // 4. Ánh sao kết tinh tại đỉnh Nắp Chữ V đúng khoảnh khắc 4 cánh hoa vừa khép kín thành Phong Bì (tau = 4.86s -> 5.24s)
+            const lockGlow = smooth((tau - 4.86) / 0.16) * (1 - smooth((tau - 5.14) / 0.20));
             if (lockGlow > 0.01) {
                 evalEnvWorldPoint(env, 0, -hh * 0.16, 1.2, 0.45, W0);
                 if (project(W0.x, W0.y, W0.z, Q)) {
@@ -3577,7 +3578,7 @@
 
             // 8. Quầng sáng elip mềm mại toả lên phía sau trước khi vẽ Đại Đoá Hoa (không vẽ đè lên cánh hoa để giữ nguyên sắc nhung!)
             if (hs.visible && project(hs.sway, hs.H + 8, 0, Q)) {
-                const plumeA = 0.28 * smooth((tau - 2.65) / 0.7) * (1 - 0.45 * smooth((tau - 4.6) / 0.8));
+                const plumeA = 0.28 * smooth((tau - 2.65) / 0.7) * (1 - 0.45 * smooth((tau - 5.5) / 0.8));
                 if (plumeA > 0.01) {
                     const pw = 290 * Q.k, ph = 320 * Q.k;
                     drawAdditive(gW, S.plume, Q.x, Q.y - ph * 0.28, pw, ph, plumeA);
@@ -3604,8 +3605,8 @@
             }
 
             // 12. Hạt phấn hoa ánh kim bung nhẹ quanh mép phong bì lúc 4 vạt thư vừa gấp khép lại trên đài hoa
-            if (hs.visible && tau >= 3.86) {
-                const bt = (tau - 3.86) / 0.62;
+            if (hs.visible && tau >= 4.82) {
+                const bt = (tau - 4.82) / 0.68;
                 if (bt > 0 && bt < 1) {
                     for (let i = 0; i < burst.length; i++) {
                         const b = burst[i];
@@ -3717,7 +3718,7 @@
                 gF.globalAlpha = 1;
             }
 
-            const lb = vh * 0.068 * clamp01(smooth(tau / 0.35) - smooth((tau - 4.7) / 0.7));
+            const lb = vh * 0.068 * clamp01(smooth(tau / 0.35) - smooth((tau - 5.6) / 0.7));
             if (lb > 0.5) {
                 gF.globalCompositeOperation = 'source-over';
                 gF.globalAlpha = 1;

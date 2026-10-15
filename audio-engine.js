@@ -1057,7 +1057,7 @@
         // 1. Khởi đầu đại cảnh Hồ Gương (tau >= 0.02s)
         if (!wishBloomCueState.started && tau >= 0.02) {
             wishBloomCueState.started = true;
-            setBgmDuck(0.28, 5.8);
+            setBgmDuck(0.28, 7.2);
             setEnvelopeSpatialMuffle(false, 0.4);
             if (canPlayAudio()) {
                 playWarmPadChord(suite.bars[0].pad, now, 2.2, 0.065, sfxBus);
@@ -1158,22 +1158,21 @@
             }
         }
 
-        // 7. 4 Cánh hoa gấp Origami 3D thành 4 vạt chiếc phong bì trên đài hoa (tau >= 3.32s)
-        if (!wishBloomCueState.envIn && tau >= 3.32) {
+        // 7. 4 Cánh hoa gấp Origami 3D thong thả thành 4 vạt chiếc phong bì trên đài hoa (tau >= 3.42s)
+        if (!wishBloomCueState.envIn && tau >= 3.42) {
             wishBloomCueState.envIn = true;
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(0.56, 420, 960, 0.14, 0, 0.02);
+                playSilkPaperWhoosh(1.05, 380, 880, 0.13, 0, 0.02);
                 const foldNotes = [3, 4, 5, 6];
                 foldNotes.forEach((pIdx, f) => {
                     const noteName = suite.pentatonic[pIdx % suite.pentatonic.length];
-                    playMelodyNote(n(noteName) * 2, now + f * 0.14, 0.90, 0.12 + f * 0.01, 'celesta', (f - 1.5) * 0.22, sfxBus);
+                    playMelodyNote(n(noteName) * 2, now + f * 0.34, 1.15, 0.12 + f * 0.01, 'celesta', (f - 1.5) * 0.22, sfxBus);
                 });
             }
         }
 
-
-        // 8. Đài hoa nâng phong bì dâng tặng về phía người xem (tau >= 4.45s = T.LIFT)
-        if (!wishBloomCueState.lift && tau >= 4.45) {
+        // 8. Đài hoa nâng phong bì dâng tặng về phía người xem (tau >= 5.35s = T.LIFT)
+        if (!wishBloomCueState.lift && tau >= 5.35) {
             wishBloomCueState.lift = true;
             setEnvelopeSpatialMuffle(true, 1.1);
             if (canPlayAudio()) {

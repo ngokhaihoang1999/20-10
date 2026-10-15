@@ -667,6 +667,10 @@ input[type="file"] {
     z-index: 9;
 }
 
+.env-layer {
+    transform-origin: 50% 0%;
+}
+
 /* Trạng thái 1: Phong bì hiện lên kỳ diệu (Magical Appear) */
 #step-1.env-appeared .env-layer,
 #step-1.env-appeared .env-wax-seal-layer,
@@ -689,174 +693,33 @@ input[type="file"] {
     50% { transform: translate3d(0, -7px, 0) scale(1) perspective(1100px) rotateX(0deg); }
 }
 
-/* ====== HOẠT ẢNH MỞ NẮP BÌ THƯ & RÚT LÁ THƯ LỤA 3D LIỀN MẠCH (SILKY CONTINUOUS 3D PHYSICS) ====== */
-#step-1.env-appeared.env-flap-open .env-back-layer,
-#step-1.env-appeared.env-flap-open .env-front-pocket-layer,
-#step-1.env-appeared.env-flap-open .env-top-flap-layer,
-#step-1.env-appeared.env-closing-silk .env-back-layer,
-#step-1.env-appeared.env-closing-silk .env-front-pocket-layer,
-#step-1.env-appeared.env-closing-silk .env-top-flap-layer,
-#step-1.env-appeared.envelope-opened .env-back-layer,
-#step-1.env-appeared.envelope-opened .env-front-pocket-layer,
-#step-1.env-appeared.envelope-opened .env-top-flap-layer {
-    transform-origin: 50% 0%;
-}
-
-/* Pha mở bì thư: Thân phong bì nhún nhẹ lấy đà khi tách sáp, nâng nhẹ khi nắp bật mở, rồi lướt êm xuống làm đối trọng cho lá thư bay lên */
-#step-1.env-appeared.env-flap-open .env-back-layer,
-#step-1.env-appeared.env-flap-open .env-front-pocket-layer,
-#step-1.env-appeared.env-flap-open .envelope-aura-glow {
+/* ====== HOẠT ẢNH MỞ NẮP BÌ THƯ & RÚT LÁ THƯ LỤA 3D LIỀN MẠCH 60FPS (DRIVEN BY RAF IN INTRO.JS) ====== */
+#step-1.env-animating .env-layer,
+#step-1.env-animating .env-wax-seal-layer,
+#step-1.env-animating .envelope-aura-glow,
+#step-1.env-animating .env-wax-seal,
+#step-1.env-animating .step1-card-column {
+    transition: none !important;
+    animation: none !important;
     filter: blur(0px);
-    animation: envBodySilkOpen 1.48s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-}
-
-/* Nắp phong bì xoay 3D mềm mại có nhịp đàn hồi lụa (overshoot 184deg -> 178deg -> 180deg) đồng bộ tuyệt đối với thân phong bì */
-#step-1.env-appeared.env-flap-open .env-top-flap-layer {
-    filter: blur(0px);
-    animation: envFlapSilkOpen 1.48s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
 }
 
 #step-1.env-appeared.env-flap-behind .env-top-flap-layer {
     z-index: 3;
 }
 
-/* Pha đóng lại bì thư (khi bấm nút cất thiệp): Thân và nắp phong bì trỗi dậy đón lá thư rồi khép nắp mượt mà */
-#step-1.env-appeared.env-closing-silk .env-back-layer,
-#step-1.env-appeared.env-closing-silk .env-front-pocket-layer,
-#step-1.env-appeared.env-closing-silk .envelope-aura-glow {
-    filter: blur(0px);
-    animation: envBodySilkClose 1.42s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-}
-
-#step-1.env-appeared.env-closing-silk .env-top-flap-layer {
-    filter: blur(0px);
-    animation: envFlapSilkClose 1.42s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-}
-
-@keyframes envBodySilkOpen {
-    0% {
-        opacity: 1;
-        transform: translate3d(0, 0px, 0) scale(1) perspective(1100px) rotateX(0deg);
-    }
-    9% {
-        opacity: 1;
-        transform: translate3d(0, 6px, 0) scale(0.994) perspective(1100px) rotateX(0deg);
-    }
-    22% {
-        opacity: 1;
-        transform: translate3d(0, -3px, 0) scale(1.004) perspective(1100px) rotateX(0deg);
-    }
-    36% {
-        opacity: 0.98;
-        transform: translate3d(0, 32px, 0) scale(0.965) perspective(1100px) rotateX(0deg);
-    }
-    46% {
-        opacity: 0.88;
-        transform: translate3d(0, 64px, 0) scale(0.93) perspective(1100px) rotateX(0deg);
-    }
-    74% {
-        opacity: 0.24;
-        transform: translate3d(0, 116px, 0) scale(0.87) perspective(1100px) rotateX(0deg);
-    }
-    100% {
-        opacity: 0;
-        transform: translate3d(0, 136px, 0) scale(0.85) perspective(1100px) rotateX(0deg);
-    }
-}
-
-@keyframes envFlapSilkOpen {
-    0% {
-        opacity: 1;
-        transform: translate3d(0, 0px, 0) scale(1) perspective(1100px) rotateX(0deg);
-    }
-    9% {
-        opacity: 1;
-        transform: translate3d(0, 6px, 0) scale(0.994) perspective(1100px) rotateX(20deg);
-    }
-    22% {
-        opacity: 1;
-        transform: translate3d(0, -3px, 0) scale(1.004) perspective(1100px) rotateX(94deg);
-    }
-    36% {
-        opacity: 0.98;
-        transform: translate3d(0, 32px, 0) scale(0.965) perspective(1100px) rotateX(185deg);
-    }
-    46% {
-        opacity: 0.88;
-        transform: translate3d(0, 64px, 0) scale(0.93) perspective(1100px) rotateX(177deg);
-    }
-    74% {
-        opacity: 0.24;
-        transform: translate3d(0, 116px, 0) scale(0.87) perspective(1100px) rotateX(180deg);
-    }
-    100% {
-        opacity: 0;
-        transform: translate3d(0, 136px, 0) scale(0.85) perspective(1100px) rotateX(180deg);
-    }
-}
-
-@keyframes envBodySilkClose {
-    0% {
-        opacity: 0;
-        transform: translate3d(0, 136px, 0) scale(0.85) perspective(1100px) rotateX(0deg);
-    }
-    36% {
-        opacity: 0.94;
-        transform: translate3d(0, 58px, 0) scale(0.935) perspective(1100px) rotateX(0deg);
-    }
-    68% {
-        opacity: 1;
-        transform: translate3d(0, -4px, 0) scale(1.004) perspective(1100px) rotateX(0deg);
-    }
-    86% {
-        opacity: 1;
-        transform: translate3d(0, 3px, 0) scale(0.997) perspective(1100px) rotateX(0deg);
-    }
-    100% {
-        opacity: 1;
-        transform: translate3d(0, 0px, 0) scale(1) perspective(1100px) rotateX(0deg);
-    }
-}
-
-@keyframes envFlapSilkClose {
-    0% {
-        opacity: 0;
-        transform: translate3d(0, 136px, 0) scale(0.85) perspective(1100px) rotateX(180deg);
-    }
-    36% {
-        opacity: 0.94;
-        transform: translate3d(0, 58px, 0) scale(0.935) perspective(1100px) rotateX(180deg);
-    }
-    62% {
-        opacity: 1;
-        transform: translate3d(0, -2px, 0) scale(1.002) perspective(1100px) rotateX(176deg);
-    }
-    78% {
-        opacity: 1;
-        transform: translate3d(0, 0px, 0) scale(1) perspective(1100px) rotateX(88deg);
-    }
-    92% {
-        opacity: 1;
-        transform: translate3d(0, 2px, 0) scale(0.998) perspective(1100px) rotateX(-3deg);
-    }
-    100% {
-        opacity: 1;
-        transform: translate3d(0, 0px, 0) scale(1) perspective(1100px) rotateX(0deg);
-    }
-}
-
 /* Trạng thái nghỉ sau khi mở thư hoàn tất */
-#step-1.env-appeared.envelope-opened:not(.env-flap-open) .env-back-layer,
-#step-1.env-appeared.envelope-opened:not(.env-flap-open) .env-front-pocket-layer,
-#step-1.env-appeared.envelope-opened:not(.env-flap-open) .envelope-aura-glow {
+#step-1.env-appeared.envelope-opened:not(.env-animating) .env-back-layer,
+#step-1.env-appeared.envelope-opened:not(.env-animating) .env-front-pocket-layer,
+#step-1.env-appeared.envelope-opened:not(.env-animating) .envelope-aura-glow {
     opacity: 0;
-    transform: translate3d(0, 136px, 0) scale(0.85) perspective(1100px) rotateX(0deg);
+    transform: translate3d(0, 168px, 0) scale(0.84) perspective(1100px) rotateX(0deg);
     pointer-events: none;
 }
 
-#step-1.env-appeared.envelope-opened:not(.env-flap-open) .env-top-flap-layer {
+#step-1.env-appeared.envelope-opened:not(.env-animating) .env-top-flap-layer {
     opacity: 0;
-    transform: translate3d(0, 136px, 0) scale(0.85) perspective(1100px) rotateX(180deg);
+    transform: translate3d(0, 168px, 0) scale(0.84) perspective(1100px) rotateX(180deg);
     pointer-events: none;
 }
 
@@ -865,7 +728,7 @@ input[type="file"] {
     position: absolute;
     top: 55%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate3d(-50%, -50%, 0);
     width: clamp(98px, 27vw, 114px);
     height: clamp(98px, 27vw, 114px);
     background: transparent;
@@ -879,21 +742,22 @@ input[type="file"] {
     justify-content: center;
     border-radius: 50%;
     overflow: visible;
+    will-change: transform, opacity;
     transition:
         transform 0.42s cubic-bezier(0.34, 1.56, 0.64, 1),
         opacity 0.36s ease;
 }
 
-#step-1.env-appeared:not(.env-flap-open):not(.env-closing-silk):not(.envelope-opened) .env-wax-seal {
+#step-1.env-appeared:not(.env-animating):not(.envelope-opened) .env-wax-seal {
     pointer-events: auto;
 }
 
 .env-wax-seal:hover {
-    transform: translate(-50%, -50%) scale(1.06);
+    transform: translate3d(-50%, -50%, 0) scale(1.06);
 }
 
 .env-wax-seal:active {
-    transform: translate(-50%, -50%) scale(0.94);
+    transform: translate3d(-50%, -50%, 0) scale(0.94);
 }
 
 /* Nudge nhẹ con dấu sáp nếu người dùng bấm nhầm ra ngoài vỏ phong bì */
@@ -902,60 +766,16 @@ input[type="file"] {
 }
 
 @keyframes sealAttentionBounce {
-    0%, 100% { transform: translate(-50%, -50%) scale(1); }
-    30% { transform: translate(-50%, -50%) scale(1.14) rotate(-6deg); }
-    65% { transform: translate(-50%, -50%) scale(1.08) rotate(5deg); }
+    0%, 100% { transform: translate3d(-50%, -50%, 0) scale(1); }
+    30% { transform: translate3d(-50%, -50%, 0) scale(1.14) rotate(-6deg); }
+    65% { transform: translate3d(-50%, -50%, 0) scale(1.08) rotate(5deg); }
 }
 
-#step-1.env-flap-open .env-wax-seal {
-    pointer-events: none;
-    animation: envWaxSealSilkRelease 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-#step-1.envelope-opened:not(.env-flap-open) .env-wax-seal {
-    transform: translate(-50%, -66%) scale(1.36) rotate(12deg);
+#step-1.envelope-opened:not(.env-animating) .env-wax-seal {
+    transform: translate3d(-50%, calc(-50% - 32px), 0) scale(1.28) rotate(10deg);
     opacity: 0;
     pointer-events: none;
     transition: none;
-}
-
-#step-1.env-closing-silk .env-wax-seal {
-    pointer-events: none;
-    animation: envWaxSealSilkStamp 1.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-@keyframes envWaxSealSilkRelease {
-    0% {
-        transform: translate(-50%, -50%) scale(1) rotate(0deg);
-        opacity: 1;
-    }
-    18% {
-        transform: translate(-50%, -48%) scale(0.92) rotate(-2deg);
-        opacity: 1;
-    }
-    58% {
-        transform: translate(-50%, -58%) scale(1.18) rotate(6deg);
-        opacity: 0.58;
-    }
-    100% {
-        transform: translate(-50%, -66%) scale(1.36) rotate(12deg);
-        opacity: 0;
-    }
-}
-
-@keyframes envWaxSealSilkStamp {
-    0%, 74% {
-        transform: translate(-50%, -62%) scale(1.32) rotate(10deg);
-        opacity: 0;
-    }
-    90% {
-        transform: translate(-50%, -49%) scale(0.94) rotate(-2deg);
-        opacity: 1;
-    }
-    100% {
-        transform: translate(-50%, -50%) scale(1) rotate(0deg);
-        opacity: 1;
-    }
 }
 
 .wax-seal-Ambient-ring {
@@ -1011,10 +831,9 @@ input[type="file"] {
 }
 
 /* ====== KHE CHỨA LÁ THƯ VẬT LÝ (.envelope-letter-slot) & LÁ THƯ "THÁNG 10 RẠNG RỠ" ======
-   - Khi phong bì đóng: Khe chứa thư cắt gọn bên trong lòng phong bì VÀ lá thư ẩn 100% (opacity: 0, visibility: hidden).
-   - Khi mở nắp & rút thư (env-flap-open): Khe chứa thư (z:4) nằm giữa Lưng phong bì (z:2)/Nắp mở (z:3) và Túi chữ V trước (z:6),
-     đáy clip-path bám sát mép đáy phong bì đang hạ xuống để lá thư không bao giờ đâm xuyên đáy bao thư.
-   - Khi lá thư vượt qua miệng túi (env-letter-front / envelope-opened): Khe chứa thư lên lớp trước (z:14) và mở toàn màn hình. */
+   - Không dùng clip-path để tránh 100% chi phí rasterize mask trên GPU mỗi frame.
+   - Lá thư thu gọn ở scale(0.46) nằm lọt hoàn toàn trong lòng túi chữ V (z:4, giữa Lưng z:2 và Túi trước z:6).
+   - Ngay khi đáy lá thư vượt qua miệng túi đang hạ xuống, z-index chuyển sang 14 với 0px giao cắt. */
 .envelope-letter-slot {
     position: absolute;
     inset: 0;
@@ -1025,78 +844,11 @@ input[type="file"] {
     justify-content: center;
     pointer-events: none;
     z-index: 4;
-    clip-path: inset(
-        calc(50% - var(--env-h) / 2 + 12px)
-        calc(50% - var(--env-w) / 2 + 16px)
-        calc(50% - var(--env-h) / 2 + 12px)
-        calc(50% - var(--env-w) / 2 + 16px)
-        round 16px
-    );
-}
-
-#step-1.env-appeared.env-flap-open:not(.env-letter-front):not(.envelope-opened) .envelope-letter-slot {
-    animation: envSlotClipOpen 1.48s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-}
-
-#step-1.env-appeared.env-closing-silk:not(.env-letter-front) .envelope-letter-slot {
-    animation: envSlotClipClose 0.90s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-}
-
-@keyframes envSlotClipClose {
-    0% {
-        clip-path: inset(
-            0px
-            calc(50% - var(--env-w) / 2 + 10px)
-            calc(50% - var(--env-h) / 2 - 46px)
-            calc(50% - var(--env-w) / 2 + 10px)
-            round 16px
-        );
-    }
-    55%, 100% {
-        clip-path: inset(
-            0px
-            calc(50% - var(--env-w) / 2 + 12px)
-            calc(50% - var(--env-h) / 2 + 12px)
-            calc(50% - var(--env-w) / 2 + 12px)
-            round 16px
-        );
-    }
-}
-
-@keyframes envSlotClipOpen {
-    0%, 22% {
-        clip-path: inset(
-            0px
-            calc(50% - var(--env-w) / 2 + 12px)
-            calc(50% - var(--env-h) / 2 + 12px)
-            calc(50% - var(--env-w) / 2 + 12px)
-            round 16px
-        );
-    }
-    36% {
-        clip-path: inset(
-            0px
-            calc(50% - var(--env-w) / 2 + 10px)
-            calc(50% - var(--env-h) / 2 - 18px)
-            calc(50% - var(--env-w) / 2 + 10px)
-            round 16px
-        );
-    }
-    45%, 100% {
-        clip-path: inset(
-            0px
-            calc(50% - var(--env-w) / 2 + 6px)
-            calc(50% - var(--env-h) / 2 - 54px)
-            calc(50% - var(--env-w) / 2 + 6px)
-            round 14px
-        );
-    }
 }
 
 #step-1.env-appeared.env-letter-front .envelope-letter-slot,
 #step-1.env-appeared.envelope-opened .envelope-letter-slot {
     z-index: 14;
-    clip-path: inset(0px 0px 0px 0px round 0px);
 }
 
 .step1-card-column {
@@ -1109,90 +861,17 @@ input[type="file"] {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    /* Khi chưa mở phong bì: lá thư hoàn toàn ẩn (opacity: 0, visibility: hidden), không bao giờ lộ ra ngoài */
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    transform: translate3d(0, 114px, 0) scale(0.71) perspective(1100px) rotateX(6deg);
+    transform: translate3d(0, 16px, 0) scale(0.46) perspective(1100px) rotateX(7deg);
     will-change: transform, opacity;
 }
 
-/* Khi phong bì mới hiện ra nhưng CHƯA mở: lá thư vẫn ẩn tuyệt đối 100% bên trong phong bì */
 #step-1.env-appeared .step1-card-column {
     opacity: 0;
     visibility: hidden;
-    transform: translate3d(0, 114px, 0) scale(0.71) perspective(1100px) rotateX(6deg);
-}
-
-/* Hoạt ảnh 3D liền mạch 1 nhịp duy nhất: Lá thư thức giấc trong túi lụa -> lướt vút lên qua miệng túi -> uốn vòng cung 3D mềm mại về giữa màn hình */
-#step-1.env-appeared.env-flap-open .step1-card-column {
-    visibility: visible;
-    animation: envLetterSilkEmerge 1.54s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-}
-
-/* Hoạt ảnh cất lá thư ngược vào lại phong bì mượt mà */
-#step-1.env-appeared.env-closing-silk .step1-card-column {
-    visibility: visible;
-    pointer-events: none;
-    animation: envLetterSilkStow 1.42s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
-}
-
-@keyframes envLetterSilkEmerge {
-    0% {
-        opacity: 0;
-        transform: translate3d(0, 114px, 0) scale(0.71) perspective(1100px) rotateX(6deg);
-    }
-    10% {
-        opacity: 1;
-        transform: translate3d(0, 102px, 0) scale(0.715) perspective(1100px) rotateX(4.5deg);
-    }
-    24% {
-        opacity: 1;
-        transform: translate3d(0, 26px, 0) scale(0.735) perspective(1100px) rotateX(1.2deg);
-    }
-    43% {
-        opacity: 1;
-        transform: translate3d(0, -94px, 0) scale(0.758) perspective(1100px) rotateX(-3.5deg);
-    }
-    62% {
-        opacity: 1;
-        transform: translate3d(0, -30px, 0) scale(0.908) perspective(1100px) rotateX(-1.8deg);
-    }
-    82% {
-        opacity: 1;
-        transform: translate3d(0, 4px, 0) scale(1.008) perspective(1100px) rotateX(0.6deg);
-    }
-    100% {
-        opacity: 1;
-        transform: translate3d(0, 0px, 0) scale(1) perspective(1100px) rotateX(0deg);
-    }
-}
-
-@keyframes envLetterSilkStow {
-    0% {
-        opacity: 1;
-        transform: translate3d(0, 0px, 0) scale(1) perspective(1100px) rotateX(0deg);
-    }
-    18% {
-        opacity: 1;
-        transform: translate3d(0, -32px, 0) scale(0.89) perspective(1100px) rotateX(-2deg);
-    }
-    36% {
-        opacity: 1;
-        transform: translate3d(0, -92px, 0) scale(0.752) perspective(1100px) rotateX(-3deg);
-    }
-    64% {
-        opacity: 1;
-        transform: translate3d(0, 88px, 0) scale(0.715) perspective(1100px) rotateX(3.5deg);
-    }
-    80% {
-        opacity: 0.92;
-        transform: translate3d(0, 110px, 0) scale(0.71) perspective(1100px) rotateX(5deg);
-    }
-    92%, 100% {
-        opacity: 0;
-        transform: translate3d(0, 114px, 0) scale(0.71) perspective(1100px) rotateX(6deg);
-    }
+    transform: translate3d(0, 16px, 0) scale(0.46) perspective(1100px) rotateX(7deg);
 }
 
 /* Pha hoàn tất mở thư: Lá thư vượt lên lớp trước (z-index: 14) và bung trọn vẹn 100% giữa màn hình */
@@ -1219,17 +898,30 @@ input[type="file"] {
     animation: none;
 }
 
-/* Tắt tạm thời backdrop-filter & SVG filter khi đang mở nắp / rút thư qua clip-path để giữ 60fps tuyệt đối trên mọi thiết bị */
+/* Giữ toàn bộ tấm thiệp và các lớp con làm 1 bitmap tĩnh duy nhất trên GPU trong suốt lúc rút/cất thiệp (60fps tuyệt đối) */
 #step-1:not(.envelope-opened) .step1-card {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    background: rgba(255, 253, 254, 0.96);
+    background: rgba(255, 253, 254, 0.97);
 }
 
-#step-1.env-flap-open:not(.envelope-opened) .env-top-flap-layer [filter],
-#step-1.env-flap-open:not(.envelope-opened) .env-front-pocket-layer [filter],
-#step-1.env-closing-silk .env-top-flap-layer [filter],
-#step-1.env-closing-silk .env-front-pocket-layer [filter] {
+#step-1:not(.envelope-opened) .fan-Ambient-glow,
+#step-1:not(.envelope-opened) .fan-floating-accent,
+#step-1:not(.envelope-opened) .fan-card-canvas,
+#step-1:not(.envelope-opened) .fan-card-shine::after,
+#step-1:not(.envelope-opened) .wax-seal-Ambient-ring,
+#step-1:not(.envelope-opened) .wax-seal-shine::after {
+    animation-play-state: paused !important;
+}
+
+#step-1:not(.envelope-opened) .fan-card,
+#step-1:not(.envelope-opened) .fan-floating-accent {
+    filter: none !important;
+}
+
+#step-1.env-animating .env-top-flap-layer [filter],
+#step-1.env-animating .env-front-pocket-layer [filter],
+#step-1.env-animating .env-wax-seal-layer [filter] {
     filter: none !important;
 }
 
