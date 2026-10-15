@@ -2864,49 +2864,38 @@ function drawTrue3DWaxShard(ctx, s, rx, ry, rz, baseColor) {
     }
 
     const topFacing = M.m22 >= 0;
-    const drawCap = (pts, isTop) => {
-        ctx.fillStyle = isTop ? (baseColor || '#e5a928') : '#8c5306';
-        ctx.strokeStyle = '#ffefc2';
-        ctx.lineWidth = Math.max(0.6, s * 0.06);
-        ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 1; i < 5; i++) ctx.lineTo(pts[i].x, pts[i].y);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
+    const backPts = topFacing ? _shBot : _shTop;
+    const frontPts = topFacing ? _shTop : _shBot;
 
-        if (isTop) {
-            ctx.fillStyle = 'rgba(255, 252, 230, 0.65)';
-            ctx.beginPath();
-            ctx.moveTo(pts[0].x, pts[0].y);
-            ctx.lineTo(pts[1].x, pts[1].y);
-            ctx.lineTo((pts[0].x + pts[2].x) * 0.5, (pts[0].y + pts[2].y) * 0.5);
-            ctx.closePath();
-            ctx.fill();
-        }
-    };
-
-    // Vẽ mặt đáy ở xa trước
-    drawCap(topFacing ? _shBot : _shTop, !topFacing);
-
-    // Vẽ 5 mặt vát cạnh bên 3D (Side Bevel Quads) của khối sáp
+    // 1. Khối đế vát cạnh 3D phía sau (1 lệnh fill duy nhất thay cho 5 tứ giác rời, giảm 80% draw calls khi đóng sáp!)
     ctx.fillStyle = '#6e3f02';
-    ctx.strokeStyle = 'rgba(255, 239, 194, 0.45)';
-    ctx.lineWidth = 0.55;
-    for (let i = 0; i < 5; i++) {
-        const ni = (i + 1) % 5;
+    ctx.beginPath();
+    ctx.moveTo(backPts[0].x, backPts[0].y);
+    for (let i = 1; i < 5; i++) ctx.lineTo(backPts[i].x, backPts[i].y);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. Mặt chính hướng về camera
+    ctx.fillStyle = topFacing ? (baseColor || '#e5a928') : '#8c5306';
+    ctx.strokeStyle = '#ffefc2';
+    ctx.lineWidth = Math.max(0.6, s * 0.06);
+    ctx.beginPath();
+    ctx.moveTo(frontPts[0].x, frontPts[0].y);
+    for (let i = 1; i < 5; i++) ctx.lineTo(frontPts[i].x, frontPts[i].y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 3. Mặt vát phản quang ánh kim
+    if (topFacing) {
+        ctx.fillStyle = 'rgba(255, 252, 230, 0.65)';
         ctx.beginPath();
-        ctx.moveTo(_shTop[i].x, _shTop[i].y);
-        ctx.lineTo(_shTop[ni].x, _shTop[ni].y);
-        ctx.lineTo(_shBot[ni].x, _shBot[ni].y);
-        ctx.lineTo(_shBot[i].x, _shBot[i].y);
+        ctx.moveTo(frontPts[0].x, frontPts[0].y);
+        ctx.lineTo(frontPts[1].x, frontPts[1].y);
+        ctx.lineTo((frontPts[0].x + frontPts[2].x) * 0.5, (frontPts[0].y + frontPts[2].y) * 0.5);
         ctx.closePath();
         ctx.fill();
-        ctx.stroke();
     }
-
-    // Vẽ mặt chính hướng về phía camera
-    drawCap(topFacing ? _shTop : _shBot, topFacing);
 }
 
 // Hàm vẽ các thực thể Vật Lý 3D trên 2 lớp Canvas (Sau thiệp & Trước thiệp) bằng Hình học 3D Thật 100% (60fps Zero-Lag)
@@ -3377,6 +3366,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     }
 
     u3dActiveOnComplete = onComplete;
+    document.body.classList.toggle('u3d-wish-cinematic', !!(skyOracleMode && window.WishBloomCutscene));
     setMotionEffect(motionId, false);
     applyEnvelopeThemeColors(themeKey);
 
@@ -3448,8 +3438,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         cardSpecular.style.opacity = '0';
     }
 
-    // Đồng bộ ảnh mặt trước của tấm thiệp 3D nằm trong phong bì (Chỉ gán khi đã có ảnh thật hợp lệ)
-    if (cardImg && !isRealRecipient) {
+    // Đồng bộ ảnh mặt trước của tấm thiệp 3D nằm trong phong bì (Chỉ gán khi đã có ảnh thật hợp lệ; với skyOracleMode hoặc khi đang hoãn kết xuất tới sau lúc đóng sáp thì đợi tới trạng thái 'waiting')
+    if (cardImg && !isRealRecipient && !skyOracleMode && !window.hasPendingDeferredCardRender) {
         const finalSrc = finalResultImg ? finalResultImg.getAttribute('src') : '';
         if (finalSrc && !finalSrc.startsWith('data:image/gif')) {
             cardImg.src = finalResultImg.src;
@@ -3501,9 +3491,13 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         }
     });
 
-    // Chuẩn bị 2 lớp Canvas Vật Lý 3D (Giới hạn dpr <= 1.25 trên máy yếu và <= 1.5 trên máy mạnh để đạt tốc độ 60-120fps mượt tuyệt đối)
-    const isLowEndDevice = !!((navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4));
-    const dpr = Math.min(window.devicePixelRatio || 1, isLowEndDevice ? 1.25 : 1.5);
+    // Chuẩn bị 2 lớp Canvas Vật Lý 3D theo Bộ Đo Hiệu Năng 3 Tầng (Tier 2: 1.35x, Tier 1: 1.2x, Tier 0: 1.0x)
+    const perfProfile = (window.WishBloomCutscene && typeof window.WishBloomCutscene.getPerfProfile === 'function')
+        ? window.WishBloomCutscene.getPerfProfile()
+        : null;
+    const perfTier = perfProfile ? perfProfile.tier : (((navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4)) ? 0 : 1);
+    const isLowEndDevice = perfTier === 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, perfProfile ? perfProfile.worldDpr : (isLowEndDevice ? 1.15 : 1.35));
     let curVw = window.innerWidth;
     let curVh = window.innerHeight;
     canvasBack.width = Math.round(curVw * dpr);
@@ -3534,7 +3528,6 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         window.u3dWishBloomScene = null;
     }
     let wishBloom = null;
-    document.body.classList.remove('u3d-wish-cinematic');
     if (floorShadow) floorShadow.style.opacity = '1';
 
     // ĐO TỌA ĐỘ ĐÍCH #card-showcase & ĐỒNG BỘ TỶ LỆ RESPONSIVE (motionScale) VỚI KÍCH THƯỚC THIỆP TRÊN MỌI THIẾT BỊ
@@ -3622,6 +3615,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             document.body.classList.add('u3d-wish-cinematic');
             if (floorShadow) floorShadow.style.opacity = '0';
         } else {
+            document.body.classList.remove('u3d-wish-cinematic');
             u3dCurrentDirectorState = 'sky_oracle';
         }
         stage.classList.add('is-summoning');
@@ -3631,7 +3625,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (sealBtn) {
             sealBtn.style.opacity = '0';
             sealBtn.style.pointerEvents = 'none';
-            sealBtn.style.transform = 'translate3d(0, -40px, 0) scale(2.4)';
+            sealBtn.style.transform = 'translate3d(0, -40px, 0) scale(1.88)';
         }
     } else if (needSummonPrelude) {
         u3dCurrentDirectorState = 'summoning';
@@ -3642,7 +3636,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (sealBtn) {
             sealBtn.style.opacity = '0';
             sealBtn.style.pointerEvents = 'none';
-            sealBtn.style.transform = 'translate3d(0, -40px, 0) scale(2.4)';
+            sealBtn.style.transform = 'translate3d(0, -40px, 0) scale(1.88)';
         }
     } else if (!autoOpen) {
         u3dCurrentDirectorState = 'arriving';
@@ -3655,7 +3649,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (sealBtn) {
             sealBtn.style.opacity = '0';
             sealBtn.style.pointerEvents = 'none';
-            sealBtn.style.transform = 'translate3d(0, -40px, 0) scale(2.4)';
+            sealBtn.style.transform = 'translate3d(0, -40px, 0) scale(1.88)';
         }
     } else {
         u3dCurrentDirectorState = 'waiting';
@@ -3807,66 +3801,63 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     };
     const skyTheme = SKY_GACHA_THEMES[cfg.id] || SKY_GACHA_THEMES.bloom;
 
-    // 3 Vòng Tinh Cầu 3D xoay quanh Cổng Trời Thiên Đỉnh (tọa độ thế giới 3D: x=0, y=-420, z=-920)
-    const skyZenithRings = [
-        { cx: 0, cy: -420, cz: -920, radius: 145 * motionScale, rx: 1.18, ry: 0.22, rz: 0, vrx: 0.65, vry: 1.75, vrz: 3.1, color: skyTheme.ringColorA, glowColor: '#f5c242', lineWidth: 2.6 * motionScale, dashed: false, alpha: 0.96 },
-        { cx: 0, cy: -420, cz: -920, radius: 210 * motionScale, rx: -1.05, ry: 0.68, rz: 0.4, vrx: -1.35, vry: 1.05, vrz: -2.4, color: skyTheme.ringColorB, glowColor: '#d84b7e', lineWidth: 2.1 * motionScale, dashed: true, alpha: 0.88 },
-        { cx: 0, cy: -420, cz: -920, radius: 275 * motionScale, rx: 0.92, ry: -0.82, rz: -0.5, vrx: 0.95, vry: -1.45, vrz: 2.1, color: skyTheme.ringColorC, glowColor: '#fb7185', lineWidth: 1.8 * motionScale, dashed: false, alpha: 0.82 }
-    ];
-
-    // Khởi tạo 96 Ngôi Sao Vũ Trụ 3D đa tầng chiều sâu (Parallax Depth Layers)
+    // 3 Vòng Tinh Cầu 3D xoay quanh Cổng Trời Thiên Đỉnh (chỉ cấp phát khi dùng nhánh dự phòng sky_oracle)
+    const skyZenithRings = [];
     const skyBgStars = [];
-    for (let s = 0; s < 96; s++) {
-        skyBgStars.push({
-            x: (Math.random() - 0.5) * 2400,
-            y: -1050 + Math.random() * 1850,
-            z: -1600 + Math.random() * 1800,
-            u: Math.random(),
-            v: Math.random(),
-            depthLayer: 0.28 + (s % 6) * 0.18,
-            size: (1.4 + Math.random() * 3.2) * Math.sqrt(motionScale),
-            twinklePhase: Math.random() * Math.PI * 2,
-            twinkleSpeed: 3.0 + Math.random() * 5.0,
-            isCross: s % 5 === 0,
-            color: s % 3 === 0 ? skyTheme.ringColorA : (s % 3 === 1 ? '#ffffff' : skyTheme.ringColorB)
-        });
-    }
-
-    // Khởi tạo 22 Tầng Biển Mây Khối 3D FBM (Volumetric FBM Cloud Sea & Diagonal Cloud Corridor)
     const skyClouds3D = [];
-    for (let c = 0; c < 22; c++) {
-        const layerT = c / 21;
-        skyClouds3D.push({
-            x: (c % 2 === 0 ? -1 : 1) * (140 + (c % 5) * 135) + (Math.random() - 0.5) * 140,
-            y: -460 + layerT * 680 + (Math.random() - 0.5) * 60,
-            z: -1200 + layerT * 1320,
-            u: (c / 22 + Math.random() * 0.08) % 1,
-            v: 0.08 + (c % 7) * 0.13 + (Math.random() - 0.5) * 0.05,
-            depthLayer: 0.45 + (c % 5) * 0.28,
-            w: (480 + (c % 4) * 135) * motionScale,
-            h: (270 + (c % 4) * 75) * motionScale,
-            driftSpd: (c % 2 === 0 ? 1 : -1) * (20 + (c % 4) * 8),
-            variant: c % 3 === 0 ? 'gold' : 'primary',
-            alpha: 0.48 + (c % 3) * 0.14
-        });
-    }
-
-    // Khởi tạo 58 Vệt Xé Gió Chéo Gacha
     const skySpeedLines = [];
-    for (let l = 0; l < 58; l++) {
-        const ang = (l / 58) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
-        const rad = 110 + Math.random() * 420;
-        skySpeedLines.push({
-            ang,
-            rad,
-            u: Math.random(),
-            laneOffset: (Math.random() - 0.5) * 1.35,
-            zOffset: Math.random() * 1400,
-            speed: 1850 + Math.random() * 1350,
-            len: (190 + Math.random() * 290) * motionScale,
-            thickness: (1.2 + Math.random() * 2.4) * Math.sqrt(motionScale),
-            color: l % 3 === 0 ? '#ffffff' : (l % 3 === 1 ? skyTheme.trailHelixA : '#ffd700')
-        });
+    if (u3dCurrentDirectorState === 'sky_oracle') {
+        skyZenithRings.push(
+            { cx: 0, cy: -420, cz: -920, radius: 145 * motionScale, rx: 1.18, ry: 0.22, rz: 0, vrx: 0.65, vry: 1.75, vrz: 3.1, color: skyTheme.ringColorA, glowColor: '#f5c242', lineWidth: 2.6 * motionScale, dashed: false, alpha: 0.96 },
+            { cx: 0, cy: -420, cz: -920, radius: 210 * motionScale, rx: -1.05, ry: 0.68, rz: 0.4, vrx: -1.35, vry: 1.05, vrz: -2.4, color: skyTheme.ringColorB, glowColor: '#d84b7e', lineWidth: 2.1 * motionScale, dashed: true, alpha: 0.88 },
+            { cx: 0, cy: -420, cz: -920, radius: 275 * motionScale, rx: 0.92, ry: -0.82, rz: -0.5, vrx: 0.95, vry: -1.45, vrz: 2.1, color: skyTheme.ringColorC, glowColor: '#fb7185', lineWidth: 1.8 * motionScale, dashed: false, alpha: 0.82 }
+        );
+        for (let s = 0; s < 96; s++) {
+            skyBgStars.push({
+                x: (Math.random() - 0.5) * 2400,
+                y: -1050 + Math.random() * 1850,
+                z: -1600 + Math.random() * 1800,
+                u: Math.random(),
+                v: Math.random(),
+                depthLayer: 0.28 + (s % 6) * 0.18,
+                size: (1.4 + Math.random() * 3.2) * Math.sqrt(motionScale),
+                twinklePhase: Math.random() * Math.PI * 2,
+                twinkleSpeed: 3.0 + Math.random() * 5.0,
+                isCross: s % 5 === 0,
+                color: s % 3 === 0 ? skyTheme.ringColorA : (s % 3 === 1 ? '#ffffff' : skyTheme.ringColorB)
+            });
+        }
+        for (let c = 0; c < 22; c++) {
+            const layerT = c / 21;
+            skyClouds3D.push({
+                x: (c % 2 === 0 ? -1 : 1) * (140 + (c % 5) * 135) + (Math.random() - 0.5) * 140,
+                y: -460 + layerT * 680 + (Math.random() - 0.5) * 60,
+                z: -1200 + layerT * 1320,
+                u: (c / 22 + Math.random() * 0.08) % 1,
+                v: 0.08 + (c % 7) * 0.13 + (Math.random() - 0.5) * 0.05,
+                depthLayer: 0.45 + (c % 5) * 0.28,
+                w: (480 + (c % 4) * 135) * motionScale,
+                h: (270 + (c % 4) * 75) * motionScale,
+                driftSpd: (c % 2 === 0 ? 1 : -1) * (20 + (c % 4) * 8),
+                variant: c % 3 === 0 ? 'gold' : 'primary',
+                alpha: 0.48 + (c % 3) * 0.14
+            });
+        }
+        for (let l = 0; l < 58; l++) {
+            const ang = (l / 58) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+            const rad = 110 + Math.random() * 420;
+            skySpeedLines.push({
+                ang,
+                rad,
+                u: Math.random(),
+                laneOffset: (Math.random() - 0.5) * 1.35,
+                zOffset: Math.random() * 1400,
+                speed: 1850 + Math.random() * 1350,
+                len: (190 + Math.random() * 290) * motionScale,
+                thickness: (1.2 + Math.random() * 2.4) * Math.sqrt(motionScale),
+                color: l % 3 === 0 ? '#ffffff' : (l % 3 === 1 ? skyTheme.trailHelixA : '#ffd700')
+            });
+        }
     }
 
     const skyMeteorTrailPts = [];
@@ -3926,12 +3917,18 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     // Khởi tạo hàm kích hoạt mở phong bì vật lý 3D (CHỈ cho phép mở khi đã ở trạng thái 'waiting' và ảnh đã sẵn sàng 100%)
     const startEnvelopePhysicsOpen = () => {
         if (u3dCurrentDirectorState !== 'waiting') return;
+        if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+            window.ensureFinalCardRenderedOnce();
+        }
         if (isRealRecipient && !window.isRecipientCardImageReady) return;
         beginOpenSequence();
     };
 
     function beginOpenSequence() {
         if (u3dCurrentDirectorState === 'opening') return;
+        if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+            window.ensureFinalCardRenderedOnce();
+        }
         if (!cachedTargetRect || window.innerWidth !== curVw || window.innerHeight !== curVh) {
             measureTargetShowcaseOnce();
         }
@@ -5539,15 +5536,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             } catch (_) {}
 
             const sealP = Math.min(1, e / 0.52);
-            let sealScale = 2.5;
-            let sealTy = -56 * motionScale;
+            let sealScale = 1.88;
+            let sealTy = -46 * motionScale;
             let sealOp = 0;
             let recoil = 0;
             if (sealP < 0.62) {
                 const d = sealP / 0.62;
                 const ed = d * d;
-                sealScale = 2.5 - 1.58 * ed;
-                sealTy = -56 * motionScale * (1 - ed);
+                sealScale = 1.88 - 0.96 * ed;
+                sealTy = -46 * motionScale * (1 - ed);
                 sealOp = Math.min(1, d * 1.85);
             } else {
                 const b = (sealP - 0.62) / 0.38;
@@ -5606,6 +5603,13 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     sealBtn.style.opacity = '1';
                     sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
                     sealBtn.style.pointerEvents = 'auto';
+                }
+                if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+                    setTimeout(() => {
+                        if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+                            window.ensureFinalCardRenderedOnce();
+                        }
+                    }, 60);
                 }
             }
             u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
@@ -6075,10 +6079,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             const envP = Math.min(1, arriveElapsed / 0.84);
             const easeEnv = 1 - Math.pow(1 - envP, 3);
 
-            // Pha 2 (0.66s -> 1.18s): Phong Ấn Vàng 24K từ trên giáng xuống đóng dấu lên nắp phong bì
+            // Pha 2 (0.66s -> 1.18s): Phong Ấn Vàng 24K từ trên giáng xuống đóng dấu lên nắp phong bì (giữ scale < 2.0 để tránh tái rasterize SVG trên Chromium)
             const sealP = Math.max(0, Math.min(1, (arriveElapsed - 0.66) / 0.52));
-            let sealScale = 2.5;
-            let sealTy = -56;
+            let sealScale = 1.88;
+            let sealTy = -46;
             let sealOp = 0;
             let envRecoilY = 0;
 
@@ -6086,8 +6090,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 if (sealP < 0.62) {
                     const downP = sealP / 0.62;
                     const easeDown = downP * downP;
-                    sealScale = 2.5 - 1.58 * easeDown;
-                    sealTy = -56 * (1 - easeDown);
+                    sealScale = 1.88 - 0.96 * easeDown;
+                    sealTy = -46 * (1 - easeDown);
                     sealOp = Math.min(1, downP * 1.85);
                 } else {
                     const bounceP = (sealP - 0.62) / 0.38;
@@ -6167,6 +6171,13 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     sealBtn.style.opacity = '1';
                     sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
                     sealBtn.style.pointerEvents = 'auto';
+                }
+                if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+                    setTimeout(() => {
+                        if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+                            window.ensureFinalCardRenderedOnce();
+                        }
+                    }, 60);
                 }
             }
 
@@ -6250,10 +6261,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             const envP = Math.min(1, arriveElapsed / 0.48);
             const easeEnv = 1 - Math.pow(1 - envP, 3);
 
-            // Pha 2 (0.36s -> 0.76s): Con dấu sáp vàng 3D từ trên cao giáng xuống đóng dấu vào nắp phong bì (tại t = 0.60s)
+            // Pha 2 (0.36s -> 0.76s): Con dấu sáp vàng 3D từ trên cao giáng xuống đóng dấu vào nắp phong bì (giữ scale < 2.0 để GPU không tái rasterize SVG)
             const sealP = Math.max(0, Math.min(1, (arriveElapsed - 0.36) / 0.40));
-            let sealScale = 2.45;
-            let sealTy = -42;
+            let sealScale = 1.88;
+            let sealTy = -38;
             let sealOp = 0;
             let envRecoilY = 0;
 
@@ -6261,8 +6272,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 if (sealP < 0.62) {
                     const downP = sealP / 0.62;
                     const easeDown = downP * downP;
-                    sealScale = 2.45 - 1.53 * easeDown; // 2.45 -> 0.92
-                    sealTy = -42 * (1 - easeDown);
+                    sealScale = 1.88 - 0.96 * easeDown; // 1.88 -> 0.92
+                    sealTy = -38 * (1 - easeDown);
                     sealOp = Math.min(1, downP * 1.8);
                 } else {
                     const bounceP = (sealP - 0.62) / 0.38;
@@ -6336,6 +6347,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     sealBtn.style.opacity = '1';
                     sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
                     sealBtn.style.pointerEvents = 'auto';
+                }
+                // Ngay sau khi phong bì đã lướt vào và đóng dấu sáp xong 100% (đang đứng yên ở trạng thái 'waiting'),
+                // mới kết xuất ngầm ảnh tấm thiệp (nếu đang chờ hoãn kết xuất) để những giây đầu đóng sáp mượt 60-120fps tuyệt đối!
+                if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+                    setTimeout(() => {
+                        if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+                            window.ensureFinalCardRenderedOnce();
+                        }
+                    }, 60);
                 }
             }
 
@@ -7406,7 +7426,7 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
         showcaseBgAnimFrameId = null;
     }
 
-    const atlas = getU3DLuxurySpriteAtlas();
+    let atlas = null;
     let lastTime = performance.now();
     let bgFrameTick = 0;
     let hasRenderedInitialBgFrame = false;
@@ -7417,15 +7437,28 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
     const renderLoop = (now) => {
         showcaseBgAnimFrameId = requestAnimationFrame(renderLoop);
         if (document.hidden || !step3 || !step3.classList.contains('active')) return;
-        if (hasRenderedInitialBgFrame && document.body.classList.contains('u3d-wish-cinematic')) return;
+        if (document.body.classList.contains('u3d-wish-cinematic')) return;
 
-        // Khi người dùng vừa bấm ấn sáp mở thiệp (0.00s -> 1.35s: lấy đà ấn sáp + vỡ sáp + đỉnh điểm phun trào túi chữ V),
-        // đóng băng tạm thời khung hình nền #showcase-bg-canvas trên GPU để nhường 100% chu kỳ cho hiệu ứng 3D tiền cảnh!
-        if (hasRenderedInitialBgFrame && u3dCurrentDirectorState === 'opening') {
-            if (u3dOpenElapsed < 1.35) return;
-            bgFrameTick = (bgFrameTick + 1) % 3;
-            if (bgFrameTick !== 0) return;
+        // Khi phong bì đang bay vào đóng dấu sáp (arriving / wish_stamp / sky_descending / summoning)
+        // hoặc khi vừa bấm ấn sáp mở thiệp (0.00s -> 1.35s: lấy đà ấn sáp + vỡ sáp + đỉnh điểm phun trào túi chữ V),
+        // đóng băng tạm thời khung hình nền #showcase-bg-canvas trên GPU (sau khi đã vẽ 1 frame nền tĩnh đầu tiên)
+        // để nhường 100% chu kỳ CPU/GPU cho hiệu ứng 3D tiền cảnh mượt 60fps!
+        if (hasRenderedInitialBgFrame) {
+            if (
+                u3dCurrentDirectorState === 'arriving' ||
+                u3dCurrentDirectorState === 'wish_stamp' ||
+                u3dCurrentDirectorState === 'sky_descending' ||
+                u3dCurrentDirectorState === 'summoning'
+            ) {
+                return;
+            }
+            if (u3dCurrentDirectorState === 'opening') {
+                if (u3dOpenElapsed < 1.35) return;
+                bgFrameTick = (bgFrameTick + 1) % 3;
+                if (bgFrameTick !== 0) return;
+            }
         }
+        if (!atlas) atlas = getU3DLuxurySpriteAtlas();
         hasRenderedInitialBgFrame = true;
 
         lastTime = now;
@@ -7859,34 +7892,53 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = false) {
     const isFromStep2 = (step2 && step2.classList.contains('active')) || document.body.classList.contains('step2-previewing-3d');
 
     if (isFromStep2 && cropperObj) {
-        const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
-        if (canvas) {
-            const img = new Image();
-            img.onload = function () {
-                currentUserImage = img;
-                if (!hasGeneratedQuoteOnce && !currentAIQuote && !customWishText) {
-                    currentAIQuote = getNextQuoteByTopic(currentTopic);
-                    hasGeneratedQuoteOnce = true;
-                }
-                ensureQuoteFont().then(() => {
-                    // Vẽ chế độ isPreviewOnly = true: KHÔNG đánh dấu dirty và TUYỆT ĐỐI KHÔNG gửi lên Telegram!
-                    drawCanvasImageText(finalResultCanvas, true, true);
-                    document.body.classList.add('step2-previewing-3d');
-                    step2.classList.remove('active', 'step2-preloading', 'step2-morph-from');
-                    step3.classList.add('active');
-                    fitCardShowcaseToWrap();
-                    window.launchUnified3DEnvelopeDirector({
-                        autoOpen: false,
-                        motionId: window.currentMotionEffect,
-                        themeKey: currentColorTheme,
-                        isRealRecipient: false,
-                        isStep2Preview: true
-                    });
-                });
-            };
-            img.src = canvas.toDataURL('image/jpeg', 0.95);
-            return;
+        if (!hasGeneratedQuoteOnce && !currentAIQuote && !customWishText) {
+            currentAIQuote = getNextQuoteByTopic(currentTopic);
+            hasGeneratedQuoteOnce = true;
         }
+
+        // TRÌ HOÃN việc cắt ảnh 1024x1526 + vẽ canvas 1024x2060 + nén JPEG cho tới SAU KHI phong bì 3D bay vào và đóng dấu sáp xong (~0.75s)!
+        // Nhờ đó 1 giây đầu tiên khi bấm "Xem thử hiệu ứng mở 3D" hoặc chọn chip 3D hoàn toàn 0ms nghẽn CPU/GPU (mượt 60fps tức thì)!
+        let hasRenderedPreviewCardOnce = false;
+        window.hasPendingDeferredCardRender = true;
+        window.ensureFinalCardRenderedOnce = () => {
+            if (hasRenderedPreviewCardOnce) return;
+            hasRenderedPreviewCardOnce = true;
+            window.hasPendingDeferredCardRender = false;
+            window.ensureFinalCardRenderedOnce = null;
+
+            const canvas = cropperObj ? cropperObj.getCroppedCanvas({ width: 1024, height: 1526 }) : null;
+            if (!canvas) return;
+            canvas._renderId = Date.now();
+            currentUserImage = canvas;
+            // Vẽ chế độ isPreviewOnly = true: KHÔNG đánh dấu dirty và TUYỆT ĐỐI KHÔNG gửi lên Telegram!
+            drawCanvasImageText(finalResultCanvas, true, true);
+            const cardImg = document.getElementById('u3d-card-img');
+            if (cardImg && finalResultCanvas) {
+                if (!finalResultCanvas._cachedDataUrl) {
+                    finalResultCanvas._cachedDataUrl = finalResultCanvas.toDataURL('image/jpeg', 0.92);
+                }
+                cardImg.src = finalResultCanvas._cachedDataUrl;
+                if (typeof cardImg.decode === 'function') {
+                    cardImg.decode().catch(() => {});
+                }
+            }
+        };
+
+        ensureQuoteFont().then(() => {
+            document.body.classList.add('step2-previewing-3d');
+            step2.classList.remove('active', 'step2-preloading', 'step2-morph-from');
+            step3.classList.add('active');
+            fitCardShowcaseToWrap();
+            window.launchUnified3DEnvelopeDirector({
+                autoOpen: false,
+                motionId: window.currentMotionEffect,
+                themeKey: currentColorTheme,
+                isRealRecipient: false,
+                isStep2Preview: true
+            });
+        });
+        return;
     }
 
     // Trường hợp đang ở Bước 3 (sau khi đã bấm Tạo thiệp) và bấm "✉️ Mở thử bì"

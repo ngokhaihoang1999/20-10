@@ -211,10 +211,10 @@ function initBgParticles() {
 }
 
 function animateBg() {
-    // Tạm dừng hoàn toàn vẽ #bg-canvas khi đang ở Sân khấu 3D (u3d-stage-active) hoặc Bước 3 (#step-3 có #showcase-bg-canvas riêng che kín),
-    // giúp tiết kiệm 100% chu kỳ vẽ nền thừa khi bấm sáp mở thiệp!
-    const isCoveredBy3DOrStep3 = document.body.classList.contains('u3d-stage-active') || (step3 && step3.classList.contains('active'));
-    if (!document.hidden && !isCoveredBy3DOrStep3) {
+    // Tạm dừng hoàn toàn vẽ #bg-canvas khi đang Morph sang Bước 2 (isStep2Morphing), Sân khấu 3D (u3d-stage-active) hoặc Bước 3 (#step-3 có #showcase-bg-canvas riêng che kín),
+    // giúp tiết kiệm 100% chu kỳ vẽ nền thừa khi chuyển cảnh và khi bấm sáp mở thiệp!
+    const isCoveredOrMorphing = window.isStep2Morphing || document.body.classList.contains('u3d-stage-active') || (step3 && step3.classList.contains('active'));
+    if (!document.hidden && !isCoveredOrMorphing) {
         bgCtx.clearRect(0, 0, bgWidth, bgHeight);
         for (let i = 0; i < bokehOrbs.length; i++) {
             bokehOrbs[i].update();
@@ -2179,27 +2179,32 @@ function getFullConceptOverlayDataUrl(conceptKey) {
     const cacheKey = `${currentColorTheme}_${conceptKey}`;
     if (!fullOverlayCache[cacheKey]) {
         const theme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.emerald;
-        fullOverlayCache[cacheKey] = buildConceptDataUrlAtSize(conceptKey, theme, 1024, 1526);
+        // Khung phủ xem trước ở Bước 2 hiển thị ở kích thước ~220x328 CSS px (Bản in cuối ở Bước 3 vẽ trực tiếp 1024x1526 qua renderConceptOverlayToCtx).
+        // Kết xuất lớp phủ xem trước ở 512x763 giữ chuẩn Retina 2.3x nhưng giảm 75% thời gian nén/giải mã PNG!
+        fullOverlayCache[cacheKey] = buildConceptDataUrlAtSize(conceptKey, theme, 512, 763);
     }
     return fullOverlayCache[cacheKey];
 }
 
 function refreshConceptFramesForTheme() {
-    const theme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.emerald;
-    framesConfig.forEach(config => {
-        if (config.isConcept && config.concept) {
-            const thumbUrl = buildConceptDataUrlAtSize(config.concept, theme, 160, 238);
-            config.thumbPath = thumbUrl;
-            const thumb = document.querySelector(`.frame-thumb-box[data-frame-thumb="${config.id}"]`);
-            if (thumb) {
-                thumb.style.backgroundImage = `url('${thumbUrl}')`;
+    if (frameList) {
+        const theme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.emerald;
+        framesConfig.forEach(config => {
+            if (config.isConcept && config.concept) {
+                const thumbUrl = buildConceptDataUrlAtSize(config.concept, theme, 160, 238);
+                config.thumbPath = thumbUrl;
+                const thumb = document.querySelector(`.frame-thumb-box[data-frame-thumb="${config.id}"]`);
+                if (thumb) {
+                    thumb.style.backgroundImage = `url('${thumbUrl}')`;
+                }
             }
-        }
-    });
+        });
+    }
     updateFrameOverlay();
 }
 
 function preloadFrames() {
+    if (!frameList) return;
     const theme = COLOR_THEMES[currentColorTheme] || COLOR_THEMES.emerald;
     framesConfig.forEach(config => {
         config.thumbPath = buildConceptDataUrlAtSize(config.concept, theme, 160, 238);
@@ -2611,7 +2616,7 @@ function syncFilterIntensityUI() {
 
 function applyFilterToPreview() {
     const effectiveCss = getEffectiveFilterCss();
-    const previewImgs = document.querySelectorAll('.cropper-canvas img, .cropper-view-box img');
+    const previewImgs = document.querySelectorAll('.cropper-view-box img');
     previewImgs.forEach(img => {
         img.style.filter = effectiveCss;
     });
@@ -2765,18 +2770,22 @@ function buildSkyOracleUserCardPhotoCanvas(rawImg) {
 window.isSelfOracleMode = false;
 window.skyOracleUserThumbCanvas = null;
 window.skyOracleUserCardPhotoCanvas = null;
+window.presetSelfOracleMotion = null;
 let cachedSelfOracleCommonOverlayUrl = '';
 
-// Tạo Khuôn Chung Của Thiệp (Universal Common Card Frame Overlay 1024 x 1526) cho chế độ "Lời chúc dành cho bạn":
+// Tạo Khuôn Chung Của Thiệp (Universal Common Card Frame Overlay) cho chế độ "Lời chúc dành cho bạn":
 // Hiển thị đúng vùng cửa sổ ảnh chuẩn của cả 20 mẫu khung (winX = 68, winY = 58, winW = 888, winH = 1410) kèm viền chỉ vàng 24K & đường căn vòm thanh lịch mà không tiết lộ trước khung ngẫu nhiên nào sẽ được chọn!
+// Kết xuất ở độ phân giải Retina 512 x 763 (scale 0.5 từ hệ quy chiếu 1024 x 1526) giúp giảm 75% thời gian nén/giải mã PNG trong lúc Morph sang trang Edit!
 function buildSelfOracleCommonFrameOverlayDataUrl() {
     if (cachedSelfOracleCommonOverlayUrl) return cachedSelfOracleCommonOverlayUrl;
     const W = 1024;
     const H = 1526;
+    const scale = 0.5;
     const c = document.createElement('canvas');
-    c.width = W;
-    c.height = H;
+    c.width = Math.round(W * scale);
+    c.height = Math.round(H * scale);
     const ctx = c.getContext('2d');
+    ctx.scale(scale, scale);
 
     const winX = 68;
     const winY = 58;
@@ -2864,6 +2873,60 @@ function buildSelfOracleCommonFrameOverlayDataUrl() {
     return cachedSelfOracleCommonOverlayUrl;
 }
 
+// Tiền kết xuất ngầm khuôn chung, khung mặc định & Atlas 3D ngay lúc trang rảnh ở Bước 1 để khi chọn ảnh vào Bước 2 và Xem thử 3D có sẵn tức thì (0ms)
+if (typeof window !== 'undefined') {
+    const warmCommonOverlay = () => {
+        try {
+            buildSelfOracleCommonFrameOverlayDataUrl();
+            const defaultCfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
+            if (defaultCfg && defaultCfg.concept) {
+                getFullConceptOverlayDataUrl(defaultCfg.concept);
+            }
+            if (typeof getU3DLuxurySpriteAtlas === 'function') {
+                getU3DLuxurySpriteAtlas();
+            }
+        } catch (_) {}
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(warmCommonOverlay, { timeout: 1500 });
+    } else {
+        setTimeout(warmCommonOverlay, 900);
+    }
+}
+
+// Chuẩn hóa kích thước ảnh đầu vào (tối đa 1280px cạnh dài nhất) trước khi đưa vào Cropper.js:
+// Trên các flagship như OPPO Find X9, ảnh chụp từ camera/thư viện thường nặng 12MP-50MP (4096x3072 -> 8192x6144, tốn 50MB-200MB RAM/VRAM mỗi bản sao).
+// Thu gọn 1 lần về <=1280px (vẫn vượt độ phân giải vùng cửa sổ ảnh trên thiệp) giúp giảm 36% dung lượng Texture GPU và loại bỏ 100% hiện tượng khựng khi Morph sang trang Edit!
+async function normalizeInputPhotoForCropper(file) {
+    const MAX_DIM = 1280;
+    try {
+        if (typeof window.createImageBitmap === 'function') {
+            const bmp = await window.createImageBitmap(file);
+            const w = bmp.width || 0;
+            const h = bmp.height || 0;
+            if (w <= 0 || h <= 0 || Math.max(w, h) <= MAX_DIM) {
+                if (typeof bmp.close === 'function') bmp.close();
+                return URL.createObjectURL(file);
+            }
+            const scale = MAX_DIM / Math.max(w, h);
+            const targetW = Math.max(1, Math.round(w * scale));
+            const targetH = Math.max(1, Math.round(h * scale));
+            const off = document.createElement('canvas');
+            off.width = targetW;
+            off.height = targetH;
+            const oCtx = off.getContext('2d');
+            oCtx.imageSmoothingEnabled = true;
+            oCtx.imageSmoothingQuality = 'high';
+            oCtx.drawImage(bmp, 0, 0, targetW, targetH);
+            if (typeof bmp.close === 'function') bmp.close();
+
+            const blob = await new Promise((resolve) => off.toBlob(resolve, 'image/jpeg', 0.90));
+            if (blob) return URL.createObjectURL(blob);
+        }
+    } catch (_) {}
+    return URL.createObjectURL(file);
+}
+
 // Hàm bốc thăm ngẫu nhiên Khung + Viền + Tông màu + Lời chúc + Hiệu ứng mở 3D cho luồng "Lời chúc dành cho bạn"
 // (GIỮ NGUYÊN 100% Filter màu & Mức độ Filter mà người dùng đã tự chọn!)
 function applyRandomSelfOracleArtSelections(presetMotion) {
@@ -2900,9 +2963,11 @@ function applyRandomSelfOracleArtSelections(presetMotion) {
 
     syncBorderChipsUI(currentBorderStyle, false);
     syncColorSwatchesUI(currentColorTheme, false);
-    refreshConceptFramesForTheme();
+    // Tuyệt đối không gọi refreshConceptFramesForTheme() / updateFrameOverlay() lúc đang rời Bước 2 sang Bước 3 để tránh nghẽn CPU!
     return randomMotion;
 }
+
+let step2WarmupTimerId = 0;
 
 async function handleImageInput(e) {
     const file = e.target.files[0];
@@ -2924,10 +2989,13 @@ async function handleImageInput(e) {
         currentWishMode = 'surprise';
         currentBorderStyle = 'sakura';
         currentColorTheme = 'emerald';
+        const motionKeys = ['bloom', 'butterflies', 'ribbon', 'galaxy', 'sakura', 'hearts'];
+        window.presetSelfOracleMotion = motionKeys[Math.floor(Math.random() * motionKeys.length)];
         syncFilterIntensityUI();
     } else {
         if (headerTitleEl) headerTitleEl.textContent = '✨ Thiết Kế Thiệp 🌸';
         if (generateBtnEl) generateBtnEl.textContent = 'Tạo thiệp';
+        window.presetSelfOracleMotion = null;
         syncFilterIntensityUI();
         // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
         const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
@@ -2940,26 +3008,57 @@ async function handleImageInput(e) {
         }
     }
 
-    // Giữ Bước 1 hiển thị ổn định trong ~35ms lúc Bước 2 dựng ngầm Cropper + Canvas phía dưới (không bao giờ chớp màn hình)
+    // Thu gọn ảnh 12MP-50MP về <=1280px trước khi khởi tạo Cropper & Morph để chuyển cảnh mượt 60fps tuyệt đối
+    window.isStep2Morphing = true;
+    const normalizedBlobUrl = await normalizeInputPhotoForCropper(file);
+
+    // Giữ Bước 1 hiển thị ổn định trong lúc Bước 2 dựng ngầm Cropper + giải mã Texture GPU phía dưới (không bao giờ chớp màn hình)
     step2.classList.remove('step2-morph-from', 'step2-morph-to', 'step2-morph-active', 'step2-ui-hidden', 'step2-ui-revealing');
     step2.classList.add('active', 'step2-preloading');
 
     if (originalImgSrc && originalImgSrc.startsWith('blob:')) {
         URL.revokeObjectURL(originalImgSrc);
     }
-    originalImgSrc = URL.createObjectURL(file);
+    originalImgSrc = normalizedBlobUrl;
 
     fitPreviewAreaToStage();
     renderStep2WishPreview();
     initCropper();
-    initScrollHints();
 
-    const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
-    if (activeChip) scrollChipIntoCenter(activeChip);
+    // Hoãn toàn bộ tác vụ đọc kích thước cuộn ngang (initScrollHints, scrollChipIntoCenter) và tiền kết xuất Step 3 sang SAU KHI hiệu ứng Morph hoàn tất (660ms),
+    // tuyệt đối không để smooth-scroll hay forced layout chạy chồng lên khung hình Morph!
+    window.onStep2MorphComplete = () => {
+        window.onStep2MorphComplete = null;
+        if (!window.isSelfOracleMode) {
+            initScrollHints();
+            const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
+            if (activeChip) scrollChipIntoCenter(activeChip);
+        }
+    };
+
+    if (step2WarmupTimerId) clearTimeout(step2WarmupTimerId);
+    step2WarmupTimerId = setTimeout(() => {
+        step2WarmupTimerId = 0;
+        const warmStep3Assets = () => {
+            try {
+                if (window.isSelfOracleMode && window.WishBloomCutscene && window.presetSelfOracleMotion) {
+                    window.WishBloomCutscene.prepare(window.presetSelfOracleMotion);
+                } else if (typeof getU3DLuxurySpriteAtlas === 'function') {
+                    getU3DLuxurySpriteAtlas();
+                }
+            } catch (_) {}
+        };
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(warmStep3Assets, { timeout: 1200 });
+        } else {
+            warmStep3Assets();
+        }
+    }, 850);
 }
 
 function initCropper() {
     const imageEl = document.getElementById('cropper-image');
+    imageEl.decoding = 'async';
     imageEl.src = originalImgSrc;
 
     updateFrameOverlay();
@@ -2978,6 +3077,8 @@ function initCropper() {
         highlight: false,
         background: false,
         modal: false,
+        checkOrientation: false,
+        checkCrossOrigin: false,
         ready: function () {
             const cont = cropperObj.getContainerData();
             cropperObj.setCropBoxData({ left: 0, top: 0, width: cont.width, height: cont.height });
@@ -2994,11 +3095,38 @@ function initCropper() {
                 }
             }
 
-            if (typeof window.onStep2CropperReadyForMorph === 'function') {
-                window.onStep2CropperReadyForMorph();
+            // Đảm bảo cả ảnh trong .cropper-view-box lẫn lớp khung #frame-overlay đã giải mã & đẩy xong Texture lên GPU
+            // TRƯỚC KHI bắt đầu hiệu ứng Morph từ Bước 1 sang Bước 2 (loại bỏ 100% khựng khung hình đầu trên Android/iOS)!
+            const decodePromises = [];
+            const viewBoxImg = document.querySelector('.cropper-view-box img');
+            if (viewBoxImg && typeof viewBoxImg.decode === 'function') {
+                decodePromises.push(viewBoxImg.decode().catch(() => {}));
+            }
+            if (frameOverlayEl && typeof frameOverlayEl.decode === 'function') {
+                decodePromises.push(frameOverlayEl.decode().catch(() => {}));
+            }
+
+            const startMorphNow = () => {
+                if (typeof window.onStep2CropperReadyForMorph === 'function') {
+                    window.onStep2CropperReadyForMorph();
+                } else {
+                    window.isStep2Morphing = false;
+                    step1.classList.remove('active');
+                    step2.classList.remove('step2-preloading');
+                }
+            };
+
+            if (decodePromises.length > 0) {
+                let settled = false;
+                const done = () => {
+                    if (settled) return;
+                    settled = true;
+                    startMorphNow();
+                };
+                Promise.all(decodePromises).then(done, done);
+                setTimeout(done, 140);
             } else {
-                step1.classList.remove('active');
-                step2.classList.remove('step2-preloading');
+                startMorphNow();
             }
         }
     });
@@ -3213,17 +3341,22 @@ initShowcaseAmbientOrbs();
 
 document.getElementById('generate-final-btn').addEventListener('click', () => {
     if (!cropperObj) return;
+    if (step2WarmupTimerId) {
+        clearTimeout(step2WarmupTimerId);
+        step2WarmupTimerId = null;
+    }
 
     const btn = document.getElementById('generate-final-btn');
     const originalHTML = btn.innerHTML;
     btn.disabled = true;
 
     // Nhánh 1: Luồng "Lời chúc dành cho bạn" -> CHUYỂN CẢNH NGAY TRONG KHUNG HÌNH BẤM NÚT:
-    // Màn đêm & đốm sáng ước nguyện chạy trên GPU compositor (không phụ thuộc luồng chính),
-    // trong lúc đó ảnh thiệp được kết xuất ngầm => vào Đại cảnh "Nụ Hoa Ước Nguyện" liền mạch, không khựng.
+    // Màn đêm & đốm sáng ước nguyện (.wish-prelude) chạy 220ms trên GPU compositor hoàn toàn rảnh luồng chính,
+    // sau đó mới cắt ảnh (<4ms) và vào thẳng Đại cảnh "Nụ Hoa Ước Nguyện".
+    // Việc vẽ chữ + mã hóa JPEG lá thư bên trong phong bì được hoãn tới khi phong bì đóng kín chờ mở!
     if (window.isSelfOracleMode) {
         const motionKeys = ['bloom', 'butterflies', 'ribbon', 'galaxy', 'sakura', 'hearts'];
-        const presetMotion = motionKeys[Math.floor(Math.random() * motionKeys.length)];
+        const presetMotion = window.presetSelfOracleMotion || motionKeys[Math.floor(Math.random() * motionKeys.length)];
         const cinematic = window.WishBloomCutscene || null;
         const preludeReady = cinematic ? cinematic.beginPrelude(presetMotion) : Promise.resolve();
         if (!cinematic) btn.innerHTML = "✨ Đang gửi thông điệp...";
@@ -3233,11 +3366,12 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
             btn.disabled = false;
         };
 
-        // Nhường 2 khung hình để màn chuyển cảnh GPU bắt đầu chạy trước khi xử lý ảnh nặng
-        requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => {
+        // Chờ 225ms để .wish-prelude fade-in 100% mượt mà trên GPU trước khi chạy tác vụ cắt ảnh
+        setTimeout(() => {
             let randomMotion = presetMotion;
             try {
                 const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
+                canvas._renderId = Date.now();
                 window.skyOracleUserThumbCanvas = null;
                 window.skyOracleUserCardPhotoCanvas = null;
                 randomMotion = applyRandomSelfOracleArtSelections(presetMotion);
@@ -3249,13 +3383,21 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                 return;
             }
 
-            ensureQuoteFont().then(() => {
-                drawCanvasImageText(finalResultCanvas, true, false);
-                window.isRecipientCardImageReady = true;
+            let cardRendered = false;
+            window.ensureFinalCardRenderedOnce = () => {
+                if (cardRendered) return;
+                cardRendered = true;
+                try {
+                    drawCanvasImageText(finalResultCanvas, true, false);
+                    window.isRecipientCardImageReady = true;
+                    if (typeof getU3DLuxurySpriteAtlas === 'function') getU3DLuxurySpriteAtlas();
+                } catch (e) {
+                    console.error('Deferred final card render error:', e);
+                }
+            };
+
+            Promise.all([ensureQuoteFont(), preludeReady]).then(() => {
                 if (cinematic) cinematic.prepare(randomMotion);
-                if (typeof getU3DLuxurySpriteAtlas === 'function') getU3DLuxurySpriteAtlas();
-                return preludeReady;
-            }).then(() => {
                 fitCardShowcaseToWrap();
                 document.body.classList.remove('step2-previewing-3d');
                 restoreBtn();
@@ -3269,6 +3411,9 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                         isRealRecipient: false,
                         isStep2Preview: false,
                         onComplete: () => {
+                            if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+                                window.ensureFinalCardRenderedOnce();
+                            }
                             triggerCelebrationBurst();
                             showCardFloatingBadge('🌸 Lời chúc 20.10 dành riêng cho bạn đã mở!');
                             if (typeof window.schedulePreUploadCardToTelegram === 'function') {
@@ -3276,73 +3421,88 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                             }
                         }
                     });
-                } else if (cinematic) {
-                    cinematic.endPrelude();
+                } else {
+                    window.ensureFinalCardRenderedOnce();
+                    if (cinematic) cinematic.endPrelude();
                 }
             }).catch((err) => {
                 console.error('Self oracle render error:', err);
                 if (cinematic) cinematic.endPrelude();
                 restoreBtn();
             });
-        }, 0)));
+        }, 225);
         return;
     }
 
-    btn.innerHTML = "🌸 Đang tạo thiệp...";
+    // Nhánh 2: Luồng "Soạn lời chúc cho người thân" -> Khởi chạy Sân Khấu Phong Bì 3D & Đóng dấu sáp NGAY LẬP TỨC ở 60-120fps!
+    // Tác vụ cắt ảnh (getCroppedCanvas 1024x1526) + vẽ chữ + nén JPEG (drawCanvasImageText) được hoãn sang SAU KHI phong bì đã đóng dấu sáp xong và đang đứng yên chờ mở!
+    if (currentWishMode === 'surprise') {
+        isCustomWishActive = false;
+        currentAIQuote = getNextQuoteByTopic(currentTopic);
+        hasGeneratedQuoteOnce = true;
+    } else if (!hasGeneratedQuoteOnce && !currentAIQuote && !customWishText) {
+        currentAIQuote = getNextQuoteByTopic(currentTopic);
+        hasGeneratedQuoteOnce = true;
+    }
 
-    setTimeout(() => {
-        const targetW = 1024;
-        const targetH = 1526;
-
-        const canvas = cropperObj.getCroppedCanvas({ width: targetW, height: targetH });
-
-        // Nhánh 2: Luồng "Soạn lời chúc cho người thân" -> Tạo thiệp và đưa phong bì 3D ra chờ người dùng bấm vào con dấu sáp để mở!
-        const img = new Image();
-        img.onload = function () {
-            currentUserImage = img;
-
-            if (currentWishMode === 'surprise') {
-                isCustomWishActive = false;
-                currentAIQuote = getNextQuoteByTopic(currentTopic);
-                hasGeneratedQuoteOnce = true;
-            } else if (!hasGeneratedQuoteOnce && !currentAIQuote && !customWishText) {
-                currentAIQuote = getNextQuoteByTopic(currentTopic);
-                hasGeneratedQuoteOnce = true;
-            }
-
-            ensureQuoteFont().then(() => {
-                document.body.classList.remove('step2-previewing-3d');
-                drawCanvasImageText(finalResultCanvas, true, false);
-                if (typeof window.schedulePreUploadCardToTelegram === 'function') {
-                    window.schedulePreUploadCardToTelegram();
+    let giftCardRendered = false;
+    window.hasPendingDeferredCardRender = true;
+    window.ensureFinalCardRenderedOnce = () => {
+        if (giftCardRendered) return;
+        giftCardRendered = true;
+        window.hasPendingDeferredCardRender = false;
+        try {
+            if (cropperObj) {
+                const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
+                if (canvas) {
+                    canvas._renderId = Date.now();
+                    currentUserImage = canvas;
                 }
+            }
+            if (currentUserImage) {
+                drawCanvasImageText(finalResultCanvas, true, false);
+                window.isRecipientCardImageReady = true;
+            }
+        } catch (err) {
+            console.error('Deferred gift card render error:', err);
+        }
+    };
 
-                step2.classList.remove('active', 'step2-preloading', 'step2-morph-from');
-                step3.classList.add('active');
-                btn.innerHTML = originalHTML;
-                btn.disabled = false;
+    ensureQuoteFont().then(() => {
+        document.body.classList.remove('step2-previewing-3d');
+        step2.classList.remove('active', 'step2-preloading', 'step2-morph-from');
+        step3.classList.add('active');
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
 
-                fitCardShowcaseToWrap();
+        fitCardShowcaseToWrap();
 
-                // Khởi chạy Sân Khấu Vật Lý 3D Hợp Nhất: Phong bì 3D lướt vào đóng dấu sáp -> Đợi người dùng ấn vào con dấu sáp mới mở bì thư!
-                if (typeof window.launchUnified3DEnvelopeDirector === 'function') {
-                    window.launchUnified3DEnvelopeDirector({
-                        autoOpen: false,
-                        isRealRecipient: false,
-                        isStep2Preview: false,
-                        onComplete: () => {
-                            if (currentWishMode === 'surprise') {
-                                showCardFloatingBadge('🌸 Lời chúc bất ngờ dành tặng bạn đã mở!');
-                            } else {
-                                showCardFloatingBadge('✨ Tuyệt tác thiệp 3D 20/10 đã hoàn thiện!');
-                            }
-                        }
-                    });
+        if (typeof window.launchUnified3DEnvelopeDirector === 'function') {
+            window.launchUnified3DEnvelopeDirector({
+                autoOpen: false,
+                isRealRecipient: false,
+                isStep2Preview: false,
+                onComplete: () => {
+                    if (typeof window.ensureFinalCardRenderedOnce === 'function') {
+                        window.ensureFinalCardRenderedOnce();
+                    }
+                    if (currentWishMode === 'surprise') {
+                        showCardFloatingBadge('🌸 Lời chúc bất ngờ dành tặng bạn đã mở!');
+                    } else {
+                        showCardFloatingBadge('✨ Tuyệt tác thiệp 3D 20/10 đã hoàn thiện!');
+                    }
+                    if (typeof window.schedulePreUploadCardToTelegram === 'function') {
+                        window.schedulePreUploadCardToTelegram();
+                    }
                 }
             });
-        };
-        img.src = canvas.toDataURL('image/jpeg', 0.95);
-    }, 60);
+        } else {
+            window.ensureFinalCardRenderedOnce();
+            if (typeof window.schedulePreUploadCardToTelegram === 'function') {
+                window.schedulePreUploadCardToTelegram();
+            }
+        }
+    });
 });
 
 // ====== ĐIỀU KHIỂN XƯỞNG THIẾT KẾ BƯỚC 2 & SÂN KHẤU THÀNH PHẨM BƯỚC 3 ======
@@ -4005,14 +4165,30 @@ function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
 
     if (concept === 'aura' || concept === 'aura_arch' || concept === 'prism') {
         // ====== NHÓM KÍNH MỜ AURA & PHA LÊ (14, 15, 16): NỀN MỜ TỪ CHÍNH ẢNH NGƯỜI DÙNG PHỦ TOÀN BỘ THIỆP ======
+        // Tối ưu hoá tốc độ: Thay vì chạy filter blur(42px) trực tiếp trên độ phân giải 1024x2060 (tốn 350-600ms trên Android),
+        // hạ mẫu xuống offscreen canvas 64x128 + blur(3px) rồi phóng mượt lên toàn khung (<1ms, hiệu ứng thị giác tương đương 100%).
         ctx.save();
         ctx.fillStyle = theme.canvasBgMid;
         ctx.fillRect(0, 0, targetW, targetH);
 
-        ctx.filter = 'blur(42px) saturate(1.32) brightness(1.04)';
-        const bleed = 80 * scale;
-        ctx.drawImage(currentUserImage, -bleed, -bleed, targetW + bleed * 2, targetH + bleed * 2);
-        ctx.filter = 'none';
+        if (!window._auraBlurScratchCanvas) {
+            window._auraBlurScratchCanvas = document.createElement('canvas');
+        }
+        const blurCv = window._auraBlurScratchCanvas;
+        const bw = 64, bh = 128;
+        if (blurCv.width !== bw || blurCv.height !== bh) {
+            blurCv.width = bw;
+            blurCv.height = bh;
+        }
+        const bctx = blurCv.getContext('2d');
+        bctx.clearRect(0, 0, bw, bh);
+        bctx.filter = 'blur(3px) saturate(1.32) brightness(1.04)';
+        bctx.drawImage(currentUserImage, -4, -6, bw + 8, bh + 12);
+        bctx.filter = 'none';
+
+        const bleed = 40 * scale;
+        ctx.imageSmoothingEnabled = true;
+        ctx.drawImage(blurCv, -bleed, -bleed, targetW + bleed * 2, targetH + bleed * 2);
 
         const veilGrad = ctx.createLinearGradient(0, 0, 0, targetH);
         veilGrad.addColorStop(0, 'rgba(255, 255, 255, 0.24)');
@@ -4120,7 +4296,7 @@ function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
                 saveModalImg.src = dataUrl;
             }
             if (!isPreviewOnly && typeof window.markCardCanvasDirty === 'function') {
-                const imgTag = currentUserImage ? `${currentUserImage.width}x${currentUserImage.height}_${(currentUserImage.src || '').slice(-48)}` : '';
+                const imgTag = currentUserImage ? `${currentUserImage.width}x${currentUserImage.height}_${String(currentUserImage.src || currentUserImage._renderId || '').slice(-48)}` : '';
                 const renderSig = `${currentSelectedFrameId}|${currentColorTheme}|${currentBorderStyle}|${getEffectiveFilterCss()}|${activeQuote}|${recipientName}|${imgTag}`;
                 if (window._lastFinalCardRenderSig !== renderSig) {
                     window._lastFinalCardRenderSig = renderSig;

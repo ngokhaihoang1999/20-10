@@ -1617,6 +1617,8 @@
     function captureStep1OriginForMorph() {
         clearActiveMorphTimers();
         morphHasStarted = false;
+        stopFanAutoCycle();
+        stopNaturalBlinkLoop();
 
         let originCx = window.innerWidth / 2;
         let originCy = window.innerHeight * 0.44;
@@ -1646,20 +1648,23 @@
 
         pendingMorphOrigin = { originCx, originCy, originW, boxCy, boxW, boxH };
 
-        // Phòng hờ ảnh quá lớn giải mã lâu hơn 320ms thì vẫn tự động chạy chuyển cảnh mượt
+        // Phòng hờ ảnh quá lớn giải mã lâu hơn 1200ms thì vẫn tự động chạy chuyển cảnh mượt
         activeMorphCleanupTimers.push(setTimeout(() => {
             if (!morphHasStarted && typeof window.onStep2CropperReadyForMorph === 'function') {
                 window.onStep2CropperReadyForMorph();
             }
-        }, 320));
+        }, 1200));
     }
 
-    // Được gọi từ initCropper.ready() trong script.js sau khi toàn bộ tác vụ nặng (Cropper + giải mã ảnh + vẽ Canvas) đã xong 100%
+    // Được gọi từ initCropper.ready() trong script.js sau khi toàn bộ tác vụ nặng (Cropper + giải mã ảnh GPU .decode() + vẽ Canvas) đã xong 100%
     window.onStep2CropperReadyForMorph = function () {
         if (morphHasStarted || !step2El) return;
         morphHasStarted = true;
+        window.isStep2Morphing = true;
+        clearActiveMorphTimers();
 
-        // Chờ 1 nhịp RAF để trình duyệt đẩy xong texture của Cropper lên GPU trước khi bắt đầu chuyển động
+        // Nhịp RAF 1: Khi #step-2 vẫn đang ở trạng thái .step2-preloading (opacity: 0.001 nằm dưới #step-1),
+        // đo kích thước đích và áp sẵn .step2-morph-from để trình duyệt tạo GPU Layer mà KHÔNG cần ép reflow đồng bộ (void offsetWidth)!
         requestAnimationFrame(() => {
             const previewAreaWrap = document.getElementById('preview-area-wrap');
             const mainContainer = step2El.querySelector('.main-container');
@@ -1695,19 +1700,28 @@
                 step2El.style.setProperty('--morph-img-scale', imgScale.toFixed(3));
             }
 
-            // Frame 0: Đặt toàn bộ Khung nền, Tấm hình và các Element Edit vào trạng thái xuất phát (step2-morph-from) trước khi hiển thị
+            // Đặt toàn bộ Khung nền, Tấm hình và các Element Edit vào vị trí xuất phát (.step2-morph-from) ngay khi vẫn đang ẩn dưới Bước 1
             step2El.classList.remove('step2-morph-to');
             step2El.classList.add('step2-morph-from');
-            void step2El.offsetWidth;
 
-            // Bật hiển thị Bước 2 ở độ đục 100% và ẩn Bước 1 trong cùng 1 frame (không bao giờ bị chớp màn hình)
-            step2El.classList.remove('step2-preloading');
-            step1El.classList.remove('active');
-
-            // Frame 1: Chuyển sang trạng thái đích .step2-morph-to và giữ nguyên suốt phiên chỉnh sửa (tuyệt đối không gỡ class sau khi kết thúc để tránh chớp màn hình)
+            // Nhịp RAF 2: Sau khi trình duyệt đã commit xong GPU Layers của .step2-morph-from,
+            // lật hiển thị sang Bước 2 và ẩn Bước 1 mượt mà 0ms
             requestAnimationFrame(() => {
-                step2El.classList.remove('step2-morph-from');
-                step2El.classList.add('step2-morph-to');
+                step2El.classList.remove('step2-preloading');
+                if (step1El) step1El.classList.remove('active');
+
+                // Nhịp RAF 3: Kích hoạt chuyển động trượt mượt .step2-morph-to thuần GPU Compositor
+                requestAnimationFrame(() => {
+                    step2El.classList.remove('step2-morph-from');
+                    step2El.classList.add('step2-morph-to');
+
+                    activeMorphCleanupTimers.push(setTimeout(() => {
+                        window.isStep2Morphing = false;
+                        if (typeof window.onStep2MorphComplete === 'function') {
+                            window.onStep2MorphComplete();
+                        }
+                    }, 660));
+                });
             });
         });
     };

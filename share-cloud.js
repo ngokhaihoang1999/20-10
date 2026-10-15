@@ -291,18 +291,26 @@ window.syncTelegramMessageCaptionIfUploaded = function () {
 // Tự động lưu ngầm lên Telegram CHỈ KHI người dùng đã bấm "Tạo thiệp" chuyển sang Bước 3 (TUYỆT ĐỐI không chạy khi đang Xem thử 3D ở Bước 2!)
 window.schedulePreUploadCardToTelegram = function () {
     setTimeout(() => {
-        if (
-            currentUserImage &&
-            finalResultCanvas &&
-            step3 &&
-            step3.classList.contains('active') &&
-            !document.body.classList.contains('step2-previewing-3d')
-        ) {
-            uploadCardToTelegramBot().catch((err) => {
-                console.warn('Pre-upload Telegram sẽ thử lại khi mở bảng chia sẻ:', err);
-            });
+        const runUpload = () => {
+            if (
+                currentUserImage &&
+                finalResultCanvas &&
+                step3 &&
+                step3.classList.contains('active') &&
+                !document.body.classList.contains('step2-previewing-3d') &&
+                !document.body.classList.contains('u3d-wish-cinematic')
+            ) {
+                uploadCardToTelegramBot().catch((err) => {
+                    console.warn('Pre-upload Telegram sẽ thử lại khi mở bảng chia sẻ:', err);
+                });
+            }
+        };
+        if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(runUpload, { timeout: 2000 });
+        } else {
+            runUpload();
         }
-    }, 600);
+    }, 900);
 };
 
 // ====== 4. ĐIỀU KHIỂN MODAL ĐẶT TÊN LINK & COPY HYPERLINK ẨN URL DƯỚI TÊN THIỆP ======

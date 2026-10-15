@@ -65,6 +65,242 @@
     }
 
     // ---------------------------------------------------------------------------------
+    // HỆ THỐNG ĐO LƯỜNG & NHẬN DIỆN HIỆU NĂNG THIẾT BỊ 3 TẦNG (3-LAYER DEVICE PROFILER)
+    //   Tầng 1: Nhận diện GPU thực tế qua WebGL Renderer + CPU/RAM + Môi trường WebView
+    //   Tầng 2: Đo nhịp khung hình nền (phát hiện Low Power Mode 30Hz) + Micro-Benchmark Canvas 2D
+    //   Tầng 3: Giám sát thời gian vẽ thực tế (renderMs & frameAvg) + Hạ cấp đa bậc (Tier 2 -> 1 -> 0)
+    // ---------------------------------------------------------------------------------
+    const rafProbe = {
+        samples: [],
+        lastTs: 0,
+        done: false,
+        running: false,
+        medianMs: 16.7,
+        p85Ms: 16.7,
+        is30HzCapped: false,
+        isJittery: false
+    };
+
+    function startPassiveFrameProbe() {
+        if (rafProbe.running || rafProbe.done || typeof requestAnimationFrame !== 'function') return;
+        rafProbe.running = true;
+        function tick(now) {
+            if (document.hidden) {
+                rafProbe.lastTs = 0;
+                requestAnimationFrame(tick);
+                return;
+            }
+            if (rafProbe.lastTs > 0) {
+                const dtMs = now - rafProbe.lastTs;
+                if (dtMs > 4 && dtMs < 120) {
+                    rafProbe.samples.push(dtMs);
+                }
+            }
+            rafProbe.lastTs = now;
+            if (rafProbe.samples.length < 22) {
+                requestAnimationFrame(tick);
+            } else {
+                const sorted = rafProbe.samples.slice().sort((a, b) => a - b);
+                const mid = sorted[sorted.length >> 1] || 16.7;
+                const p85 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.85))] || mid;
+                rafProbe.medianMs = mid;
+                rafProbe.p85Ms = p85;
+                // Phát hiện Chế độ Tiết kiệm Pin (Low Power Mode trên iOS/Android khóa RAF ở ~30fps = 33.3ms)
+                rafProbe.is30HzCapped = mid > 26.5 && mid < 42.0;
+                rafProbe.isJittery = !rafProbe.is30HzCapped && p85 > 22.5;
+                rafProbe.done = true;
+                rafProbe.running = false;
+                if (cachedPerfProfile) {
+                    recomputePerfTier(cachedPerfProfile);
+                }
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+
+    function detectGpuCapability() {
+        let renderer = '';
+        let gpuTier = 2; // 0: Low, 1: Mid, 2: High
+        try {
+            const c = document.createElement('canvas');
+            c.width = 1;
+            c.height = 1;
+            const gl = c.getContext('webgl', { powerPreference: 'default', failIfMajorPerformanceCaveat: false })
+                || c.getContext('experimental-webgl');
+            if (!gl) {
+                return { renderer: 'no-webgl', gpuTier: 0 };
+            }
+            const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+            renderer = String((dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) || '');
+            const loseExt = gl.getExtension('WEBGL_lose_context');
+            if (loseExt) loseExt.loseContext();
+        } catch (_) {
+            return { renderer: 'error', gpuTier: 1 };
+        }
+
+        const r = renderer.toLowerCase();
+        // GPU phần mềm hoặc dòng GPU di động/tích hợp yếu
+        if (
+            /swiftshader|llvmpipe|software|basic render|microsoft basic/i.test(r) ||
+            /mali-4|mali-t|mali-g3|mali-g51|mali-g52|mali-g57/i.test(r) ||
+            /adreno[^0-9]*(3\d\d|4\d\d|5\d\d|610|612|615|616|618|619)/i.test(r) ||
+            /powervr|img ge8|img bxe/i.test(r) ||
+            /apple a(7|8|9|10|11)\b/i.test(r) ||
+            /hd graphics (400|405|500|505|510|515|520|530|610|615|620)/i.test(r)
+        ) {
+            gpuTier = 0;
+        } else if (
+            /adreno[^0-9]*(620|630|640|642|650|660|710|720)/i.test(r) ||
+            /mali-g(68|71|72|76|77|78|610)/i.test(r) ||
+            /apple a(12|13|14)\b/i.test(r) ||
+            /uhd graphics|iris/i.test(r)
+        ) {
+            gpuTier = 1;
+        } else if (/apple gpu/i.test(r)) {
+            // Safari iOS 14+ ẩn số hiệu chip thành "Apple GPU" -> dựa thêm vào kích thước màn hình & DPR
+            const maxDim = Math.max(window.screen ? window.screen.width : 390, window.screen ? window.screen.height : 844);
+            const rawDpr = window.devicePixelRatio || 2;
+            if (maxDim <= 736 || rawDpr < 2.5) {
+                gpuTier = 1; // iPhone SE / XR / 11 / 8 Plus
+            }
+        }
+        return { renderer, gpuTier };
+    }
+
+    function runCanvasMicroBenchmark() {
+        try {
+            const w = 200, h = 200;
+            const c = makeCanvas(w, h);
+            const g = c.getContext('2d');
+            if (!g) return 2.5;
+
+            const glow = makeCanvas(32, 32);
+            const gg = glow.getContext('2d');
+            const rg = gg.createRadialGradient(16, 16, 0, 16, 16, 16);
+            rg.addColorStop(0, 'rgba(255, 220, 180, 1)');
+            rg.addColorStop(1, 'rgba(255, 220, 180, 0)');
+            gg.fillStyle = rg;
+            gg.fillRect(0, 0, 32, 32);
+
+            const drawPass = (iters) => {
+                g.globalCompositeOperation = 'source-over';
+                const bg = g.createLinearGradient(0, 0, 0, h);
+                bg.addColorStop(0, '#070310');
+                bg.addColorStop(0.5, '#1f0926');
+                bg.addColorStop(1, '#4e193d');
+                g.fillStyle = bg;
+                g.fillRect(0, 0, w, h);
+
+                for (let i = 0; i < iters; i++) {
+                    const x0 = 20 + (i % 6) * 26;
+                    const y0 = 25 + ((i / 6) | 0) * 32;
+                    const x3 = x0 + 28, y3 = y0 - 24;
+                    const pg = g.createLinearGradient(x0, y0, x3, y3);
+                    pg.addColorStop(0.0, '#2d0212');
+                    pg.addColorStop(0.3, '#940a3b');
+                    pg.addColorStop(0.7, '#de3b70');
+                    pg.addColorStop(1.0, '#ffd8e5');
+                    g.fillStyle = pg;
+                    g.beginPath();
+                    g.moveTo(x0, y0);
+                    g.quadraticCurveTo(x0 - 14, y0 - 12, x3, y3);
+                    g.quadraticCurveTo(x0 + 14, y0 - 12, x0, y0);
+                    g.closePath();
+                    g.fill();
+                    g.strokeStyle = 'rgba(255, 240, 245, 0.35)';
+                    g.lineWidth = 1.1;
+                    g.stroke();
+                }
+
+                g.globalCompositeOperation = 'lighter';
+                for (let j = 0; j < 10; j++) {
+                    g.drawImage(glow, (j * 17) % 160, (j * 23) % 160, 36, 36);
+                }
+            };
+
+            // Làm nóng JIT 2 vòng trước khi bấm giờ
+            drawPass(4);
+            const t0 = performance.now();
+            drawPass(22);
+            return Math.max(0.1, performance.now() - t0);
+        } catch (_) {
+            return 2.5;
+        }
+    }
+
+    let cachedPerfProfile = null;
+
+    function recomputePerfTier(prof) {
+        const rawDpr = window.devicePixelRatio || 1;
+        let tier = 2; // 2: High, 1: Medium/Balanced, 0: Low/Performance
+
+        if (
+            prof.gpuTier === 0 ||
+            prof.cores <= 4 ||
+            (prof.memory > 0 && prof.memory <= 3) ||
+            prof.benchMs > 3.6 ||
+            (rafProbe.is30HzCapped && prof.benchMs > 2.2) ||
+            (prof.isInApp && (prof.cores <= 6 || (prof.memory > 0 && prof.memory <= 4)) && prof.benchMs > 2.3)
+        ) {
+            tier = 0;
+        } else if (
+            prof.gpuTier === 1 ||
+            prof.isInApp ||
+            rafProbe.is30HzCapped ||
+            rafProbe.isJittery ||
+            prof.benchMs > 1.65 ||
+            (prof.isMobile && prof.memory > 0 && prof.memory <= 4)
+        ) {
+            tier = 1;
+        }
+
+        prof.tier = tier;
+        prof.isLowEnd = tier === 0;
+        prof.is30HzCapped = rafProbe.is30HzCapped;
+        prof.rafMedianMs = rafProbe.medianMs;
+        prof.worldDpr = tier === 2
+            ? Math.min(rawDpr, prof.isMobile ? 1.25 : 1.45)
+            : (tier === 1 ? Math.min(rawDpr, 1.0) : Math.min(rawDpr, 0.82));
+        prof.directorDpr = tier === 2
+            ? Math.min(rawDpr, 1.5)
+            : (tier === 1 ? Math.min(rawDpr, 1.22) : Math.min(rawDpr, 1.0));
+        return prof;
+    }
+
+    function getDevicePerfProfile() {
+        if (cachedPerfProfile) return cachedPerfProfile;
+        const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+        const isInApp = /Telegram|FBAN|FBAV|Instagram|Messenger|Line|Zalo|TikTok/i.test(ua);
+        const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || isIOS;
+        const cores = navigator.hardwareConcurrency || 4;
+        const memory = navigator.deviceMemory || 0;
+        const gpu = detectGpuCapability();
+        const benchMs = runCanvasMicroBenchmark();
+
+        cachedPerfProfile = {
+            cores,
+            memory,
+            isInApp,
+            isIOS,
+            isMobile,
+            gpuRenderer: gpu.renderer,
+            gpuTier: gpu.gpuTier,
+            benchMs,
+            tier: 1,
+            isLowEnd: false,
+            is30HzCapped: rafProbe.is30HzCapped,
+            rafMedianMs: rafProbe.medianMs,
+            worldDpr: 1.0,
+            directorDpr: 1.25
+        };
+        return recomputePerfTier(cachedPerfProfile);
+    }
+
+    // Khởi chạy đo nhịp khung hình thụ động ngay khi nạp script
+    startPassiveFrameProbe();
+
+    // ---------------------------------------------------------------------------------
     // MỐC THỜI GIAN KỂ CHUYỆN (tau)
     // ---------------------------------------------------------------------------------
     const T = {
@@ -983,7 +1219,8 @@
         }));
         const R = rng(1337 + id.length * 4099 + id.charCodeAt(0) * 97);
         const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
-        const isLowEndHW = !!((navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4));
+        const perfProfile = getDevicePerfProfile();
+        const perfTier = reduced ? 0 : perfProfile.tier; // 2: Cao cấp, 1: Tầm trung, 0: Tiết kiệm
         const rgbRipple = th.ripple;
         const rgbSpec = th.waterSpec;
 
@@ -995,8 +1232,9 @@
 
         // Đèn hoa đăng bờ xa
         const shoreLights = [];
-        for (let i = 0; i < 26; i++) {
-            const a = (i / 26) * TAU + (R() - 0.5) * 0.08;
+        const shoreLightCount = perfTier === 2 ? 26 : (perfTier === 1 ? 18 : 12);
+        for (let i = 0; i < shoreLightCount; i++) {
+            const a = (i / shoreLightCount) * TAU + (R() - 0.5) * 0.08;
             const dist = 1220 + R() * 160;
             shoreLights.push({
                 x: Math.cos(a) * dist,
@@ -1009,8 +1247,9 @@
 
         // Mây khối 3D
         const skyClouds = [];
-        for (let i = 0; i < 12; i++) {
-            const az = (i / 12) * TAU + (R() - 0.5) * 0.2;
+        const cloudCount = perfTier === 2 ? 12 : (perfTier === 1 ? 9 : 6);
+        for (let i = 0; i < cloudCount; i++) {
+            const az = (i / cloudCount) * TAU + (R() - 0.5) * 0.2;
             const el = (9 + (i % 4) * 6 + R() * 5) * DEG;
             skyClouds.push({
                 az,
@@ -1038,7 +1277,8 @@
 
         // Vảy sóng phản quang phối cảnh trên mặt nước
         const waterFacets = [];
-        for (let i = 0; i < 130; i++) {
+        const facetCount = perfTier === 2 ? 120 : (perfTier === 1 ? 84 : 52);
+        for (let i = 0; i < facetCount; i++) {
             const spread = (R() - 0.5) * 1100;
             const depth = -1250 + R() * 1750;
             waterFacets.push({
@@ -1052,8 +1292,9 @@
 
         // Sương mù mặt hồ
         const lakeMists = [];
-        for (let i = 0; i < 16; i++) {
-            const a = (i / 16) * TAU + R() * 0.3;
+        const mistCount = perfTier === 2 ? 16 : (perfTier === 1 ? 12 : 8);
+        for (let i = 0; i < mistCount; i++) {
+            const a = (i / mistCount) * TAU + R() * 0.3;
             const r = 340 + R() * 760;
             lakeMists.push({
                 x: Math.cos(a) * r,
@@ -1066,8 +1307,9 @@
 
         // Khu vườn hoa 3D trên mặt hồ
         const ground = [];
-        for (let i = 0; i < th.groundCount; i++) {
-            const t = i / th.groundCount;
+        const groundTotal = Math.max(12, Math.round(th.groundCount * (perfTier === 2 ? 1.0 : (perfTier === 1 ? 0.78 : 0.55))));
+        for (let i = 0; i < groundTotal; i++) {
+            const t = i / groundTotal;
             const r = 185 + 560 * Math.pow(t, 0.62) + (R() - 0.5) * 28;
             const a = i * 2.39996 + (R() - 0.5) * 0.22;
             ground.push({
@@ -1089,7 +1331,8 @@
 
         // Đom đóm
         const flies = [];
-        for (let i = 0; i < th.fireflies; i++) {
+        const fireflyTotal = Math.max(10, Math.round(th.fireflies * (perfTier === 2 ? 1.0 : (perfTier === 1 ? 0.76 : 0.52))));
+        for (let i = 0; i < fireflyTotal; i++) {
             const r = 140 + 620 * Math.sqrt(R()), a = R() * TAU;
             flies.push({
                 x: Math.cos(a) * r,
@@ -1102,7 +1345,8 @@
 
         // Cánh hoa 3D xoay lượn trong gió
         const drift = [];
-        for (let i = 0; i < th.driftCount; i++) {
+        const driftTotal = Math.max(8, Math.round(th.driftCount * (perfTier === 2 ? 1.0 : (perfTier === 1 ? 0.76 : 0.52))));
+        for (let i = 0; i < driftTotal; i++) {
             const dr = 110 + 440 * Math.sqrt(R()), da = R() * TAU;
             drift.push({
                 x0: Math.cos(da) * dr,
@@ -1118,7 +1362,8 @@
 
         // Đàn bướm 3D
         const flyers = [];
-        const flyerCount = th.butterflies ? 16 : 5;
+        const baseFlyers = th.butterflies ? 16 : 5;
+        const flyerCount = perfTier === 2 ? baseFlyers : (perfTier === 1 ? Math.max(4, Math.round(baseFlyers * 0.75)) : Math.max(3, Math.round(baseFlyers * 0.55)));
         for (let i = 0; i < flyerCount; i++) {
             const fromHeart = i >= Math.floor(flyerCount * 0.45);
             flyers.push({
@@ -1153,13 +1398,14 @@
         }
 
         // Hệ thống thuỷ động lực học khi sao băng chạm mặt nước:
-        // 36 giọt nước văng parabol vật lý (tự sinh vòng sóng phụ khi rơi chạm lại mặt hồ!)
+        // Giọt nước văng parabol vật lý (tự sinh vòng sóng phụ khi rơi chạm lại mặt hồ!)
         const GRAV = 920;
         const splash = [];
-        for (let i = 0; i < 36; i++) {
+        const splashCount = perfTier === 2 ? 32 : (perfTier === 1 ? 22 : 14);
+        for (let i = 0; i < splashCount; i++) {
             const v = 220 + R() * 340;
             const el = (42 + R() * 38) * DEG;
-            const az = (i / 36) * TAU + (R() - 0.5) * 0.14;
+            const az = (i / splashCount) * TAU + (R() - 0.5) * 0.14;
             const vh0 = Math.cos(el) * v;
             const vy0 = Math.sin(el) * v;
             const tLand = (2 * vy0) / GRAV;
@@ -1174,10 +1420,11 @@
             });
         }
 
-        // 14 phiến màng nước vương miện 3D (Liquid Crown Splash Sheets) bung lên quanh miệng hố va chạm
+        // Phiến màng nước vương miện 3D (Liquid Crown Splash Sheets) bung lên quanh miệng hố va chạm
         const crownSheets = [];
-        for (let i = 0; i < 14; i++) {
-            const az = (i / 14) * TAU + (R() - 0.5) * 0.08;
+        const crownSheetCount = perfTier === 2 ? 14 : (perfTier === 1 ? 10 : 7);
+        for (let i = 0; i < crownSheetCount; i++) {
+            const az = (i / crownSheetCount) * TAU + (R() - 0.5) * 0.08;
             crownSheets.push({
                 az,
                 span: (0.16 + R() * 0.10),
@@ -1187,10 +1434,11 @@
             });
         }
 
-        // 26 giọt nước hồ rũ rơi vật lý từ đầu các cánh hoa khi nụ hoa trồi lên và bung mở
+        // Giọt nước hồ rũ rơi vật lý từ đầu các cánh hoa khi nụ hoa trồi lên và bung mở
         const bloomDrops = [];
-        for (let i = 0; i < 26; i++) {
-            const az = (i / 26) * TAU + (R() - 0.5) * 0.18;
+        const bloomDropCount = perfTier === 2 ? 24 : (perfTier === 1 ? 16 : 10);
+        for (let i = 0; i < bloomDropCount; i++) {
+            const az = (i / bloomDropCount) * TAU + (R() - 0.5) * 0.18;
             const layerIdx = i % 3;
             const tDetach = T.BUD + 0.16 + layerIdx * 0.24 + (i % 5) * 0.09;
             const r0 = 28 + layerIdx * 24 + R() * 22;
@@ -1214,10 +1462,11 @@
             });
         }
 
-        // 28 hạt phấn hoa hoàng kim bung nở vật lý khi tâm hoa thức tỉnh (tau = T.HEART)
+        // Hạt phấn hoa hoàng kim bung nở vật lý khi tâm hoa thức tỉnh (tau = T.HEART)
         const pollenParticles = [];
-        for (let i = 0; i < 28; i++) {
-            const az = (i / 28) * TAU + (R() - 0.5) * 0.2;
+        const pollenCount = perfTier === 2 ? 26 : (perfTier === 1 ? 18 : 12);
+        for (let i = 0; i < pollenCount; i++) {
+            const az = (i / pollenCount) * TAU + (R() - 0.5) * 0.2;
             const el = (28 + R() * 52) * DEG;
             const spd = 55 + R() * 85;
             pollenParticles.push({
@@ -1232,7 +1481,8 @@
         }
 
         const sparks = [];
-        for (let i = 0; i < 22; i++) {
+        const sparkCount = perfTier === 2 ? 18 : (perfTier === 1 ? 14 : 10);
+        for (let i = 0; i < sparkCount; i++) {
             sparks.push({
                 jx: (R() - 0.5) * 38,
                 jy: 18 + R() * 42,
@@ -1259,7 +1509,8 @@
             impactClock: -1,
             skipFlash: 0,
             finished: false,
-            quality: isLowEndHW ? 0 : 1,
+            quality: perfTier,
+            slowFrames: 0,
             frameAvg: 1 / 60,
             skipped: reduced,
             vw: 0, vh: 0,
@@ -1377,13 +1628,15 @@
         function rebuildViewCaches(vw, vh) {
             sc.vw = vw; sc.vh = vh;
             sc.M0 = computeM0(vw, vh);
-            const vg = makeCanvas(vw, vh), vgg = vg.getContext('2d');
-            const rg = vgg.createRadialGradient(vw / 2, vh / 2, Math.min(vw, vh) * 0.34, vw / 2, vh / 2, Math.max(vw, vh) * 0.78);
-            rg.addColorStop(0, 'rgba(0,0,0,0)');
-            rg.addColorStop(1, 'rgba(0,0,0,0.50)');
-            vgg.fillStyle = rg;
-            vgg.fillRect(0, 0, vw, vh);
-            sc.vignette = vg;
+            if (!sc.vignette) {
+                const vg = makeCanvas(256, 256), vgg = vg.getContext('2d');
+                const rg = vgg.createRadialGradient(128, 128, 44, 128, 128, 148);
+                rg.addColorStop(0, 'rgba(0,0,0,0)');
+                rg.addColorStop(1, 'rgba(0,0,0,0.50)');
+                vgg.fillStyle = rg;
+                vgg.fillRect(0, 0, 256, 256);
+                sc.vignette = vg;
+            }
         }
 
         function motePos(tau, o) {
@@ -3665,15 +3918,15 @@
                     drawAdditive(gW, S.glowMote, Q.x, Q.y, 24 * sparks[j].sz * Q.k, 24 * sparks[j].sz * Q.k, (1 - age / 0.55) * 0.9);
                 }
                 if (p > 0) {
-                    const trailSteps = sc.quality ? 22 : 14;
+                    const trailSteps = sc.quality === 2 ? 14 : (sc.quality === 1 ? 11 : 8);
                     for (let i = trailSteps; i >= 1; i--) {
                         const si = s - i * (0.52 / trailSteps) * (0.40 + s * 1.15);
                         if (si < 0) continue;
                         bez(si, Q2);
                         if (!project(Q2.x, Q2.y, Q2.z, Q)) continue;
                         const f = 1 - i / (trailSteps + 1);
-                        const w = Math.max(26, 128 * Q.k) * (0.28 + 0.72 * f);
-                        drawAdditive(gW, S.glowMote, Q.x, Q.y, w, w, 0.64 * f * f);
+                        const w = Math.max(24, 122 * Q.k) * (0.28 + 0.72 * f);
+                        drawAdditive(gW, S.glowMote, Q.x, Q.y, w, w, 0.66 * f * f);
                     }
                 }
                 motePos(tau, Q2);
@@ -3696,17 +3949,14 @@
                 gW.globalAlpha = 1;
             }
 
-            // 17. Lớp trước (canvasFront): Chớp sáng va chạm & Letterbox điện ảnh
-            const flash = sc.impactClock >= 0 && !sc.skipped ? Math.exp(-(clock - sc.impactClock) * 7.5) : 0;
+            // 17. Lớp trước (canvasFront): Chớp sáng va chạm & Letterbox điện ảnh (Giới hạn bán kính để không gây nghẽn fill-rate GPU ở t=1.60s)
+            const flash = sc.impactClock >= 0 && !sc.skipped ? Math.exp(-(clock - sc.impactClock) * 8.2) : 0;
             if (flash > 0.01 || sc.skipFlash > 0.01) {
                 gF.save();
                 gF.globalCompositeOperation = 'lighter';
                 if (flash > 0.01 && project(0, 0, 0, Q)) {
-                    const w = Math.max(vw, vh) * 1.5;
-                    drawAdditive(gF, S.glowMote, Q.x, Q.y, w, w, flash * 0.68);
-                    gF.globalAlpha = flash * 0.14;
-                    gF.fillStyle = `rgb(${th.mote.join(',')})`;
-                    gF.fillRect(0, 0, vw, vh);
+                    const w = Math.min(vw, vh) * 0.92;
+                    drawAdditive(gF, S.glowMote, Q.x, Q.y, w, w, flash * 0.72);
                 }
                 if (sc.skipFlash > 0.01) {
                     gF.globalAlpha = sc.skipFlash * 0.68;
@@ -3734,7 +3984,16 @@
             dt = Math.min(0.05, Math.max(0, dt));
             sc.clock += dt;
             sc.frameAvg = sc.frameAvg * 0.88 + dt * 0.12;
-            if (sc.clock > 0.35 && sc.frameAvg > 0.022) sc.quality = 0;
+            // Tầng 3 (Runtime Frame-Time Guardrail): Hạ từng bậc chất lượng (Tier 2 -> Tier 1 -> Tier 0) nếu thiết bị hụt khung hình thực tế
+            if (sc.clock > 0.30 && sc.quality > 0) {
+                if (dt > 0.024) sc.slowFrames++;
+                else if (sc.slowFrames > 0) sc.slowFrames--;
+                if (sc.frameAvg > 0.021 || sc.slowFrames >= 5) {
+                    sc.quality = Math.max(0, sc.quality - 1);
+                    sc.slowFrames = 0;
+                    sc.frameAvg = 1 / 60;
+                }
+            }
             if (sc.tau < T.END) {
                 sc.tau = Math.min(T.END, sc.tau + speedAt(sc.tau) * dt);
                 if (sc.tau >= T.IMPACT && sc.impactClock < 0) sc.impactClock = sc.clock;
@@ -3751,6 +4010,7 @@
         const api = {
             get tau() { return sc.tau; },
             get finished() { return sc.finished; },
+            get quality() { return sc.quality; },
             step,
             render,
             debugSeek(tau, clock) {
@@ -3792,7 +4052,7 @@
         preludeEl = el;
         void el.offsetWidth;
         requestAnimationFrame(() => el.classList.add('is-on'));
-        return new Promise((resolve) => setTimeout(resolve, 520));
+        return new Promise((resolve) => setTimeout(resolve, 240));
     }
 
     function endPrelude() {
@@ -3811,6 +4071,7 @@
 
     window.WishBloomCutscene = {
         T,
+        getPerfProfile: getDevicePerfProfile,
         prepare(motionId) {
             try { buildThemeSprites(THEMES[motionId] ? motionId : 'bloom'); } catch (e) { console.warn('WishBloom prepare', e); }
         },
