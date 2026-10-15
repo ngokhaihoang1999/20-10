@@ -139,6 +139,7 @@
         }
 
         const r = renderer.toLowerCase();
+        let isUltraFlagship = false;
         // GPU phần mềm hoặc dòng GPU di động/tích hợp yếu
         if (
             /swiftshader|llvmpipe|software|basic render|microsoft basic/i.test(r) ||
@@ -156,15 +157,22 @@
             /uhd graphics|iris/i.test(r)
         ) {
             gpuTier = 1;
+        } else if (
+            /immortalis|mali-g(925|720|715)|adreno[^0-9]*(730|735|740|750|830)|apple m[1-9]|apple a(15|16|17|18)|rtx|radeon rx/i.test(r)
+        ) {
+            gpuTier = 2;
+            isUltraFlagship = true;
         } else if (/apple gpu/i.test(r)) {
             // Safari iOS 14+ ẩn số hiệu chip thành "Apple GPU" -> dựa thêm vào kích thước màn hình & DPR
             const maxDim = Math.max(window.screen ? window.screen.width : 390, window.screen ? window.screen.height : 844);
             const rawDpr = window.devicePixelRatio || 2;
             if (maxDim <= 736 || rawDpr < 2.5) {
                 gpuTier = 1; // iPhone SE / XR / 11 / 8 Plus
+            } else if (maxDim >= 844 && rawDpr >= 3) {
+                isUltraFlagship = true;
             }
         }
-        return { renderer, gpuTier };
+        return { renderer, gpuTier, isUltraFlagship };
     }
 
     function runCanvasMicroBenchmark() {
@@ -231,6 +239,22 @@
     let cachedPerfProfile = null;
 
     function recomputePerfTier(prof) {
+        const gov = window.DevicePerfGovernor;
+        const govProf = (gov && typeof gov.getProfile === 'function') ? gov.getProfile() : null;
+        if (govProf) {
+            const mappedTier = typeof govProf.tier === 'number'
+                ? Math.min(2, Math.max(0, govProf.tier >= 2 ? 2 : govProf.tier))
+                : 2;
+            prof.tier = mappedTier;
+            prof.isUltraFlagship = !!govProf.isUltraFlagship || (govProf.tier >= 3);
+            prof.isLowEnd = mappedTier === 0;
+            prof.is30HzCapped = !!govProf.is30HzCapped || rafProbe.is30HzCapped;
+            prof.rafMedianMs = govProf.rafMedianMs || rafProbe.medianMs;
+            prof.worldDpr = govProf.worldDpr || (mappedTier === 2 ? Math.min(window.devicePixelRatio || 1, prof.isMobile ? 1.32 : 1.45) : (mappedTier === 1 ? 1.0 : 0.85));
+            prof.directorDpr = govProf.directorDpr || (mappedTier === 2 ? Math.min(window.devicePixelRatio || 1, 1.5) : (mappedTier === 1 ? 1.22 : 1.0));
+            return prof;
+        }
+
         const rawDpr = window.devicePixelRatio || 1;
         let tier = 2; // 2: High, 1: Medium/Balanced, 0: Low/Performance
 
@@ -255,20 +279,26 @@
         }
 
         prof.tier = tier;
+        prof.isUltraFlagship = !!(prof.isUltraFlagship && tier === 2 && !rafProbe.is30HzCapped);
         prof.isLowEnd = tier === 0;
         prof.is30HzCapped = rafProbe.is30HzCapped;
         prof.rafMedianMs = rafProbe.medianMs;
         prof.worldDpr = tier === 2
-            ? Math.min(rawDpr, prof.isMobile ? 1.25 : 1.45)
+            ? Math.min(rawDpr, prof.isMobile ? (prof.isUltraFlagship ? 1.35 : 1.25) : 1.45)
             : (tier === 1 ? Math.min(rawDpr, 1.0) : Math.min(rawDpr, 0.82));
         prof.directorDpr = tier === 2
-            ? Math.min(rawDpr, 1.5)
+            ? Math.min(rawDpr, prof.isUltraFlagship ? 1.6 : 1.5)
             : (tier === 1 ? Math.min(rawDpr, 1.22) : Math.min(rawDpr, 1.0));
         return prof;
     }
 
     function getDevicePerfProfile() {
-        if (cachedPerfProfile) return cachedPerfProfile;
+        if (cachedPerfProfile) {
+            if (window.DevicePerfGovernor && typeof window.DevicePerfGovernor.getProfile === 'function') {
+                return recomputePerfTier(cachedPerfProfile);
+            }
+            return cachedPerfProfile;
+        }
         const ua = navigator.userAgent || navigator.vendor || window.opera || '';
         const isInApp = /Telegram|FBAN|FBAV|Instagram|Messenger|Line|Zalo|TikTok/i.test(ua);
         const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -286,6 +316,7 @@
             isMobile,
             gpuRenderer: gpu.renderer,
             gpuTier: gpu.gpuTier,
+            isUltraFlagship: !!gpu.isUltraFlagship || (cores >= 8 && memory >= 8 && benchMs <= 1.25),
             benchMs,
             tier: 1,
             isLowEnd: false,
@@ -3797,6 +3828,7 @@
         // 7. VÒNG LẶP KẾT XUẤT CHÍNH (RENDER FRAME)
         // =================================================================================
         function render(gW, gF, info) {
+            const renderStartMs = performance.now();
             const vw = info.vw, vh = info.vh, dpr = info.dpr || 1;
             const envBaseW = info.envW || 340;
             if (vw !== sc.vw || vh !== sc.vh || !sc.M0) rebuildViewCaches(vw, vh);
@@ -3996,18 +4028,29 @@
                 gF.fillRect(0, vh - lb, vw, lb + 1);
             }
 
+            const renderMs = performance.now() - renderStartMs;
+            sc.lastRenderMs = renderMs;
+            if (window.DevicePerfGovernor && typeof window.DevicePerfGovernor.reportFrame === 'function') {
+                window.DevicePerfGovernor.reportFrame((sc.lastDt || 0.0167) * 1000, renderMs);
+            }
+
             return env;
         }
 
         function step(dt) {
             dt = Math.min(0.05, Math.max(0, dt));
+            sc.lastDt = dt;
             sc.clock += dt;
             sc.frameAvg = sc.frameAvg * 0.88 + dt * 0.12;
             // Tầng 3 (Runtime Frame-Time Guardrail): Hạ từng bậc chất lượng (Tier 2 -> Tier 1 -> Tier 0) nếu thiết bị hụt khung hình thực tế
             if (sc.clock > 0.30 && sc.quality > 0) {
-                if (dt > 0.024) sc.slowFrames++;
+                const isUltra = !!(perf && perf.isUltraFlagship);
+                const slowDtLimit = isUltra ? 0.028 : 0.024;
+                const slowAvgLimit = isUltra ? 0.024 : 0.021;
+                const slowCountLimit = isUltra ? 8 : 5;
+                if (dt > slowDtLimit) sc.slowFrames++;
                 else if (sc.slowFrames > 0) sc.slowFrames--;
-                if (sc.frameAvg > 0.021 || sc.slowFrames >= 5) {
+                if (sc.frameAvg > slowAvgLimit || sc.slowFrames >= slowCountLimit) {
                     sc.quality = Math.max(0, sc.quality - 1);
                     sc.slowFrames = 0;
                     sc.frameAvg = 1 / 60;

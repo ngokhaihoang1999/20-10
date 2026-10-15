@@ -1662,9 +1662,12 @@
         morphHasStarted = true;
         window.isStep2Morphing = true;
         clearActiveMorphTimers();
+        if (window.DevicePerfGovernor && typeof window.DevicePerfGovernor.beginTransition === 'function') {
+            window.DevicePerfGovernor.beginTransition('step2-morph', 680);
+        }
 
         // Nhịp RAF 1: Khi #step-2 vẫn đang ở trạng thái .step2-preloading (opacity: 0.001 nằm dưới #step-1),
-        // đo kích thước đích và áp sẵn .step2-morph-from để trình duyệt tạo GPU Layer mà KHÔNG cần ép reflow đồng bộ (void offsetWidth)!
+        // đo kích thước đích và áp sẵn .step2-morph-from để trình duyệt commit trạng thái xuất phát lên GPU Layer mà KHÔNG cần ép reflow đồng bộ!
         requestAnimationFrame(() => {
             const previewAreaWrap = document.getElementById('preview-area-wrap');
             const mainContainer = step2El.querySelector('.main-container');
@@ -1704,24 +1707,22 @@
             step2El.classList.remove('step2-morph-to');
             step2El.classList.add('step2-morph-from');
 
-            // Nhịp RAF 2: Sau khi trình duyệt đã commit xong GPU Layers của .step2-morph-from,
-            // lật hiển thị sang Bước 2 và ẩn Bước 1 mượt mà 0ms
+            // Nhịp RAF 2: Trình duyệt đã commit trạng thái .step2-morph-from ở frame trước ->
+            // Gỡ .step2-preloading, ẩn Bước 1 và kích hoạt ngay .step2-morph-to trong cùng 1 frame để chuyển động bung ra liền mạch 0ms trễ!
             requestAnimationFrame(() => {
-                step2El.classList.remove('step2-preloading');
+                step2El.classList.remove('step2-preloading', 'step2-morph-from');
                 if (step1El) step1El.classList.remove('active');
+                step2El.classList.add('step2-morph-to');
 
-                // Nhịp RAF 3: Kích hoạt chuyển động trượt mượt .step2-morph-to thuần GPU Compositor
-                requestAnimationFrame(() => {
-                    step2El.classList.remove('step2-morph-from');
-                    step2El.classList.add('step2-morph-to');
-
-                    activeMorphCleanupTimers.push(setTimeout(() => {
-                        window.isStep2Morphing = false;
-                        if (typeof window.onStep2MorphComplete === 'function') {
-                            window.onStep2MorphComplete();
-                        }
-                    }, 660));
-                });
+                activeMorphCleanupTimers.push(setTimeout(() => {
+                    window.isStep2Morphing = false;
+                    if (window.DevicePerfGovernor && typeof window.DevicePerfGovernor.endTransition === 'function') {
+                        window.DevicePerfGovernor.endTransition('step2-morph');
+                    }
+                    if (typeof window.onStep2MorphComplete === 'function') {
+                        window.onStep2MorphComplete();
+                    }
+                }, 660));
             });
         });
     };

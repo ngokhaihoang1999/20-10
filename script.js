@@ -19,6 +19,340 @@ function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua) || isIOSDevice();
 }
 
+// =====================================================================================
+// BỘ ĐIỀU TIẾT HIỆU NĂNG THÔNG MINH TOÀN CỤC 3 TẦNG (window.DevicePerfGovernor)
+//   - Tầng 1: Nhận diện phần cứng thực tế (WebGL Unmasked GPU Renderer, CPU Cores, RAM, WebView)
+//             Nhận biết chính xác Flagship (OPPO Find X9 Immortalis-G925 / Adreno 730-830 / Apple Pro / RTX)
+//   - Tầng 2: Micro-Benchmark Canvas 2D + Đo tần số quét thực tế (120Hz / 90Hz / 60Hz / 30Hz Battery Saver)
+//   - Tầng 3: Giám sát EMA Frame-Time thời gian thực & Điều tiết mật độ hạt động (Dynamic Load Scaling)
+//             Đảm bảo MỌI ANIMATION LUÔN TIẾP DIỄN LIÊN TỤC (không bao giờ đóng băng) mà vẫn mượt 60-120fps!
+// =====================================================================================
+window.DevicePerfGovernor = (function () {
+    let profile = null;
+    const transitions = {};
+
+    const rafProbe = {
+        samples: [],
+        lastTs: 0,
+        done: false,
+        running: false,
+        medianMs: 16.67,
+        p85Ms: 16.67,
+        refreshHz: 60,
+        is30HzCapped: false,
+        isJittery: false
+    };
+
+    function detectGpuCapability() {
+        let renderer = '';
+        let gpuTier = 2; // 0: Low/Eco, 1: Mid, 2: High, 3: Ultra Flagship
+        try {
+            const c = document.createElement('canvas');
+            c.width = 1;
+            c.height = 1;
+            const gl = c.getContext('webgl', { powerPreference: 'default', failIfMajorPerformanceCaveat: false })
+                || c.getContext('experimental-webgl');
+            if (!gl) {
+                return { renderer: 'no-webgl', gpuTier: 0 };
+            }
+            const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+            renderer = String((dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) || '');
+            const loseExt = gl.getExtension('WEBGL_lose_context');
+            if (loseExt) loseExt.loseContext();
+        } catch (_) {
+            return { renderer: 'error', gpuTier: 1 };
+        }
+
+        const r = renderer.toLowerCase();
+        if (
+            /swiftshader|llvmpipe|software|basic render|microsoft basic/i.test(r) ||
+            /mali-4|mali-t|mali-g3|mali-g51|mali-g52|mali-g57/i.test(r) ||
+            /adreno[^0-9]*(3\d\d|4\d\d|5\d\d|610|612|615|616|618|619)/i.test(r) ||
+            /powervr|img ge8|img bxe/i.test(r) ||
+            /apple a(7|8|9|10|11)\b/i.test(r) ||
+            /hd graphics (400|405|500|505|510|515|520|530|610|615|620)/i.test(r)
+        ) {
+            gpuTier = 0;
+        } else if (
+            /adreno[^0-9]*(620|630|640|642|650|660|710|720)/i.test(r) ||
+            /mali-g(68|71|72|76|77|78|610)/i.test(r) ||
+            /apple a(12|13|14)\b/i.test(r) ||
+            /uhd graphics|iris/i.test(r)
+        ) {
+            gpuTier = 1;
+        } else if (
+            /immortalis|mali-g(715|720|925)|adreno[^0-9]*(730|740|750|8\d\d)/i.test(r) ||
+            /apple m[1-9]|apple a(15|16|17|18|19)\b/i.test(r) ||
+            /rtx|radeon rx|geforce gtx (16|20|30|40)|arc/i.test(r)
+        ) {
+            gpuTier = 3;
+        } else if (/apple gpu/i.test(r)) {
+            const maxDim = Math.max(window.screen ? window.screen.width : 390, window.screen ? window.screen.height : 844);
+            const rawDpr = window.devicePixelRatio || 2;
+            if (maxDim <= 736 || rawDpr < 2.5) {
+                gpuTier = 1;
+            } else if (maxDim >= 844 && rawDpr >= 3) {
+                gpuTier = 3;
+            } else {
+                gpuTier = 2;
+            }
+        }
+        return { renderer, gpuTier };
+    }
+
+    function runMicroBench() {
+        try {
+            const c = document.createElement('canvas');
+            c.width = 160;
+            c.height = 160;
+            const g = c.getContext('2d');
+            if (!g) return 2.2;
+            const pass = (n) => {
+                const bg = g.createLinearGradient(0, 0, 0, 160);
+                bg.addColorStop(0, '#093024');
+                bg.addColorStop(1, '#186a52');
+                g.fillStyle = bg;
+                g.fillRect(0, 0, 160, 160);
+                for (let i = 0; i < n; i++) {
+                    const x = 16 + (i % 5) * 28;
+                    const y = 20 + ((i / 5) | 0) * 30;
+                    g.beginPath();
+                    g.moveTo(x, y);
+                    g.quadraticCurveTo(x - 12, y - 10, x + 22, y - 18);
+                    g.quadraticCurveTo(x + 12, y - 10, x, y);
+                    g.closePath();
+                    g.fill();
+                }
+            };
+            pass(3);
+            const t0 = performance.now();
+            pass(18);
+            return Math.max(0.08, performance.now() - t0);
+        } catch (_) {
+            return 2.0;
+        }
+    }
+
+    function syncBodyDataset(prof) {
+        if (document.body) {
+            document.body.setAttribute('data-perf-tier', String(prof.tier));
+            document.body.setAttribute('data-perf-quality', String(prof.qualityTier));
+        }
+    }
+
+    function recompute(prof) {
+        const rawDpr = window.devicePixelRatio || 1;
+        let qualityTier = 2; // 0: Eco, 1: Balanced, 2: High, 3: Ultra Flagship
+
+        if (
+            prof.gpuTier === 0 ||
+            prof.cores <= 4 ||
+            (prof.memory > 0 && prof.memory <= 3) ||
+            prof.benchMs > 3.6 ||
+            (rafProbe.is30HzCapped && prof.benchMs > 2.2) ||
+            (prof.isInApp && (prof.cores <= 6 || (prof.memory > 0 && prof.memory <= 4)) && prof.benchMs > 2.3)
+        ) {
+            qualityTier = 0;
+        } else if (
+            prof.gpuTier === 1 ||
+            prof.isInApp ||
+            rafProbe.is30HzCapped ||
+            rafProbe.isJittery ||
+            prof.benchMs > 1.65 ||
+            (prof.isMobile && prof.memory > 0 && prof.memory <= 4)
+        ) {
+            qualityTier = 1;
+        } else if (
+            prof.gpuTier === 3 &&
+            prof.benchMs <= 1.25 &&
+            !rafProbe.is30HzCapped &&
+            (prof.memory === 0 || prof.memory >= 6)
+        ) {
+            qualityTier = 3;
+        } else {
+            qualityTier = 2;
+        }
+
+        const tier = Math.min(2, qualityTier); // Tương thích ngược 100% với tier 0 | 1 | 2 của wish-bloom.js
+        prof.qualityTier = qualityTier;
+        prof.tier = tier;
+        prof.isUltraFlagship = qualityTier === 3;
+        prof.isLowEnd = tier === 0;
+        prof.is30HzCapped = rafProbe.is30HzCapped;
+        prof.refreshHz = rafProbe.refreshHz;
+        prof.rafMedianMs = rafProbe.medianMs;
+        prof.targetFrameMs = rafProbe.refreshHz >= 90 ? (1000 / rafProbe.refreshHz) : 16.67;
+
+        prof.worldDpr = qualityTier === 3
+            ? Math.min(rawDpr, prof.isMobile ? 1.32 : 1.5)
+            : (tier === 2 ? Math.min(rawDpr, prof.isMobile ? 1.22 : 1.42) : (tier === 1 ? Math.min(rawDpr, 1.0) : Math.min(rawDpr, 0.82)));
+        prof.directorDpr = qualityTier === 3
+            ? Math.min(rawDpr, 1.45)
+            : (tier === 2 ? Math.min(rawDpr, 1.35) : (tier === 1 ? Math.min(rawDpr, 1.18) : Math.min(rawDpr, 1.0)));
+        prof.bgDpr = qualityTier >= 2
+            ? Math.min(rawDpr, 1.35)
+            : (tier === 1 ? Math.min(rawDpr, 1.15) : 1.0);
+
+        syncBodyDataset(prof);
+        return prof;
+    }
+
+    function startPassiveProbe() {
+        if (rafProbe.running || rafProbe.done || typeof requestAnimationFrame !== 'function') return;
+        rafProbe.running = true;
+        function tick(now) {
+            if (document.hidden) {
+                rafProbe.lastTs = 0;
+                requestAnimationFrame(tick);
+                return;
+            }
+            if (rafProbe.lastTs > 0) {
+                const dt = now - rafProbe.lastTs;
+                if (dt > 3.5 && dt < 120) {
+                    rafProbe.samples.push(dt);
+                }
+            }
+            rafProbe.lastTs = now;
+            if (rafProbe.samples.length < 24) {
+                requestAnimationFrame(tick);
+            } else {
+                const sorted = rafProbe.samples.slice().sort((a, b) => a - b);
+                const mid = sorted[sorted.length >> 1] || 16.67;
+                const p85 = sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.85))] || mid;
+                rafProbe.medianMs = mid;
+                rafProbe.p85Ms = p85;
+                rafProbe.is30HzCapped = mid > 26.5 && mid < 42.0;
+                rafProbe.refreshHz = mid < 9.8 ? 120 : (mid < 13.2 ? 90 : (rafProbe.is30HzCapped ? 30 : 60));
+                rafProbe.isJittery = !rafProbe.is30HzCapped && p85 > 22.5;
+                rafProbe.done = true;
+                rafProbe.running = false;
+                if (profile) recompute(profile);
+            }
+        }
+        requestAnimationFrame(tick);
+    }
+
+    function getProfile() {
+        if (profile) return profile;
+        const isInApp = isInAppBrowser();
+        const isIOS = isIOSDevice();
+        const isMobile = isMobileDevice();
+        const cores = navigator.hardwareConcurrency || 4;
+        const memory = navigator.deviceMemory || 0;
+        const gpu = detectGpuCapability();
+        const benchMs = runMicroBench();
+
+        profile = {
+            cores,
+            memory,
+            isInApp,
+            isIOS,
+            isMobile,
+            gpuRenderer: gpu.renderer,
+            gpuTier: gpu.gpuTier,
+            benchMs,
+            tier: 1,
+            qualityTier: 2,
+            isUltraFlagship: false,
+            isLowEnd: false,
+            is30HzCapped: rafProbe.is30HzCapped,
+            refreshHz: rafProbe.refreshHz,
+            rafMedianMs: rafProbe.medianMs,
+            targetFrameMs: 16.67,
+            emaFrameMs: 16.67,
+            emaRenderMs: 3.5,
+            dynamicScale: 1.0,
+            worldDpr: 1.15,
+            directorDpr: 1.25,
+            bgDpr: 1.15
+        };
+        return recompute(profile);
+    }
+
+    function beginTransition(tag, durationMs = 700) {
+        transitions[tag] = performance.now() + durationMs;
+    }
+
+    function endTransition(tag) {
+        if (tag) {
+            delete transitions[tag];
+        }
+    }
+
+    function isTransitionActive(tag) {
+        const now = performance.now();
+        if (tag) {
+            return (transitions[tag] || 0) > now;
+        }
+        for (const k in transitions) {
+            if (transitions[k] > now) return true;
+        }
+        return false;
+    }
+
+    function reportFrame(dtMs, renderMs = 0) {
+        const prof = getProfile();
+        if (dtMs > 3 && dtMs < 140) {
+            prof.emaFrameMs = prof.emaFrameMs * 0.88 + dtMs * 0.12;
+        }
+        if (renderMs > 0 && renderMs < 100) {
+            prof.emaRenderMs = prof.emaRenderMs * 0.85 + renderMs * 0.15;
+        }
+        const budget = prof.is30HzCapped ? 33.3 : 16.8;
+        const pressure = Math.max(prof.emaFrameMs / budget, (prof.emaRenderMs * 1.45) / budget);
+        let targetScale = 1.0;
+        if (pressure > 1.35) {
+            targetScale = 0.45;
+        } else if (pressure > 1.12) {
+            targetScale = 0.68;
+        } else if (pressure > 0.95) {
+            targetScale = 0.85;
+        }
+        prof.dynamicScale = prof.dynamicScale * 0.90 + targetScale * 0.10;
+        return prof.dynamicScale;
+    }
+
+    // Trả về tỷ lệ hạt nền cần vẽ (0.35 -> 1.0) theo trạng thái hiện tại:
+    // KHÔNG BAO GIỜ trả về 0 để mọi hoạt ảnh nền luôn tiếp diễn liên tục 100%!
+    function getBgBudget(phase = 'idle') {
+        const prof = getProfile();
+        const baseByTier = prof.qualityTier === 3 ? 1.0 : (prof.tier === 2 ? 0.88 : (prof.tier === 1 ? 0.68 : 0.46));
+        let phaseMult = 1.0;
+        if (phase === 'morph' || isTransitionActive('step2-morph')) {
+            // Khi đang morph DOM Bước 1 -> Bước 2: Vẫn vẽ hoa rơi liên tục nhưng điều tiết số lượng hạt thông minh theo cấp máy
+            phaseMult = prof.qualityTier === 3 ? 0.85 : (prof.tier === 2 ? 0.72 : (prof.tier === 1 ? 0.55 : 0.40));
+        } else if (phase === 'arriving' || phase === 'wish_stamp' || phase === 'sky_descending' || phase === 'summoning') {
+            phaseMult = prof.qualityTier === 3 ? 0.82 : (prof.tier === 2 ? 0.68 : (prof.tier === 1 ? 0.52 : 0.38));
+        } else if (phase === 'opening_peak') {
+            phaseMult = prof.qualityTier === 3 ? 0.76 : (prof.tier === 2 ? 0.62 : (prof.tier === 1 ? 0.46 : 0.35));
+        }
+        return Math.max(0.32, Math.min(1.0, baseByTier * phaseMult * prof.dynamicScale));
+    }
+
+    function getParticleCount(baseCount, minCount = 4, phase = 'idle') {
+        const budget = getBgBudget(phase);
+        return Math.max(minCount, Math.round(baseCount * budget));
+    }
+
+    startPassiveProbe();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => getProfile(), { once: true });
+    } else {
+        getProfile();
+    }
+
+    return {
+        getProfile,
+        recompute: () => recompute(getProfile()),
+        beginTransition,
+        endTransition,
+        isTransitionActive,
+        reportFrame,
+        getBgBudget,
+        getParticleCount
+    };
+})();
+
 function checkInAppBrowser() {
     const params = new URLSearchParams(window.location.search);
     if (params.has('card')) return; // Người nhận mở link thiệp 3D trong Telegram/Zalo sẽ vào thẳng bì thiệp, không hiện cảnh báo selfie
@@ -29,7 +363,7 @@ function checkInAppBrowser() {
 }
 window.addEventListener('DOMContentLoaded', checkInAppBrowser);
 
-// ====== HỆ THỐNG HẠT NỀN ĐA TẦNG & HIỆU ỨNG CHẠM TAY (TỐI ƯU 60FPS MOBILE) ======
+// ====== HỆ THỐNG HẠT NỀN ĐA TẦNG & HIỆU ỨNG CHẠM TAY (SPRITE-ACCELERATED 60/120FPS LIÊN TỤC) ======
 let bgWidth = window.innerWidth;
 let bgHeight = window.innerHeight;
 let bgParticles = [];
@@ -46,7 +380,7 @@ function initCanvasSizes() {
 }
 window.addEventListener('resize', initCanvasSizes, { passive: true });
 
-// Lớp 1: Đốm sáng Bokeh Ngọc Bích & Hoa Đào mềm mại (dùng radial gradient, không dùng shadowBlur để tránh lag)
+// Lớp 1: Đốm sáng Bokeh Ngọc Bích & Hoa Đào mềm mại (dùng Sprite pre-rendered, 0ms gradient per frame)
 const _bokehOrbSpriteCache = {};
 function getBokehOrbSprite(rgb) {
     if (_bokehOrbSpriteCache[rgb]) return _bokehOrbSpriteCache[rgb];
@@ -62,6 +396,45 @@ function getBokehOrbSprite(rgb) {
     gctx.arc(32, 32, 32, 0, Math.PI * 2);
     gctx.fill();
     _bokehOrbSpriteCache[rgb] = c;
+    return c;
+}
+
+// Pre-bake Sprite Cánh Hoa Anh Đào & Sao 4 Cánh 1 lần duy nhất khi khởi tạo:
+// Thay thế hoàn toàn 40+ lệnh bezierCurveTo/quadraticCurveTo mỗi frame bằng drawImage(sprite) trên GPU (<0.12ms/frame),
+// giúp hoa rơi trên #bg-canvas chạy xuyên suốt quá trình Morph Bước 1 -> Bước 2 mà KHÔNG cần tạm dừng!
+const _sakuraPetalSpriteCache = {};
+function getSakuraPetalSprite(color) {
+    if (_sakuraPetalSpriteCache[color]) return _sakuraPetalSpriteCache[color];
+    const c = document.createElement('canvas');
+    c.width = 48;
+    c.height = 48;
+    const g = c.getContext('2d');
+    const s = 34;
+    g.translate(24, 24);
+    g.fillStyle = color;
+    g.beginPath();
+    g.moveTo(0, s * 0.5);
+    g.bezierCurveTo(-s * 0.55, s * 0.2, -s * 0.5, -s * 0.35, -s * 0.12, -s * 0.5);
+    g.lineTo(0, -s * 0.36);
+    g.lineTo(s * 0.12, -s * 0.5);
+    g.bezierCurveTo(s * 0.5, -s * 0.35, s * 0.55, s * 0.2, 0, s * 0.5);
+    g.closePath();
+    g.fill();
+    _sakuraPetalSpriteCache[color] = c;
+    return c;
+}
+
+const _twinkleStarSpriteCache = {};
+function getTwinkleStarSprite(color) {
+    if (_twinkleStarSpriteCache[color]) return _twinkleStarSpriteCache[color];
+    const c = document.createElement('canvas');
+    c.width = 36;
+    c.height = 36;
+    const g = c.getContext('2d');
+    g.fillStyle = color;
+    drawFourPointStarPath(g, 18, 18, 15);
+    g.fill();
+    _twinkleStarSpriteCache[color] = c;
     return c;
 }
 
@@ -90,14 +463,12 @@ class BokehOrb {
     draw(ctx) {
         const alpha = Math.max(0.02, this.baseAlpha + Math.sin(this.phase) * 0.04);
         const r = this.radius;
-        ctx.save();
         ctx.globalAlpha = alpha;
         ctx.drawImage(this.sprite, this.x - r, this.y - r, r * 2, r * 2);
-        ctx.restore();
     }
 }
 
-// Lớp 2: Cánh hoa anh đào rơi lượn sóng 3D mềm mại
+// Lớp 2: Cánh hoa anh đào rơi lượn sóng 3D mềm mại (vẽ qua GPU Sprite)
 class SakuraPetal {
     constructor() {
         this.reset(true);
@@ -116,6 +487,7 @@ class SakuraPetal {
         this.tilt = Math.random() * Math.PI * 2;
         this.tiltSpeed = Math.random() * 0.025 + 0.01;
         this.color = ['#ffb7c5', '#ffc8d6', '#ffdde6', '#ff9ebb', '#ffffff'][Math.floor(Math.random() * 5)];
+        this.sprite = getSakuraPetalSprite(this.color);
         this.opacity = Math.random() * 0.45 + 0.42;
     }
     update() {
@@ -129,27 +501,17 @@ class SakuraPetal {
         }
     }
     draw(ctx) {
-        const s = this.size;
+        const s = this.size * 1.41;
         const flipY = 0.45 + Math.abs(Math.cos(this.tilt)) * 0.55;
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.rotation);
-        ctx.scale(1, flipY);
+        const cos = Math.cos(this.rotation);
+        const sin = Math.sin(this.rotation);
+        ctx.setTransform(cos, sin, -sin * flipY, cos * flipY, this.x, this.y);
         ctx.globalAlpha = this.opacity;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.moveTo(0, s * 0.5);
-        ctx.bezierCurveTo(-s * 0.55, s * 0.2, -s * 0.5, -s * 0.35, -s * 0.12, -s * 0.5);
-        ctx.lineTo(0, -s * 0.36);
-        ctx.lineTo(s * 0.12, -s * 0.5);
-        ctx.bezierCurveTo(s * 0.5, -s * 0.35, s * 0.55, s * 0.2, 0, s * 0.5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
+        ctx.drawImage(this.sprite, -s * 0.5, -s * 0.5, s, s);
     }
 }
 
-// Lớp 3: Ánh sao 4 cánh lấp lánh
+// Lớp 3: Ánh sao 4 cánh lấp lánh (vẽ qua GPU Sprite)
 class TwinkleStar {
     constructor() {
         this.reset();
@@ -161,6 +523,7 @@ class TwinkleStar {
         this.phase = Math.random() * Math.PI * 2;
         this.speed = Math.random() * 0.04 + 0.02;
         this.color = Math.random() > 0.4 ? '#fff6d6' : '#ffe4ee';
+        this.sprite = getTwinkleStarSprite(this.color);
     }
     update() {
         this.phase += this.speed;
@@ -175,13 +538,9 @@ class TwinkleStar {
     draw(ctx) {
         const s = (Math.sin(this.phase) * 0.5 + 0.5) * this.size;
         if (s < 0.8) return;
-        ctx.save();
-        ctx.translate(this.x, this.y);
+        const d = s * 2.3;
         ctx.globalAlpha = Math.min(0.85, (s / this.size) * 0.8);
-        ctx.fillStyle = this.color;
-        drawFourPointStarPath(ctx, 0, 0, s);
-        ctx.fill();
-        ctx.restore();
+        ctx.drawImage(this.sprite, this.x - d * 0.5, this.y - d * 0.5, d, d);
     }
 }
 
@@ -197,10 +556,12 @@ function drawFourPointStarPath(ctx, cx, cy, r) {
 }
 
 function initBgParticles() {
+    const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
     const mobile = isMobileDevice();
-    const petalCount = mobile ? 22 : 34;
-    const bokehCount = mobile ? 6 : 10;
-    const starCount = mobile ? 9 : 14;
+    const tierScale = prof ? (prof.qualityTier === 3 ? 1.05 : (prof.tier === 2 ? 1.0 : (prof.tier === 1 ? 0.78 : 0.58))) : 1.0;
+    const petalCount = Math.max(10, Math.round((mobile ? 22 : 34) * tierScale));
+    const bokehCount = Math.max(4, Math.round((mobile ? 6 : 10) * tierScale));
+    const starCount = Math.max(5, Math.round((mobile ? 9 : 14) * tierScale));
 
     bgParticles = [];
     bokehOrbs = [];
@@ -210,24 +571,46 @@ function initBgParticles() {
     for (let i = 0; i < starCount; i++) sparkles.push(new TwinkleStar());
 }
 
-function animateBg() {
-    // Tạm dừng hoàn toàn vẽ #bg-canvas khi đang Morph sang Bước 2 (isStep2Morphing), Sân khấu 3D (u3d-stage-active) hoặc Bước 3 (#step-3 có #showcase-bg-canvas riêng che kín),
-    // giúp tiết kiệm 100% chu kỳ vẽ nền thừa khi chuyển cảnh và khi bấm sáp mở thiệp!
-    const isCoveredOrMorphing = window.isStep2Morphing || document.body.classList.contains('u3d-stage-active') || (step3 && step3.classList.contains('active'));
-    if (!document.hidden && !isCoveredOrMorphing) {
+let _lastBgAnimTs = 0;
+function animateBg(now) {
+    // Chỉ nghỉ khi #bg-canvas bị che khuất hoàn toàn bởi Sân khấu 3D hoặc Bước 3 (nơi có #showcase-bg-canvas riêng).
+    // Trong suốt Bước 1, quá trình Morph Bước 1 -> Bước 2, và Bước 2: Hoa rơi & Bokeh LUÔN CHẠY LIÊN TỤC 100%,
+    // được điều tiết thông minh bởi DevicePerfGovernor + Sprite GPU (<0.12ms/frame)!
+    const isCoveredByStep3 = document.body.classList.contains('u3d-stage-active') || (step3 && step3.classList.contains('active'));
+    if (!document.hidden && !isCoveredByStep3) {
+        const t0 = performance.now();
+        const dtMs = _lastBgAnimTs > 0 ? (t0 - _lastBgAnimTs) : 16.67;
+        _lastBgAnimTs = t0;
+
+        const phase = window.isStep2Morphing ? 'morph' : 'idle';
+        const budget = window.DevicePerfGovernor ? window.DevicePerfGovernor.getBgBudget(phase) : 1.0;
+        const activeBokeh = Math.max(3, Math.ceil(bokehOrbs.length * budget));
+        const activePetals = Math.max(8, Math.ceil(bgParticles.length * budget));
+        const activeStars = Math.max(4, Math.ceil(sparkles.length * budget));
+
+        bgCtx.setTransform(1, 0, 0, 1, 0, 0);
         bgCtx.clearRect(0, 0, bgWidth, bgHeight);
+
         for (let i = 0; i < bokehOrbs.length; i++) {
             bokehOrbs[i].update();
-            bokehOrbs[i].draw(bgCtx);
+            if (i < activeBokeh) bokehOrbs[i].draw(bgCtx);
         }
         for (let i = 0; i < bgParticles.length; i++) {
             bgParticles[i].update();
-            bgParticles[i].draw(bgCtx);
+            if (i < activePetals) bgParticles[i].draw(bgCtx);
         }
+        bgCtx.setTransform(1, 0, 0, 1, 0, 0);
         for (let i = 0; i < sparkles.length; i++) {
             sparkles[i].update();
-            sparkles[i].draw(bgCtx);
+            if (i < activeStars) sparkles[i].draw(bgCtx);
         }
+        bgCtx.globalAlpha = 1;
+
+        if (window.DevicePerfGovernor) {
+            window.DevicePerfGovernor.reportFrame(dtMs, performance.now() - t0);
+        }
+    } else {
+        _lastBgAnimTs = 0;
     }
     requestAnimationFrame(animateBg);
 }
@@ -3366,33 +3749,54 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
             btn.disabled = false;
         };
 
-        // Chờ 225ms để .wish-prelude fade-in 100% mượt mà trên GPU trước khi chạy tác vụ cắt ảnh
+        // Chờ 225ms để .wish-prelude fade-in 100% mượt mà trên GPU trước khi vào Đại cảnh "Nụ Hoa Ước Nguyện"
+        // (Hoãn cả getCroppedCanvas lẫn drawCanvasImageText sang sau khi phong bì đóng sáp, chia làm 2 nhịp RAF để 0ms khựng!)
         setTimeout(() => {
-            let randomMotion = presetMotion;
-            try {
-                const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
-                canvas._renderId = Date.now();
-                window.skyOracleUserThumbCanvas = null;
-                window.skyOracleUserCardPhotoCanvas = null;
-                randomMotion = applyRandomSelfOracleArtSelections(presetMotion);
-                currentUserImage = canvas;
-            } catch (cropErr) {
-                console.error('Self oracle crop error:', cropErr);
-                if (cinematic) cinematic.endPrelude();
-                restoreBtn();
-                return;
-            }
+            window.skyOracleUserThumbCanvas = null;
+            window.skyOracleUserCardPhotoCanvas = null;
+            const randomMotion = applyRandomSelfOracleArtSelections(presetMotion);
 
-            let cardRendered = false;
-            window.ensureFinalCardRenderedOnce = () => {
-                if (cardRendered) return;
-                cardRendered = true;
-                try {
-                    drawCanvasImageText(finalResultCanvas, true, false);
-                    window.isRecipientCardImageReady = true;
-                    if (typeof getU3DLuxurySpriteAtlas === 'function') getU3DLuxurySpriteAtlas();
-                } catch (e) {
-                    console.error('Deferred final card render error:', e);
+            let cardCropDone = false;
+            let cardDrawDone = false;
+            window.hasPendingDeferredCardRender = true;
+            window.ensureFinalCardRenderedOnce = (immediate = false) => {
+                if (cardDrawDone) return;
+                const doCrop = () => {
+                    if (cardCropDone) return;
+                    cardCropDone = true;
+                    try {
+                        if (cropperObj) {
+                            const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
+                            if (canvas) {
+                                canvas._renderId = Date.now();
+                                currentUserImage = canvas;
+                            }
+                        }
+                    } catch (cropErr) {
+                        console.error('Self oracle crop error:', cropErr);
+                    }
+                };
+                const doDraw = () => {
+                    if (cardDrawDone) return;
+                    cardDrawDone = true;
+                    window.hasPendingDeferredCardRender = false;
+                    try {
+                        if (currentUserImage) {
+                            drawCanvasImageText(finalResultCanvas, true, false);
+                            window.isRecipientCardImageReady = true;
+                        }
+                        if (typeof getU3DLuxurySpriteAtlas === 'function') getU3DLuxurySpriteAtlas();
+                    } catch (e) {
+                        console.error('Deferred final card render error:', e);
+                    }
+                };
+
+                if (immediate) {
+                    doCrop();
+                    doDraw();
+                } else {
+                    doCrop();
+                    requestAnimationFrame(() => doDraw());
                 }
             };
 
@@ -3412,7 +3816,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                         isStep2Preview: false,
                         onComplete: () => {
                             if (typeof window.ensureFinalCardRenderedOnce === 'function') {
-                                window.ensureFinalCardRenderedOnce();
+                                window.ensureFinalCardRenderedOnce(true);
                             }
                             triggerCelebrationBurst();
                             showCardFloatingBadge('🌸 Lời chúc 20.10 dành riêng cho bạn đã mở!');
@@ -3422,7 +3826,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                         }
                     });
                 } else {
-                    window.ensureFinalCardRenderedOnce();
+                    window.ensureFinalCardRenderedOnce(true);
                     if (cinematic) cinematic.endPrelude();
                 }
             }).catch((err) => {
@@ -3435,7 +3839,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
     }
 
     // Nhánh 2: Luồng "Soạn lời chúc cho người thân" -> Khởi chạy Sân Khấu Phong Bì 3D & Đóng dấu sáp NGAY LẬP TỨC ở 60-120fps!
-    // Tác vụ cắt ảnh (getCroppedCanvas 1024x1526) + vẽ chữ + nén JPEG (drawCanvasImageText) được hoãn sang SAU KHI phong bì đã đóng dấu sáp xong và đang đứng yên chờ mở!
+    // Tác vụ cắt ảnh (getCroppedCanvas 1024x1526) + vẽ chữ + nén JPEG (drawCanvasImageText) được chia làm 2 lát nhỏ (micro-slices) chạy sau khi đóng sáp xong!
     if (currentWishMode === 'surprise') {
         isCustomWishActive = false;
         currentAIQuote = getNextQuoteByTopic(currentTopic);
@@ -3445,26 +3849,46 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
         hasGeneratedQuoteOnce = true;
     }
 
+    let giftCropDone = false;
     let giftCardRendered = false;
     window.hasPendingDeferredCardRender = true;
-    window.ensureFinalCardRenderedOnce = () => {
+    window.ensureFinalCardRenderedOnce = (immediate = false) => {
         if (giftCardRendered) return;
-        giftCardRendered = true;
-        window.hasPendingDeferredCardRender = false;
-        try {
-            if (cropperObj) {
-                const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
-                if (canvas) {
-                    canvas._renderId = Date.now();
-                    currentUserImage = canvas;
+        const doCrop = () => {
+            if (giftCropDone) return;
+            giftCropDone = true;
+            try {
+                if (cropperObj) {
+                    const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
+                    if (canvas) {
+                        canvas._renderId = Date.now();
+                        currentUserImage = canvas;
+                    }
                 }
+            } catch (err) {
+                console.error('Deferred gift crop error:', err);
             }
-            if (currentUserImage) {
-                drawCanvasImageText(finalResultCanvas, true, false);
-                window.isRecipientCardImageReady = true;
+        };
+        const doDraw = () => {
+            if (giftCardRendered) return;
+            giftCardRendered = true;
+            window.hasPendingDeferredCardRender = false;
+            try {
+                if (currentUserImage) {
+                    drawCanvasImageText(finalResultCanvas, true, false);
+                    window.isRecipientCardImageReady = true;
+                }
+            } catch (err) {
+                console.error('Deferred gift card render error:', err);
             }
-        } catch (err) {
-            console.error('Deferred gift card render error:', err);
+        };
+
+        if (immediate) {
+            doCrop();
+            doDraw();
+        } else {
+            doCrop();
+            requestAnimationFrame(() => doDraw());
         }
     };
 
@@ -4283,18 +4707,45 @@ function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
         drawQuoteContent(ctx, boxX, boxY, boxW, boxH, layout, theme, scale);
     }
 
-    // Đồng bộ sang thẻ <img> và căn lại đúng tỷ lệ hiển thị trọn vẹn 100% trên màn hình
+    // Đồng bộ sang thẻ <img> và căn lại đúng tỷ lệ hiển thị trọn vẹn 100% trên màn hình:
+    // Khi đang chạy Sân Khấu 3D (u3d-stage-active), dùng toBlob() bất đồng bộ trên luồng C++ Worker (<0.3ms main thread)
+    // thay vì toDataURL() đồng bộ (gây nghẽn 35ms) để mọi animation tiếp diễn mượt 60-120fps tuyệt đối!
     if (isFinal && finalResultImg) {
         try {
-            const dataUrl = targetCanvas.toDataURL('image/jpeg', 0.92);
-            finalResultImg.src = dataUrl;
-            const u3dCardImg = document.getElementById('u3d-card-img');
-            if (u3dCardImg) u3dCardImg.src = dataUrl;
-            const recLetterImg = document.getElementById('recipient-letter-img');
-            if (recLetterImg) recLetterImg.src = dataUrl;
-            if (saveModalImg && saveGuideModal.style.display !== 'none') {
-                saveModalImg.src = dataUrl;
+            const applyCardUrl = (urlStr) => {
+                if (!urlStr) return;
+                targetCanvas._cachedDataUrl = urlStr;
+                finalResultImg.src = urlStr;
+                const u3dCardImg = document.getElementById('u3d-card-img');
+                if (u3dCardImg) {
+                    u3dCardImg.src = urlStr;
+                    if (typeof u3dCardImg.decode === 'function') {
+                        u3dCardImg.decode().catch(() => {});
+                    }
+                }
+                const recLetterImg = document.getElementById('recipient-letter-img');
+                if (recLetterImg) recLetterImg.src = urlStr;
+                if (saveModalImg && saveGuideModal.style.display !== 'none') {
+                    saveModalImg.src = urlStr;
+                }
+            };
+
+            targetCanvas._cachedDataUrl = null;
+            if (document.body.classList.contains('u3d-stage-active') && typeof targetCanvas.toBlob === 'function') {
+                targetCanvas.toBlob((blob) => {
+                    if (!blob) return;
+                    if (targetCanvas._lastObjectUrl) {
+                        URL.revokeObjectURL(targetCanvas._lastObjectUrl);
+                    }
+                    const blobUrl = URL.createObjectURL(blob);
+                    targetCanvas._lastObjectUrl = blobUrl;
+                    applyCardUrl(blobUrl);
+                }, 'image/jpeg', 0.92);
+            } else {
+                const dataUrl = targetCanvas.toDataURL('image/jpeg', 0.92);
+                applyCardUrl(dataUrl);
             }
+
             if (!isPreviewOnly && typeof window.markCardCanvasDirty === 'function') {
                 const imgTag = currentUserImage ? `${currentUserImage.width}x${currentUserImage.height}_${String(currentUserImage.src || currentUserImage._renderId || '').slice(-48)}` : '';
                 const renderSig = `${currentSelectedFrameId}|${currentColorTheme}|${currentBorderStyle}|${getEffectiveFilterCss()}|${activeQuote}|${recipientName}|${imgTag}`;

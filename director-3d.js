@@ -3491,13 +3491,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         }
     });
 
-    // Chuẩn bị 2 lớp Canvas Vật Lý 3D theo Bộ Đo Hiệu Năng 3 Tầng (Tier 2: 1.35x, Tier 1: 1.2x, Tier 0: 1.0x)
-    const perfProfile = (window.WishBloomCutscene && typeof window.WishBloomCutscene.getPerfProfile === 'function')
-        ? window.WishBloomCutscene.getPerfProfile()
-        : null;
+    // Chuẩn bị 2 lớp Canvas Vật Lý 3D theo Bộ Điều Tiết Hiệu Năng Toàn Cục (window.DevicePerfGovernor)
+    const perfProfile = (window.DevicePerfGovernor && typeof window.DevicePerfGovernor.getProfile === 'function')
+        ? window.DevicePerfGovernor.getProfile()
+        : ((window.WishBloomCutscene && typeof window.WishBloomCutscene.getPerfProfile === 'function')
+            ? window.WishBloomCutscene.getPerfProfile()
+            : null);
     const perfTier = perfProfile ? perfProfile.tier : (((navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4)) ? 0 : 1);
     const isLowEndDevice = perfTier === 0;
-    const dpr = Math.min(window.devicePixelRatio || 1, perfProfile ? perfProfile.worldDpr : (isLowEndDevice ? 1.15 : 1.35));
+    const dpr = Math.min(window.devicePixelRatio || 1, perfProfile ? (perfProfile.directorDpr || perfProfile.worldDpr || 1.35) : (isLowEndDevice ? 1.1 : 1.35));
     let curVw = window.innerWidth;
     let curVh = window.innerHeight;
     canvasBack.width = Math.round(curVw * dpr);
@@ -3918,7 +3920,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const startEnvelopePhysicsOpen = () => {
         if (u3dCurrentDirectorState !== 'waiting') return;
         if (typeof window.ensureFinalCardRenderedOnce === 'function') {
-            window.ensureFinalCardRenderedOnce();
+            window.ensureFinalCardRenderedOnce(true);
         }
         if (isRealRecipient && !window.isRecipientCardImageReady) return;
         beginOpenSequence();
@@ -3927,8 +3929,9 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     function beginOpenSequence() {
         if (u3dCurrentDirectorState === 'opening') return;
         if (typeof window.ensureFinalCardRenderedOnce === 'function') {
-            window.ensureFinalCardRenderedOnce();
+            window.ensureFinalCardRenderedOnce(true);
         }
+        window.DevicePerfGovernor?.beginTransition('envelope-open', 1350);
         if (!cachedTargetRect || window.innerWidth !== curVw || window.innerHeight !== curVh) {
             measureTargetShowcaseOnce();
         }
@@ -5607,9 +5610,9 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 if (typeof window.ensureFinalCardRenderedOnce === 'function') {
                     setTimeout(() => {
                         if (typeof window.ensureFinalCardRenderedOnce === 'function') {
-                            window.ensureFinalCardRenderedOnce();
+                            window.ensureFinalCardRenderedOnce(false);
                         }
-                    }, 60);
+                    }, 520);
                 }
             }
             u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
@@ -6175,9 +6178,9 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 if (typeof window.ensureFinalCardRenderedOnce === 'function') {
                     setTimeout(() => {
                         if (typeof window.ensureFinalCardRenderedOnce === 'function') {
-                            window.ensureFinalCardRenderedOnce();
+                            window.ensureFinalCardRenderedOnce(false);
                         }
-                    }, 60);
+                    }, 520);
                 }
             }
 
@@ -6348,14 +6351,14 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     sealBtn.style.transform = 'translate3d(0,0,0) scale(1)';
                     sealBtn.style.pointerEvents = 'auto';
                 }
-                // Ngay sau khi phong bì đã lướt vào và đóng dấu sáp xong 100% (đang đứng yên ở trạng thái 'waiting'),
-                // mới kết xuất ngầm ảnh tấm thiệp (nếu đang chờ hoãn kết xuất) để những giây đầu đóng sáp mượt 60-120fps tuyệt đối!
+                // Đợi 520ms cho toàn bộ 18 mảnh sáp/cánh hoa từ cú đóng dấu sáp bay hết quỹ đạo vật lý ở 60-120fps,
+                // sau đó mới chạy kết xuất ngầm tấm thiệp theo 2 lát nhỏ (RAF slices + async toBlob) để 0.00ms khựng!
                 if (typeof window.ensureFinalCardRenderedOnce === 'function') {
                     setTimeout(() => {
                         if (typeof window.ensureFinalCardRenderedOnce === 'function') {
-                            window.ensureFinalCardRenderedOnce();
+                            window.ensureFinalCardRenderedOnce(false);
                         }
-                    }, 60);
+                    }, 520);
                 }
             }
 
@@ -6405,13 +6408,37 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             if (cardInner) cardInner.style.transform = 'none';
             isClipPathNone = false;
 
-            for (let i = 0; i < particles.length; i++) {
+            // Các hạt văng từ cú đóng dấu sáp (maxLife < 5) tiếp tục bay hết quỹ đạo vật lý 3D và tan biến mượt mà;
+            // trong khi 14 hạt đom đóm/bokeh nền (maxLife >= 5) lơ lửng nhẹ nhàng phía sau phong bì!
+            for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
-                p.phase += dt * 2.2;
-                p.x += Math.sin(p.phase) * 14 * dt;
-                p.y += Math.cos(p.phase * 0.8) * 12 * dt;
-                p.rz += p.vrz * dt;
-                draw3DProjectedParticle(ctxBack, p, screenCx, screenCy, focal);
+                if (p.maxLife < 5) {
+                    p.life += dt;
+                    if (p.life >= p.maxLife) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+                    const dragFactor = Math.max(0, 1 - p.drag * dt);
+                    p.vx *= dragFactor;
+                    p.vy *= dragFactor;
+                    p.vz *= dragFactor;
+                    p.vy += p.gravity * dt;
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    p.z += p.vz * dt;
+                    p.rx += p.vrx * dt;
+                    p.ry += p.vry * dt;
+                    p.rz += p.vrz * dt;
+                    const lr = p.life / p.maxLife;
+                    p.alpha = lr < 0.15 ? lr / 0.15 : (lr > 0.7 ? (1 - lr) / 0.3 : 1);
+                    draw3DProjectedParticle(p.z < 0 ? ctxBack : ctxFront, p, screenCx, screenCy, focal);
+                } else {
+                    p.phase += dt * 2.2;
+                    p.x += Math.sin(p.phase) * 14 * dt;
+                    p.y += Math.cos(p.phase * 0.8) * 12 * dt;
+                    p.rz += p.vrz * dt;
+                    draw3DProjectedParticle(ctxBack, p, screenCx, screenCy, focal);
+                }
             }
 
             u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
@@ -6424,17 +6451,20 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         u3dOpenElapsed = elapsed;
 
         if (wishBloom) {
-            // Giữ nguyên u3d-wish-cinematic suốt pha rung ấn sáp (0.00s -> 0.92s) để #showcase-bg-canvas hoàn toàn nghỉ ngơi;
-            // đồng thời đóng băng khung hình cuối của Ao Hoa trên canvasWorld và chỉ làm mờ mượt qua GPU opacity!
             if (elapsed >= 0.92 && document.body.classList.contains('u3d-wish-cinematic')) {
                 document.body.classList.remove('u3d-wish-cinematic');
             }
             const worldFade = 1 - Math.min(1, Math.max(0, (elapsed - 0.95) / 1.3));
             if (canvasWorld) canvasWorld.style.opacity = worldFade.toFixed(3);
-            if (didResizeWorld && worldFade > 0.01) {
-                try {
-                    wishBloom.render(ctxWorld, ctxWorld, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY: 0, idleRotZ: 0 });
-                } catch (_) {}
+            if (worldFade > 0.02) {
+                const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
+                wishBloom.step(dt);
+                // Trên thiết bị Tier 1/2/3: tiếp tục kết xuất mặt hồ & hoa đung đưa trong lúc mờ dần; trên máy yếu Tier 0 thì dùng GPU opacity fade
+                if (!prof || prof.tier >= 1 || didResizeWorld) {
+                    try {
+                        wishBloom.render(ctxWorld, ctxWorld, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY: 0, idleRotZ: 0 });
+                    } catch (_) {}
+                }
             }
         }
         const envMouthWorldY = (envBaseCy - envBaseH * 0.24) - screenCy;
@@ -7400,8 +7430,18 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const getAdaptiveBgActors = (mId, w, h) => {
+        const rawActors = initShowcaseBgActors(mId, w, h);
+        const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
+        if (!prof || prof.qualityTier >= 3) return rawActors;
+        const keepRatio = prof.tier === 2 ? 0.85 : (prof.tier === 1 ? 0.65 : 0.45);
+        return rawActors.filter((a, idx) => a.kind === 'sunbeam_ray' || ((idx * 7) % 100) < keepRatio * 100);
+    };
+
     const resizeCanvas = () => {
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+        const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
+        const maxDpr = prof ? (prof.bgDpr || 1.25) : 1.35;
+        const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
         const w = window.innerWidth || 390;
         const h = window.innerHeight || 844;
         if (canvas.width !== Math.floor(w * dpr) || canvas.height !== Math.floor(h * dpr)) {
@@ -7419,7 +7459,7 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
     showcaseBgCurrentMotion = motionId;
     let lastActorInitW = dims.w;
     let lastActorInitH = dims.h;
-    showcaseBgActors = initShowcaseBgActors(motionId, dims.w, dims.h);
+    showcaseBgActors = getAdaptiveBgActors(motionId, dims.w, dims.h);
 
     if (showcaseBgAnimFrameId) {
         cancelAnimationFrame(showcaseBgAnimFrameId);
@@ -7428,8 +7468,6 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
 
     let atlas = null;
     let lastTime = performance.now();
-    let bgFrameTick = 0;
-    let hasRenderedInitialBgFrame = false;
     let cachedW = dims.w;
     let cachedH = dims.h;
     let cachedDpr = dims.dpr;
@@ -7439,27 +7477,11 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
         if (document.hidden || !step3 || !step3.classList.contains('active')) return;
         if (document.body.classList.contains('u3d-wish-cinematic')) return;
 
-        // Khi phong bì đang bay vào đóng dấu sáp (arriving / wish_stamp / sky_descending / summoning)
-        // hoặc khi vừa bấm ấn sáp mở thiệp (0.00s -> 1.35s: lấy đà ấn sáp + vỡ sáp + đỉnh điểm phun trào túi chữ V),
-        // đóng băng tạm thời khung hình nền #showcase-bg-canvas trên GPU (sau khi đã vẽ 1 frame nền tĩnh đầu tiên)
-        // để nhường 100% chu kỳ CPU/GPU cho hiệu ứng 3D tiền cảnh mượt 60fps!
-        if (hasRenderedInitialBgFrame) {
-            if (
-                u3dCurrentDirectorState === 'arriving' ||
-                u3dCurrentDirectorState === 'wish_stamp' ||
-                u3dCurrentDirectorState === 'sky_descending' ||
-                u3dCurrentDirectorState === 'summoning'
-            ) {
-                return;
-            }
-            if (u3dCurrentDirectorState === 'opening') {
-                if (u3dOpenElapsed < 1.35) return;
-                bgFrameTick = (bgFrameTick + 1) % 3;
-                if (bgFrameTick !== 0) return;
-            }
-        }
+        // Hoạt ảnh hậu cảnh #showcase-bg-canvas LUÔN TIẾP DIỄN LIÊN TỤC 100% ở mọi pha (arriving, đóng dấu sáp, mở sáp, chờ mở)
+        // nhờ số lượng thực thể và DPR đã được điều tiết thông minh theo cấu hình thiết bị qua window.DevicePerfGovernor!
+        const t0 = performance.now();
+        const dtMs = now - lastTime;
         if (!atlas) atlas = getU3DLuxurySpriteAtlas();
-        hasRenderedInitialBgFrame = true;
 
         lastTime = now;
         const t = now * 0.001;
@@ -7477,7 +7499,7 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
         if (Math.abs(w - lastActorInitW) > 64 || Math.abs(h - lastActorInitH) > 64) {
             lastActorInitW = w;
             lastActorInitH = h;
-            showcaseBgActors = initShowcaseBgActors(showcaseBgCurrentMotion, w, h);
+            showcaseBgActors = getAdaptiveBgActors(showcaseBgCurrentMotion, w, h);
         }
         ctx.save();
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -7788,6 +7810,7 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
             }
         }
         ctx.restore();
+        window.DevicePerfGovernor?.reportFrame(dtMs, performance.now() - t0);
     };
 
     showcaseBgAnimFrameId = requestAnimationFrame(renderLoop);
@@ -7897,31 +7920,37 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = false) {
             hasGeneratedQuoteOnce = true;
         }
 
-        // TRÌ HOÃN việc cắt ảnh 1024x1526 + vẽ canvas 1024x2060 + nén JPEG cho tới SAU KHI phong bì 3D bay vào và đóng dấu sáp xong (~0.75s)!
-        // Nhờ đó 1 giây đầu tiên khi bấm "Xem thử hiệu ứng mở 3D" hoặc chọn chip 3D hoàn toàn 0ms nghẽn CPU/GPU (mượt 60fps tức thì)!
+        // TRÌ HOÃN việc cắt ảnh 1024x1526 + vẽ canvas 1024x2060 + nén JPEG bằng toBlob bất đồng bộ
+        // cho tới SAU KHI phong bì 3D bay vào, đóng dấu sáp và hạt sáp bay xong!
+        // Đồng thời chia nhỏ (Frame-Sliced) qua 2 nhịp RAF để các hiệu ứng nền & sáp 3D vẫn chạy mượt 60-120fps liên tục!
         let hasRenderedPreviewCardOnce = false;
         window.hasPendingDeferredCardRender = true;
-        window.ensureFinalCardRenderedOnce = () => {
+        window.ensureFinalCardRenderedOnce = (immediate = false) => {
             if (hasRenderedPreviewCardOnce) return;
             hasRenderedPreviewCardOnce = true;
             window.hasPendingDeferredCardRender = false;
             window.ensureFinalCardRenderedOnce = null;
 
-            const canvas = cropperObj ? cropperObj.getCroppedCanvas({ width: 1024, height: 1526 }) : null;
-            if (!canvas) return;
-            canvas._renderId = Date.now();
-            currentUserImage = canvas;
-            // Vẽ chế độ isPreviewOnly = true: KHÔNG đánh dấu dirty và TUYỆT ĐỐI KHÔNG gửi lên Telegram!
-            drawCanvasImageText(finalResultCanvas, true, true);
-            const cardImg = document.getElementById('u3d-card-img');
-            if (cardImg && finalResultCanvas) {
-                if (!finalResultCanvas._cachedDataUrl) {
-                    finalResultCanvas._cachedDataUrl = finalResultCanvas.toDataURL('image/jpeg', 0.92);
-                }
-                cardImg.src = finalResultCanvas._cachedDataUrl;
-                if (typeof cardImg.decode === 'function') {
-                    cardImg.decode().catch(() => {});
-                }
+            const finishDrawPreviewStep = (croppedCanvas) => {
+                if (!croppedCanvas) return;
+                croppedCanvas._renderId = Date.now();
+                currentUserImage = croppedCanvas;
+                // Vẽ chế độ isPreviewOnly = true: KHÔNG đánh dấu dirty, KHÔNG gửi lên Telegram,
+                // và dùng toBlob() trên luồng ngầm C++ để gán vào #u3d-card-img mà không khóa main thread!
+                drawCanvasImageText(finalResultCanvas, true, true);
+            };
+
+            if (immediate) {
+                const canvas = cropperObj ? cropperObj.getCroppedCanvas({ width: 1024, height: 1526 }) : null;
+                finishDrawPreviewStep(canvas);
+            } else {
+                requestAnimationFrame(() => {
+                    const canvas = cropperObj ? cropperObj.getCroppedCanvas({ width: 1024, height: 1526 }) : null;
+                    if (!canvas) return;
+                    requestAnimationFrame(() => {
+                        finishDrawPreviewStep(canvas);
+                    });
+                });
             }
         };
 

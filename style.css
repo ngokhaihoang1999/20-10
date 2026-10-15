@@ -1490,10 +1490,41 @@ input[type="file"] {
     z-index: 5 !important;
 }
 
+/* Giữ nguyên cấu trúc overflow, z-index và GPU Compositor Layer (will-change + backface-visibility)
+   đồng nhất 100% giữa .step2-morph-from và .step2-morph-to để Chromium KHÔNG BAO GIỜ hủy/tạo lại Layer hoặc chạy RRect Mask tại Frame 1! */
 #step-2.step2-morph-from .preview-stage,
-#step-2.step2-morph-from #step2-full-card-preview {
+#step-2.step2-morph-to .preview-stage {
     overflow: visible;
-    z-index: 30;
+    z-index: 20;
+}
+
+#step-2.step2-morph-from #step2-full-card-preview,
+#step-2.step2-morph-to #step2-full-card-preview {
+    overflow: visible;
+    background-color: transparent;
+    box-shadow: none;
+    z-index: 20;
+}
+
+#step-2.step2-morph-from .main-container::before,
+#step-2.step2-morph-to .main-container::before,
+#step-2.step2-morph-from #preview-area-wrap,
+#step-2.step2-morph-to #preview-area-wrap,
+#step-2.step2-morph-from #step2-wish-area,
+#step-2.step2-morph-to #step2-wish-area,
+#step-2.step2-morph-from .step2-header-row,
+#step-2.step2-morph-to .step2-header-row,
+#step-2.step2-morph-from .card-nav-prev,
+#step-2.step2-morph-to .card-nav-prev,
+#step-2.step2-morph-from .card-nav-next,
+#step-2.step2-morph-to .card-nav-next,
+#step-2.step2-morph-from #step2-control-deck,
+#step-2.step2-morph-to #step2-control-deck,
+#step-2.step2-morph-from .action-buttons,
+#step-2.step2-morph-to .action-buttons {
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
 }
 
 /* --- PHA KHỞI ĐẦU MORPH (Frame 0, transition: none): Khung nền, tấm ảnh và các thanh công cụ thu gọn tại tâm thiệp Bước 1 --- */
@@ -1504,11 +1535,10 @@ input[type="file"] {
 
 #step-2.step2-morph-from #preview-area-wrap {
     position: relative;
-    z-index: 40;
+    z-index: 25;
     transition: none !important;
     border-radius: 10px 10px 0 0;
-    box-shadow: none;
-    will-change: transform;
+    box-shadow: 0 6px 18px rgba(15, 123, 95, 0.16);
     transform: translate3d(var(--morph-img-dx, 0px), var(--morph-img-dy, 0px), 0) scale(var(--morph-img-scale, 0.68));
 }
 
@@ -1517,6 +1547,9 @@ input[type="file"] {
 }
 
 #step-2.step2-morph-from #step2-wish-area {
+    position: relative;
+    z-index: 24;
+    border-radius: 0 0 10px 10px;
     transition: none !important;
     opacity: 0;
     transform-origin: top center;
@@ -1569,20 +1602,18 @@ input[type="file"] {
 
 #step-2.step2-morph-to #preview-area-wrap {
     position: relative;
-    z-index: 10;
+    z-index: 25;
     border-radius: 10px 10px 0 0;
-    box-shadow: none;
+    box-shadow: 0 6px 18px rgba(15, 123, 95, 0.16);
     transform: translate3d(0, 0, 0) scale(1);
     transition: transform 0.64s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-#step-2.step2-morph-to #step2-full-card-preview {
-    box-shadow:
-        0 8px 24px rgba(15, 123, 95, 0.2),
-        0 0 0 1.5px rgba(255, 255, 255, 0.94);
-}
-
 #step-2.step2-morph-to #step2-wish-area {
+    position: relative;
+    z-index: 24;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 8px 20px rgba(15, 123, 95, 0.16);
     opacity: 1;
     transform-origin: top center;
     transform: translate3d(0, 0, 0) scale(1);
@@ -4140,9 +4171,9 @@ body.recipient-mode .recipient-luxury-dock {
     animation-delay: 1.05s;
 }
 
-.u3d-envelope-stage.is-summoning .u3d-seal-pulse-ring,
-.u3d-envelope-stage.is-arriving .u3d-seal-pulse-ring,
-.u3d-envelope-stage.is-opening .u3d-seal-pulse-ring {
+.u3d-envelope-stage.is-opening .u3d-seal-pulse-ring,
+body[data-perf-tier="0"] .u3d-envelope-stage.is-summoning .u3d-seal-pulse-ring,
+body[data-perf-tier="0"] .u3d-envelope-stage.is-arriving .u3d-seal-pulse-ring {
     animation: none;
     opacity: 0;
 }
@@ -4167,6 +4198,8 @@ body.recipient-mode .recipient-luxury-dock {
     justify-content: center;
     animation: u3dSealBreath 2.6s ease-in-out infinite;
     will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     pointer-events: none;
 }
 
@@ -4186,9 +4219,9 @@ body.recipient-mode .recipient-luxury-dock {
     65% { transform: scale(1.1) rotate(6deg); }
 }
 
-.u3d-envelope-stage.is-summoning .u3d-seal-emblem,
-.u3d-envelope-stage.is-arriving .u3d-seal-emblem,
-.u3d-envelope-stage.is-opening .u3d-seal-emblem {
+.u3d-envelope-stage.is-opening .u3d-seal-emblem,
+body[data-perf-tier="0"] .u3d-envelope-stage.is-summoning .u3d-seal-emblem,
+body[data-perf-tier="0"] .u3d-envelope-stage.is-arriving .u3d-seal-emblem {
     animation: none;
 }
 
