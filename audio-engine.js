@@ -35,9 +35,9 @@
     let isEnvelopeClosedMuffled = true;
     let bgmDuckFactor = 1.0;
 
-    // Cố định duy nhất bản thu âm Grand Piano "River Flows in You — Yiruma" xuyên suốt toàn bộ các bước & chủ đề
-    const MAIN_BGM_SRC = 'bgm/river-flows-in-you.mp3';
-    const BASE_BGM_VOLUME = 0.60;
+    // Cố định bản thu âm MP3 trích xuất từ video YouTube người dùng chọn xuyên suốt toàn bộ các bước & chủ đề
+    const MAIN_BGM_SRC = 'bgm/custom-bgm.mp3?v=57.0';
+    const BASE_BGM_VOLUME = 0.62;
     let bgmAudio = null;
     let fadeRafId = null;
 
@@ -58,6 +58,7 @@
         bud: false,
         open: false,
         heart: false,
+        weave: false,
         envIn: false,
         lift: false
     };
@@ -765,6 +766,7 @@
             bud: false,
             open: false,
             heart: false,
+            weave: false,
             envIn: false,
             lift: false
         };
@@ -788,7 +790,7 @@
         // 1. Khởi đầu đại cảnh Hồ Gương (tau >= 0.02s)
         if (!wishBloomCueState.started && tau >= 0.02) {
             wishBloomCueState.started = true;
-            setBgmDuck(0.52, 6.8);
+            setBgmDuck(0.52, 7.6);
             setEnvelopeSpatialMuffle(false, 0.4);
             if (canPlayAudio()) {
                 playWarmShimmerPad(RIVER_WARM_PAD, now, 2.2, 0.032);
@@ -877,30 +879,41 @@
             }
         }
 
-        // 6. Vương miện 42 nhụy vàng tỏa sáng & 4 cánh hoa trong tách khỏi nhụy (tau >= 2.95s)
-        if (!wishBloomCueState.heart && tau >= 2.95) {
+        // 6. Đại đóa hoa & vương miện 42 nhụy vàng bung mở trọn vẹn (tau >= 2.86s = T.HEART)
+        if (!wishBloomCueState.heart && tau >= 2.86) {
             wishBloomCueState.heart = true;
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(0.42, 340, 760, 0.11, 0, 0);
-                ['Csharp5', 'E5', 'Fsharp5', 'A5', 'Csharp6'].forEach((noteName, idx) => {
-                    playHarmonicChime(n(noteName), now + idx * 0.055, 1.05, 0.11, (idx - 2) * 0.2);
+                ['Csharp5', 'E5', 'Fsharp5', 'A5'].forEach((noteName, idx) => {
+                    playHarmonicChime(n(noteName), now + idx * 0.06, 1.05, 0.10, (idx - 1.5) * 0.2);
                 });
             }
         }
 
-        // 7. 4 Cánh hoa gấp Origami 3D thành 4 vạt chiếc phong bì trên đài hoa (tau >= 3.42s)
-        if (!wishBloomCueState.envIn && tau >= 3.42) {
+        // 6B. Các hạt nhị hoa rung động kỳ diệu kết tinh nên Lõi Thư ngay trên nhị hoa (tau >= 3.14s = T_CARD_WEAVE)
+        if (!wishBloomCueState.weave && tau >= 3.14) {
+            wishBloomCueState.weave = true;
+            if (canPlayAudio()) {
+                triggerSubtleHaptic('sparkle');
+                playSilkPaperWhoosh(0.58, 460, 1020, 0.11, 0, 0.02);
+                ['E5', 'Fsharp5', 'A5', 'B5', 'Csharp6', 'E6'].forEach((noteName, idx) => {
+                    playHarmonicChime(n(noteName), now + idx * 0.085, 1.15, 0.095 + idx * 0.005, (idx - 2.5) * 0.18);
+                });
+            }
+        }
+
+        // 7. Sau khi Lõi Thư đã tạo xong trên nhị hoa, 4 cánh hoa tiến tới & gấp Origami 3D thành phong bì (tau >= 4.18s)
+        if (!wishBloomCueState.envIn && tau >= 4.18) {
             wishBloomCueState.envIn = true;
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(1.05, 380, 880, 0.13, 0, 0.02);
+                playSilkPaperWhoosh(1.15, 380, 880, 0.13, 0, 0.02);
                 ['A4', 'B4', 'Csharp5', 'E5'].forEach((noteName, f) => {
-                    playHarmonicChime(n(noteName), now + f * 0.34, 1.1, 0.11 + f * 0.01, (f - 1.5) * 0.2);
+                    playHarmonicChime(n(noteName), now + 0.25 + f * 0.34, 1.1, 0.11 + f * 0.01, (f - 1.5) * 0.2);
                 });
             }
         }
 
-        // 8. Đài hoa nâng phong bì dâng tặng về phía người xem (tau >= 5.35s = T.LIFT)
-        if (!wishBloomCueState.lift && tau >= 5.35) {
+        // 8. Đài hoa nâng phong bì dâng tặng về phía người xem (tau >= 6.50s = T.LIFT)
+        if (!wishBloomCueState.lift && tau >= 6.50) {
             wishBloomCueState.lift = true;
             setEnvelopeSpatialMuffle(true, 0.9);
             if (canPlayAudio()) {
