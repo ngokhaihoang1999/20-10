@@ -1201,13 +1201,13 @@
             li: th.hero.layers.length - 1,
             ld: 1.0,
             az,
-            len: Math.max(58, innerLy.len * 1.06),
-            wid: Math.max(46, innerLy.wid * 1.08),
+            len: Math.max(60, innerLy.len * 1.08),
+            wid: Math.max(46, innerLy.wid * 1.06),
             a0: innerLy.a0,
-            a1: innerLy.a1,
-            a2: innerLy.a2 + 5,
-            curl: innerLy.curl,
-            cup: innerLy.cup || 0.48,
+            a1: innerLy.a1 + 6,
+            a2: innerLy.a2 + 14,
+            curl: 24,
+            cup: innerLy.cup || 0.44,
             rb: innerLy.rb,
             delay: innerLy.delay,
             hasDew: false,
@@ -2349,8 +2349,8 @@
             const baseTheta = p.theta;
             // Sóng đàn hồi sinh học lan từ gốc cánh ra đầu cánh khi bung mở (Biomechanical Whip Wave)
             const whipWave = Math.sin((u - p.uOpen * 1.1) * Math.PI * 1.5) * 0.08 * (1 - p.uOpen) * smooth(p.uOpen / 0.15);
-            // Bụng cánh căng đầy ở giữa (bellyArch > 0) và đầu cánh khum vòng lên bầu trời (p.curlRad < 0) tạo dáng chén ngọc 3D!
-            const bellyArch = Math.sin(u * Math.PI) * (0.14 + 0.08 * open) + whipWave;
+            // Bụng cánh căng đầy ở giữa (bellyArch > 0) và đầu cánh khum vòng lên bầu trời (p.curlRad < 0) hoặc uốn ngọn hướng ra ngoài (p.curl > 0)
+            const bellyArch = Math.sin(u * Math.PI) * (p.curl > 0 ? -0.09 : (0.14 + 0.08 * open)) + whipWave;
             const localTheta = Math.max(0.05, baseTheta + bellyArch + p.curlRad * Math.pow(u, 1.55));
             const sa = Math.sin(localTheta), ca = Math.cos(localTheta);
 
@@ -3203,9 +3203,9 @@
         // =================================================================================
         // 6. ĐẠI CẢNH 4 CÁNH HOA LỚP TRONG GẤP ORIGAMI 3D THÀNH PHONG BÌ & ĐỒNG BỘ DOM 1:1
         // =================================================================================
-        // Điểm điều khiển B-Spline (m = 0..10): P0, P1, P5 cùng nằm sát trục bản lề (u = 0..0.03) để mép gấp luôn phẳng mượt 100%, không bao giờ bị nhọn ở P0!
-        const U_PET  = [0.00, 0.03, 0.34, 0.72, 0.95, 1.00, 0.95, 0.72, 0.34, 0.03, 0.50];
-        const V_PET  = [0.00, -0.74, -1.00, -0.88, -0.46, 0.00, 0.46, 0.88, 1.00, 0.74, 0.00];
+        // Điểm điều khiển B-Spline của Cánh Hoa (m = 0..10): gốc cánh thon tự nhiên (u = 0.22), bụng cánh bầu tròn đầy (u = 0.48..0.74) và ngọn cánh vươn cong hướng ra ngoài (u = 1.04)
+        const U_PET  = [0.00, 0.22, 0.48, 0.74, 0.92, 1.04, 0.92, 0.74, 0.48, 0.22, 0.50];
+        const V_PET  = [0.00, -0.72, -1.00, -0.90, -0.44, 0.00, 0.44, 0.90, 1.00, 0.72, 0.00];
         // Điểm điều khiển Vạt Phong Bì: m=2,3,4 và m=6,7,8 thẳng hàng tuyệt đối trên đường chéo u + |v| = 1.00 để cạnh chữ V phẳng căng 100% như SVG DOM!
         const U_FLAP = [0.00, 0.00, 0.035, 0.50, 0.92, 1.00, 0.92, 0.50, 0.035, 0.00, 0.48];
         const V_FLAP = [0.00, -0.985, -0.965, -0.50, -0.08, 0.00, 0.08, 0.50, 0.965, 0.985, 0.00];
@@ -3538,9 +3538,9 @@
                 }
             }
 
-            // 3. Bốn Cánh Hoa Lớp Trong Cùng tách khỏi nhụy, nở rộng ôm lấy Lõi Thư và gấp Origami 3D (Trái -> Phải -> Đáy -> Nắp Trên)
+            // 3. Bốn Cánh Hoa Lớp Trong Cùng tách khỏi nhụy, nở rộng ôm lấy Lõi Thư với ngọn cánh uốn cong hướng ra ngoài và gấp Origami 3D (Trái -> Phải -> Đáy -> Nắp Trên)
             const pt = th.petal;
-            origamiPathObj.shape = pt.shape;
+            origamiPathObj.shape = 'camellia';
 
             function renderOrigamiSlot(slot) {
                 const op = origamiPetals[slot];
@@ -3550,35 +3550,38 @@
                 const foldP = clamp01(foldEase + foldSettle);
 
                 // Khi bắt đầu gấp vào (foldRaw: 0 -> 1), sóng biến hình chạy từ Gốc bản lề (baseMorph) -> Thân cạnh (midMorph) -> Đỉnh chữ V (tipMorph)
-                // giúp cánh hoa vuốt thẳng thành vạt thư tam giác ngay khi vừa dựng qua góc 90°, không bao giờ bị phình cong!
+                // giúp cánh hoa giữ nguyên dáng cong mềm tự nhiên khi chờ gấp, rồi vuốt thẳng thành vạt thư tam giác khi gập qua góc 90°!
                 const baseMorph = smooth(clamp01(foldRaw / 0.48));
-                const midMorph  = smooth(clamp01((foldRaw - 0.05) / 0.52));
-                const tipMorph  = smooth(clamp01((foldRaw - 0.10) / 0.58));
+                const midMorph  = smooth(clamp01((foldRaw - 0.06) / 0.52));
+                const tipMorph  = smooth(clamp01((foldRaw - 0.12) / 0.58));
                 const perspDamp = 0.45 * tipMorph;
 
-                const openHingeRad = (56 - slot * 1.5) * DEG;
-                const alpha = lerp(openHingeRad, Math.PI, foldP);
-                const cA = Math.cos(alpha), sA = Math.sin(alpha);
+                // Nhịp thở sinh học & lấy đà mở ngọn cánh hướng ra ngoài ngay trước khi bắt đầu gấp vào
+                const preWait = clamp01((FOLD_STARTS[slot] - tau) / 0.55);
+                const preAnticipate = Math.sin(clamp01((tau - (FOLD_STARTS[slot] - 0.30)) / 0.30) * Math.PI) * (1 - clamp01(foldRaw * 3.5));
+                const preBreathe = Math.sin(sc.clock * 2.8 + slot * 1.4) * 0.035 * preWait;
+                const preFoldOpen = preBreathe + preAnticipate * 0.11;
 
-                const hingeExpand = lerp(0.38, 1.00, smooth(clamp01(foldRaw / 0.56)));
+                // Bản lề gốc cánh đặt ngay sát mép ngoài tấm thiệp (0.68 -> 1.00) để trọn vẹn thân & ngọn cánh hoa xoè cong ra ngoài quanh thiệp
+                const hingeExpand = lerp(0.68, 1.00, smooth(clamp01(foldRaw / 0.44)));
                 let Hu = 0, Hv = 0, Inu = 0, Inv = 0, Tu = 0, Tv = 0, halfSpan = 0, flapReach = 0, apexShiftV = 0;
                 let petSpanTarget = 0, petReachTarget = 0;
                 if (slot === 0) {
                     Hu = -hw * hingeExpand; Hv = 0; Inu = 1; Inv = 0; Tu = 0; Tv = 1;
                     halfSpan = hh * 0.96; flapReach = hw * 1.058; apexShiftV = -hh * 0.11;
-                    petSpanTarget = hh * 0.88; petReachTarget = hw * 0.82;
+                    petSpanTarget = hh * 0.84; petReachTarget = hw * 0.90;
                 } else if (slot === 1) {
                     Hu = hw * hingeExpand; Hv = 0; Inu = -1; Inv = 0; Tu = 0; Tv = -1;
                     halfSpan = hh * 0.96; flapReach = hw * 1.058; apexShiftV = -hh * 0.11;
-                    petSpanTarget = hh * 0.88; petReachTarget = hw * 0.82;
+                    petSpanTarget = hh * 0.84; petReachTarget = hw * 0.90;
                 } else if (slot === 2) {
                     Hu = 0; Hv = -hh * hingeExpand; Inu = 0; Inv = 1; Tu = -1; Tv = 0;
                     halfSpan = hw * 0.99; flapReach = hh * 1.11; apexShiftV = 0;
-                    petSpanTarget = hw * 0.86; petReachTarget = hh * 0.92;
+                    petSpanTarget = hw * 0.78; petReachTarget = hh * 1.02;
                 } else {
                     Hu = 0; Hv = hh * hingeExpand; Inu = 0; Inv = -1; Tu = 1; Tv = 0;
                     halfSpan = hw * 0.99; flapReach = hh * 1.175; apexShiftV = 0;
-                    petSpanTarget = hw * 0.86; petReachTarget = hh * 0.96;
+                    petSpanTarget = hw * 0.78; petReachTarget = hh * 1.04;
                 }
 
                 let allProjected = true;
@@ -3589,25 +3592,39 @@
                         ? baseMorph
                         : ((m === 3 || m === 7 || m === 10) ? midMorph : tipMorph);
 
-                    evalHeroPetalPoint(op, hs, uP, vP, W1);
+                    const uClamped = Math.min(1.06, uP);
+                    evalHeroPetalPoint(op, hs, Math.min(1.0, uClamped), vP, W1);
 
-                    const petReach = uP * petReachTarget;
-                    const shapeProf = (0.52 + 0.48 * Math.sin(Math.pow(uP, 0.55) * Math.PI * 0.88)) * (0.88 + 0.12 * roundness);
+                    const shapeProf = (0.18 + 0.82 * Math.sin(Math.pow(Math.min(1, uClamped), 0.56) * Math.PI * 0.88)) * (0.88 + 0.12 * roundness);
                     const petHalfW = petSpanTarget * shapeProf;
-                    const petLat = vP * petHalfW;
-                    const petCup = (vP * vP) * petHalfW * 0.36 * Math.sin(uP * Math.PI * 0.90);
-                    const petBelly = Math.sin(uP * Math.PI) * 9.5 * hs.scale;
-                    const petArchZ = petBelly + petCup;
+                    // Phần vai trên & ngọn cánh mở xoè nhẹ hướng ra ngoài
+                    const tipFlareW = 1 + 0.12 * Math.pow(Math.max(0, uClamped - 0.45) / 0.60, 1.5);
+                    const petLat = vP * petHalfW * tipFlareW;
 
-                    const reach = lerp(petReach, uF * flapReach, localMorph);
+                    // Đường cong sinh học 3D của cánh hoa:
+                    // - Gốc cánh (uP < 0.45) nâng cao ôm lấy thiệp
+                    // - Thân trên & ngọn cánh (uP = 0.48 -> 1.04) uốn cong vươn mạnh hướng ra ngoài (Outward Reflex Curve)!
+                    const petalOut = petReachTarget * (0.18 * uClamped + 0.96 * Math.pow(uClamped, 1.78)) * (1 + preFoldOpen);
+                    const archUp = Math.sin(Math.min(1.0, uClamped * 0.88) * Math.PI);
+                    const tipReflex = Math.pow(Math.max(0, uClamped - 0.34) / 0.70, 1.85);
+                    const petalUp = petReachTarget * Math.max(0.06, (0.64 * archUp - 0.24 * tipReflex) * (1 - 0.35 * preFoldOpen));
+
+                    // Lòng cánh khum nhẹ ở gốc và uốn ngửa ra ngoài ở phía ngọn cánh
+                    const cupProfile = Math.sin(Math.min(1, uClamped) * Math.PI * 0.85) - 0.55 * tipReflex;
+                    const petCup = (vP * vP) * petHalfW * 0.32 * cupProfile;
+
+                    // Quay cực quanh bản lề: gốc cánh dẫn nhịp gấp vào trước, ngọn cánh đang cong hướng ra ngoài uốn mềm theo sau
+                    const rPet = Math.hypot(petalOut, petalUp);
+                    const angPet = Math.atan2(petalUp, Math.max(0.001, petalOut));
+                    const rCurr = lerp(rPet, uF * flapReach, localMorph);
+                    const angCurr = lerp(angPet, Math.PI, foldP);
                     const lat = lerp(petLat, vF * halfSpan, localMorph);
-                    // Khi biến hình thành vạt thư (localMorph -> 1), mặt phẳng vạt thư phẳng căng 100% để hai cạnh chéo chữ V thẳng tắp tuyệt đối!
-                    const archZ = petArchZ * (1 - localMorph) * (1 - foldP);
 
-                    const inDist = -cA * reach;
-                    const wDist = Math.max(0, sA * reach + archZ) + (slot + 1) * 0.18;
+                    const inDist = -Math.cos(angCurr) * rCurr;
+                    const wDist = Math.max(0, Math.sin(angCurr) * rCurr + petCup * (1 - localMorph) * (1 - foldP)) + (slot + 1) * 0.18;
+                    const sideArchV = (slot <= 1 ? (archUp * 0.15 - tipReflex * 0.20) * hh : 0) * (1 - localMorph) * (1 - foldP);
                     const envU = Hu + Inu * inDist + Tu * lat;
-                    const envV = Hv + Inv * inDist + Tv * lat + apexShiftV * uF * localMorph;
+                    const envV = Hv + Inv * inDist + Tv * lat + sideArchV + apexShiftV * uF * localMorph;
 
                     evalEnvWorldPoint(env, envU, envV, wDist, perspDamp, W2);
 
@@ -3660,17 +3677,19 @@
                 gW.fillStyle = cSlot.s1;
                 gW.fill();
 
+                // Gradient khối 3D: khi còn là cánh hoa (colorMix nhỏ), nhấn sáng đỉnh vòm bụng (0.48) và chuyển sắc độ uốn ngửa về phía ngọn (0.78 -> 1.00)
                 const pg = gW.createLinearGradient(origamiPathObj.p0x, origamiPathObj.p0y, origamiPathObj.p3x, origamiPathObj.p3y);
                 pg.addColorStop(0.00, cSlot.s0);
-                pg.addColorStop(0.28, cSlot.s1);
-                pg.addColorStop(0.68, cSlot.s2);
-                pg.addColorStop(0.92, cSlot.s3);
+                pg.addColorStop(0.24, cSlot.s1);
+                pg.addColorStop(0.50, colorMix < 0.45 ? cSlot.s3 : cSlot.s2);
+                pg.addColorStop(0.78, cSlot.s2);
+                pg.addColorStop(0.93, cSlot.s3);
                 pg.addColorStop(1.00, cSlot.rim);
                 gW.fillStyle = pg;
                 gW.fill();
 
                 const latGrad = gW.createLinearGradient(origamiPathObj.p2lx, origamiPathObj.p2ly, origamiPathObj.p4rx, origamiPathObj.p4ry);
-                const sheen = Math.sin(foldP * Math.PI) * 0.22;
+                const sheen = Math.sin(foldP * Math.PI) * 0.22 + (1 - colorMix) * 0.12;
                 latGrad.addColorStop(0.00, 'rgba(255, 244, 218, 0.14)');
                 latGrad.addColorStop(0.50, sheen > 0.02 ? `rgba(255, 248, 220, ${sheen.toFixed(3)})` : 'rgba(0, 0, 0, 0)');
                 latGrad.addColorStop(1.00, 'rgba(8, 2, 10, 0.26)');
@@ -3683,7 +3702,7 @@
                 gW.stroke();
 
                 // 3E. Vân lụa hữu cơ của cánh hoa mờ dần và hoá thành Đường Chỉ Vàng Khâu Nổi (Couture Dashed Gold Stitch)
-                const veinAlpha = (1 - colorMix * 0.85) * 0.20 * canvasAlpha;
+                const veinAlpha = (1 - colorMix * 0.85) * 0.22 * canvasAlpha;
                 if (veinAlpha > 0.02) {
                     gW.strokeStyle = `rgba(${pt.vein}, ${veinAlpha.toFixed(3)})`;
                     gW.lineWidth = Math.max(0.5, 0.85 * kScale);
@@ -3730,18 +3749,18 @@
             }
 
             // Sắp xếp chiều sâu 3D chuẩn xác (Painter's Algorithm):
-            // 1. Khi cánh hoa còn mở ngửa phía sau/hai bên (chưa gập qua góc 90°), vẽ cánh hoa TRƯỚC để nằm PHÍA SAU tấm thiệp.
+            // 1. Khi 4 cánh hoa còn mở ngửa và uốn ngọn hướng ra ngoài quanh lõi thư (foldRaw < 0.24), vẽ TRƯỚC để gốc cánh lồng mượt dưới mép thiệp.
             for (let slot = 0; slot < 4; slot++) {
                 const foldRaw = clamp01((tau - FOLD_STARTS[slot]) / FOLD_DURS[slot]);
-                const isBehindCard = (slot === 3 && foldRaw < 0.36) || ((slot === 0 || slot === 1) && foldRaw < 0.12);
+                const isBehindCard = slot === 3 ? (foldRaw < 0.34) : (foldRaw < 0.24);
                 if (isBehindCard) renderOrigamiSlot(slot);
             }
             // 2. Vẽ Tấm Thiệp Ước Nguyện Hoàng Gia nằm giữa lòng đài hoa 4 cánh.
             renderSymbolicWishCard3D();
-            // 3. Vẽ các vạt cánh hoa phía trước (slot = 2) và các vạt đang gập đè lên mặt trước tấm thiệp (Trái -> Phải -> Đáy -> Nắp Trên).
+            // 3. Khi từng cánh hoa dựng qua góc 90° và gập vào trong (foldRaw >= 0.24), vẽ đè lên mặt trước tấm thiệp theo đúng thứ tự (Trái -> Phải -> Đáy -> Nắp Trên).
             for (let slot = 0; slot < 4; slot++) {
                 const foldRaw = clamp01((tau - FOLD_STARTS[slot]) / FOLD_DURS[slot]);
-                const isBehindCard = (slot === 3 && foldRaw < 0.36) || ((slot === 0 || slot === 1) && foldRaw < 0.12);
+                const isBehindCard = slot === 3 ? (foldRaw < 0.34) : (foldRaw < 0.24);
                 if (!isBehindCard) renderOrigamiSlot(slot);
             }
 
