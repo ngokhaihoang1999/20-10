@@ -1440,39 +1440,48 @@
             }
         }
 
-        // Hệ thống thuỷ động lực học khi sao băng chạm mặt nước:
-        // Giọt nước văng parabol vật lý (tự sinh vòng sóng phụ khi rơi chạm lại mặt hồ!)
+        // Hệ thống thuỷ động lực học nghiêng (Oblique Impact Hydrodynamics) khi vì tinh tú lao chéo góc ~22° xuống mặt hồ:
+        // Hướng quán tính ngang (impX, impZ) tiếp nối phương rơi từ trên-phải xuống dưới-trái tại thời điểm va chạm tau = T.IMPACT (yaw = -0.90)
         const GRAV = 920;
+        const yawImpact = -0.90;
+        const impX = -Math.cos(yawImpact);
+        const impZ =  Math.sin(yawImpact);
         const splash = [];
         const splashCount = perfTier === 2 ? 32 : (perfTier === 1 ? 22 : 14);
         for (let i = 0; i < splashCount; i++) {
-            const v = 220 + R() * 340;
-            const el = (42 + R() * 38) * DEG;
             const az = (i / splashCount) * TAU + (R() - 0.5) * 0.14;
+            const fDot = Math.cos(az) * impX + Math.sin(az) * impZ; // +1 ở phía thuận chiều lao tới (bên trái), -1 ở phía lưng sao rơi
+            const dirBoost = 1 + 0.36 * fDot;
+            const v = (215 + R() * 330) * dirBoost;
+            const el = (40 + R() * 36 - fDot * 7) * DEG;
             const vh0 = Math.cos(el) * v;
-            const vy0 = Math.sin(el) * v;
+            const vy0 = Math.sin(el) * v * (1 + 0.18 * Math.max(0, fDot));
+            // Cộng thêm vận tốc trượt ngang theo quán tính của vì tinh tú (92 px/s) để chùm hạt nước văng chéo tự nhiên
+            const vx = Math.cos(az) * vh0 + impX * 92;
+            const vz = Math.sin(az) * vh0 + impZ * 92;
             const tLand = (2 * vy0) / GRAV;
-            const rLand = vh0 * tLand;
             splash.push({
                 v, el, az, vh0, vy0,
+                vx, vz,
                 tLand,
-                rLand,
-                xLand: Math.cos(az) * rLand,
-                zLand: Math.sin(az) * rLand,
-                sz: 2.2 + R() * 2.6
+                xLand: vx * tLand,
+                zLand: vz * tLand,
+                sz: (2.1 + R() * 2.5) * (0.92 + 0.20 * Math.max(0, fDot))
             });
         }
 
-        // Phiến màng nước vương miện 3D (Liquid Crown Splash Sheets) bung lên quanh miệng hố va chạm
+        // Phiến màng nước vương miện 3D bất đối xứng (Oblique Liquid Crown Splash Sheets) bung cao và vươn xa hơn ở phía đón quán tính sao rơi
         const crownSheets = [];
         const crownSheetCount = perfTier === 2 ? 14 : (perfTier === 1 ? 10 : 7);
         for (let i = 0; i < crownSheetCount; i++) {
             const az = (i / crownSheetCount) * TAU + (R() - 0.5) * 0.08;
+            const fDot = Math.cos(az) * impX + Math.sin(az) * impZ;
             crownSheets.push({
                 az,
+                fDot,
                 span: (0.16 + R() * 0.10),
-                vRad: 115 + R() * 55,
-                vUp: 245 + R() * 95,
+                vRad: (115 + R() * 55) * (1 + 0.42 * fDot),
+                vUp: (240 + R() * 92) * (1 + 0.40 * fDot),
                 pearls: 2 + (i % 2)
             });
         }
@@ -2140,7 +2149,8 @@
             g.globalAlpha = 1;
         }
 
-        // Hố lõm mặt nước 3D (Concave Water Crater), Vương miện màng nước (Crown Splash) & Cột nước dội ngược (Worthington Jet)
+        // Hố lõm mặt nước 3D bất đối xứng (Oblique Concave Water Crater), Vương miện màng nước phóng nghiêng (Asymmetric Crown Splash),
+        // Tia nước phóng chéo theo quán tính (Forward Ballistic Plume) & Cột nước hồi lưu Worthington nghiêng động học
         function drawImpactCraterAndSplash3D(g, tau) {
             const t = tau - T.IMPACT;
             if (t < 0 || t > 1.25) return;
@@ -2151,31 +2161,37 @@
             g.lineJoin = 'round';
             g.lineCap = 'round';
 
-            // 1. Hố lõm thuỷ lực 3D (Water Cavity Depression) & thành nước dựng đứng quanh miệng hố (t = 0..0.58s)
+            // 1. Hố lõm thuỷ lực 3D & thành nước vương miện bất đối xứng theo phương sao rơi (t = 0..0.58s)
             if (t < 0.58 && project(0, 0, 0, P0)) {
                 const pC = t / 0.58;
                 const craterR = (22 + 64 * easeOutCubic(pC));
                 const depth = 22 * Math.sin(Math.pow(pC, 0.65) * Math.PI);
                 const rimH = 15 * Math.sin(Math.pow(pC, 0.55) * Math.PI);
                 const fadeC = 1 - smooth((pC - 0.55) / 0.45);
+                const cavShift = 10 * easeOutCubic(pC);
 
                 const rimPts = [];
                 const botPts = [];
                 const segs = 28;
                 for (let s = 0; s <= segs; s++) {
                     const a = (s / segs) * TAU;
-                    const crownMod = 1 + 0.18 * Math.sin(a * 12 + t * 8);
-                    if (project(Math.cos(a) * craterR, rimH * crownMod, Math.sin(a) * craterR, Q)) {
+                    const ca = Math.cos(a), sa = Math.sin(a);
+                    const fDot = ca * impX + sa * impZ;
+                    const crownMod = (1 + 0.18 * Math.sin(a * 12 + t * 8)) * (1 + 0.44 * fDot);
+                    const rLocal = craterR * (1 + 0.16 * fDot);
+                    const rx = ca * rLocal + impX * cavShift * 0.55;
+                    const rz = sa * rLocal + impZ * cavShift * 0.55;
+                    if (project(rx, Math.max(0.5, rimH * crownMod), rz, Q)) {
                         rimPts.push({ x: Q.x, y: Q.y });
                     }
-                    if (project(Math.cos(a) * craterR * 0.52, -depth, Math.sin(a) * craterR * 0.52, Q2)) {
+                    if (project(ca * craterR * 0.50 + impX * cavShift, -depth, sa * craterR * 0.50 + impZ * cavShift, Q2)) {
                         botPts.push({ x: Q2.x, y: Q2.y });
                     }
                 }
 
-                if (rimPts.length > 10 && botPts.length > 10 && project(0, -depth, 0, P1)) {
-                    // Lòng hố nước lõm sâu thẳm
-                    const cg = g.createRadialGradient(P1.x, P1.y, 2, P0.x, P0.y, craterR * P0.k * 1.1);
+                if (rimPts.length > 10 && botPts.length > 10 && project(impX * cavShift, -depth, impZ * cavShift, P1)) {
+                    // Lòng hố nước lõm sâu thẳm lệch tâm theo hướng quán tính sao đâm xuống
+                    const cg = g.createRadialGradient(P1.x, P1.y, 2, P0.x, P0.y, craterR * P0.k * 1.18);
                     cg.addColorStop(0.00, th.veil);
                     cg.addColorStop(0.50, th.lakeDeep);
                     cg.addColorStop(0.84, th.lakeHorizon);
@@ -2194,22 +2210,26 @@
                     g.stroke();
                 }
 
-                // 14 phiến màng nước vương miện 3D bung cong lên từ miệng hố
+                // 14 phiến màng nước vương miện 3D vọt cao và vươn chéo mạnh hơn ở phía đón quán tính sao rơi
                 for (let i = 0; i < crownSheets.length; i++) {
                     const cs = crownSheets[i];
-                    const rBase = craterR * 0.92;
-                    const rTip = rBase + cs.vRad * t * 0.65;
+                    const rBase = craterR * 0.90 * (1 + 0.14 * cs.fDot);
+                    const rTip = rBase + cs.vRad * t * 0.68;
                     const yTip = Math.max(0, cs.vUp * t - 0.5 * GRAV * t * t);
                     if (yTip <= 0.5) continue;
                     const aL = cs.az - cs.span;
                     const aR = cs.az + cs.span;
-                    if (project(Math.cos(aL) * rBase, 1.5, Math.sin(aL) * rBase, P1) &&
-                        project(Math.cos(aR) * rBase, 1.5, Math.sin(aR) * rBase, P2) &&
-                        project(Math.cos(cs.az) * rTip, yTip, Math.sin(cs.az) * rTip, P3)) {
+                    const driftX = impX * 54 * t;
+                    const driftZ = impZ * 54 * t;
+                    const tipX = Math.cos(cs.az) * rTip + driftX;
+                    const tipZ = Math.sin(cs.az) * rTip + driftZ;
+                    if (project(Math.cos(aL) * rBase + driftX * 0.25, 1.5, Math.sin(aL) * rBase + driftZ * 0.25, P1) &&
+                        project(Math.cos(aR) * rBase + driftX * 0.25, 1.5, Math.sin(aR) * rBase + driftZ * 0.25, P2) &&
+                        project(tipX, yTip, tipZ, P3)) {
                         const sg = g.createLinearGradient((P1.x + P2.x) * 0.5, (P1.y + P2.y) * 0.5, P3.x, P3.y);
                         sg.addColorStop(0.0, `rgba(${th.waterSubsurface}, ${(fadeC * 0.38).toFixed(3)})`);
-                        sg.addColorStop(0.65, `rgba(${rgbRipple}, ${(fadeC * 0.72).toFixed(3)})`);
-                        sg.addColorStop(1.0, `rgba(255, 255, 255, ${(fadeC * 0.92).toFixed(3)})`);
+                        sg.addColorStop(0.65, `rgba(${rgbRipple}, ${(fadeC * 0.74).toFixed(3)})`);
+                        sg.addColorStop(1.0, `rgba(255, 255, 255, ${(fadeC * 0.94).toFixed(3)})`);
                         g.fillStyle = sg;
                         g.beginPath();
                         g.moveTo(P1.x, P1.y);
@@ -2217,11 +2237,49 @@
                         g.quadraticCurveTo((P2.x + P3.x) * 0.5, P3.y, P2.x, P2.y);
                         g.closePath();
                         g.fill();
+
+                        // Giọt ngọc bọt nước tách ra ở đỉnh phiến vương miện
+                        const pr = Math.max(1.2, (2.0 + 0.8 * Math.max(0, cs.fDot)) * P3.k);
+                        g.fillStyle = `rgba(255, 255, 255, ${(fadeC * 0.90).toFixed(3)})`;
+                        g.beginPath();
+                        g.arc(P3.x, P3.y, pr, 0, TAU);
+                        g.fill();
                     }
                 }
             }
 
-            // 2. Cột nước dội ngược Worthington Jet 3D tại tâm hồ (t = 0.04..0.72s) nâng nụ hoa trồi lên!
+            // 2A. Tia nước phóng chéo sơ cấp (Forward Ballistic Splash Plume, t = 0.01..0.48s) vọt tiếp nối góc rơi ~22° của vì tinh tú
+            if (t >= 0.01 && t < 0.48) {
+                const pF = (t - 0.01) / 0.47;
+                const fEnv = Math.sin(Math.pow(pF, 0.52) * Math.PI);
+                const fwdH = 66 * fEnv;
+                const fwdDist = (14 + 38 * easeOutCubic(pF));
+                const fBaseR = 16 * (1 - 0.35 * pF) * fEnv;
+                const fTipR = Math.max(3.8, fBaseR * 0.38);
+                if (fwdH > 3 &&
+                    project(-cam.rx * fBaseR, 0, -cam.rz * fBaseR, P1) &&
+                    project( cam.rx * fBaseR, 0,  cam.rz * fBaseR, P2) &&
+                    project(impX * fwdDist * 0.52, fwdH * 0.64, impZ * fwdDist * 0.52, P2L) &&
+                    project(impX * fwdDist, fwdH, impZ * fwdDist, P3)) {
+                    const fadeF = (1 - smooth((pF - 0.48) / 0.52)) * 0.78;
+                    const fg = g.createLinearGradient((P1.x + P2.x) * 0.5, (P1.y + P2.y) * 0.5, P3.x, P3.y);
+                    fg.addColorStop(0.00, `rgba(${th.waterSubsurface}, 0.55)`);
+                    fg.addColorStop(0.65, `rgba(${rgbRipple}, 0.88)`);
+                    fg.addColorStop(1.00, '#ffffff');
+                    g.globalAlpha = fadeF;
+                    g.fillStyle = fg;
+                    const tipRadPx = fTipR * P3.k;
+                    g.beginPath();
+                    g.moveTo(P1.x, P1.y);
+                    g.quadraticCurveTo(P2L.x - tipRadPx * 1.3, P2L.y, P3.x - tipRadPx, P3.y);
+                    g.arc(P3.x, P3.y, tipRadPx, Math.PI, 0, false);
+                    g.quadraticCurveTo(P2L.x + tipRadPx * 1.3, P2L.y + tipRadPx * 0.6, P2.x, P2.y);
+                    g.closePath();
+                    g.fill();
+                }
+            }
+
+            // 2B. Cột nước dội ngược Worthington Jet 3D nghiêng động học (t = 0.04..0.74s) nâng nụ hoa trồi lên!
             if (t >= 0.04 && t < 0.74) {
                 const pJ = (t - 0.04) / 0.70;
                 const jetEnv = Math.sin(Math.pow(pJ, 0.58) * Math.PI);
@@ -2229,16 +2287,20 @@
                 const baseR = (26 - 12 * pJ) * (0.4 + 0.6 * jetEnv);
                 const neckR = Math.max(4.5, baseR * 0.34);
                 const bulbR = Math.max(6.5, baseR * 0.52);
+                // Cột nước Worthington nghiêng theo phương động lượng ngang của sao rơi rồi dần hồi tâm khi nụ hoa trồi lên
+                const tiltDist = jetH * 0.27 * (1 - 0.32 * pJ);
+                const tiltX = impX * tiltDist;
+                const tiltZ = impZ * tiltDist;
 
                 if (jetH > 3 &&
                     project(-cam.rx * baseR, 0, -cam.rz * baseR, P1) &&
                     project( cam.rx * baseR, 0,  cam.rz * baseR, P2) &&
-                    project(-cam.rx * neckR, jetH * 0.68, -cam.rz * neckR, P2L) &&
-                    project( cam.rx * neckR, jetH * 0.68,  cam.rz * neckR, P4R) &&
-                    project(0, jetH, 0, P3)) {
+                    project(tiltX * 0.56 - cam.rx * neckR, jetH * 0.68, tiltZ * 0.56 - cam.rz * neckR, P2L) &&
+                    project(tiltX * 0.56 + cam.rx * neckR, jetH * 0.68, tiltZ * 0.56 + cam.rz * neckR, P4R) &&
+                    project(tiltX, jetH, tiltZ, P3)) {
 
                     const fadeJ = (1 - smooth((pJ - 0.55) / 0.45)) * 0.90;
-                    const jg = g.createLinearGradient(P3.x, (P1.y + P2.y) * 0.5, P3.x, P3.y);
+                    const jg = g.createLinearGradient((P1.x + P2.x) * 0.5, (P1.y + P2.y) * 0.5, P3.x, P3.y);
                     jg.addColorStop(0.00, th.lakeMid);
                     jg.addColorStop(0.38, `rgba(${th.waterSubsurface}, 0.85)`);
                     jg.addColorStop(0.78, `rgba(${rgbRipple}, 0.92)`);
@@ -2254,32 +2316,30 @@
                     g.closePath();
                     g.fill();
 
-                    // Sống phản quang nước dọc thân cột Worthington
+                    // Sống phản quang nước uốn cong dọc thân cột Worthington nghiêng
                     g.strokeStyle = `rgba(255, 255, 255, ${(fadeJ * 0.82).toFixed(3)})`;
                     g.lineWidth = Math.max(1.2, 2.2 * P3.k);
                     g.beginPath();
                     g.moveTo((P1.x + P2.x) * 0.5, (P1.y + P2.y) * 0.5);
-                    g.lineTo(P3.x, P3.y - bulbR * P3.k * 0.4);
+                    g.quadraticCurveTo((P2L.x + P4R.x) * 0.5, (P2L.y + P4R.y) * 0.5, P3.x, P3.y - bulbR * P3.k * 0.4);
                     g.stroke();
                 }
             }
 
-            // 3. 36 Giọt nước cầu thuỷ tinh 3D văng theo quỹ đạo Parabol trọng trường (t = 0..1.15s)
+            // 3. 32 Giọt nước cầu thuỷ tinh 3D văng chéo theo quỹ đạo Parabol trọng trường + quán tính sao rơi (t = 0..1.15s)
             g.globalAlpha = 1;
             for (let i = 0; i < splash.length; i++) {
                 const sp = splash[i];
                 if (t >= sp.tLand) continue;
                 const y = sp.vy0 * t - 0.5 * GRAV * t * t;
                 if (y < 0) continue;
-                const r = sp.vh0 * t;
-                const x = Math.cos(sp.az) * r, z = Math.sin(sp.az) * r;
+                const x = sp.vx * t, z = sp.vz * t;
                 if (!project(x, y, z, Q)) continue;
 
                 const fadeD = clamp01(1 - (t / sp.tLand) * 0.35);
                 const tPrev = Math.max(0, t - 0.028);
                 const yPrev = Math.max(0, sp.vy0 * tPrev - 0.5 * GRAV * tPrev * tPrev);
-                const rPrev = sp.vh0 * tPrev;
-                if (project(Math.cos(sp.az) * rPrev, yPrev, Math.sin(sp.az) * rPrev, Q2)) {
+                if (project(sp.vx * tPrev, yPrev, sp.vz * tPrev, Q2)) {
                     g.strokeStyle = `rgba(${rgbRipple}, ${(fadeD * 0.68).toFixed(3)})`;
                     g.lineWidth = Math.max(1.0, sp.sz * 0.85 * Q.k);
                     g.beginPath();
