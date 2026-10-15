@@ -1308,6 +1308,21 @@
         function buildEyeStateCanvas(eyeOpenness) {
             const buf = createOffscreenBuffer(targetW, targetH);
             const bCtx = buf.getContext('2d');
+            const cornerR = 30;
+
+            bCtx.save();
+            bCtx.beginPath();
+            if (typeof bCtx.roundRect === 'function') {
+                bCtx.roundRect(0, 0, targetW, targetH, cornerR);
+            } else {
+                bCtx.moveTo(cornerR, 0);
+                bCtx.arcTo(targetW, 0, targetW, targetH, cornerR);
+                bCtx.arcTo(targetW, targetH, 0, targetH, cornerR);
+                bCtx.arcTo(0, targetH, 0, 0, cornerR);
+                bCtx.arcTo(0, 0, targetW, 0, cornerR);
+                bCtx.closePath();
+            }
+            bCtx.clip();
 
             const fullGrad = bCtx.createLinearGradient(0, 0, 0, targetH);
             fullGrad.addColorStop(0, theme.canvasBgStart);
@@ -1326,6 +1341,7 @@
             bCtx.restore();
 
             bCtx.drawImage(overlayCanvas, 0, 0);
+            bCtx.restore();
             return buf;
         }
 
