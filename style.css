@@ -962,6 +962,18 @@ input[type="file"] {
     animation: none;
 }
 
+/* Tắt tạm thời backdrop-filter & SVG filter khi đang mở nắp / rút thư qua clip-path để giữ 60fps tuyệt đối trên mọi thiết bị */
+#step-1:not(.envelope-opened) .step1-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(255, 253, 254, 0.96);
+}
+
+#step-1.env-flap-open:not(.envelope-opened) .env-top-flap-layer [filter],
+#step-1.env-letter-pull .env-front-pocket-layer [filter] {
+    filter: none !important;
+}
+
 /* 4 Góc khung Art Deco Ngọc Bích */
 .step1-deco-corner {
     position: absolute;
@@ -4397,7 +4409,7 @@ body.recipient-mode .recipient-luxury-dock {
 
 .u3d-canvas-world {
     z-index: 2;
-    transition: opacity 0.22s linear;
+    will-change: opacity;
 }
 
 .u3d-canvas-back {

@@ -888,11 +888,19 @@
             snapSrc.stop(t0 + 0.045);
         }
 
-        // Lớp 3: Chùm kim tuyến 24K bung sáng (Golden Sparkle Arpeggio)
+        // Lớp 3: Chùm kim tuyến 24K bung sáng (Nốt đầu phát ngay, các nốt rải sau đẩy sang frame kế tiếp để giữ 0ms trễ trên frame click!)
         const suite = THEME_SUITES[currentMotionTheme] || THEME_SUITES.bloom;
-        suite.pentatonic.slice(2, 7).forEach((noteName, idx) => {
-            playMelodyNote(n(noteName) * 2, t0 + 0.02 + idx * 0.032, 0.48, 0.11, 'music_box', (idx - 2) * 0.22, sfxBus);
-        });
+        const sparkleNotes = suite.pentatonic.slice(2, 7);
+        if (sparkleNotes.length > 0) {
+            playMelodyNote(n(sparkleNotes[0]) * 2, t0 + 0.018, 0.48, 0.11, 'music_box', -0.44, sfxBus);
+        }
+        setTimeout(() => {
+            if (!canPlayAudio()) return;
+            const tFollow = ctx.currentTime + 0.008;
+            for (let idx = 1; idx < sparkleNotes.length; idx++) {
+                playMelodyNote(n(sparkleNotes[idx]) * 2, tFollow + (idx - 1) * 0.032, 0.48, 0.11, 'music_box', (idx - 2) * 0.22, sfxBus);
+            }
+        }, 18);
     }
 
     // 5.7. Tiếng Đóng Ấn Sáp Vàng 24K Uy Lực (Khi Phong Bì 3D vừa đáp xuống và đóng dấu sáp)
@@ -929,12 +937,13 @@
         setEnvelopeSpatialMuffle(false, 1.05);
         if (!canPlayAudio()) return;
 
-        // 0ms: Tách dấu sáp vàng & Lật mở nắp phong bì 180°
+        // 0ms: Tách dấu sáp vàng ngay lập tức; đẩy các lớp tiếng giấy trượt sang frame kế tiếp để tránh dồn WebAudio node vào frame click
         playWaxSealCrack();
-        playSilkPaperWhoosh(0.32, 340, 820, 0.16, 0, 0.04);
-
-        // 410ms: Rút tấm thiệp từ túi chữ V trượt vút lên
-        playSilkPaperWhoosh(0.48, 420, 1180, 0.22, 0, 0.41);
+        setTimeout(() => {
+            if (!canPlayAudio()) return;
+            playSilkPaperWhoosh(0.32, 340, 820, 0.16, 0, 0.02);
+            playSilkPaperWhoosh(0.48, 420, 1180, 0.22, 0, 0.39);
+        }, 18);
 
         // 980ms: Thiệp bung ra chính giữa màn hình
         setTimeout(() => {
@@ -1195,37 +1204,52 @@
         }, 540);
 
         // --- PHA A (0.00s -> 0.88s): Âm thanh Khởi Động Con Dấu Sáp theo từng chủ đề ---
+        // Chỉ khởi tạo nốt đầu tiên (t ~ 0.01s) ngay trên frame click; các nốt lấy đà tiếp theo đẩy sang frame kế tiếp (18ms) để giữ 60fps tuyệt đối!
         if (currentMotionTheme === 'ribbon') {
-            // Ruy-băng lụa kéo căng (0 -> 0.37s) rồi 4 dải lụa tuột nút bay vút ra 4 phía (0.37s -> 0.88s)
             playSilkPaperWhoosh(0.34, 280, 540, 0.15, 0, 0.01);
-            playSilkPaperWhoosh(0.46, 560, 1420, 0.24, -0.35, 0.37);
-            playSilkPaperWhoosh(0.46, 560, 1420, 0.24, 0.35, 0.39);
+            setTimeout(() => {
+                if (!canPlayAudio()) return;
+                playSilkPaperWhoosh(0.46, 560, 1420, 0.24, -0.35, 0.35);
+                playSilkPaperWhoosh(0.46, 560, 1420, 0.24, 0.35, 0.37);
+            }, 18);
         } else if (currentMotionTheme === 'butterflies') {
-            // Hồ điệp vàng vỗ cánh thức tỉnh nhanh dần trên ấn sáp
-            for (let i = 0; i < 6; i++) {
-                const noteName = suite.pentatonic[i % suite.pentatonic.length];
-                playMelodyNote(n(noteName) * 2, t0 + i * 0.12, 0.32, 0.08 + i * 0.012, 'celesta', (i % 2 === 0 ? -0.3 : 0.3), sfxBus);
-            }
-            playSilkPaperWhoosh(0.75, 420, 1150, 0.16, 0, 0.05);
+            const firstNote = suite.pentatonic[0];
+            playMelodyNote(n(firstNote) * 2, t0, 0.32, 0.08, 'celesta', -0.3, sfxBus);
+            setTimeout(() => {
+                if (!canPlayAudio()) return;
+                const tFollow = ctx.currentTime + 0.005;
+                for (let i = 1; i < 6; i++) {
+                    const noteName = suite.pentatonic[i % suite.pentatonic.length];
+                    playMelodyNote(n(noteName) * 2, tFollow + (i - 1) * 0.12 + 0.10, 0.32, 0.08 + i * 0.012, 'celesta', (i % 2 === 0 ? -0.3 : 0.3), sfxBus);
+                }
+                playSilkPaperWhoosh(0.75, 420, 1150, 0.16, 0, 0.03);
+            }, 18);
         } else {
-            // Đại Hoa Trà / Hồng Pháp / Anh Đào / Hoa Tulip: 3 nhịp tim nội lực ấm áp + chuông hoa xoay lấy đà
-            [0.02, 0.28, 0.54].forEach((beatDelay, idx) => {
+            // Nhịp tim đầu tiên phát ngay lập tức trên frame click (chỉ 2 node nhẹ)
+            const playHeartbeatThump = (startAt, idx) => {
                 const bOsc = ctx.createOscillator();
                 const bEnv = ctx.createGain();
                 bOsc.type = 'sine';
-                bOsc.frequency.setValueAtTime(110 + idx * 18, t0 + beatDelay);
-                bOsc.frequency.exponentialRampToValueAtTime(52, t0 + beatDelay + 0.14);
-                bEnv.gain.setValueAtTime(0.0001, t0 + beatDelay);
-                bEnv.gain.exponentialRampToValueAtTime(0.22 + idx * 0.05, t0 + beatDelay + 0.012);
-                bEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + beatDelay + 0.16);
+                bOsc.frequency.setValueAtTime(110 + idx * 18, startAt);
+                bOsc.frequency.exponentialRampToValueAtTime(52, startAt + 0.14);
+                bEnv.gain.setValueAtTime(0.0001, startAt);
+                bEnv.gain.exponentialRampToValueAtTime(0.22 + idx * 0.05, startAt + 0.012);
+                bEnv.gain.exponentialRampToValueAtTime(0.0001, startAt + 0.16);
                 bOsc.connect(bEnv);
                 bEnv.connect(sfxBus);
-                bOsc.start(t0 + beatDelay);
-                bOsc.stop(t0 + beatDelay + 0.18);
-            });
-            suite.pentatonic.slice(0, 5).forEach((noteName, i) => {
-                playHarpPluck(n(noteName), t0 + 0.08 + i * 0.14, 0.85, 0.10 + i * 0.012, (i - 2) * 0.2, sfxBus);
-            });
+                bOsc.start(startAt);
+                bOsc.stop(startAt + 0.18);
+            };
+            playHeartbeatThump(t0 + 0.015, 0);
+            setTimeout(() => {
+                if (!canPlayAudio()) return;
+                const tFollow = ctx.currentTime + 0.005;
+                playHeartbeatThump(tFollow + 0.25, 1);
+                playHeartbeatThump(tFollow + 0.51, 2);
+                suite.pentatonic.slice(0, 5).forEach((noteName, i) => {
+                    playHarpPluck(n(noteName), tFollow + 0.06 + i * 0.14, 0.85, 0.10 + i * 0.012, (i - 2) * 0.2, sfxBus);
+                });
+            }, 18);
         }
 
         // --- PHA B (t = 0.88s = WINDUP_END): Nổ Vỡ Phong Ấn Sáp Vàng & Bật Lò Xo Nắp Thư ---
@@ -1238,14 +1262,20 @@
         // --- PHA C (t = 0.98s = EXTRACT_START): Phun Trào Vật Lý Từ Miệng Túi & Rút Thiệp 3D (0.98s -> 2.32s) ---
         setTimeout(() => {
             if (!canPlayAudio()) return;
-            // Tiếng lá thư giấy mỹ thuật trượt êm qua miệng túi lụa suốt 1.25s
+            // Tiếng lá thư giấy mỹ thuật trượt êm qua miệng túi lụa suốt 1.25s + nốt Harp đầu tiên
             playSilkPaperWhoosh(1.18, 360, 1080, 0.22, 0, 0);
-
-            // Chuỗi đàn Harp & Chuông pha lê phun trào từ miệng phong bì
-            suite.revealChord.forEach((noteName, idx) => {
-                const pan = ((idx / Math.max(1, suite.revealChord.length - 1)) - 0.5) * 0.8;
-                playHarpPluck(n(noteName), ctx.currentTime + idx * 0.065, 1.95, 0.15, pan, sfxBus);
-            });
+            if (suite.revealChord.length > 0) {
+                playHarpPluck(n(suite.revealChord[0]), ctx.currentTime + 0.005, 1.95, 0.15, -0.4, sfxBus);
+            }
+            // Rải các nốt Harp còn lại ở nhịp kế tiếp để nhường trọn frame phun trào t=0.98s cho đồ họa 3D
+            setTimeout(() => {
+                if (!canPlayAudio()) return;
+                const tChord = ctx.currentTime + 0.005;
+                for (let idx = 1; idx < suite.revealChord.length; idx++) {
+                    const pan = ((idx / Math.max(1, suite.revealChord.length - 1)) - 0.5) * 0.8;
+                    playHarpPluck(n(suite.revealChord[idx]), tChord + (idx - 1) * 0.065 + 0.035, 1.95, 0.15, pan, sfxBus);
+                }
+            }, 26);
         }, 980);
 
         // --- PHA D (t = 2.32s = EXTRACT_END -> 2.94s = PRESENT_END): Mở Rộng Tấm Thiệp Ra Giữa Sân Khấu ---

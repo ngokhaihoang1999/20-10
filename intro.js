@@ -114,19 +114,24 @@
         isAnimatingEnvelope = true;
         window.CardAudio?.playStep1EnvelopeOpenSequence();
 
-        step1El.classList.remove('env-idle-float');
-
-        // Hiệu ứng bung sao vàng ngay tại vị trí con dấu sáp
-        if (typeof spawnTouchSparkle === 'function' && waxSealBtn) {
+        // Đọc tọa độ con dấu sáp TRƯỚC khi ghi classList để tránh 100% Forced Synchronous Layout Reflow trên frame click!
+        let sealCx = window.innerWidth * 0.5;
+        let sealCy = window.innerHeight * 0.5;
+        if (waxSealBtn) {
             const rect = waxSealBtn.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2;
-            const cy = rect.top + rect.height / 2;
-            spawnTouchSparkle(cx, cy, 16);
+            if (rect.width > 0) {
+                sealCx = rect.left + rect.width * 0.5;
+                sealCy = rect.top + rect.height * 0.5;
+            }
         }
 
-        // Pha 1 (0ms): Tách dấu sáp & Lật mở nắp phong bì 180 độ.
-        // Lúc này lá thư mới xuất hiện bên trong lòng túi chữ V (z:4, bị che bởi túi trước z:6 và cắt gọn trong khung bao thư)
+        step1El.classList.remove('env-idle-float');
         step1El.classList.add('env-flap-open');
+
+        // Hiệu ứng bung sao vàng ngay tại vị trí con dấu sáp
+        if (typeof spawnTouchSparkle === 'function') {
+            spawnTouchSparkle(sealCx, sealCy, 12);
+        }
 
         // Đưa nắp phong bì ra lớp sau lá thư (z:3) ngay khi nắp vừa lật qua góc thẳng đứng 90 độ (230ms)
         setTimeout(() => {

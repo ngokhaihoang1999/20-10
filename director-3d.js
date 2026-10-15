@@ -477,6 +477,7 @@ function buildPocketBloomCamelliaSVG(motionId = 'bloom') {
 let u3dAnimFrameId = null;
 let u3dAutoOpenTimerId = null;
 let u3dCurrentDirectorState = 'hidden'; // 'hidden' | 'waiting' | 'opening'
+let u3dOpenElapsed = 0;
 let u3dActiveOnComplete = null;
 let u3dTriggerOpenFn = null;
 let u3dPointerTargetRotX = 0;
@@ -1765,10 +1766,13 @@ function getU3DLuxurySpriteAtlas() {
         return c;
     };
 
-    atlas.cloudGold    = buildFBMVolumetricCloudSprite([255, 252, 225], [245, 190, 82],  [52, 34, 48],  11.3);
-    atlas.cloudRose    = buildFBMVolumetricCloudSprite([255, 235, 245], [228, 105, 158], [28, 22, 46],  27.8);
-    atlas.cloudEmerald = buildFBMVolumetricCloudSprite([230, 255, 245], [52, 198, 152],  [10, 38, 36],  43.1);
-    atlas.cloudAstral  = buildFBMVolumetricCloudSprite([255, 244, 230], [244, 132, 152], [44, 18, 36],  64.5);
+    let _cloudGold = null, _cloudRose = null, _cloudEmerald = null, _cloudAstral = null;
+    Object.defineProperties(atlas, {
+        cloudGold:    { get() { return _cloudGold    || (_cloudGold    = buildFBMVolumetricCloudSprite([255, 252, 225], [245, 190, 82],  [52, 34, 48],  11.3)); } },
+        cloudRose:    { get() { return _cloudRose    || (_cloudRose    = buildFBMVolumetricCloudSprite([255, 235, 245], [228, 105, 158], [28, 22, 46],  27.8)); } },
+        cloudEmerald: { get() { return _cloudEmerald || (_cloudEmerald = buildFBMVolumetricCloudSprite([230, 255, 245], [52, 198, 152],  [10, 38, 36],  43.1)); } },
+        cloudAstral:  { get() { return _cloudAstral  || (_cloudAstral  = buildFBMVolumetricCloudSprite([255, 244, 230], [244, 132, 152], [44, 18, 36],  64.5)); } }
+    });
 
     // 7. TRĂNG RẰM HOÀNG KIM CÓ VÂN ĐÁ QUÝ FBM SHADER (Textured Celestial Full Moon - 256x256)
     {
@@ -1907,6 +1911,44 @@ function u3dMixRgb(c1, c2, t) {
     return `rgb(${r},${g},${b})`;
 }
 
+// Bảng tra màu sắc tiền tính toán (Pre-computed Shading LUT) — Loại bỏ 100% cấp phát chuỗi rgb(...) trong vòng lặp 60fps
+const _U3D_SHADE_LUT = (() => {
+    const lut = {};
+    const keys = Object.keys(U3D_BOTANICAL_PALETTES);
+    for (let k = 0; k < keys.length; k++) {
+        const palKey = keys[k];
+        const pal = U3D_BOTANICAL_PALETTES[palKey];
+        const isTulip = palKey === 'tulip';
+        const front = [[], [], []];
+        const back = [];
+        for (let li = 0; li < 3; li++) {
+            const c0 = u3dMixRgb(pal.ao, pal.base, isTulip ? 0.58 : (0.18 + li * 0.14));
+            for (let b = 0; b <= 10; b++) {
+                const lVal = Math.min(1, (b / 10) + li * 0.10);
+                front[li].push({
+                    c0,
+                    c1: u3dMixRgb(pal.base, pal.mid, lVal * 0.85),
+                    c2: u3dMixRgb(pal.mid, pal.tip, 0.42 + lVal * 0.52),
+                    c3: u3dMixRgb(pal.tip, pal.rim, 0.55 + lVal * 0.45)
+                });
+            }
+        }
+        const bc0 = u3dMixRgb(pal.backAo, pal.backBase, isTulip ? 0.65 : 0.30);
+        const bc3 = u3dMixRgb(pal.tip, pal.rim, 0.72);
+        for (let b = 0; b <= 10; b++) {
+            const lVal = b / 10;
+            back.push({
+                c0: bc0,
+                c1: u3dMixRgb(pal.backBase, pal.backTip, lVal * 0.88),
+                c2: u3dMixRgb(pal.backTip, pal.tip, 0.55 + lVal * 0.40),
+                c3: bc3
+            });
+        }
+        lut[palKey] = { front, back, veinStroke: `rgba(${pal.vein}, 0.24)` };
+    }
+    return lut;
+})();
+
 // Bộ đệm tái sử dụng (Zero Heap Allocation) cho phép chiếu 3D của từng đoá hoa / vật thể
 const _u3dMat = { m00: 1, m01: 0, m02: 0, m10: 0, m11: 1, m12: 0, m20: 0, m21: 0, m22: 1, fov: 220 };
 function u3dSetMatrix(rx, ry, rz, fov) {
@@ -1948,15 +1990,16 @@ const _PTL = { x: 0, y: 0, z: 0, k: 1 };
 const _PTR = { x: 0, y: 0, z: 0, k: 1 };
 const _PM = { x: 0, y: 0, z: 0, k: 1 };
 
-// 1. CÁNH HOA 3D CONG KHUM LÒNG CHẢO & UỐN MÉP TRONG KHÔNG GIAN 3 CHIỀU (TRUE 3D CUPPED BEZIER PETAL)
+// 1. CÁNH HOA 3D CONG KHUM LÒNG CHẢO & UỐN MÉP TRONG KHÔNG GIAN 3 CHIỀU (TRUE 3D CUPPED BEZIER PETAL — ZERO CLIP / ZERO ALLOC)
 // Có sống lưng (Midrib Belly) cong lồi về -Z và hai mép cánh (Lateral Flanks) khum lên về +Z,
 // giúp khi cánh hoa xoay nghiêng 90° vẫn thấy rõ bụng cánh cong 3D và lòng cánh trũng sâu (không bao giờ bị bẹp thành vạch phẳng!)
 function drawTrue3DPetal(ctx, petalKind, s, rx, ry, rz) {
     if (s < 1.2) return;
-    const pal = U3D_BOTANICAL_PALETTES[petalKind] || U3D_BOTANICAL_PALETTES.camellia;
-    const isSakura = petalKind === 'sakura';
-    const isRose = petalKind === 'rose';
-    const isTulip = petalKind === 'tulip';
+    const palKey = U3D_BOTANICAL_PALETTES[petalKind] ? petalKind : 'camellia';
+    const shadeLut = _U3D_SHADE_LUT[palKey];
+    const isSakura = palKey === 'sakura';
+    const isRose = palKey === 'rose';
+    const isTulip = palKey === 'tulip';
 
     u3dSetMatrix(rx, ry, rz, Math.max(85, s * 3.8));
     const M = _u3dMat;
@@ -1964,7 +2007,7 @@ function drawTrue3DPetal(ctx, petalKind, s, rx, ry, rz) {
     const w = s * (isRose ? 0.98 : (isTulip ? 0.76 : 0.88));
     const cupZ = s * (isRose ? 0.36 : (isTulip ? 0.34 : 0.28));
     const bellyZ = -s * (isRose ? 0.32 : (isTulip ? 0.30 : 0.26));
-    const tipZ = s * (isRose ? -0.14 : 0.22); // Cánh hồng uốn lật nhẹ mép đỉnh về phía sau, hoa trà/tulip khum lên
+    const tipZ = s * (isRose ? -0.14 : 0.22);
 
     // Chiếu các điểm điều khiển 3D của mặt cong cánh hoa
     u3dProj(0, s * 0.48, -s * 0.04, _P0);           // Gốc cánh
@@ -1982,34 +2025,17 @@ function drawTrue3DPetal(ctx, petalKind, s, rx, ry, rz) {
         u3dProj(0, -s * 0.98, tipZ, _P3);
     }
 
-    // Pháp tuyến 3D của tâm cánh hoa và hai nửa khum trái/phải
+    // Pháp tuyến 3D của tâm cánh hoa và tra cứu bảng màu tiền tính toán (Zero string allocation)
     const nx = M.m02, ny = M.m12, nz = M.m22;
     const isFrontFace = nz >= -0.05;
     const ndl = Math.max(0, Math.min(1, 0.52 + 0.48 * (nx * U3D_L_DIR[0] + ny * U3D_L_DIR[1] + nz * U3D_L_DIR[2])));
-    const sideLight = M.m00 * U3D_L_DIR[0] + M.m10 * U3D_L_DIR[1] + M.m20 * U3D_L_DIR[2];
-
-    const traceMainContour = () => {
-        ctx.beginPath();
-        ctx.moveTo(_P0.x, _P0.y);
-        if (isSakura) {
-            ctx.bezierCurveTo(_P1.x, _P1.y, _P2.x, _P2.y, _PTL.x, _PTL.y);
-            ctx.lineTo(_P3.x, _P3.y);
-            ctx.lineTo(_PTR.x, _PTR.y);
-            ctx.bezierCurveTo(_P4.x, _P4.y, _P5.x, _P5.y, _P0.x, _P0.y);
-        } else {
-            ctx.bezierCurveTo(_P1.x, _P1.y, _P2.x, _P2.y, _P3.x, _P3.y);
-            ctx.bezierCurveTo(_P4.x, _P4.y, _P5.x, _P5.y, _P0.x, _P0.y);
-        }
-        ctx.closePath();
-    };
+    const bucket = Math.min(10, Math.max(0, (ndl * 10 + 0.5) | 0));
+    const backStops = shadeLut.back[bucket];
+    const stops = isFrontFace ? shadeLut.front[1][bucket] : backStops;
 
     // A. Khi cánh hoa nghiêng 3D, sống lưng _PM nhô ra ngoài tạo đường cong bụng cánh 3D thật (Dorsal Belly Volume)
-    const leftZ = _P1.z + _P2.z;
-    const rightZ = _P5.z + _P4.z;
-    const nearLeft = leftZ >= rightZ;
-
-    // Vẽ phần bụng lưng 3D (nằm giữa sống lưng _PM và mép cánh gần) để tạo độ dày khối chén 3D khi nhìn nghiêng
     if (Math.abs(M.m20) > 0.16 || Math.abs(M.m21) > 0.16) {
+        const nearLeft = (_P1.z + _P2.z) >= (_P5.z + _P4.z);
         ctx.beginPath();
         ctx.moveTo(_P0.x, _P0.y);
         ctx.quadraticCurveTo(_PM.x, _PM.y, _P3.x, _P3.y);
@@ -2019,67 +2045,62 @@ function drawTrue3DPetal(ctx, petalKind, s, rx, ry, rz) {
             ctx.bezierCurveTo(_P4.x, _P4.y, _P5.x, _P5.y, _P0.x, _P0.y);
         }
         ctx.closePath();
-        const bellyGrad = ctx.createLinearGradient(_P0.x, _P0.y, _P3.x, _P3.y);
-        bellyGrad.addColorStop(0, u3dMixRgb(pal.backAo, pal.backBase, 0.35));
-        bellyGrad.addColorStop(0.55, u3dMixRgb(pal.backBase, pal.backTip, ndl * 0.8));
-        bellyGrad.addColorStop(1, u3dMixRgb(pal.backTip, pal.rim, 0.45));
-        ctx.fillStyle = bellyGrad;
+        ctx.fillStyle = backStops.c1;
         ctx.fill();
     }
 
-    // B. Vẽ bề mặt lòng cánh 3D chính với Ánh sáng Pháp tuyến (3D Normal-Lit Velvet/Silk Surface)
-    traceMainContour();
-    const pg = ctx.createLinearGradient(_P0.x, _P0.y, _P3.x, _P3.y);
-    if (isFrontFace) {
-        pg.addColorStop(0.00, u3dMixRgb(pal.ao, pal.base, isTulip ? 0.65 : 0.25));
-        pg.addColorStop(0.32, u3dMixRgb(pal.base, pal.mid, ndl * 0.78));
-        pg.addColorStop(0.72, u3dMixRgb(pal.mid, pal.tip, 0.35 + ndl * 0.58));
-        pg.addColorStop(1.00, u3dMixRgb(pal.tip, pal.rim, 0.45 + ndl * 0.55));
+    // B. Dựng đường bao Bezier 3D chính 1 LẦN DUY NHẤT (Dùng chung cho cả fill mặt cánh, bóng khum & viền Fresnel — Không dùng ctx.clip!)
+    ctx.beginPath();
+    ctx.moveTo(_P0.x, _P0.y);
+    if (isSakura) {
+        ctx.bezierCurveTo(_P1.x, _P1.y, _P2.x, _P2.y, _PTL.x, _PTL.y);
+        ctx.lineTo(_P3.x, _P3.y);
+        ctx.lineTo(_PTR.x, _PTR.y);
+        ctx.bezierCurveTo(_P4.x, _P4.y, _P5.x, _P5.y, _P0.x, _P0.y);
     } else {
-        pg.addColorStop(0.00, u3dMixRgb(pal.backAo, pal.backBase, 0.25));
-        pg.addColorStop(0.52, u3dMixRgb(pal.backBase, pal.backTip, ndl * 0.82));
-        pg.addColorStop(0.90, u3dMixRgb(pal.backTip, pal.tip, 0.5 + ndl * 0.4));
-        pg.addColorStop(1.00, u3dMixRgb(pal.tip, pal.rim, 0.65));
+        ctx.bezierCurveTo(_P1.x, _P1.y, _P2.x, _P2.y, _P3.x, _P3.y);
+        ctx.bezierCurveTo(_P4.x, _P4.y, _P5.x, _P5.y, _P0.x, _P0.y);
     }
+    ctx.closePath();
+
+    const pg = ctx.createLinearGradient(_P0.x, _P0.y, _P3.x, _P3.y);
+    pg.addColorStop(0.00, stops.c0);
+    if (s > 10) {
+        pg.addColorStop(0.35, stops.c1);
+        pg.addColorStop(0.74, stops.c2);
+    } else {
+        pg.addColorStop(0.55, stops.c2);
+    }
+    pg.addColorStop(1.00, stops.c3);
     ctx.fillStyle = pg;
     ctx.fill();
 
-    // C. Đổ bóng độ khum ngang 3D (Lateral 3D Cup Curvature Shading) & Gân lụa sinh học theo sống lưng _PM
-    if (s > 5) {
-        ctx.save();
-        ctx.clip();
-        const latG = ctx.createLinearGradient(_P2.x, _P2.y, _P4.x, _P4.y);
-        const lBright = sideLight >= 0;
-        latG.addColorStop(0.0, lBright ? 'rgba(255,245,248,0.22)' : 'rgba(24,2,12,0.34)');
-        latG.addColorStop(0.5, isFrontFace ? 'rgba(32,2,14,0.20)' : 'rgba(255,240,245,0.14)');
-        latG.addColorStop(1.0, lBright ? 'rgba(24,2,12,0.34)' : 'rgba(255,245,248,0.22)');
-        ctx.fillStyle = latG;
-        ctx.fill();
-
-        ctx.strokeStyle = `rgba(${pal.vein}, 0.24)`;
-        ctx.lineWidth = Math.max(0.5, s * 0.045);
-        for (let v = -1; v <= 1; v++) {
-            const cx = _PM.x + (v < 0 ? (_P1.x - _PM.x) : (_P5.x - _PM.x)) * Math.abs(v) * 0.48;
-            const cy = _PM.y + (v < 0 ? (_P1.y - _PM.y) : (_P5.y - _PM.y)) * Math.abs(v) * 0.48;
-            const ex = _P3.x + (v < 0 ? (_P2.x - _P3.x) : (_P4.x - _P3.x)) * Math.abs(v) * 0.55;
-            const ey = _P3.y + (v < 0 ? (_P2.y - _P3.y) : (_P4.y - _P3.y)) * Math.abs(v) * 0.55;
-            ctx.beginPath();
-            ctx.moveTo(_P0.x, _P0.y);
-            ctx.quadraticCurveTo(cx, cy, ex, ey);
-            ctx.stroke();
-        }
-        ctx.restore();
+    // C. Viền khối & Mép cánh uốn cong bắt sáng Fresnel 3D trực tiếp trên path hiện hành (Zero path rebuild)
+    if (s > 7) {
+        ctx.strokeStyle = 'rgba(38, 3, 18, 0.34)';
+        ctx.lineWidth = Math.max(0.75, s * 0.068);
+        ctx.stroke();
     }
-
-    // D. Viền khối & Mép cánh uốn cong bắt sáng Fresnel 3D bám sát đường cong Bezier thật
-    traceMainContour();
-    ctx.strokeStyle = 'rgba(38, 3, 18, 0.34)';
-    ctx.lineWidth = Math.max(0.75, s * 0.068);
-    ctx.stroke();
-
     ctx.strokeStyle = isFrontFace ? 'rgba(255, 245, 248, 0.62)' : 'rgba(255, 228, 236, 0.42)';
     ctx.lineWidth = Math.max(0.45, s * 0.036);
     ctx.stroke();
+
+    // D. Gân lụa sinh học gộp thành 1 lệnh stroke duy nhất (Chỉ vẽ trên cánh đủ lớn s > 9.5)
+    if (s > 9.5) {
+        ctx.strokeStyle = shadeLut.veinStroke;
+        ctx.lineWidth = Math.max(0.5, s * 0.045);
+        ctx.beginPath();
+        for (let v = -1; v <= 1; v++) {
+            const av = Math.abs(v);
+            const cx = _PM.x + (v < 0 ? (_P1.x - _PM.x) : (_P5.x - _PM.x)) * av * 0.48;
+            const cy = _PM.y + (v < 0 ? (_P1.y - _PM.y) : (_P5.y - _PM.y)) * av * 0.48;
+            const ex = _P3.x + (v < 0 ? (_P2.x - _P3.x) : (_P4.x - _P3.x)) * av * 0.55;
+            const ey = _P3.y + (v < 0 ? (_P2.y - _P3.y) : (_P4.y - _P3.y)) * av * 0.55;
+            ctx.moveTo(_P0.x, _P0.y);
+            ctx.quadraticCurveTo(cx, cy, ex, ey);
+        }
+        ctx.stroke();
+    }
 }
 
 // 2. ĐẠI ĐOÁ HOA 3D ĐA TẦNG CÓ SẮP XẾP CHIỀU SÂU Z-BUFFER & TỰ CHE KHUẤT VẬT LÝ (TRUE 3D MULTI-TIER FLOWER ENGINE)
@@ -2104,44 +2125,6 @@ function _f3dAlloc() {
     _f3dPoolIdx++;
     return obj;
 }
-
-// Bảng tra màu sắc tiền tính toán (Pre-computed Shading LUT) — Loại bỏ 100% cấp phát chuỗi rgb(...) trong vòng lặp 60fps
-const _U3D_SHADE_LUT = (() => {
-    const lut = {};
-    const keys = Object.keys(U3D_BOTANICAL_PALETTES);
-    for (let k = 0; k < keys.length; k++) {
-        const palKey = keys[k];
-        const pal = U3D_BOTANICAL_PALETTES[palKey];
-        const isTulip = palKey === 'tulip';
-        const front = [[], [], []];
-        const back = [];
-        for (let li = 0; li < 3; li++) {
-            const c0 = u3dMixRgb(pal.ao, pal.base, isTulip ? 0.58 : (0.18 + li * 0.14));
-            for (let b = 0; b <= 10; b++) {
-                const lVal = Math.min(1, (b / 10) + li * 0.10);
-                front[li].push({
-                    c0,
-                    c1: u3dMixRgb(pal.base, pal.mid, lVal * 0.85),
-                    c2: u3dMixRgb(pal.mid, pal.tip, 0.42 + lVal * 0.52),
-                    c3: u3dMixRgb(pal.tip, pal.rim, 0.55 + lVal * 0.45)
-                });
-            }
-        }
-        const bc0 = u3dMixRgb(pal.backAo, pal.backBase, isTulip ? 0.65 : 0.30);
-        const bc3 = u3dMixRgb(pal.tip, pal.rim, 0.72);
-        for (let b = 0; b <= 10; b++) {
-            const lVal = b / 10;
-            back.push({
-                c0: bc0,
-                c1: u3dMixRgb(pal.backBase, pal.backTip, lVal * 0.88),
-                c2: u3dMixRgb(pal.backTip, pal.tip, 0.55 + lVal * 0.40),
-                c3: bc3
-            });
-        }
-        lut[palKey] = { front, back };
-    }
-    return lut;
-})();
 
 function drawTrue3DFlower(ctx, flowerKind, s, rx, ry, rz, openAmt = 1.0) {
     if (s < 1.8) return;
@@ -2266,26 +2249,22 @@ function drawTrue3DFlower(ctx, flowerKind, s, rx, ry, rz, openAmt = 1.0) {
     // 2B. CÁC TẦNG CÁNH HOA 3D CONG BEZIER LỒNG NHAU (Nested 3D Cylindrical/Chalice Shells)
     let tiers;
     if (isTulip) {
-        // 6 Cánh Tulip Khum Ly Rượu Hoàng Gia (3 cánh ngoài + 3 cánh trong xen kẽ xoay tròn 3D quanh tâm ly)
         tiers = [
             { count: 3, rb: 0.14, len: 1.08, wid: 0.68, theta: 0.42 * openAmt, cup: 0.46, curl: -0.24, zBase: -0.22, rotOff: 0, li: 0 },
             { count: 3, rb: 0.10, len: 1.02, wid: 0.62, theta: 0.32 * openAmt, cup: 0.48, curl: -0.28, zBase: -0.18, rotOff: Math.PI / 3, li: 1 }
         ];
     } else if (isBud) {
-        // Nụ Hồng Pháp 3D: 3 cánh đài ngoài hé mở + 4 cánh nhung cuộn xoáy hình nón cao vút ở tâm
         tiers = [
             { count: 3, rb: 0.12, len: 0.96, wid: 0.68, theta: 0.52 * openAmt, cup: 0.44, curl: 0.18, zBase: -0.20, rotOff: 0, li: 0 },
             { count: 4, rb: 0.06, len: 0.92, wid: 0.56, theta: 0.22 * openAmt, cup: 0.52, curl: -0.18, zBase: -0.14, rotOff: 0.65, li: 1 }
         ];
     } else if (isSakura) {
-        // Đóa Anh Đào Kyoto 3D 2 tầng cánh chẻ đôi khum lòng chảo
         tiers = [
             { count: 5, rb: 0.10, len: 0.96, wid: 0.72, theta: 1.06 * openAmt, cup: 0.32, curl: -0.16, zBase: -0.06, rotOff: 0, li: 0 },
             { count: 5, rb: 0.06, len: 0.70, wid: 0.56, theta: 0.68 * openAmt, cup: 0.36, curl: -0.20, zBase: 0.06, rotOff: Math.PI / 5, li: 1 }
         ];
     } else if (isRose) {
-        // Đại Đoá Hồng Nhung Pháp Centifolia 3D 3 tầng cánh cuộn xoáy sâu
-        tiers = s < 14 ? [
+        tiers = s < 21 ? [
             { count: 6, rb: 0.14, len: 0.96, wid: 0.84, theta: 1.15 * openAmt, cup: 0.38, curl: 0.20, zBase: -0.08, rotOff: 0, li: 0 },
             { count: 5, rb: 0.08, len: 0.68, wid: 0.64, theta: 0.58 * openAmt, cup: 0.46, curl: -0.18, zBase: 0.06, rotOff: 0.52, li: 1 }
         ] : [
@@ -2294,8 +2273,7 @@ function drawTrue3DFlower(ctx, flowerKind, s, rx, ry, rz, openAmt = 1.0) {
             { count: 5, rb: 0.05, len: 0.52, wid: 0.50, theta: 0.36 * openAmt, cup: 0.52, curl: -0.24, zBase: 0.12, rotOff: 0.95, li: 2 }
         ];
     } else {
-        // Đại Hoa Trà Nhung Đỏ 3D 3 tầng cánh xếp lớp tổ ong (Imbricate 3D Tiers)
-        tiers = s < 14 ? [
+        tiers = s < 21 ? [
             { count: 6, rb: 0.14, len: 0.96, wid: 0.76, theta: 1.16 * openAmt, cup: 0.34, curl: -0.16, zBase: -0.08, rotOff: 0, li: 0 },
             { count: 5, rb: 0.08, len: 0.66, wid: 0.56, theta: 0.62 * openAmt, cup: 0.38, curl: -0.22, zBase: 0.06, rotOff: 0.55, li: 1 }
         ] : [
@@ -2340,7 +2318,6 @@ function drawTrue3DFlower(ctx, flowerKind, s, rx, ry, rz, openAmt = 1.0) {
                 evalTierPetalPt(t, cp, sp, 1.00,  0.00, _P3);
             }
 
-            // Pháp tuyến mặt trong của cánh hoa tại tâm lòng cánh (u = 0.54)
             const midTheta = t.theta + 0.18;
             const sa = Math.sin(midTheta), ca = Math.cos(midTheta);
             let lnx, lny, lnz;
@@ -2356,7 +2333,6 @@ function drawTrue3DFlower(ctx, flowerKind, s, rx, ry, rz, openAmt = 1.0) {
             const isFrontFace = NZ >= -0.08;
             const ndl = Math.max(0, Math.min(1, 0.50 + 0.50 * (NX * U3D_L_DIR[0] + NY * U3D_L_DIR[1] + NZ * U3D_L_DIR[2])));
 
-            // Tọa độ Z thực tế sau khi xoay 3D quyết định thứ tự vẽ (Painter's Z-Sort)
             const zKey = (_P6.z * 0.65 + _P3.z * 0.35) + (t.li * s * 0.04 * (NZ >= 0 ? 1 : -1));
 
             const pItem = _f3dAlloc();
@@ -2391,7 +2367,7 @@ function drawTrue3DFlower(ctx, flowerKind, s, rx, ry, rz, openAmt = 1.0) {
         cItem.r = Math.max(2.2, s * (isTulip ? 0.22 : (isSakura ? 0.16 : 0.20)) * _P0.k);
         _f3dQueue.push(cItem);
 
-        const stCount = s < 14 ? 6 : (isSakura ? 10 : (isTulip ? 6 : (isRose ? 8 : 9)));
+        const stCount = s < 20 ? 5 : (isSakura ? 8 : (isTulip ? 5 : 7));
         const stSpread = isSakura ? 0.56 : (isTulip ? 0.22 : 0.38);
         const stLen = s * (isSakura ? 0.52 : (isTulip ? 0.46 : 0.36));
         for (let st = 0; st < stCount; st++) {
@@ -2417,8 +2393,8 @@ function drawTrue3DFlower(ctx, flowerKind, s, rx, ry, rz, openAmt = 1.0) {
     // Sắp xếp Z-Buffer từ xa nhất (Z nhỏ nhất) tới gần ống kính nhất (Z lớn nhất)
     _f3dQueue.sort((a, b) => a.key - b.key);
 
-    // Kết xuất toàn bộ cấu trúc 3D của đoá hoa (Kèm Adaptive LOD tối ưu GPU)
-    const isHighDetail = s > 15;
+    // Kết xuất toàn bộ cấu trúc 3D của đoá hoa (Single-pass Bezier tracing + Adaptive LOD)
+    const isHighDetail = s > 20;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
     for (let i = 0; i < _f3dQueue.length; i++) {
@@ -2462,32 +2438,19 @@ function drawTrue3DFlower(ctx, flowerKind, s, rx, ry, rz, openAmt = 1.0) {
                 ctx.stroke();
             }
         } else if (it.kind === 'petal') {
-            const tracePetal = () => {
-                ctx.beginPath();
-                ctx.moveTo(it.p0x, it.p0y);
-                if (isSakura) {
-                    ctx.bezierCurveTo(it.p1x, it.p1y, it.p2x, it.p2y, it.tlx, it.tly);
-                    ctx.lineTo(it.p3x, it.p3y);
-                    ctx.lineTo(it.trx, it.try);
-                    ctx.bezierCurveTo(it.p4x, it.p4y, it.p5x, it.p5y, it.p0x, it.p0y);
-                } else {
-                    ctx.bezierCurveTo(it.p1x, it.p1y, it.p2x, it.p2y, it.p3x, it.p3y);
-                    ctx.bezierCurveTo(it.p4x, it.p4y, it.p5x, it.p5y, it.p0x, it.p0y);
-                }
-                ctx.closePath();
-            };
-
-            // Bóng đổ Ambient Occlusion từ tầng cánh này xuống tầng cánh phía sau (chỉ bật cho hoa cỡ vừa/lớn)
-            if (isHighDetail) {
-                ctx.save();
-                ctx.translate(0, Math.max(1.0, s * 0.07 * it.k));
-                tracePetal();
-                ctx.fillStyle = 'rgba(18, 2, 10, 0.26)';
-                ctx.fill();
-                ctx.restore();
+            ctx.beginPath();
+            ctx.moveTo(it.p0x, it.p0y);
+            if (isSakura) {
+                ctx.bezierCurveTo(it.p1x, it.p1y, it.p2x, it.p2y, it.tlx, it.tly);
+                ctx.lineTo(it.p3x, it.p3y);
+                ctx.lineTo(it.trx, it.try);
+                ctx.bezierCurveTo(it.p4x, it.p4y, it.p5x, it.p5y, it.p0x, it.p0y);
+            } else {
+                ctx.bezierCurveTo(it.p1x, it.p1y, it.p2x, it.p2y, it.p3x, it.p3y);
+                ctx.bezierCurveTo(it.p4x, it.p4y, it.p5x, it.p5y, it.p0x, it.p0y);
             }
+            ctx.closePath();
 
-            tracePetal();
             const bucket = Math.min(10, Math.max(0, (it.ndl * 10 + 0.5) | 0));
             const stops = it.isFrontFace ? shadeLut.front[it.li][bucket] : shadeLut.back[bucket];
             const pg = ctx.createLinearGradient(it.p0x, it.p0y, it.p3x, it.p3y);
@@ -2505,8 +2468,8 @@ function drawTrue3DFlower(ctx, flowerKind, s, rx, ry, rz, openAmt = 1.0) {
             ctx.fill();
 
             if (isHighDetail) {
-                ctx.strokeStyle = 'rgba(32, 2, 14, 0.30)';
-                ctx.lineWidth = Math.max(0.65, s * 0.055 * it.k);
+                ctx.strokeStyle = 'rgba(26, 2, 12, 0.34)';
+                ctx.lineWidth = Math.max(0.75, s * 0.062 * it.k);
                 ctx.stroke();
             }
 
@@ -3023,11 +2986,7 @@ function draw3DProjectedParticle(ctx, p, cx, cy, focal) {
             const tLen = Math.min(s * 3.8, Math.hypot(p.vx, p.vy) * 0.055);
             ctx.save();
             ctx.rotate(ang);
-            const tg = ctx.createLinearGradient(0, 0, -tLen, 0);
-            tg.addColorStop(0, 'rgba(255, 244, 180, 0.72)');
-            tg.addColorStop(0.45, 'rgba(255, 213, 79, 0.28)');
-            tg.addColorStop(1, 'rgba(255, 213, 79, 0)');
-            ctx.fillStyle = tg;
+            ctx.fillStyle = 'rgba(255, 226, 122, 0.36)';
             ctx.beginPath();
             ctx.moveTo(0, -s * 0.24);
             ctx.lineTo(-tLen, 0);
@@ -3542,8 +3501,9 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         }
     });
 
-    // Chuẩn bị 2 lớp Canvas Vật Lý 3D (Giới hạn dpr <= 1.5 để đạt tốc độ 60-120fps mượt tuyệt đối trên điện thoại)
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    // Chuẩn bị 2 lớp Canvas Vật Lý 3D (Giới hạn dpr <= 1.25 trên máy yếu và <= 1.5 trên máy mạnh để đạt tốc độ 60-120fps mượt tuyệt đối)
+    const isLowEndDevice = !!((navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4));
+    const dpr = Math.min(window.devicePixelRatio || 1, isLowEndDevice ? 1.25 : 1.5);
     let curVw = window.innerWidth;
     let curVh = window.innerHeight;
     canvasBack.width = Math.round(curVw * dpr);
@@ -3970,8 +3930,11 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
     function beginOpenSequence() {
         if (u3dCurrentDirectorState === 'opening') return;
-        measureTargetShowcaseOnce();
+        if (!cachedTargetRect || window.innerWidth !== curVw || window.innerHeight !== curVh) {
+            measureTargetShowcaseOnce();
+        }
         u3dCurrentDirectorState = 'opening';
+        u3dOpenElapsed = 0;
         openStartTime = performance.now();
         stage.classList.add('is-opening');
         if (frontRig) frontRig.style.pointerEvents = 'none';
@@ -5196,7 +5159,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     // Hàm phun trào Vật Lý 3D từ chính Miệng Túi Chữ V của Phong Bì (t = EXTRACT_START)
     function spawnPocketMouthEruption(mouthY) {
         if (cfg.id === 'butterflies') {
-            for (let i = 0; i < 24; i++) {
+            const bfCount = isLowEndDevice ? 16 : 22;
+            for (let i = 0; i < bfCount; i++) {
                 const fanAngle = -Math.PI / 2 + (Math.random() - 0.5) * 1.45;
                 const spd = (330 + Math.random() * 390) * motionScale;
                 particles.push({
@@ -5256,7 +5220,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     size: 20 * rn.scale * motionScale
                 });
             });
-            for (let i = 0; i < 56; i++) {
+            const ribTotal = isLowEndDevice ? 36 : 48;
+            for (let i = 0; i < ribTotal; i++) {
                 const pType = i % 5 === 0 ? 'silk_bow' : (i % 7 === 0 ? 'silk_streamer' : (i % 2 === 0 ? 'pearl' : 'star'));
                 const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.35;
                 const spd = (350 + Math.random() * 420) * motionScale;
@@ -5315,7 +5280,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     size: 20 * rc.scale * motionScale
                 });
             });
-            for (let i = 0; i < 72; i++) {
+            const roseTotal = isLowEndDevice ? 36 : 52;
+            for (let i = 0; i < roseTotal; i++) {
                 const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.68;
                 const spd = (320 + Math.random() * 480) * motionScale;
                 const pType = i % 5 === 0 ? 'rose_bloom' : (i % 6 === 0 ? 'rose_bud' : (i % 8 === 0 ? 'star' : (i % 10 === 0 ? 'bokeh' : 'rose_petal')));
@@ -5372,7 +5338,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     size: 20 * tc.scale * motionScale
                 });
             });
-            for (let i = 0; i < 72; i++) {
+            const tulipTotal = isLowEndDevice ? 36 : 52;
+            for (let i = 0; i < tulipTotal; i++) {
                 const pType = i % 3 === 0 ? 'tulip_bloom' : (i % 5 === 0 ? 'bokeh' : (i % 8 === 0 ? 'star' : 'tulip_petal'));
                 const spreadX = (Math.random() - 0.5) * 220 * motionScale;
                 particles.push({
@@ -5436,7 +5403,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 });
             });
 
-            const total = isSakura ? 56 : 52;
+            const total = isLowEndDevice ? 36 : (isSakura ? 48 : 44);
             const bloomType = isSakura ? 'sakura_bloom' : 'camellia_bloom';
             for (let i = 0; i < total; i++) {
                 const ang = -Math.PI / 2 + (Math.random() - 0.5) * 1.55;
@@ -5482,6 +5449,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         lastFrameTime = now;
 
         // Tự động đồng bộ Responsive ngay lập tức nếu người dùng xoay màn hình hoặc thay đổi kích thước cửa sổ!
+        let didResizeWorld = false;
         if (window.innerWidth !== curVw || window.innerHeight !== curVh) {
             measureTargetShowcaseOnce();
             canvasBack.width = Math.round(curVw * dpr);
@@ -5491,6 +5459,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             if (canvasWorld) {
                 canvasWorld.width = Math.round(curVw * dpr);
                 canvasWorld.height = Math.round(curVh * dpr);
+                didResizeWorld = true;
             }
         }
 
@@ -5500,19 +5469,6 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         const envBaseH = envBaseW * 0.694;
         const envBaseCy = curVh * 0.50;
         const focal = 920;
-
-        ctxBack.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctxBack.clearRect(0, 0, curVw, curVh);
-        ctxFront.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctxFront.clearRect(0, 0, curVw, curVh);
-
-        const targetRect = cachedTargetRect;
-        const baseW = targetRect.width;
-        const baseH = targetRect.height;
-
-        const pocketScale = Math.min(0.86, (envBaseW * 0.76) / baseW);
-        const cardInPocketW = baseW * pocketScale;
-        const cardInPocketH = baseH * pocketScale;
 
         // ====== TRẠNG THÁI WISH-A: ĐẠI CẢNH ONE-SHOT "NỤ HOA ƯỚC NGUYỆN" (~6 GIÂY LIỀN MẠCH, KHÔNG CẮT CẢNH) ======
         // Ước nguyện rơi xuống hồ gương -> khu vườn bừng nở -> nụ hoa khổng lồ nở ra -> bức thư nằm trong lòng hoa -> nâng lên dâng tặng
@@ -5553,6 +5509,19 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             u3dAnimFrameId = requestAnimationFrame(stepPhysicsDirector);
             return;
         }
+
+        ctxBack.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctxBack.clearRect(0, 0, curVw, curVh);
+        ctxFront.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctxFront.clearRect(0, 0, curVw, curVh);
+
+        const targetRect = cachedTargetRect;
+        const baseW = targetRect.width;
+        const baseH = targetRect.height;
+
+        const pocketScale = Math.min(0.86, (envBaseW * 0.76) / baseW);
+        const cardInPocketW = baseW * pocketScale;
+        const cardInPocketH = baseH * pocketScale;
 
         // ====== TRẠNG THÁI WISH-B: ẤN SÁP VÀNG GIÁNG XUỐNG ĐÓNG DẤU LÊN BỨC THƯ VỪA ĐƯỢC DÂNG TẶNG (0.62 GIÂY) ======
         if (u3dCurrentDirectorState === 'wish_stamp' && wishBloom) {
@@ -6429,17 +6398,19 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         // ====== TRẠNG THÁI 2: KHỞI ĐỘNG SÁP THƯ HỒI HỘP -> BẬT NẮP -> RÚT THIỆP TỪ TỪ 0%->100% KHỎI BÌ THƯ ======
         if (!openStartTime) openStartTime = now;
         const elapsed = Math.max(0, (now - openStartTime) / 1000);
+        u3dOpenElapsed = elapsed;
 
         if (wishBloom) {
-            if (document.body.classList.contains('u3d-wish-cinematic')) {
+            // Giữ nguyên u3d-wish-cinematic suốt pha rung ấn sáp (0.00s -> 0.92s) để #showcase-bg-canvas hoàn toàn nghỉ ngơi;
+            // đồng thời đóng băng khung hình cuối của Ao Hoa trên canvasWorld và chỉ làm mờ mượt qua GPU opacity!
+            if (elapsed >= 0.92 && document.body.classList.contains('u3d-wish-cinematic')) {
                 document.body.classList.remove('u3d-wish-cinematic');
             }
             const worldFade = 1 - Math.min(1, Math.max(0, (elapsed - 0.95) / 1.3));
             if (canvasWorld) canvasWorld.style.opacity = worldFade.toFixed(3);
-            if (worldFade > 0.002) {
-                wishBloom.step(dt);
+            if (didResizeWorld && worldFade > 0.01) {
                 try {
-                    wishBloom.render(ctxWorld, ctxFront, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY: 0, idleRotZ: 0 });
+                    wishBloom.render(ctxWorld, ctxWorld, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY: 0, idleRotZ: 0 });
                 } catch (_) {}
             }
         }
@@ -6948,7 +6919,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             const p = particles[i];
             p.life += dt;
             if (p.life >= p.maxLife) {
-                particles.splice(i, 1);
+                particles[i] = particles[particles.length - 1];
+                particles.pop();
                 continue;
             }
 
@@ -7054,6 +7026,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             document.body.classList.remove('u3d-stage-active');
             if (cardShowcase) cardShowcase.style.opacity = '1';
             u3dCurrentDirectorState = 'hidden';
+            u3dOpenElapsed = 0;
             u3dAnimFrameId = null;
 
             // Nếu đang Xem thử mở 3D từ Bước 2 -> Tự động trả ngay về màn hình Edit Bước 2 (không ở lại Bước 3!)
@@ -7446,18 +7419,24 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
     const atlas = getU3DLuxurySpriteAtlas();
     let lastTime = performance.now();
     let bgFrameTick = 0;
+    let hasRenderedInitialBgFrame = false;
     let cachedW = dims.w;
     let cachedH = dims.h;
     let cachedDpr = dims.dpr;
 
     const renderLoop = (now) => {
         showcaseBgAnimFrameId = requestAnimationFrame(renderLoop);
-        if (document.hidden || !step3 || !step3.classList.contains('active') || document.body.classList.contains('u3d-wish-cinematic')) return;
+        if (document.hidden || !step3 || !step3.classList.contains('active')) return;
+        if (hasRenderedInitialBgFrame && document.body.classList.contains('u3d-wish-cinematic')) return;
 
-        // Khi Sân khấu Phong bì 3D đang ở đỉnh điểm phun trào (u3dCurrentDirectorState === 'opening'),
-        // nhường 50% chu kỳ GPU của lớp nền cho lớp 3D tiền cảnh để giữ chuẩn 60fps tuyệt đối trên mọi điện thoại
-        bgFrameTick = (bgFrameTick + 1) & 1;
-        if (u3dCurrentDirectorState === 'opening' && bgFrameTick === 1) return;
+        // Khi người dùng vừa bấm ấn sáp mở thiệp (0.00s -> 1.35s: lấy đà ấn sáp + vỡ sáp + đỉnh điểm phun trào túi chữ V),
+        // đóng băng tạm thời khung hình nền #showcase-bg-canvas trên GPU để nhường 100% chu kỳ cho hiệu ứng 3D tiền cảnh!
+        if (hasRenderedInitialBgFrame && u3dCurrentDirectorState === 'opening') {
+            if (u3dOpenElapsed < 1.35) return;
+            bgFrameTick = (bgFrameTick + 1) % 3;
+            if (bgFrameTick !== 0) return;
+        }
+        hasRenderedInitialBgFrame = true;
 
         lastTime = now;
         const t = now * 0.001;
@@ -7491,11 +7470,14 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 ctx.translate(a.x, a.y);
                 ctx.rotate(a.angle + sway);
                 ctx.globalAlpha = breathe;
-                const rayGrad = ctx.createLinearGradient(-a.width * 0.5, 0, a.width * 0.5, 0);
-                rayGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-                rayGrad.addColorStop(0.5, a.color);
-                rayGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-                ctx.fillStyle = rayGrad;
+                if (!a._grad) {
+                    const rayGrad = ctx.createLinearGradient(-a.width * 0.5, 0, a.width * 0.5, 0);
+                    rayGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+                    rayGrad.addColorStop(0.5, a.color);
+                    rayGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                    a._grad = rayGrad;
+                }
+                ctx.fillStyle = a._grad;
                 ctx.fillRect(-a.width * 0.5, 0, a.width, a.length);
                 ctx.restore();
             } else if (a.kind === 'bokeh_orb') {

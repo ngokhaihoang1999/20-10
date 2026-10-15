@@ -47,6 +47,24 @@ function initCanvasSizes() {
 window.addEventListener('resize', initCanvasSizes, { passive: true });
 
 // Lớp 1: Đốm sáng Bokeh Ngọc Bích & Hoa Đào mềm mại (dùng radial gradient, không dùng shadowBlur để tránh lag)
+const _bokehOrbSpriteCache = {};
+function getBokehOrbSprite(rgb) {
+    if (_bokehOrbSpriteCache[rgb]) return _bokehOrbSpriteCache[rgb];
+    const c = document.createElement('canvas');
+    c.width = 64;
+    c.height = 64;
+    const gctx = c.getContext('2d');
+    const grad = gctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, `rgba(${rgb}, 1)`);
+    grad.addColorStop(1, `rgba(${rgb}, 0)`);
+    gctx.fillStyle = grad;
+    gctx.beginPath();
+    gctx.arc(32, 32, 32, 0, Math.PI * 2);
+    gctx.fill();
+    _bokehOrbSpriteCache[rgb] = c;
+    return c;
+}
+
 class BokehOrb {
     constructor() {
         this.reset(true);
@@ -61,6 +79,7 @@ class BokehOrb {
         this.baseAlpha = Math.random() * 0.18 + 0.10;
         const colors = ['64, 186, 146', '112, 214, 178', '154, 232, 204', '255, 198, 214', '255, 255, 255'];
         this.rgb = colors[Math.floor(Math.random() * colors.length)];
+        this.sprite = getBokehOrbSprite(this.rgb);
     }
     update() {
         this.x += this.vx;
@@ -69,14 +88,12 @@ class BokehOrb {
         if (this.y < -this.radius * 2) this.reset(false);
     }
     draw(ctx) {
-        const alpha = this.baseAlpha + Math.sin(this.phase) * 0.04;
-        const grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
-        grad.addColorStop(0, `rgba(${this.rgb}, ${Math.max(0.02, alpha)})`);
-        grad.addColorStop(1, `rgba(${this.rgb}, 0)`);
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-        ctx.fill();
+        const alpha = Math.max(0.02, this.baseAlpha + Math.sin(this.phase) * 0.04);
+        const r = this.radius;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(this.sprite, this.x - r, this.y - r, r * 2, r * 2);
+        ctx.restore();
     }
 }
 
@@ -194,7 +211,10 @@ function initBgParticles() {
 }
 
 function animateBg() {
-    if (!document.hidden) {
+    // Tạm dừng hoàn toàn vẽ #bg-canvas khi đang ở Sân khấu 3D (u3d-stage-active) hoặc Bước 3 (#step-3 có #showcase-bg-canvas riêng che kín),
+    // giúp tiết kiệm 100% chu kỳ vẽ nền thừa khi bấm sáp mở thiệp!
+    const isCoveredBy3DOrStep3 = document.body.classList.contains('u3d-stage-active') || (step3 && step3.classList.contains('active'));
+    if (!document.hidden && !isCoveredBy3DOrStep3) {
         bgCtx.clearRect(0, 0, bgWidth, bgHeight);
         for (let i = 0; i < bokehOrbs.length; i++) {
             bokehOrbs[i].update();
@@ -261,7 +281,7 @@ function triggerCelebrationBurst() {
             alpha: 1,
             decay: Math.random() * 0.011 + 0.009,
             color: palette[i % palette.length],
-            shape: i % 3 === 0 ? 'heart' : (i % 3 === 1 ? 'star' : 'petal')
+            shape: i % 3 === 0 ? 'heart' : (i % 3 === 1 ? 'star' : 'petal' )
         });
     }
     startFxLoop();
@@ -285,7 +305,8 @@ function animateFx() {
         p.alpha -= p.decay;
 
         if (p.alpha <= 0.02) {
-            fxParticles.splice(i, 1);
+            fxParticles[i] = fxParticles[fxParticles.length - 1];
+            fxParticles.pop();
             continue;
         }
 
@@ -328,6 +349,7 @@ function drawMiniHeartPath(ctx, cx, cy, size) {
 
 let lastSparkleTime = 0;
 window.addEventListener('pointermove', (e) => {
+    if (document.body.classList.contains('u3d-stage-active')) return;
     const now = performance.now();
     if (now - lastSparkleTime < 40) return;
     if (e.target && e.target.closest('#preview-area-wrap')) return;
@@ -339,6 +361,7 @@ window.addEventListener('pointermove', (e) => {
 }, { passive: true });
 
 window.addEventListener('pointerdown', (e) => {
+    if (document.body.classList.contains('u3d-stage-active')) return;
     if (e.target && e.target.closest('#preview-area-wrap')) return;
     spawnTouchSparkle(e.clientX, e.clientY, 3);
     if (!e.target || !e.target.closest('button, input, textarea, label, a, #hero-fan-showcase')) {
