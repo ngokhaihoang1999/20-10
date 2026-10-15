@@ -4171,11 +4171,9 @@ body.recipient-mode .recipient-luxury-dock {
     animation-delay: 1.05s;
 }
 
-.u3d-envelope-stage.is-opening .u3d-seal-pulse-ring,
-body[data-perf-tier="0"] .u3d-envelope-stage.is-summoning .u3d-seal-pulse-ring,
-body[data-perf-tier="0"] .u3d-envelope-stage.is-arriving .u3d-seal-pulse-ring {
-    animation: none;
+.u3d-envelope-stage.is-opening .u3d-seal-pulse-ring {
     opacity: 0;
+    transition: opacity 0.35s ease;
 }
 
 @keyframes u3dSealRingPulse {
@@ -4219,9 +4217,7 @@ body[data-perf-tier="0"] .u3d-envelope-stage.is-arriving .u3d-seal-pulse-ring {
     65% { transform: scale(1.1) rotate(6deg); }
 }
 
-.u3d-envelope-stage.is-opening .u3d-seal-emblem,
-body[data-perf-tier="0"] .u3d-envelope-stage.is-summoning .u3d-seal-emblem,
-body[data-perf-tier="0"] .u3d-envelope-stage.is-arriving .u3d-seal-emblem {
+.u3d-envelope-stage.is-opening .u3d-seal-emblem {
     animation: none;
 }
 

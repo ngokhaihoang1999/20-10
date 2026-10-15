@@ -5537,8 +5537,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             const floatT = now * 0.0022;
             const idleY = Math.sin(floatT) * 7;
             const idleRotZ = Math.cos(floatT * 0.7) * 1.2;
-            wishBloom.step(dt);
             try {
+                wishBloom.step(dt);
                 wishBloom.render(ctxWorld, ctxFront, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY, idleRotZ });
             } catch (_) {}
 
@@ -5580,6 +5580,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
+                if (p.isAmbientIdle) {
+                    p.phase += dt * 2.2;
+                    p.x += Math.sin(p.phase) * 14 * dt;
+                    p.y += Math.cos(p.phase * 0.8) * 12 * dt;
+                    p.rz += p.vrz * dt;
+                    p.alpha = 0.85;
+                    draw3DProjectedParticle(ctxBack, p, screenCx, screenCy, focal);
+                    continue;
+                }
                 p.life += dt;
                 if (p.life >= p.maxLife) {
                     particles.splice(i, 1);
@@ -6148,6 +6157,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
+                if (p.isAmbientIdle) {
+                    p.phase += dt * 2.2;
+                    p.x += Math.sin(p.phase) * 14 * dt;
+                    p.y += Math.cos(p.phase * 0.8) * 12 * dt;
+                    p.rz += p.vrz * dt;
+                    p.alpha = 0.85;
+                    draw3DProjectedParticle(ctxBack, p, screenCx, screenCy, focal);
+                    continue;
+                }
                 p.life += dt;
                 if (p.life >= p.maxLife) {
                     particles.splice(i, 1);
@@ -6221,6 +6239,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
+                if (p.isAmbientIdle) {
+                    p.phase += dt * 2.2;
+                    p.x += Math.sin(p.phase) * 14 * dt;
+                    p.y += Math.cos(p.phase * 0.8) * 12 * dt;
+                    p.rz += p.vrz * dt;
+                    p.alpha = 0.85;
+                    draw3DProjectedParticle(ctxBack, p, screenCx, screenCy, focal);
+                    continue;
+                }
                 p.life += dt;
                 if (p.life >= p.maxLife) {
                     particles.splice(i, 1);
@@ -6325,6 +6352,15 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
+                if (p.isAmbientIdle) {
+                    p.phase += dt * 2.2;
+                    p.x += Math.sin(p.phase) * 14 * dt;
+                    p.y += Math.cos(p.phase * 0.8) * 12 * dt;
+                    p.rz += p.vrz * dt;
+                    p.alpha = 0.85;
+                    draw3DProjectedParticle(ctxBack, p, screenCx, screenCy, focal);
+                    continue;
+                }
                 p.life += dt;
                 if (p.life >= p.maxLife) {
                     particles.splice(i, 1);
@@ -6335,6 +6371,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                 p.vy *= dragFactor;
                 p.vz *= dragFactor;
                 p.vy += p.gravity * dt;
+                if (p.type === 'butterfly') p.flapPhase += p.flapSpeed * dt;
                 p.x += p.vx * dt;
                 p.y += p.vy * dt;
                 p.z += p.vz * dt;
@@ -6412,11 +6449,11 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             if (cardInner) cardInner.style.transform = 'none';
             isClipPathNone = false;
 
-            // Các hạt văng từ cú đóng dấu sáp (maxLife < 5) tiếp tục bay hết quỹ đạo vật lý 3D và tan biến mượt mà;
-            // trong khi 14 hạt đom đóm/bokeh nền (maxLife >= 5) lơ lửng nhẹ nhàng phía sau phong bì!
+            // Các hạt văng từ cú đóng dấu sáp tiếp tục bay hết quỹ đạo vật lý 3D và tan biến mượt mà;
+            // trong khi 14 hạt đom đóm/bokeh nền (isAmbientIdle) lơ lửng nhẹ nhàng phía sau phong bì!
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
-                if (p.maxLife < 5) {
+                if (!p.isAmbientIdle) {
                     p.life += dt;
                     if (p.life >= p.maxLife) {
                         particles.splice(i, 1);
@@ -6427,6 +6464,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     p.vy *= dragFactor;
                     p.vz *= dragFactor;
                     p.vy += p.gravity * dt;
+                    if (p.type === 'butterfly') p.flapPhase += p.flapSpeed * dt;
                     p.x += p.vx * dt;
                     p.y += p.vy * dt;
                     p.z += p.vz * dt;
@@ -6441,6 +6479,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
                     p.x += Math.sin(p.phase) * 14 * dt;
                     p.y += Math.cos(p.phase * 0.8) * 12 * dt;
                     p.rz += p.vrz * dt;
+                    p.alpha = 0.85;
                     draw3DProjectedParticle(ctxBack, p, screenCx, screenCy, focal);
                 }
             }
@@ -6455,20 +6494,21 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         u3dOpenElapsed = elapsed;
 
         if (wishBloom) {
-            if (elapsed >= 0.92 && document.body.classList.contains('u3d-wish-cinematic')) {
+            // Mở khoá #showcase-bg-canvas ngay khi bắt đầu mở thiệp để hậu cảnh 3D bước 3 chuyển động sẵn phía dưới lớp hồ sen đang mờ dần
+            if (document.body.classList.contains('u3d-wish-cinematic')) {
                 document.body.classList.remove('u3d-wish-cinematic');
             }
             const worldFade = 1 - Math.min(1, Math.max(0, (elapsed - 0.95) / 1.3));
             if (canvasWorld) canvasWorld.style.opacity = worldFade.toFixed(3);
             if (worldFade > 0.02) {
                 const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
-                wishBloom.step(dt);
-                // Trên thiết bị Tier 1/2/3: tiếp tục kết xuất mặt hồ & hoa đung đưa trong lúc mờ dần; trên máy yếu Tier 0 thì dùng GPU opacity fade
-                if (!prof || prof.tier >= 1 || didResizeWorld) {
-                    try {
+                try {
+                    wishBloom.step(dt);
+                    // Trên thiết bị Tier 1/2/3: tiếp tục kết xuất mặt hồ & hoa đung đưa trong lúc mờ dần; trên máy yếu Tier 0 thì dùng GPU opacity fade
+                    if (!prof || prof.tier >= 1 || didResizeWorld) {
                         wishBloom.render(ctxWorld, ctxWorld, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY: 0, idleRotZ: 0 });
-                    } catch (_) {}
-                }
+                    }
+                } catch (_) {}
             }
         }
         const envMouthWorldY = (envBaseCy - envBaseH * 0.24) - screenCy;
@@ -6961,6 +7001,17 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         const isCardRising = elapsed >= EXTRACT_START && elapsed <= EXTRACT_END;
         for (let i = particles.length - 1; i >= 0; i--) {
             const p = particles[i];
+            if (p.isAmbientIdle) {
+                p.phase += dt * 2.2;
+                p.x += Math.sin(p.phase) * 14 * dt;
+                p.y += Math.cos(p.phase * 0.8) * 12 * dt;
+                p.rz += p.vrz * dt;
+                p.alpha = 0.85 * Math.max(0, 1 - Math.max(0, (elapsed - 1.85) / 1.0));
+                if (p.alpha > 0.02) {
+                    draw3DProjectedParticle(ctxBack, p, screenCx, screenCy, focal);
+                }
+                continue;
+            }
             p.life += dt;
             if (p.life >= p.maxLife) {
                 particles[i] = particles[particles.length - 1];
@@ -7478,13 +7529,15 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
 
     const renderLoop = (now) => {
         showcaseBgAnimFrameId = requestAnimationFrame(renderLoop);
-        if (document.hidden || !step3 || !step3.classList.contains('active')) return;
+        const isStageActive = (step3 && step3.classList.contains('active')) || document.body.classList.contains('u3d-stage-active');
+        if (document.hidden || !isStageActive) return;
         if (document.body.classList.contains('u3d-wish-cinematic')) return;
 
         // Hoạt ảnh hậu cảnh #showcase-bg-canvas LUÔN TIẾP DIỄN LIÊN TỤC 100% ở mọi pha (arriving, đóng dấu sáp, mở sáp, chờ mở)
         // nhờ số lượng thực thể và DPR đã được điều tiết thông minh theo cấu hình thiết bị qua window.DevicePerfGovernor!
         const t0 = performance.now();
         const dtMs = now - lastTime;
+        const dtScale = Math.min(2.2, Math.max(0.35, (dtMs > 0 && dtMs < 120 ? dtMs : 16.667) / 16.667));
         if (!atlas) atlas = getU3DLuxurySpriteAtlas();
 
         lastTime = now;
@@ -7530,8 +7583,8 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 ctx.fillRect(-a.width * 0.5, 0, a.width, a.length);
                 ctx.restore();
             } else if (a.kind === 'bokeh_orb') {
-                a.x += a.vx + Math.sin(t * 0.8 + a.phase) * 0.18;
-                a.y += a.vy;
+                a.x += (a.vx + Math.sin(t * 0.8 + a.phase) * 0.18) * dtScale;
+                a.y += a.vy * dtScale;
                 if (a.y < -a.radius * 1.5) { a.y = h + a.radius; a.x = Math.random() * w; }
                 if (a.x < -a.radius * 1.5) a.x = w + a.radius;
                 if (a.x > w + a.radius * 1.5) a.x = -a.radius;
@@ -7544,9 +7597,9 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 ctx.drawImage(bokehSprite, a.x - r, a.y - r, r * 2, r * 2);
                 ctx.restore();
             } else if (a.kind === 'grand_camellia') {
-                a.x += a.vx + Math.sin(t * 1.1 + a.tiltPhase) * 0.32;
-                a.y += a.vy;
-                a.rot += a.vRot;
+                a.x += (a.vx + Math.sin(t * 1.1 + a.tiltPhase) * 0.32) * dtScale;
+                a.y += a.vy * dtScale;
+                a.rot += a.vRot * dtScale;
                 if (a.y < -52) { a.y = h + 46; a.x = Math.random() * w; }
                 if (a.x < -52) a.x = w + 46;
                 if (a.x > w + 52) a.x = -46;
@@ -7565,9 +7618,9 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'camellia_petal') {
-                a.x += a.vx + Math.sin(t * 1.5 + a.swayPhase) * 0.42;
-                a.y += a.vy;
-                a.rot += a.vRot;
+                a.x += (a.vx + Math.sin(t * 1.5 + a.swayPhase) * 0.42) * dtScale;
+                a.y += a.vy * dtScale;
+                a.rot += a.vRot * dtScale;
                 if (a.y < -32) { a.y = h + 28; a.x = Math.random() * w; }
                 if (a.x < -32) a.x = w + 28;
                 if (a.x > w + 32) a.x = -28;
@@ -7585,10 +7638,10 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'monarch_butterfly') {
-                a.flapPhase += a.flapSpeed;
+                a.flapPhase += a.flapSpeed * dtScale;
                 const sway = Math.sin(t * 1.8 + a.swayPhase) * 0.65;
-                a.x += a.vx + sway;
-                a.y += a.vy;
+                a.x += (a.vx + sway) * dtScale;
+                a.y += a.vy * dtScale;
                 if (a.y < -44) { a.y = h + 38; a.x = Math.random() * w; }
                 if (a.x < -44) a.x = w + 38;
                 if (a.x > w + 44) a.x = -38;
@@ -7607,8 +7660,8 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'firefly_glow') {
-                a.x += (a.vx || 0) + Math.sin(t * 1.5 + a.pulsePhase) * 0.35;
-                a.y += (a.vy || -0.3);
+                a.x += ((a.vx || 0) + Math.sin(t * 1.5 + a.pulsePhase) * 0.35) * dtScale;
+                a.y += (a.vy || -0.3) * dtScale;
                 if (a.y < -24) { a.y = h + 20; a.x = Math.random() * w; }
                 if (a.y > h + 24) { a.y = -20; a.x = Math.random() * w; }
                 if (a.x < -24) a.x = w + 20;
@@ -7622,8 +7675,8 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 ctx.drawImage(ffSprite, a.x - r, a.y - r, r * 2, r * 2);
                 ctx.restore();
             } else if (a.kind === 'couture_bow') {
-                a.x += a.vx + Math.sin(t * 1.3 + a.swayPhase) * 0.35;
-                a.y += a.vy;
+                a.x += (a.vx + Math.sin(t * 1.3 + a.swayPhase) * 0.35) * dtScale;
+                a.y += a.vy * dtScale;
                 if (a.y < -44) { a.y = h + 38; a.x = Math.random() * w; }
                 if (a.x < -44) a.x = w + 38;
                 if (a.x > w + 44) a.x = -38;
@@ -7641,9 +7694,9 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'silk_petal_ribbon') {
-                a.x += a.vx + Math.sin(t * 1.4 + a.phase) * 0.45;
-                a.y += a.vy;
-                a.rot += a.vRot;
+                a.x += (a.vx + Math.sin(t * 1.4 + a.phase) * 0.45) * dtScale;
+                a.y += a.vy * dtScale;
+                a.rot += a.vRot * dtScale;
                 if (a.y < -40) { a.y = h + 34; a.x = Math.random() * w; }
                 if (a.x < -40) a.x = w + 34;
                 if (a.x > w + 40) a.x = -34;
@@ -7660,8 +7713,8 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'lustrous_pearl') {
-                a.x += Math.sin(t * 1.4 + a.swayPhase) * 0.32;
-                a.y += a.vy;
+                a.x += Math.sin(t * 1.4 + a.swayPhase) * 0.32 * dtScale;
+                a.y += a.vy * dtScale;
                 if (a.y < -24) { a.y = h + 20; a.x = Math.random() * w; }
 
                 const s = a.size;
@@ -7670,9 +7723,9 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 ctx.drawImage(atlas.pearl, a.x - s * 1.35, a.y - s * 1.35, s * 2.7, s * 2.7);
                 ctx.restore();
             } else if (a.kind === 'french_rose_bloom') {
-                a.x += a.vx + Math.sin(t * 1.1 + a.tiltPhase) * 0.36;
-                a.y += a.vy;
-                a.rot += a.vRot;
+                a.x += (a.vx + Math.sin(t * 1.1 + a.tiltPhase) * 0.36) * dtScale;
+                a.y += a.vy * dtScale;
+                a.rot += a.vRot * dtScale;
                 if (a.y < -48) { a.y = h + 42; a.x = Math.random() * w; }
                 if (a.x < -48) a.x = w + 42;
                 if (a.x > w + 48) a.x = -42;
@@ -7691,9 +7744,9 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'french_rose_petal') {
-                a.x += a.vx + Math.sin(t * 1.6 + a.swayPhase) * 0.45;
-                a.y += a.vy;
-                a.rot += a.vRot;
+                a.x += (a.vx + Math.sin(t * 1.6 + a.swayPhase) * 0.45) * dtScale;
+                a.y += a.vy * dtScale;
+                a.rot += a.vRot * dtScale;
                 if (a.y < -32) { a.y = h + 28; a.x = Math.random() * w; }
                 if (a.x < -32) a.x = w + 28;
                 if (a.x > w + 32) a.x = -28;
@@ -7711,9 +7764,9 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'sakura_blossom') {
-                a.x += a.vx + Math.sin(t * 1.2 + a.tiltPhase) * 0.35;
-                a.y += a.vy;
-                a.rot += a.vRot;
+                a.x += (a.vx + Math.sin(t * 1.2 + a.tiltPhase) * 0.35) * dtScale;
+                a.y += a.vy * dtScale;
+                a.rot += a.vRot * dtScale;
                 if (a.y > h + 44) { a.y = -38; a.x = Math.random() * w; }
                 if (a.x > w + 44) { a.x = -38; a.y = Math.random() * h; }
 
@@ -7731,9 +7784,9 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'sakura_petal') {
-                a.x += a.vx + Math.sin(t * 1.5 + a.flipPhase) * 0.38;
-                a.y += a.vy;
-                a.rot += a.vRot;
+                a.x += (a.vx + Math.sin(t * 1.5 + a.flipPhase) * 0.38) * dtScale;
+                a.y += a.vy * dtScale;
+                a.rot += a.vRot * dtScale;
                 if (a.y > h + 28) { a.y = -22; a.x = Math.random() * w; }
                 if (a.x > w + 28) { a.x = -22; a.y = Math.random() * h; }
 
@@ -7750,9 +7803,9 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'tulip_blossom') {
-                a.y += a.vy;
-                a.x += a.vx + Math.sin(t * 1.2 + a.tiltPhase) * 0.36;
-                a.rot += a.vRot;
+                a.y += a.vy * dtScale;
+                a.x += (a.vx + Math.sin(t * 1.2 + a.tiltPhase) * 0.36) * dtScale;
+                a.rot += a.vRot * dtScale;
                 if (a.y < -45) { a.y = h + 40; a.x = Math.random() * w; }
                 if (a.x < -45) a.x = w + 40;
                 if (a.x > w + 45) a.x = -40;
@@ -7771,9 +7824,9 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'tulip_petal') {
-                a.y += a.vy;
-                a.x += a.vx + Math.sin(t * 1.5 + a.swayPhase) * 0.42;
-                a.rot += a.vRot;
+                a.y += a.vy * dtScale;
+                a.x += (a.vx + Math.sin(t * 1.5 + a.swayPhase) * 0.42) * dtScale;
+                a.rot += a.vRot * dtScale;
                 if (a.y < -30) { a.y = h + 26; a.x = Math.random() * w; }
                 if (a.x < -30) a.x = w + 26;
                 if (a.x > w + 30) a.x = -26;
@@ -7791,7 +7844,7 @@ function startShowcaseBackgroundWorld(motionId = 'bloom') {
                 );
                 ctx.restore();
             } else if (a.kind === 'gold_sparkle') {
-                a.y += a.vy;
+                a.y += a.vy * dtScale;
                 if (a.y < -20) { a.y = h + 18; a.x = Math.random() * w; }
                 const twinkle = 0.25 + 0.75 * Math.pow(0.5 + 0.5 * Math.sin(t * 3.2 + a.phase), 2);
                 const s = a.size * (0.65 + 0.55 * twinkle);
