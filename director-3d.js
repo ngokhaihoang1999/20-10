@@ -3599,6 +3599,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         // Khóa cố định width/height của cardActor 1 lần duy nhất; mọi biến thiên kích thước dùng GPU scale()!
         cardActor.style.width = `${cachedTargetRect.width.toFixed(1)}px`;
         cardActor.style.height = `${cachedTargetRect.height.toFixed(1)}px`;
+        cardActor.style.opacity = '0';
+        if (cardInner) cardInner.style.transform = 'none';
     }
     measureTargetShowcaseOnce();
     window.u3dRefreshTargetRect = measureTargetShowcaseOnce;
@@ -6380,6 +6382,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             cardActor.style.opacity = '0';
             cardActor.style.transform = `translate3d(${cardLeft.toFixed(1)}px, ${cardTop.toFixed(1)}px, 0px) scale(${pocketScale.toFixed(4)})`;
             cardActor.style.clipPath = `inset(0px 0px ${bottomClipUnscaled.toFixed(1)}px 0px)`;
+            if (cardInner) cardInner.style.transform = 'none';
             isClipPathNone = false;
 
             for (let i = 0; i < particles.length; i++) {
@@ -6659,19 +6662,6 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         backRig.style.opacity = `${envOpacity.toFixed(3)}`;
         frontRig.style.opacity = `${envOpacity.toFixed(3)}`;
 
-        // Ánh sáng Volumetric hé lộ từ khe nắp thư trong lúc khởi động và bùng sáng khi nắp mở
-        if (pocketLight) {
-            if (elapsed < WINDUP_END) {
-                const glowW = Math.pow(w, 1.8) * 0.55;
-                pocketLight.style.opacity = `${glowW.toFixed(3)}`;
-                pocketLight.style.transform = `scaleY(${(0.25 + w * 0.35).toFixed(2)}) scaleX(${(0.65 + w * 0.25).toFixed(2)})`;
-            } else {
-                const lp = Math.min(1, (elapsed - WINDUP_END) / 0.42);
-                const fadeL = elapsed > 1.95 ? Math.max(0, 1 - (elapsed - 1.95) / 0.65) : 1;
-                pocketLight.style.opacity = `${((0.55 + 0.45 * Math.sin(lp * Math.PI * 0.5)) * fadeL).toFixed(3)}`;
-                pocketLight.style.transform = `scaleY(${(0.60 + lp * 0.80).toFixed(2)}) scaleX(${(0.90 + lp * 0.30).toFixed(2)})`;
-            }
-        }
         if (['bloom', 'galaxy', 'hearts', 'sakura'].includes(cfg.id) && elapsed >= WINDUP_END + 0.02 && elapsed <= 1.38) {
             const bp = Math.min(1, (elapsed - (WINDUP_END + 0.02)) / 0.36);
             const easeBp = 1 - Math.pow(1 - bp, 3);
@@ -6726,7 +6716,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         let cardRotX = envRotX;
         let cardRotY = 0;
         let cardRotZ = envRotZ;
-        let cardOpacity = flapAngle < 8 ? 0 : Math.min(1, (flapAngle - 8) / 24);
+        let cardOpacity = elapsed < WINDUP_END ? 0 : Math.min(1, Math.max(0, (flapAngle - 28) / 36));
         let bottomClipScreenPx = 0;
 
         const envBottomScreenY = envBaseCy + envY + (envBaseH * 0.445) * envScale;

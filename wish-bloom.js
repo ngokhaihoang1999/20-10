@@ -73,11 +73,13 @@
         BUD: 1.95,      // nụ hoa 3D trồi lên từ mặt nước
         OPEN: 2.50,     // cánh hoa bắt đầu bung nở từng lớp
         HEART: 3.05,    // lòng hoa & vương miện nhụy vàng 3D toả sáng
-        ENV_IN: 3.55,   // phong bì 3D kết tinh trên đài hoa
+        ENV_IN: 3.55,   // 4 cánh hoa lớp trong cùng gấp Origami 3D thành 4 vạt phong bì
         LIFT: 4.45,     // đài hoa nâng phong bì tiến về phía người xem
         LAND: 5.45,     // phong bì dừng đúng tâm màn hình
         END: 5.60
     };
+    const T_ORIGAMI_START = 2.85; // 4 cánh hoa trong cùng bắt đầu tách khỏi nhụy hoa bay lên
+    const T_ORIGAMI_LOCK  = 4.06; // 4 vạt thư gấp khớp 180° hoàn chỉnh và bàn giao 1:1 sang DOM
 
     function speedAt(t) {
         if (t < 0.70) return 1.0;
@@ -85,10 +87,12 @@
         if (t < 1.60) return 1.75;
         if (t < 1.80) return 0.27;
         if (t < 2.30) return lerp(0.27, 1.10, smooth((t - 1.80) / 0.50));
-        if (t < 3.60) return lerp(1.10, 1.25, smooth((t - 2.30) / 1.30));
-        if (t < 4.40) return lerp(1.25, 0.95, smooth((t - 3.60) / 0.80));
-        return lerp(0.95, 0.80, smooth((t - 4.40) / 1.20));
+        if (t < 2.85) return lerp(1.10, 1.18, smooth((t - 2.30) / 0.55));
+        if (t < 4.20) return lerp(1.18, 0.80, smooth((t - 2.85) / 1.35));
+        if (t < 4.65) return lerp(0.80, 0.92, smooth((t - 4.20) / 0.45));
+        return lerp(0.92, 0.80, smooth((t - 4.65) / 0.95));
     }
+
 
     // ---------------------------------------------------------------------------------
     // ĐƯỜNG MÁY QUAY ONE-SHOT: [tau, yaw, bán kính, độ cao, độ cao điểm nhìn]
@@ -808,7 +812,51 @@
         return c;
     }
 
-    // Pre-bake Bảng Tra Màu Sắc Cánh Hoa (17 mức ánh sáng) để không bao giờ gọi mixHex() trong vòng lặp 60fps
+    // Bảng màu 5 Tông Phong Bì Lụa Hoàng Gia (đồng bộ 100% với ENVELOPE_THEME_PALETTES trong director-3d.js)
+    const ENV_THEME_PALETTES = {
+        emerald: {
+            back: ['#074334', '#0a5844', '#053328'],
+            pocketL: ['#118064', '#0b614b', '#074535'],
+            pocketR: ['#0f785d', '#0a5a46', '#063e30'],
+            pocketB: ['#169676', '#0d6d54', '#074837'],
+            topFlap: ['#199e7c', '#0f785d', '#08503e'],
+            lining: ['#f7fdfb', '#e3f6ee', '#c6e9db']
+        },
+        blush: {
+            back: ['#5e1431', '#821d45', '#470d24'],
+            pocketL: ['#b83265', '#91224c', '#691536'],
+            pocketR: ['#a82b5b', '#821d45', '#59112d'],
+            pocketB: ['#cc3b72', '#9e2654', '#6e1638'],
+            topFlap: ['#d84b7e', '#a82b5b', '#75183d'],
+            lining: ['#fff9fb', '#fde8f0', '#f9d0df']
+        },
+        rosegold: {
+            back: ['#542218', '#753124', '#3d1710'],
+            pocketL: ['#b35744', '#8c3f30', '#63281d'],
+            pocketR: ['#a34d3b', '#7d3628', '#572218'],
+            pocketB: ['#c46450', '#964535', '#692b1f'],
+            topFlap: ['#cf705c', '#9e4a39', '#6e2e21'],
+            lining: ['#fffaf7', '#fceddf', '#f5d6c3']
+        },
+        lavender: {
+            back: ['#34164f', '#4b2270', '#250e3b'],
+            pocketL: ['#7e48ad', '#5e3187', '#421e63'],
+            pocketR: ['#723fa1', '#542a7a', '#391957'],
+            pocketB: ['#8e56bf', '#693896', '#48226b'],
+            topFlap: ['#9860c9', '#703d9e', '#4d2573'],
+            lining: ['#fcfaff', '#f1e6fc', '#dec8f7']
+        },
+        champagne: {
+            back: ['#4f3909', '#6e500f', '#382705'],
+            pocketL: ['#ad8221', '#876314', '#5e430b'],
+            pocketR: ['#9e751c', '#7a5811', '#523a08'],
+            pocketB: ['#bf912a', '#946d17', '#66490d'],
+            topFlap: ['#c99b32', '#997119', '#6b4d0e'],
+            lining: ['#fffdf7', '#fbf3dc', '#f2e1b6']
+        }
+    };
+
+    // Pre-bake Bảng Tra Màu Sắc Cánh Hoa (17 mức ánh sáng) + Bảng Chuyển Hoá Sắc Tố Nhung Hoa -> Lụa Phong Bì (Origami LUT)
     function buildPetalShadeLUT(th) {
         const pt = th.petal;
         const steps = 16;
@@ -821,11 +869,38 @@
             c2[i] = mixHex(pt.base, pt.mid, clamp01(lv * 0.96));
             c3[i] = mixHex(pt.mid, pt.tip, clamp01(0.55 + lv * 0.35));
         }
+        const mSteps = 12;
+        const origami = {};
+        const slotKeys = ['pocketL', 'pocketR', 'pocketB', 'topFlap'];
+        Object.keys(ENV_THEME_PALETTES).forEach((tKey) => {
+            const pal = ENV_THEME_PALETTES[tKey];
+            const slots = new Array(4);
+            for (let s = 0; s < 4; s++) {
+                const fl = pal[slotKeys[s]];
+                const arr = new Array(mSteps + 1);
+                for (let m = 0; m <= mSteps; m++) {
+                    const u = m / mSteps;
+                    arr[m] = {
+                        s0: mixHex(pt.ao,   fl[2], u),
+                        s1: mixHex(pt.base, fl[1], u),
+                        s2: mixHex(pt.mid,  fl[0], u),
+                        s3: mixHex(pt.tip,  fl[0], u),
+                        rim: mixHex(pt.rim, '#f6df8c', u),
+                        back0: mixHex(pt.backAo,   pal.lining[2], u),
+                        back1: mixHex(pt.backBase, pal.lining[1], u),
+                        back2: mixHex(pt.backTip,  pal.lining[0], u)
+                    };
+                }
+                slots[s] = arr;
+            }
+            origami[tKey] = { pal, slots, mSteps };
+        });
         return {
             steps,
             c1,
             c2,
             c3,
+            origami,
             reflMid: mixHex(pt.ao, th.lakeMid, 0.55),
             reflTip: mixHex(pt.base, th.lakeHorizon, 0.45),
             mtnFarMist: mixHex(th.mountainFar, th.horizonGlow, 0.48),
@@ -866,6 +941,7 @@
     // DỰNG CẢNH & KẾT XUẤT 3D MỖI KHUNG HÌNH
     // ---------------------------------------------------------------------------------
     const ENV_W = 128;
+    const ENV_H = ENV_W * (472 / 680);
     const L_DIR = (() => {
         const x = -0.34, y = 0.80, z = 0.49;
         const l = Math.hypot(x, y, z);
@@ -880,6 +956,30 @@
         const S = buildThemeSprites(id);
         const shadeLUT = S.shadeLUT;
         const petals = buildPetalList(th);
+        // 4 cánh hoa sứ giả ở lớp trong cùng (Đông, Tây, Nam, Bắc) sẽ tách khỏi nhụy và gấp Origami 3D thành 4 vạt chiếc phong bì
+        const innerLy = th.hero.layers[th.hero.layers.length - 1];
+        const origamiAzimuths = [Math.PI, 0, Math.PI * 0.5, -Math.PI * 0.5]; // 0: Trái, 1: Phải, 2: Đáy (Trước), 3: Nắp trên (Sau)
+        const origamiPetals = origamiAzimuths.map((az, slot) => ({
+            slot,
+            li: th.hero.layers.length - 1,
+            ld: 1.0,
+            az,
+            len: Math.max(58, innerLy.len * 1.06),
+            wid: Math.max(46, innerLy.wid * 1.08),
+            a0: innerLy.a0,
+            a1: innerLy.a1,
+            a2: innerLy.a2 + 5,
+            curl: innerLy.curl,
+            cup: innerLy.cup || 0.48,
+            rb: innerLy.rb,
+            delay: innerLy.delay,
+            hasDew: false,
+            theta: 0,
+            curlRad: 0,
+            uOpen: 0,
+            cp: Math.cos(az),
+            sp: Math.sin(az)
+        }));
         const R = rng(1337 + id.length * 4099 + id.charCodeAt(0) * 97);
         const reduced = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
         const isLowEndHW = !!((navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) || (navigator.deviceMemory && navigator.deviceMemory <= 4));
@@ -2029,14 +2129,19 @@
 
             // 1. Lực đẩy nổi Archimedes (Archimedes Buoyancy): Nụ hoa phóng vọt từ cột nước Worthington, nhô cao rồi nhún xuống mặt nước!
             const archimedesBounce = Math.exp(-tBud * 2.9) * Math.sin(tBud * 8.6) * 7.8;
-            // 2. Độ nhún tải trọng vật lý (Weight Recoil) khi Phong bì 3D đáp xuống đài hoa tại tau = T.ENV_IN (3.55s)
-            const tEnv = Math.max(0, tau - T.ENV_IN);
-            const envWeightDip = (tau >= T.ENV_IN && tau < T.LIFT + 0.2)
-                ? -9.2 * Math.exp(-tEnv * 3.8) * Math.sin(tEnv * 10.8)
+            // 2. Phản lực nâng khi 4 cánh hoa trong tách khỏi nhụy (tau = 2.85s) & Độ nhún tải trọng khi 4 vạt thư gấp khép lại trên đài hoa (tau = 3.78s)
+            const tDet = Math.max(0, tau - T_ORIGAMI_START);
+            const detachDip = (tau >= T_ORIGAMI_START && tau < 3.65)
+                ? -3.6 * Math.exp(-tDet * 4.4) * Math.sin(tDet * 10.5)
                 : 0;
-            const envPetalFlex = (tau >= T.ENV_IN && tau < T.LIFT + 0.2)
-                ? 5.6 * Math.exp(-tEnv * 3.6) * Math.sin(tEnv * 10.8)
+            const tLock = Math.max(0, tau - 3.78);
+            const lockDip = (tau >= 3.78 && tau < T.LIFT + 0.25)
+                ? -8.8 * Math.exp(-tLock * 3.9) * Math.sin(tLock * 11.2)
                 : 0;
+            const envWeightDip = detachDip + lockDip;
+            const envPetalFlex = (tau >= 3.78 && tau < T.LIFT + 0.25)
+                ? 5.6 * Math.exp(-tLock * 3.6) * Math.sin(tLock * 11.2)
+                : (tau >= T_ORIGAMI_START && tau < 3.65 ? 2.2 * Math.exp(-tDet * 4.2) * Math.sin(tDet * 10.5) : 0);
 
             const waterBob = Math.sin(sc.clock * 1.85) * 1.1 * smooth(tBud / 0.8);
             const padY = Math.max(-2.5, 0.8 + archimedesBounce * 0.38 + envWeightDip * 0.35 + waterBob * 0.45);
@@ -2070,6 +2175,21 @@
                 evalHeroPetalPoint(p, hsEvalTmp, 0.65, 0, W0);
                 evalHeroPetalPoint(p, hsEvalTmp, 1.00, 0, W1);
                 crownTop = Math.max(crownTop, W0.y - H, W1.y - H);
+            }
+
+            for (let s = 0; s < 4; s++) {
+                const op = origamiPetals[s];
+                const uRaw = clamp01((open - op.delay) / Math.max(0.22, 0.88 - op.delay));
+                const uSpring = springPetalOpen(uRaw);
+                let deg;
+                if (uRaw < 0.62) deg = lerp(op.a0, op.a1, springPetalOpen(uRaw / 0.62));
+                else deg = lerp(op.a1, op.a2, springPetalOpen((uRaw - 0.62) / 0.38));
+                op.theta = deg * DEG;
+                op.curlRad = op.curl * DEG * Math.min(1.12, uSpring);
+                op.uOpen = uRaw;
+                const phi = op.az + sc.clock * 0.018 * (1 - smooth((tau - T_ORIGAMI_START) / 0.35));
+                op.cp = Math.cos(phi);
+                op.sp = Math.sin(phi);
             }
 
             return { visible: true, grow, H, padY, scale, open, sway, crownTop, envWeightDip };
@@ -2193,8 +2313,9 @@
 
             // 4D. Các cánh hoa 3D cong Bezier tròn đầy (Sắp xếp theo hình học vỏ trụ lồng nhau Nested Cylindrical Shells!)
             const highViewMix = !isRefl ? smooth((elev - 34 * DEG) / (16 * DEG)) : 0;
-            for (let i = 0; i < petals.length; i++) {
-                const p = petals[i];
+            const totalPetals = (!isRefl && sc.tau < T_ORIGAMI_START) ? petals.length + 4 : petals.length;
+            for (let i = 0; i < totalPetals; i++) {
+                const p = i < petals.length ? petals[i] : origamiPetals[i - petals.length];
                 // Trong bóng nước phản chiếu mờ (globalAlpha = 0.14), chỉ cần vẽ 2 tầng cánh ngoài tạo dáng phản chiếu, tiết kiệm 55% phép chiếu 3D
                 if (isRefl && p.li >= 2) continue;
 
@@ -2826,22 +2947,43 @@
         }
 
         // =================================================================================
-        // 6. TÍNH TOÁN VỊ TRÍ & MA TRẬN 3D CỦA PHONG BÌ DOM TRÊN ĐÀI HOA (CÓ ĐỘ NHÚN TẢI TRỌNG VẬT LÝ)
+        // 6. ĐẠI CẢNH 4 CÁNH HOA LỚP TRONG GẤP ORIGAMI 3D THÀNH PHONG BÌ & ĐỒNG BỘ DOM 1:1
         // =================================================================================
+        // Điểm điều khiển B-Spline (m = 0..10): P0, P1, P5 cùng nằm sát trục bản lề (u = 0..0.03) để mép gấp luôn phẳng mượt 100%, không bao giờ bị nhọn ở P0!
+        const U_PET  = [0.00, 0.03, 0.34, 0.72, 0.95, 1.00, 0.95, 0.72, 0.34, 0.03, 0.50];
+        const V_PET  = [0.00, -0.74, -1.00, -0.88, -0.46, 0.00, 0.46, 0.88, 1.00, 0.74, 0.00];
+        // Điểm điều khiển Vạt Phong Bì: m=2,3,4 và m=6,7,8 thẳng hàng tuyệt đối trên đường chéo u + |v| = 1.00 để cạnh chữ V phẳng căng 100% như SVG DOM!
+        const U_FLAP = [0.00, 0.00, 0.035, 0.50, 0.92, 1.00, 0.92, 0.50, 0.035, 0.00, 0.48];
+        const V_FLAP = [0.00, -0.985, -0.965, -0.50, -0.08, 0.00, 0.08, 0.50, 0.965, 0.985, 0.00];
+        const FOLD_STARTS = [3.20, 3.25, 3.42, 3.60]; // Thứ tự gấp vật lý chuẩn: Vạt Trái -> Vạt Phải -> Vạt Đáy -> Nắp Trên
+        const FOLD_DURS   = [0.52, 0.52, 0.50, 0.48];
+        const origamiPts = Array.from({ length: 11 }, () => ({ x: 0, y: 0, z: 0, k: 0, v: false }));
+        const corePts    = Array.from({ length: 8 },  () => ({ x: 0, y: 0, z: 0, k: 0, v: false }));
+        const origamiPathObj = {
+            shape: 'camellia',
+            p0x: 0, p0y: 0, p1x: 0, p1y: 0, p2lx: 0, p2ly: 0, p2x: 0, p2y: 0,
+            tlx: 0, tly: 0, p3x: 0, p3y: 0, trx: 0, try: 0, p4x: 0, p4y: 0,
+            p4rx: 0, p4ry: 0, p5x: 0, p5y: 0, p6x: 0, p6y: 0
+        };
+
         function computeEnvelope(tau, hs, vw, vh, envBaseW, idleY, idleRotZ) {
-            if (tau < T.ENV_IN) return { visible: false, depth: 1e9 };
-            const tEnv = tau - T.ENV_IN;
-            const mat = springOut(clamp01(tEnv / 0.72), 8.5, 3.6, 1);
+            if (tau < T_ORIGAMI_START) return { visible: false, origamiActive: false, shadowAlpha: 0, depth: 1e9 };
             const lift = easeInOutCubic(clamp01((tau - T.LIFT) / (T.LAND - T.LIFT)));
-            // Phong bì hạ nhẹ từ trên xuống đài hoa khi kết tinh (dropSettle) tạo cảm giác có trọng lượng thật đè lên cánh hoa
-            const dropSettle = 18 * Math.exp(-tEnv * 5.5) * Math.cos(tEnv * 10.5);
-            const envY = hs.H + Math.max(10, finalCrown, hs.crownTop) + 12 + dropSettle + th.hero.envLift * smooth((tau - 3.95) / 0.55);
+            // Khi 4 vạt thư vừa gấp khép lại tại tau = 3.78s, phong bì nhún nhẹ xuống đài hoa tạo cảm giác có sức nặng vật lý thật
+            const tLock = Math.max(0, tau - 3.78);
+            const dropSettle = (tau >= 3.78)
+                ? -10.5 * Math.exp(-tLock * 5.2) * Math.sin(tLock * 11.2)
+                : 0;
+            const envY = hs.H + Math.max(10, finalCrown, hs.crownTop) + 12 + dropSettle + th.hero.envLift * smooth((tau - 3.98) / 0.52);
             const envX = hs.sway * 1.15 * (1 - lift);
             project(envX, envY, 0, P0);
             project(envX - cam.rx * ENV_W * 0.5, envY, -cam.rz * ENV_W * 0.5, P1);
             project(envX + cam.rx * ENV_W * 0.5, envY,  cam.rz * ENV_W * 0.5, P2);
             const cradleW = Math.hypot(P2.x - P1.x, P2.y - P1.y);
-            const cradleScale = clamp01(cradleW / Math.max(200, envBaseW)) * (0.48 + 0.52 * mat);
+            const lockPulse = (tau >= 3.78 && tau < 4.40)
+                ? 1 + 0.022 * Math.exp(-tLock * 6.2) * Math.sin(tLock * 14.0)
+                : 1;
+            const cradleScale = clamp01(cradleW / Math.max(200, envBaseW)) * lockPulse;
             const cradleTx = P0.x - vw * 0.5;
             const cradleTy = P0.y - vh * 0.5;
             const elev = Math.atan2(cam.y - envY, Math.hypot(cam.x, cam.z)) / DEG;
@@ -2849,30 +2991,529 @@
             const cradleRy = Math.sin(sc.clock * 1.4) * 3.5;
             const cradleRz = -cam.yaw * 10;
 
+            const rotX = lerp(cradleRx, 6, lift);
+            const rotY = lerp(cradleRy, 0, lift);
+            const rotZ = lerp(cradleRz, idleRotZ || 0, lift);
+
+            // Hệ trục trực chuẩn 3D (E_R, E_U, E_N) của mặt phẳng phong bì tại tâm (envX, envY, 0)
+            const rzRad = -rotZ * DEG;
+            const rxRad = rotX * DEG;
+            const cZ = Math.cos(rzRad), sZ = Math.sin(rzRad);
+            const cX = Math.cos(rxRad), sX = Math.sin(rxRad);
+            const r1x = cZ * cam.rx - sZ * cam.ux;
+            const r1y = -sZ * cam.uy;
+            const r1z = cZ * cam.rz - sZ * cam.uz;
+            const u1x = sZ * cam.rx + cZ * cam.ux;
+            const u1y = cZ * cam.uy;
+            const u1z = sZ * cam.rz + cZ * cam.uz;
+
+            const erx = r1x, ery = r1y, erz = r1z;
+            const eux = cX * u1x + sX * cam.fx;
+            const euy = cX * u1y + sX * cam.fy;
+            const euz = cX * u1z + sX * cam.fz;
+            const enx = sX * u1x - cX * cam.fx;
+            const eny = sX * u1y - cX * cam.fy;
+            const enz = sX * u1z - cX * cam.fz;
+
+            // Chỉ bật DOM Envelope khi 4 cánh hoa trên Canvas 3D đã gấp khép 180° thành hình phong bì (tau >= T_ORIGAMI_LOCK = 4.06s)
+            const domVisible = tau >= T_ORIGAMI_LOCK;
+            const domOpacity = domVisible ? smooth((tau - T_ORIGAMI_LOCK) / 0.24) : 0;
+            const shadowAlpha = smooth((tau - 2.95) / 0.55) * (1 - lift * 0.88) * 0.85;
+
             return {
-                visible: true,
-                opacity: clamp01((tau - T.ENV_IN) / 0.35),
+                visible: domVisible,
+                opacity: domOpacity,
+                origamiActive: tau >= T_ORIGAMI_START && tau < 4.40,
+                shadowAlpha,
                 tx: lerp(cradleTx, 0, lift),
                 ty: lerp(cradleTy, idleY || 0, lift),
                 scale: lerp(cradleScale, 1, lift),
-                rotX: lerp(cradleRx, 6, lift),
-                rotY: lerp(cradleRy, 0, lift),
-                rotZ: lerp(cradleRz, idleRotZ || 0, lift),
+                rotX,
+                rotY,
+                rotZ,
                 depth: lerp(P0.z, 120, lift),
                 lift,
-                worldY: envY
+                worldX: envX,
+                worldY: envY,
+                erx, ery, erz,
+                eux, euy, euz,
+                enx, eny, enz,
+                lockPulse
             };
         }
 
+        function evalEnvWorldPoint(env, u, v, w, perspDamp, out) {
+            // perspDamp giảm nhẹ độ chênh chiều sâu theo trục nhìn khi vạt thư đã khép phẳng để khớp sub-pixel với CSS perspective(1400px)
+            const ux = env.eux - cam.fx * perspDamp * (env.eux * cam.fx + env.euy * cam.fy + env.euz * cam.fz);
+            const uy = env.euy - cam.fy * perspDamp * (env.eux * cam.fx + env.euy * cam.fy + env.euz * cam.fz);
+            const uz = env.euz - cam.fz * perspDamp * (env.eux * cam.fx + env.euy * cam.fy + env.euz * cam.fz);
+            out.x = env.worldX + u * env.erx + v * ux + w * env.enx;
+            out.y = env.worldY + u * env.ery + v * uy + w * env.eny;
+            out.z = u * env.erz + v * uz + w * env.enz;
+        }
+
+        function traceProjectedRoundedRect(g, env, hw, hh, wOff, perspDamp, rFrac) {
+            const rx = hw * rFrac, ry = hh * rFrac;
+            const coords = [
+                [-hw + rx,  hh], [ hw - rx,  hh],
+                [ hw,  hh - ry], [ hw, -hh + ry],
+                [ hw - rx, -hh], [-hw + rx, -hh],
+                [-hw, -hh + ry], [-hw,  hh - ry]
+            ];
+            for (let i = 0; i < 8; i++) {
+                evalEnvWorldPoint(env, coords[i][0], coords[i][1], wOff, perspDamp, W0);
+                if (!project(W0.x, W0.y, W0.z, corePts[i])) return false;
+            }
+            evalEnvWorldPoint(env, -hw,  hh, wOff, perspDamp, W0); project(W0.x, W0.y, W0.z, P0);
+            evalEnvWorldPoint(env,  hw,  hh, wOff, perspDamp, W0); project(W0.x, W0.y, W0.z, P1);
+            evalEnvWorldPoint(env,  hw, -hh, wOff, perspDamp, W0); project(W0.x, W0.y, W0.z, P2);
+            evalEnvWorldPoint(env, -hw, -hh, wOff, perspDamp, W0); project(W0.x, W0.y, W0.z, P3);
+
+            g.beginPath();
+            g.moveTo(corePts[0].x, corePts[0].y);
+            g.lineTo(corePts[1].x, corePts[1].y);
+            g.quadraticCurveTo(P1.x, P1.y, corePts[2].x, corePts[2].y);
+            g.lineTo(corePts[3].x, corePts[3].y);
+            g.quadraticCurveTo(P2.x, P2.y, corePts[4].x, corePts[4].y);
+            g.lineTo(corePts[5].x, corePts[5].y);
+            g.quadraticCurveTo(P3.x, P3.y, corePts[6].x, corePts[6].y);
+            g.lineTo(corePts[7].x, corePts[7].y);
+            g.quadraticCurveTo(P0.x, P0.y, corePts[0].x, corePts[0].y);
+            g.closePath();
+            return true;
+        }
+
+        function drawPetalOrigamiEnvelope3D(gW, gF, tau, hs, env) {
+            if (!env.origamiActive || !hs.visible) return;
+            const canvasAlpha = 1 - smooth((tau - 4.20) / 0.18);
+            if (canvasAlpha <= 0.005) return;
+
+            const themeAttr = (stageEl && stageEl.getAttribute('data-theme')) || 'emerald';
+            const envThemeObj = shadeLUT.origami[themeAttr] || shadeLUT.origami.emerald;
+            const pal = envThemeObj.pal;
+            const mSteps = envThemeObj.mSteps;
+
+            const hw = ENV_W * 0.5 * env.lockPulse;
+            const hh = ENV_H * 0.5 * env.lockPulse;
+            const detachP = easeInOutCubic(clamp01((tau - T_ORIGAMI_START) / 0.46));
+
+            gW.save();
+            gW.globalCompositeOperation = 'source-over';
+            gW.lineJoin = 'round';
+            gW.lineCap = 'round';
+
+            // 1. Luồng phấn hoa hoàng kim & hào quang ấm áp dâng từ vương miện nhụy vàng lên nâng đỡ 4 cánh hoa (tau = 2.85s -> 3.75s)
+            const filamentFade = smooth((tau - T_ORIGAMI_START) / 0.22) * (1 - smooth((tau - 3.58) / 0.28)) * canvasAlpha;
+            if (filamentFade > 0.01 && project(hs.sway, hs.H + 10 * hs.scale, 0, P0)) {
+                const auraW = 135 * P0.k, auraH = 95 * P0.k;
+                drawAdditive(gW, S.softAccent, P0.x, P0.y - auraH * 0.25, auraW, auraH, filamentFade * 0.42);
+                for (let f = 0; f < 8; f++) {
+                    const cyc = ((tau - T_ORIGAMI_START) * 1.6 + f * 0.125) % 1;
+                    const a = (f / 8) * TAU + sc.clock * 1.1;
+                    const uEdge = Math.cos(a) * hw * 0.48 * cyc;
+                    const vEdge = Math.sin(a) * hh * 0.48 * cyc;
+                    evalEnvWorldPoint(env, uEdge, vEdge, (1 - cyc) * -14, 0.35, W1);
+                    if (project(W1.x, W1.y, W1.z, P1)) {
+                        const mSz = Math.max(6, 16 * P1.k) * Math.sin(cyc * Math.PI);
+                        drawAdditive(gW, S.glowFirefly, P1.x, P1.y, mSz, mSz, filamentFade * 0.75);
+                    }
+                }
+            }
+
+            // 2. Lõi Lót Lụa Ngọc Trai (Inner Lining):
+            // QUAN TRỌNG: Không vẽ khung chữ nhật trước khi 4 cánh hoa gấp! Khung chữ nhật chỉ mở rộng từ tâm (0.58 -> 1.0)
+            // ĐỒNG BỘ với quá trình 4 cánh hoa gấp khép vào nhau (tau = 3.22s -> 3.78s), để chính 4 cánh hoa định hình nên chiếc phong bì!
+            const sideFoldProgress = clamp01((tau - 3.22) / 0.52);
+            const liningAppear = smooth((tau - 2.92) / 0.24) * canvasAlpha;
+            if (liningAppear > 0.01) {
+                const perspDamp = 0.45 * sideFoldProgress;
+                const lHw = hw * lerp(0.56, 1.00, easeInOutCubic(sideFoldProgress));
+                const lHh = hh * lerp(0.56, 1.00, easeInOutCubic(sideFoldProgress));
+                const rCorner = lerp(0.42, 0.082, easeInOutCubic(sideFoldProgress));
+                const innerLiningAlpha = smooth((tau - 3.14) / 0.26) * canvasAlpha;
+
+                // 2A. Nền lưng & Lót lụa ngọc trai (bo tròn mềm như đài sen khi mới hé, chỉ vuông góc cạnh khi Vạt Trái & Phải gấp vào!)
+                if (sideFoldProgress > 0.25 && traceProjectedRoundedRect(gW, env, lHw, lHh, 0, perspDamp, rCorner)) {
+                    gW.globalAlpha = innerLiningAlpha * smooth((sideFoldProgress - 0.25) / 0.45);
+                    const bg = gW.createLinearGradient(corePts[0].x, corePts[0].y, corePts[4].x, corePts[4].y);
+                    bg.addColorStop(0.0, pal.back[0]);
+                    bg.addColorStop(0.5, pal.back[1]);
+                    bg.addColorStop(1.0, pal.back[2]);
+                    gW.fillStyle = bg;
+                    gW.fill();
+                    gW.strokeStyle = '#f6df8c';
+                    gW.lineWidth = Math.max(1.0, 1.8 * corePts[0].k);
+                    gW.stroke();
+                }
+
+                if (innerLiningAlpha > 0.02 && traceProjectedRoundedRect(gW, env, lHw * 0.95, lHh * 0.93, 0.12, perspDamp, rCorner * 0.85)) {
+                    gW.globalAlpha = innerLiningAlpha * (0.65 + 0.35 * sideFoldProgress);
+                    const lg = gW.createLinearGradient(corePts[0].x, corePts[0].y, corePts[5].x, corePts[5].y);
+                    lg.addColorStop(0.0, pal.lining[0]);
+                    lg.addColorStop(0.5, pal.lining[1]);
+                    lg.addColorStop(1.0, pal.lining[2]);
+                    gW.fillStyle = lg;
+                    gW.fill();
+                }
+            }
+
+            // Hàm nội bộ vẽ tấm Thiệp Ước Nguyện Hoàng Gia (được gọi đúng thứ tự chiều sâu 3D: nằm TRƯỚC cánh hoa phía sau đang mở, và nằm SAU các vạt thư đang gập đè lên mặt trước!)
+            function renderSymbolicWishCard3D() {
+                const cardVis = smooth((tau - 2.94) / 0.20) * (1 - smooth((tau - 3.86) / 0.18));
+                if (cardVis <= 0.02) return;
+                const cardGrow = lerp(0.58, 1.00, smooth((tau - 2.94) / 0.38));
+                const cHw = hw * 0.72 * cardGrow;
+                const cHh = hh * 0.68 * cardGrow;
+                const wCard = 0.22;
+                const cardPersp = 0.45 * sideFoldProgress;
+
+                // Bóng đổ chiều sâu của tấm thiệp lên lớp lót lụa phía dưới
+                if (traceProjectedRoundedRect(gW, env, cHw, cHh, 0.12, cardPersp, 0.11)) {
+                    gW.globalAlpha = canvasAlpha * cardVis * 0.32;
+                    gW.fillStyle = 'rgba(18, 4, 12, 0.85)';
+                    gW.fill();
+                }
+                // Thân giấy lụa ngọc trai ánh hồng ấm + Viền vàng 24K ngoài
+                if (traceProjectedRoundedRect(gW, env, cHw, cHh, wCard, cardPersp, 0.11)) {
+                    const ck = corePts[0].k;
+                    gW.globalAlpha = canvasAlpha * cardVis;
+                    const cg = gW.createLinearGradient(corePts[0].x, corePts[0].y, corePts[4].x, corePts[4].y);
+                    cg.addColorStop(0.00, '#fffdf9');
+                    cg.addColorStop(0.52, '#fff5ec');
+                    cg.addColorStop(1.00, '#fde4ec');
+                    gW.fillStyle = cg;
+                    gW.fill();
+                    gW.strokeStyle = '#e5b84b';
+                    gW.lineWidth = Math.max(1.0, 1.55 * ck);
+                    gW.stroke();
+
+                    // Khung viền ép kim 24K bên trong (Inner Filigree Frame) + 4 chấm ngọc góc thiệp
+                    if (traceProjectedRoundedRect(gW, env, cHw * 0.86, cHh * 0.82, wCard + 0.02, cardPersp, 0.08)) {
+                        gW.strokeStyle = 'rgba(216, 158, 44, 0.75)';
+                        gW.lineWidth = Math.max(0.65, 0.95 * ck);
+                        gW.stroke();
+                        gW.fillStyle = '#e5b84b';
+                        const cr = Math.max(1.1, 1.8 * ck);
+                        for (let c = 0; c < 8; c += 2) {
+                            gW.beginPath();
+                            gW.arc(corePts[c].x, corePts[c].y, cr, 0, TAU);
+                            gW.fill();
+                        }
+                    }
+
+                    // Huy hiệu Vương Miện Trái Tim Hoa & Đôi Cánh Hoa Văn Ép Kim tại đỉnh thiệp (v = +0.33 * cHh)
+                    const crestV = cHh * 0.33;
+                    evalEnvWorldPoint(env, 0, crestV, wCard + 0.04, cardPersp, W0);
+                    evalEnvWorldPoint(env, -cHw * 0.44, crestV - cHh * 0.03, wCard + 0.04, cardPersp, W1);
+                    evalEnvWorldPoint(env,  cHw * 0.44, crestV - cHh * 0.03, wCard + 0.04, cardPersp, W2);
+                    if (project(W0.x, W0.y, W0.z, P0) && project(W1.x, W1.y, W1.z, P1) && project(W2.x, W2.y, W2.z, P2)) {
+                        const rEmblem = Math.max(3.6, 7.2 * P0.k * cardGrow);
+                        gW.strokeStyle = 'rgba(216, 158, 44, 0.85)';
+                        gW.lineWidth = Math.max(0.75, 1.15 * P0.k);
+                        gW.beginPath();
+                        gW.moveTo(P1.x, P1.y);
+                        gW.quadraticCurveTo(lerp(P1.x, P0.x, 0.55), P0.y - rEmblem * 0.55, P0.x - rEmblem * 1.15, P0.y);
+                        gW.moveTo(P2.x, P2.y);
+                        gW.quadraticCurveTo(lerp(P2.x, P0.x, 0.55), P0.y - rEmblem * 0.55, P0.x + rEmblem * 1.15, P0.y);
+                        gW.stroke();
+
+                        gW.fillStyle = 'rgba(255, 244, 214, 0.94)';
+                        gW.strokeStyle = '#d89e2c';
+                        gW.lineWidth = Math.max(0.85, 1.3 * P0.k);
+                        gW.beginPath();
+                        gW.arc(P0.x, P0.y, rEmblem, 0, TAU);
+                        gW.fill();
+                        gW.stroke();
+
+                        const hsSz = rEmblem * 0.62;
+                        const hx = P0.x, hy = P0.y + hsSz * 0.22;
+                        gW.fillStyle = pal.topFlap[0];
+                        gW.beginPath();
+                        gW.moveTo(hx, hy + hsSz * 0.65);
+                        gW.bezierCurveTo(hx - hsSz * 1.2, hy + hsSz * 0.1, hx - hsSz * 0.95, hy - hsSz * 0.95, hx, hy - hsSz * 0.35);
+                        gW.bezierCurveTo(hx + hsSz * 0.95, hy - hsSz * 0.95, hx + hsSz * 1.2, hy + hsSz * 0.1, hx, hy + hsSz * 0.65);
+                        gW.fill();
+                    }
+
+                    // 4 Dòng chữ thư pháp ánh kim tự khắc mềm mại từ trái sang phải (tượng trưng cho lời chúc đang kết tinh)
+                    for (let ln = 0; ln < 4; ln++) {
+                        const writeP = clamp01((tau - (2.96 + ln * 0.07)) / 0.28);
+                        if (writeP <= 0.02) continue;
+                        const lv = cHh * (0.04 - ln * 0.165);
+                        const uStart = ln === 0 ? -cHw * 0.32 : (ln === 3 ? -cHw * 0.48 : -cHw * 0.60);
+                        const uFull  = ln === 0 ?  cHw * 0.32 : (ln === 3 ?  cHw * 0.20 : (ln === 1 ? cHw * 0.60 : cHw * 0.52));
+                        const uEnd   = lerp(uStart, uFull, easeOutCubic(writeP));
+                        const uMid   = (uStart + uEnd) * 0.5;
+                        const waveV  = (ln === 0 ? 0.015 : (ln % 2 === 1 ? 0.028 : -0.024)) * cHh;
+
+                        evalEnvWorldPoint(env, uStart, lv, wCard + 0.04, cardPersp, W0);
+                        evalEnvWorldPoint(env, uMid, lv + waveV, wCard + 0.04, cardPersp, W1);
+                        evalEnvWorldPoint(env, uEnd, lv, wCard + 0.04, cardPersp, W2);
+                        if (project(W0.x, W0.y, W0.z, P0) && project(W1.x, W1.y, W1.z, P1) && project(W2.x, W2.y, W2.z, P2)) {
+                            gW.strokeStyle = ln === 0 ? pal.topFlap[0] : 'rgba(188, 128, 34, 0.88)';
+                            gW.lineWidth = Math.max(0.8, (ln === 0 ? 1.65 : 1.20) * P0.k);
+                            gW.beginPath();
+                            gW.moveTo(P0.x, P0.y);
+                            gW.quadraticCurveTo(P1.x, P1.y, P2.x, P2.y);
+                            gW.stroke();
+
+                            if (writeP < 0.96) {
+                                const nibSz = Math.max(5, 12 * P2.k);
+                                drawAdditive(gW, S.glowFirefly, P2.x, P2.y, nibSz, nibSz, cardVis * 0.85);
+                                gW.globalCompositeOperation = 'source-over';
+                                gW.globalAlpha = canvasAlpha * cardVis;
+                            }
+                        }
+                    }
+
+                    // Con dấu mộc đỏ-vàng tượng trưng ở góc dưới bên phải tấm thiệp
+                    const sealAppear = smooth((tau - 3.16) / 0.20);
+                    if (sealAppear > 0.02) {
+                        evalEnvWorldPoint(env, cHw * 0.42, -cHh * 0.44, wCard + 0.04, cardPersp, W0);
+                        if (project(W0.x, W0.y, W0.z, P0)) {
+                            const sr = Math.max(2.2, 4.2 * P0.k * cardGrow) * sealAppear;
+                            gW.fillStyle = pal.topFlap[0];
+                            gW.strokeStyle = '#f6df8c';
+                            gW.lineWidth = Math.max(0.6, 0.95 * P0.k);
+                            gW.beginPath();
+                            gW.arc(P0.x, P0.y, sr, 0, TAU);
+                            gW.fill();
+                            gW.stroke();
+                        }
+                    }
+                }
+            }
+
+            // 3. Bốn Cánh Hoa Lớp Trong Cùng tách khỏi nhụy, nở rộng ôm lấy Lõi Thư và gấp Origami 3D (Trái -> Phải -> Đáy -> Nắp Trên)
+            const pt = th.petal;
+            origamiPathObj.shape = pt.shape;
+
+            function renderOrigamiSlot(slot) {
+                const op = origamiPetals[slot];
+                const foldRaw = clamp01((tau - FOLD_STARTS[slot]) / FOLD_DURS[slot]);
+                const foldEase = easeInOutCubic(foldRaw);
+                const foldSettle = Math.sin(foldRaw * Math.PI) * 0.035 * smooth((foldRaw - 0.5) / 0.5);
+                const foldP = clamp01(foldEase + foldSettle);
+
+                // Khi bắt đầu gấp vào (foldRaw: 0 -> 1), sóng biến hình chạy từ Gốc bản lề (baseMorph) -> Thân cạnh (midMorph) -> Đỉnh chữ V (tipMorph)
+                // giúp cánh hoa vuốt thẳng thành vạt thư tam giác ngay khi vừa dựng qua góc 90°, không bao giờ bị phình cong!
+                const baseMorph = smooth(clamp01(foldRaw / 0.36));
+                const midMorph  = smooth(clamp01((foldRaw - 0.04) / 0.40));
+                const tipMorph  = smooth(clamp01((foldRaw - 0.08) / 0.46));
+                const perspDamp = 0.45 * tipMorph;
+
+                const openHingeRad = (56 - slot * 1.5) * DEG;
+                const alpha = lerp(openHingeRad, Math.PI, foldP);
+                const cA = Math.cos(alpha), sA = Math.sin(alpha);
+
+                const hingeExpand = lerp(0.38, 1.00, smooth(clamp01(foldRaw / 0.46)));
+                let Hu = 0, Hv = 0, Inu = 0, Inv = 0, Tu = 0, Tv = 0, halfSpan = 0, flapReach = 0, apexShiftV = 0;
+                let petSpanTarget = 0, petReachTarget = 0;
+                if (slot === 0) {
+                    Hu = -hw * hingeExpand; Hv = 0; Inu = 1; Inv = 0; Tu = 0; Tv = 1;
+                    halfSpan = hh * 0.96; flapReach = hw * 1.058; apexShiftV = -hh * 0.11;
+                    petSpanTarget = hh * 0.88; petReachTarget = hw * 0.82;
+                } else if (slot === 1) {
+                    Hu = hw * hingeExpand; Hv = 0; Inu = -1; Inv = 0; Tu = 0; Tv = -1;
+                    halfSpan = hh * 0.96; flapReach = hw * 1.058; apexShiftV = -hh * 0.11;
+                    petSpanTarget = hh * 0.88; petReachTarget = hw * 0.82;
+                } else if (slot === 2) {
+                    Hu = 0; Hv = -hh * hingeExpand; Inu = 0; Inv = 1; Tu = -1; Tv = 0;
+                    halfSpan = hw * 0.99; flapReach = hh * 1.11; apexShiftV = 0;
+                    petSpanTarget = hw * 0.86; petReachTarget = hh * 0.92;
+                } else {
+                    Hu = 0; Hv = hh * hingeExpand; Inu = 0; Inv = -1; Tu = 1; Tv = 0;
+                    halfSpan = hw * 0.99; flapReach = hh * 1.175; apexShiftV = 0;
+                    petSpanTarget = hw * 0.86; petReachTarget = hh * 0.96;
+                }
+
+                let allProjected = true;
+                for (let m = 0; m < 11; m++) {
+                    const uP = U_PET[m], vP = V_PET[m];
+                    const uF = U_FLAP[m], vF = V_FLAP[m];
+                    const localMorph = (m === 1 || m === 2 || m === 8 || m === 9)
+                        ? baseMorph
+                        : ((m === 3 || m === 7 || m === 10) ? midMorph : tipMorph);
+
+                    evalHeroPetalPoint(op, hs, uP, vP, W1);
+
+                    const petReach = uP * petReachTarget;
+                    const shapeProf = (0.52 + 0.48 * Math.sin(Math.pow(uP, 0.55) * Math.PI * 0.88)) * (0.88 + 0.12 * roundness);
+                    const petHalfW = petSpanTarget * shapeProf;
+                    const petLat = vP * petHalfW;
+                    const petCup = (vP * vP) * petHalfW * 0.36 * Math.sin(uP * Math.PI * 0.90);
+                    const petBelly = Math.sin(uP * Math.PI) * 9.5 * hs.scale;
+                    const petArchZ = petBelly + petCup;
+
+                    const reach = lerp(petReach, uF * flapReach, localMorph);
+                    const lat = lerp(petLat, vF * halfSpan, localMorph);
+                    // Khi biến hình thành vạt thư (localMorph -> 1), mặt phẳng vạt thư phẳng căng 100% để hai cạnh chéo chữ V thẳng tắp tuyệt đối!
+                    const archZ = petArchZ * (1 - localMorph) * (1 - foldP);
+
+                    const inDist = -cA * reach;
+                    const wDist = Math.max(0, sA * reach + archZ) + (slot + 1) * 0.18;
+                    const envU = Hu + Inu * inDist + Tu * lat;
+                    const envV = Hv + Inv * inDist + Tv * lat + apexShiftV * uF * localMorph;
+
+                    evalEnvWorldPoint(env, envU, envV, wDist, perspDamp, W2);
+
+                    const liftArc = Math.sin(detachP * Math.PI) * (9.5 + slot * 1.2);
+                    const wx = lerp(W1.x, W2.x, detachP);
+                    const wy = lerp(W1.y, W2.y, detachP) + liftArc;
+                    const wz = lerp(W1.z, W2.z, detachP);
+
+                    if (!project(wx, wy, wz, origamiPts[m])) {
+                        allProjected = false;
+                        break;
+                    }
+                }
+                if (!allProjected) return;
+
+                origamiPathObj.p0x  = origamiPts[0].x;  origamiPathObj.p0y  = origamiPts[0].y;
+                origamiPathObj.p1x  = origamiPts[1].x;  origamiPathObj.p1y  = origamiPts[1].y;
+                origamiPathObj.p2lx = origamiPts[2].x;  origamiPathObj.p2ly = origamiPts[2].y;
+                origamiPathObj.p2x  = origamiPts[3].x;  origamiPathObj.p2y  = origamiPts[3].y;
+                origamiPathObj.tlx  = origamiPts[4].x;  origamiPathObj.tly  = origamiPts[4].y;
+                origamiPathObj.p3x  = origamiPts[5].x;  origamiPathObj.p3y  = origamiPts[5].y;
+                origamiPathObj.trx  = origamiPts[6].x;  origamiPathObj.try  = origamiPts[6].y;
+                origamiPathObj.p4x  = origamiPts[7].x;  origamiPathObj.p4y  = origamiPts[7].y;
+                origamiPathObj.p4rx = origamiPts[8].x;  origamiPathObj.p4ry = origamiPts[8].y;
+                origamiPathObj.p5x  = origamiPts[9].x;  origamiPathObj.p5y  = origamiPts[9].y;
+                origamiPathObj.p6x  = origamiPts[10].x; origamiPathObj.p6y  = origamiPts[10].y;
+                const kScale = origamiPts[10].k;
+
+                gW.globalAlpha = canvasAlpha;
+
+                // 3A. Bóng đổ 3D của cánh hoa/vạt thư lên lớp lót ngọc trai bên dưới khi đang gấp
+                if (foldP > 0.12) {
+                    const shDist = (1 - foldP * 0.72) * 6.0 * kScale;
+                    const shDy = slot === 3 ? Math.max(2.0 * kScale, shDist) : (slot === 2 ? -Math.max(1.5 * kScale, shDist * 0.7) : shDist * 0.5);
+                    gW.save();
+                    gW.translate(0, shDy);
+                    traceHeroPetalPath(gW, origamiPathObj);
+                    gW.fillStyle = `rgba(4, 10, 12, ${(0.16 + 0.18 * foldP).toFixed(3)})`;
+                    gW.fill();
+                    gW.restore();
+                }
+
+                // 3B. Trace đường bao B-Spline của cánh hoa / vạt thư 1 lần duy nhất
+                traceHeroPetalPath(gW, origamiPathObj);
+
+                const colorMix = smooth(clamp01((foldP - 0.06) / 0.84));
+                const mIdx = Math.min(mSteps, Math.max(0, Math.round(colorMix * mSteps)));
+                const cSlot = envThemeObj.slots[slot][mIdx];
+
+                gW.fillStyle = cSlot.s1;
+                gW.fill();
+
+                const pg = gW.createLinearGradient(origamiPathObj.p0x, origamiPathObj.p0y, origamiPathObj.p3x, origamiPathObj.p3y);
+                pg.addColorStop(0.00, cSlot.s0);
+                pg.addColorStop(0.28, cSlot.s1);
+                pg.addColorStop(0.68, cSlot.s2);
+                pg.addColorStop(0.92, cSlot.s3);
+                pg.addColorStop(1.00, cSlot.rim);
+                gW.fillStyle = pg;
+                gW.fill();
+
+                const latGrad = gW.createLinearGradient(origamiPathObj.p2lx, origamiPathObj.p2ly, origamiPathObj.p4rx, origamiPathObj.p4ry);
+                const sheen = Math.sin(foldP * Math.PI) * 0.22;
+                latGrad.addColorStop(0.00, 'rgba(255, 244, 218, 0.14)');
+                latGrad.addColorStop(0.50, sheen > 0.02 ? `rgba(255, 248, 220, ${sheen.toFixed(3)})` : 'rgba(0, 0, 0, 0)');
+                latGrad.addColorStop(1.00, 'rgba(8, 2, 10, 0.26)');
+                gW.fillStyle = latGrad;
+                gW.fill();
+
+                // 3D. Viền mép cánh hoa kết tinh thành Viền Lá Vàng 24K (Gold Foil Bevel Seam)
+                gW.strokeStyle = cSlot.rim;
+                gW.lineWidth = Math.max(0.95, lerp(1.20, 1.85, colorMix) * kScale);
+                gW.stroke();
+
+                // 3E. Vân lụa hữu cơ của cánh hoa mờ dần và hoá thành Đường Chỉ Vàng Khâu Nổi (Couture Dashed Gold Stitch)
+                const veinAlpha = (1 - colorMix * 0.85) * 0.20 * canvasAlpha;
+                if (veinAlpha > 0.02) {
+                    gW.strokeStyle = `rgba(${pt.vein}, ${veinAlpha.toFixed(3)})`;
+                    gW.lineWidth = Math.max(0.5, 0.85 * kScale);
+                    gW.beginPath();
+                    for (let v = -1; v <= 1; v++) {
+                        const vf = v * 0.34;
+                        const absVf = Math.abs(vf);
+                        const cx = lerp(origamiPathObj.p6x, vf < 0 ? origamiPathObj.p2lx : origamiPathObj.p4rx, absVf);
+                        const cy = lerp(origamiPathObj.p6y, vf < 0 ? origamiPathObj.p2ly : origamiPathObj.p4ry, absVf);
+                        const ex = lerp(origamiPathObj.p3x, vf < 0 ? origamiPathObj.p2x : origamiPathObj.p4x, absVf * 0.85);
+                        const ey = lerp(origamiPathObj.p3y, vf < 0 ? origamiPathObj.p2y : origamiPathObj.p4y, absVf * 0.85);
+                        gW.moveTo(origamiPathObj.p0x, origamiPathObj.p0y);
+                        gW.quadraticCurveTo(cx, cy, ex, ey);
+                    }
+                    gW.stroke();
+                }
+
+                if (colorMix > 0.35 && (slot === 2 || slot === 3)) {
+                    const stitchAlpha = smooth((colorMix - 0.35) / 0.65) * 0.68 * canvasAlpha;
+                    gW.save();
+                    gW.strokeStyle = `rgba(248, 225, 142, ${stitchAlpha.toFixed(3)})`;
+                    gW.lineWidth = Math.max(0.75, 1.05 * kScale);
+                    gW.setLineDash([4.5 * kScale, 3.8 * kScale]);
+                    gW.beginPath();
+                    gW.moveTo(lerp(origamiPathObj.p1x, origamiPathObj.p6x, 0.10), lerp(origamiPathObj.p1y, origamiPathObj.p6y, 0.10));
+                    gW.lineTo(lerp(origamiPathObj.tlx, origamiPathObj.p0x, 0.09), lerp(origamiPathObj.tly, origamiPathObj.p0y, 0.09));
+                    gW.quadraticCurveTo(
+                        lerp(origamiPathObj.p3x, origamiPathObj.p0x, 0.08),
+                        lerp(origamiPathObj.p3y, origamiPathObj.p0y, 0.08),
+                        lerp(origamiPathObj.trx, origamiPathObj.p0x, 0.09),
+                        lerp(origamiPathObj.try, origamiPathObj.p0y, 0.09)
+                    );
+                    gW.lineTo(lerp(origamiPathObj.p5x, origamiPathObj.p6x, 0.10), lerp(origamiPathObj.p5y, origamiPathObj.p6y, 0.10));
+                    gW.stroke();
+                    gW.restore();
+                }
+
+                // 3F. Đốm phấn vàng dịu dọc đầu cánh hoa khi đang gấp trên lớp trước (gF)
+                const motionGlow = Math.sin(foldRaw * Math.PI) * canvasAlpha;
+                if (motionGlow > 0.05) {
+                    const spSz = Math.max(8, 18 * kScale);
+                    drawAdditive(gF, S.glowFirefly, origamiPathObj.p3x, origamiPathObj.p3y, spSz, spSz, motionGlow * 0.65);
+                }
+            }
+
+            // Sắp xếp chiều sâu 3D chuẩn xác (Painter's Algorithm):
+            // 1. Khi cánh hoa còn mở ngửa phía sau/hai bên (chưa gập qua góc 90°), vẽ cánh hoa TRƯỚC để nằm PHÍA SAU tấm thiệp.
+            for (let slot = 0; slot < 4; slot++) {
+                const foldRaw = clamp01((tau - FOLD_STARTS[slot]) / FOLD_DURS[slot]);
+                const isBehindCard = (slot === 3 && foldRaw < 0.36) || ((slot === 0 || slot === 1) && foldRaw < 0.12);
+                if (isBehindCard) renderOrigamiSlot(slot);
+            }
+            // 2. Vẽ Tấm Thiệp Ước Nguyện Hoàng Gia nằm giữa lòng đài hoa 4 cánh.
+            renderSymbolicWishCard3D();
+            // 3. Vẽ các vạt cánh hoa phía trước (slot = 2) và các vạt đang gập đè lên mặt trước tấm thiệp (Trái -> Phải -> Đáy -> Nắp Trên).
+            for (let slot = 0; slot < 4; slot++) {
+                const foldRaw = clamp01((tau - FOLD_STARTS[slot]) / FOLD_DURS[slot]);
+                const isBehindCard = (slot === 3 && foldRaw < 0.36) || ((slot === 0 || slot === 1) && foldRaw < 0.12);
+                if (!isBehindCard) renderOrigamiSlot(slot);
+            }
+
+            // 4. Ánh sao kết tinh tại đỉnh Nắp Chữ V đúng khoảnh khắc 4 cánh hoa vừa khép kín thành Phong Bì (tau = 3.96s -> 4.34s)
+            const lockGlow = smooth((tau - 3.94) / 0.14) * (1 - smooth((tau - 4.18) / 0.18));
+            if (lockGlow > 0.01) {
+                evalEnvWorldPoint(env, 0, -hh * 0.16, 1.2, 0.45, W0);
+                if (project(W0.x, W0.y, W0.z, Q)) {
+                    const fw = 52 * Q.k * (0.85 + 0.25 * lockGlow);
+                    drawAdditive(gF, S.glowMote, Q.x, Q.y, fw, fw, lockGlow * 0.65);
+                    drawAdditive(gF, S.flare, Q.x, Q.y, fw * 1.15, fw * 1.15, lockGlow * 0.78);
+                }
+            }
+
+            gW.restore();
+            gW.globalCompositeOperation = 'source-over';
+            gW.globalAlpha = 1;
+        }
+
         function drawEnvContactShadow(g, env, hs) {
-            if (!env.visible) return;
-            const a = env.opacity * (1 - env.lift * 0.88) * 0.85;
-            if (a <= 0.01) return;
+            if (!env || env.shadowAlpha <= 0.01) return;
             if (!project(hs.sway, hs.H + 10, 0, Q)) return;
             const w = ENV_W * 1.5 * Q.k, h = w * 0.52;
             g.save();
             g.globalCompositeOperation = 'source-over';
-            g.globalAlpha = a;
+            g.globalAlpha = env.shadowAlpha;
             g.drawImage(S.shadow, Q.x - w * 0.5, Q.y - h * 0.5, w, h);
             g.restore();
             g.globalCompositeOperation = 'source-over';
@@ -2911,7 +3552,7 @@
             prepareGardenFlowers(tau);
             const heroZ = project(0, hs.H * 0.5, 0, Q) ? Q.z : 500;
             const env = computeEnvelope(tau, hs, vw, vh, envBaseW, info.idleY, info.idleRotZ);
-            const envZ = env.visible ? env.depth : 1e9;
+            const envZ = (env.visible || env.origamiActive) ? env.depth : 1e9;
 
             // 3. Bóng phản chiếu của Đại Đoá Hoa Chủ Đạo dưới mặt nước
             if (hs.visible) {
@@ -2949,9 +3590,12 @@
                 drawBloomDropsAndPollen3D(gW, tau, hs);
             }
 
-            // 10. Bóng tiếp xúc vật lý của Phong bì trên đài hoa
-            if (env.visible) {
+            // 10. Bóng tiếp xúc vật lý & Đại Cảnh 4 Cánh Hoa Lớp Trong Cùng Gấp Origami 3D Thành Phong Bì
+            if (env.shadowAlpha > 0.01) {
                 drawEnvContactShadow(gW, env, hs);
+            }
+            if (env.origamiActive) {
+                drawPetalOrigamiEnvelope3D(gW, gF, tau, hs, env);
             }
 
             // 11. Các đoá hoa trong vườn ở phía gần ống kính hơn Đại Đoá Hoa Chủ Đạo
@@ -2959,16 +3603,16 @@
                 if (ground[gi].vis) drawGardenFlower3D(gW, ground[gi]);
             }
 
-            // 12. Tia sao kết tinh lúc bức thư vừa chạm đài hoa (không phủ glow trắng lên cánh hoa!)
-            if (hs.visible && env.visible) {
-                const bt = (tau - T.ENV_IN) / 0.72;
+            // 12. Hạt phấn hoa ánh kim bung nhẹ quanh mép phong bì lúc 4 vạt thư vừa gấp khép lại trên đài hoa
+            if (hs.visible && tau >= 3.86) {
+                const bt = (tau - 3.86) / 0.62;
                 if (bt > 0 && bt < 1) {
                     for (let i = 0; i < burst.length; i++) {
                         const b = burst[i];
-                        const d = 68 + 125 * b.d * easeOutCubic(bt);
-                        if (!project(b.dx * d, env.worldY + b.dy * d * 0.6, b.dz * d, Q2)) continue;
-                        const w = 40 * Q2.k * (1 - bt * 0.5);
-                        drawAdditive(gW, S.flare, Q2.x, Q2.y, w, w, (1 - bt) * 0.85);
+                        const d = 42 + 68 * b.d * easeOutCubic(bt);
+                        if (!project(b.dx * d, env.worldY + b.dy * d * 0.45, b.dz * d, Q2)) continue;
+                        const w = 16 * Q2.k * (1 - bt * 0.4);
+                        drawAdditive(gW, S.glowFirefly, Q2.x, Q2.y, w, w, (1 - bt) * 0.72);
                     }
                 }
             }

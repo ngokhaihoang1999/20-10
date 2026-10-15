@@ -93,11 +93,11 @@
         stopFanAutoCycle();
         stopNaturalBlinkLoop();
         resetStep1CtaToInitial();
-        step1El.classList.remove('env-flap-open', 'env-flap-behind', 'env-letter-pull', 'env-letter-front', 'envelope-opened');
+        step1El.classList.remove('env-flap-open', 'env-flap-behind', 'env-letter-pull', 'env-letter-front', 'env-closing-silk', 'envelope-opened');
         step1El.classList.add('env-appeared', 'env-idle-float');
     };
 
-    // ====== 2. HOẠT ẢNH VẬT LÝ MỞ PHONG BÌ (CHỈ TÍNH KHI BẤM ĐÚNG VÀO CON DẤU SÁP) ======
+    // ====== 2. HOẠT ẢNH VẬT LÝ MỞ PHONG BÌ LỤA 3D LIỀN MẠCH (CHỈ TÍNH KHI BẤM ĐÚNG VÀO CON DẤU SÁP) ======
     function openPhysicalEnvelope(e) {
         if (e) e.stopPropagation();
         if (isAnimatingEnvelope || step1El.classList.contains('envelope-opened')) return;
@@ -125,7 +125,7 @@
             }
         }
 
-        step1El.classList.remove('env-idle-float');
+        step1El.classList.remove('env-idle-float', 'env-closing-silk');
         step1El.classList.add('env-flap-open');
 
         // Hiệu ứng bung sao vàng ngay tại vị trí con dấu sáp
@@ -133,40 +133,41 @@
             spawnTouchSparkle(sealCx, sealCy, 12);
         }
 
-        // Đưa nắp phong bì ra lớp sau lá thư (z:3) ngay khi nắp vừa lật qua góc thẳng đứng 90 độ (230ms)
+        // Đưa nắp phong bì ra lớp sau lá thư (z:3) đúng khoảnh khắc nắp xoay qua góc vuông 90° (320ms)
         setTimeout(() => {
             step1El.classList.add('env-flap-behind');
-        }, 230);
+        }, 320);
 
-        // Pha 2 (410ms): Rút tấm thiệp "Tháng 10 Rạng Rỡ" từ trong túi chữ V trượt vút lên trên miệng bao thư
+        // Tung pháo hoa chúc mừng khi lá thư đang lướt vút qua miệng túi lụa (520ms)
         setTimeout(() => {
-            step1El.classList.add('env-letter-pull');
             if (typeof triggerCelebrationBurst === 'function') {
                 triggerCelebrationBurst();
             }
-        }, 410);
+        }, 520);
 
-        // Pha 3 (980ms): Khi thiệp đã rút lên khỏi miệng túi, chuyển khe chứa thư lên lớp trước (z-index: 14),
-        // mở khóa clip-path toàn màn hình và đưa tấm thiệp về chính giữa màn hình ở tỷ lệ 100%
+        // Ngay khi đáy lá thư vượt qua đỉnh vòng cung parabol 3D trên miệng túi (670ms),
+        // chuyển khe chứa thư lên lớp trước (z-index: 14) và mở khóa toàn màn hình để lá thư đáp êm về giữa
         setTimeout(() => {
-            step1El.classList.remove('env-letter-pull');
+            step1El.classList.add('env-letter-front');
+        }, 670);
+
+        // Khi lá thư đáp nhẹ vào trung tâm màn hình (1160ms): Mở tương tác nút bấm, hiện nút đóng thư & nháy mắt chào
+        setTimeout(() => {
             step1El.classList.add('envelope-opened');
-            // Nháy mắt chào người dùng ngay khi thiệp bung ra giữa màn hình
-            setTimeout(() => {
-                triggerCardBlink(activeFanSlots[1], true);
-                window.CardAudio?.playCardWinkTwinkle();
-            }, 260);
-        }, 980);
+            triggerCardBlink(activeFanSlots[1], true);
+            window.CardAudio?.playCardWinkTwinkle();
+        }, 1160);
 
-        // Hoàn tất mở thư & bắt đầu chu kỳ 4 giây tự động trượt đổi mẫu + nhịp chớp mắt tự nhiên
+        // Kết thúc trọn vẹn chuỗi keyframe lụa 3D (1550ms) và bắt đầu chu kỳ tự động xoay quạt 3 thiệp mẫu
         setTimeout(() => {
+            step1El.classList.remove('env-flap-open', 'env-letter-front', 'env-letter-pull');
             isAnimatingEnvelope = false;
             startFanAutoCycle();
             startNaturalBlinkLoop();
-        }, 1560);
+        }, 1550);
     }
 
-    // ====== 3. HOẠT ẢNH ĐẢO NGƯỢC VẬT LÝ: ĐÚT TẤM THIỆP VÀO LẠI PHONG BÌ & ĐÓNG DẤU SÁP ======
+    // ====== 3. HOẠT ẢNH ĐẢO NGƯỢC VẬT LÝ: ĐÚT TẤM THIỆP VÀO LẠI PHONG BÌ & ĐÓNG DẤU SÁP MƯỢT MÀ ======
     function closePhysicalEnvelope(e) {
         if (e) e.stopPropagation();
         if (isAnimatingEnvelope || !step1El.classList.contains('envelope-opened')) return;
@@ -175,26 +176,19 @@
         stopFanAutoCycle();
         stopNaturalBlinkLoop();
 
-        // Pha R1 (0ms): Hiện lại phong bì đang mở phía dưới; thu nhỏ tấm thiệp & nhấc lên ngang miệng phong bì (giữ ở lớp trước z:14)
-        step1El.classList.add('env-letter-front', 'env-letter-pull');
-        step1El.classList.remove('envelope-opened');
+        // Khởi chạy đồng bộ chuỗi keyframe thu lá thư theo vòng cung 3D & nâng vỏ phong bì lên đón
+        step1El.classList.remove('envelope-opened', 'env-flap-open', 'env-letter-pull');
+        step1El.classList.add('env-closing-silk', 'env-letter-front', 'env-flap-behind');
 
-        // Pha R2 (550ms): Đưa tấm thiệp vào khe giữa Lưng bao thư (z:2)/Nắp mở (z:3) và Túi chữ V (z:6), rồi trượt sâu vào lòng túi
+        // Ngay khi lá thư uốn qua đỉnh vòng cung (515ms), đưa lá thư vào khe giữa Lưng bao thư (z:2)/Nắp mở (z:3) và Túi chữ V (z:6)
         setTimeout(() => {
             step1El.classList.remove('env-letter-front');
-            step1El.classList.remove('env-letter-pull');
             resetStep1CtaToInitial();
-        }, 550);
+        }, 515);
 
-        // Pha R3 (1100ms): Ẩn lá thư trong lòng túi, gập nắp phong bì đóng lại & đóng con dấu sáp vàng trở lại
+        // Khi nắp phong bì gập qua góc 90 độ (1100ms), trả nắp về lớp trước (z:8) đè lên túi chữ V & đóng dấu sáp vàng
         setTimeout(() => {
-            step1El.classList.remove('env-flap-open');
-
-            // Ngay khi nắp gập qua góc 90 độ (sau ~210ms), trả nắp về z-index: 8 đè lên trên túi chữ V trước
-            setTimeout(() => {
-                step1El.classList.remove('env-flap-behind');
-            }, 210);
-
+            step1El.classList.remove('env-flap-behind');
             if (typeof spawnTouchSparkle === 'function' && waxSealBtn) {
                 const rect = waxSealBtn.getBoundingClientRect();
                 if (rect.width > 0) {
@@ -203,11 +197,12 @@
             }
         }, 1100);
 
-        // Pha R4 (1660ms): Trở về trạng thái phong bì lơ lửng nhẹ nhàng
+        // Hoàn tất đóng phong bì (1440ms) và trở về nhịp thở lơ lửng nhẹ nhàng
         setTimeout(() => {
+            step1El.classList.remove('env-closing-silk', 'env-letter-front', 'env-flap-behind');
             step1El.classList.add('env-idle-float');
             isAnimatingEnvelope = false;
-        }, 1660);
+        }, 1440);
     }
 
     if (waxSealBtn) {

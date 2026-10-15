@@ -1147,24 +1147,30 @@
             }
         }
 
-        // 6. Vương miện 42 nhụy vàng tỏa sáng (tau >= 3.05s = T.HEART)
-        if (!wishBloomCueState.heart && tau >= 3.05) {
+        // 6. Vương miện 42 nhụy vàng tỏa sáng & 4 cánh hoa trong tách khỏi nhụy (tau >= 2.95s)
+        if (!wishBloomCueState.heart && tau >= 2.95) {
             wishBloomCueState.heart = true;
             if (canPlayAudio()) {
+                playSilkPaperWhoosh(0.42, 340, 760, 0.11, 0, 0);
                 suite.pentatonic.slice(3, 8).forEach((noteName, idx) => {
                     playMelodyNote(n(noteName) * 2, now + idx * 0.05, 1.1, 0.12, 'music_box', (idx - 2) * 0.22, sfxBus);
                 });
             }
         }
 
-        // 7. Phong bì 3D kết tinh trên đài hoa (tau >= 3.55s = T.ENV_IN)
-        if (!wishBloomCueState.envIn && tau >= 3.55) {
+        // 7. 4 Cánh hoa gấp Origami 3D thành 4 vạt chiếc phong bì trên đài hoa (tau >= 3.32s)
+        if (!wishBloomCueState.envIn && tau >= 3.32) {
             wishBloomCueState.envIn = true;
             if (canPlayAudio()) {
-                playMelodyNote(n(suite.pentatonic[4]) * 2, now, 0.85, 0.13, 'celesta', -0.2, sfxBus);
-                playMelodyNote(n(suite.pentatonic[6]) * 2, now + 0.06, 0.95, 0.14, 'celesta', 0.2, sfxBus);
+                playSilkPaperWhoosh(0.56, 420, 960, 0.14, 0, 0.02);
+                const foldNotes = [3, 4, 5, 6];
+                foldNotes.forEach((pIdx, f) => {
+                    const noteName = suite.pentatonic[pIdx % suite.pentatonic.length];
+                    playMelodyNote(n(noteName) * 2, now + f * 0.14, 0.90, 0.12 + f * 0.01, 'celesta', (f - 1.5) * 0.22, sfxBus);
+                });
             }
         }
+
 
         // 8. Đài hoa nâng phong bì dâng tặng về phía người xem (tau >= 4.45s = T.LIFT)
         if (!wishBloomCueState.lift && tau >= 4.45) {
