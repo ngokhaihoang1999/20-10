@@ -158,7 +158,7 @@
         ) {
             gpuTier = 1;
         } else if (
-            /immortalis|mali-g(925|720|715)|adreno[^0-9]*(730|735|740|750|830)|apple m[1-9]|apple a(15|16|17|18)|rtx|radeon rx/i.test(r)
+            /immortalis|mali-g(9\d\d|720|715)|adreno[^0-9]*(730|735|740|750|8\d\d)|xclipse\s*9\d\d|apple m[1-9]|apple a(15|16|17|18|19)|rtx|radeon rx/i.test(r)
         ) {
             gpuTier = 2;
             isUltraFlagship = true;
@@ -169,6 +169,16 @@
             if (maxDim <= 736 || rawDpr < 2.5) {
                 gpuTier = 1; // iPhone SE / XR / 11 / 8 Plus
             } else if (maxDim >= 844 && rawDpr >= 3) {
+                isUltraFlagship = true;
+            }
+        } else {
+            // Chrome Android 110+ trên các flagship mới (OPPO Find X8/X9, Vivo X200, Xiaomi 15, Galaxy S24/S25)
+            // thường che tên GPU cụ thể thành chuỗi chung ("ANGLE (ARM, Mali, ...)" hoặc "Vulkan").
+            const cores = navigator.hardwareConcurrency || 4;
+            const mem = navigator.deviceMemory || 0;
+            const rawDpr = window.devicePixelRatio || 1;
+            if (cores >= 8 && (mem === 0 || mem >= 6) && rawDpr >= 2.2) {
+                gpuTier = 2;
                 isUltraFlagship = true;
             }
         }
@@ -246,12 +256,12 @@
                 ? Math.min(2, Math.max(0, govProf.tier >= 2 ? 2 : govProf.tier))
                 : 2;
             prof.tier = mappedTier;
-            prof.isUltraFlagship = !!govProf.isUltraFlagship || (govProf.tier >= 3);
+            prof.isUltraFlagship = !!govProf.isUltraFlagship || (govProf.qualityTier >= 3);
             prof.isLowEnd = mappedTier === 0;
             prof.is30HzCapped = !!govProf.is30HzCapped || rafProbe.is30HzCapped;
             prof.rafMedianMs = govProf.rafMedianMs || rafProbe.medianMs;
-            prof.worldDpr = govProf.worldDpr || (mappedTier === 2 ? Math.min(window.devicePixelRatio || 1, prof.isMobile ? 1.32 : 1.45) : (mappedTier === 1 ? 1.0 : 0.85));
-            prof.directorDpr = govProf.directorDpr || (mappedTier === 2 ? Math.min(window.devicePixelRatio || 1, 1.5) : (mappedTier === 1 ? 1.22 : 1.0));
+            prof.worldDpr = govProf.worldDpr || (mappedTier === 2 ? Math.min(window.devicePixelRatio || 1, prof.isMobile ? 1.35 : 1.45) : (mappedTier === 1 ? 1.0 : 0.85));
+            prof.directorDpr = govProf.directorDpr || (mappedTier === 2 ? Math.min(window.devicePixelRatio || 1, 1.55) : (mappedTier === 1 ? 1.22 : 1.0));
             return prof;
         }
 
@@ -268,12 +278,12 @@
         ) {
             tier = 0;
         } else if (
-            prof.gpuTier === 1 ||
-            prof.isInApp ||
-            rafProbe.is30HzCapped ||
-            rafProbe.isJittery ||
-            prof.benchMs > 1.65 ||
-            (prof.isMobile && prof.memory > 0 && prof.memory <= 4)
+            !prof.isUltraFlagship && (
+                prof.gpuTier === 1 ||
+                rafProbe.is30HzCapped ||
+                prof.benchMs > 1.85 ||
+                (prof.isMobile && prof.memory > 0 && prof.memory <= 4)
+            )
         ) {
             tier = 1;
         }
@@ -1537,6 +1547,7 @@
 
         const sc = {
             tau: reduced ? 4.95 : 0,
+            postClock: 0,
             clock: 0,
             impactClock: -1,
             skipFlash: 0,
@@ -2101,6 +2112,16 @@
                     if (project(bd.xLand, 0, bd.zLand, Q2)) {
                         drawMiniRippleRing3D(g, bd.xLand, bd.zLand, rHit, aHit, Q2.k);
                     }
+                }
+            }
+
+            // 2E. Sóng gợn sinh thái liên tục dưới chân Đại Đoá Hoa trong lúc đóng dấu sáp, chờ mở và mở thiệp
+            if (tau > T.ENV_IN + 0.45 && project(0, 0, 0, Q2)) {
+                for (let ar = 0; ar < 3; ar++) {
+                    const cyc = ((sc.clock * 0.48 + ar * 0.333) % 1);
+                    const rAmb = 42 + cyc * 245;
+                    const aAmb = Math.sin(cyc * Math.PI) * (1 - cyc * 0.45) * 0.42;
+                    drawMiniRippleRing3D(g, 0, 0, rAmb, aAmb, Q2.k);
                 }
             }
 
@@ -3089,18 +3110,19 @@
                 }
             }
 
-            // 2. Hạt phấn hoa hoàng kim bung toả vật lý khi nhụy hoa thức tỉnh (tau >= T.HEART - 0.22)
-            const dtPollen = tau - (T.HEART - 0.22);
-            if (dtPollen > 0 && dtPollen < 2.35) {
+            // 2. Hạt phấn hoa hoàng kim bung toả vật lý khi nhụy hoa thức tỉnh (tau >= T.HEART - 0.22) và lơ lửng liên tục
+            const dtPollenRaw = tau - (T.HEART - 0.22);
+            if (dtPollenRaw > 0) {
                 for (let i = 0; i < pollenParticles.length; i++) {
                     const pp = pollenParticles[i];
+                    const dtPollen = dtPollenRaw < 2.35 ? dtPollenRaw : 1.15 + ((dtPollenRaw - 1.15 + i * 0.17) % 1.2);
                     const dragT = (1 - Math.exp(-dtPollen * 2.2)) / 2.2;
-                    const swirl = dtPollen * pp.spin;
+                    const swirl = dtPollenRaw * pp.spin;
                     const rx = pp.vx * dragT + Math.cos(swirl + pp.ph) * 8 * dtPollen;
                     const rz = pp.vz * dragT + Math.sin(swirl + pp.ph) * 8 * dtPollen;
                     const ry = hs.H + 14 + pp.vy * dragT + 14 * dtPollen;
                     if (!project(hs.sway + rx, ry, rz, Q)) continue;
-                    const fadeP = (1 - dtPollen / 2.35) * (0.65 + 0.35 * Math.sin(sc.clock * 5 + pp.ph));
+                    const fadeP = (dtPollenRaw < 2.35 ? (1 - dtPollenRaw / 2.8) : 0.72) * (0.65 + 0.35 * Math.sin(sc.clock * 5 + pp.ph));
                     const pr = Math.max(2.0, pp.sz * 4.5 * Q.k);
                     drawAdditive(g, S.glowFirefly, Q.x, Q.y, pr, pr, fadeP * 0.85);
                 }
@@ -3174,6 +3196,7 @@
 
         function drawLivingEntities(gW, gF, pass, heroZ, envZ, hs, wake) {
             const tau = sc.tau, clock = sc.clock;
+            const liveTau = tau + (sc.postClock || 0);
             if (wake <= 0.01) return;
 
             const nFlies = sc.quality ? flies.length : (flies.length >> 1);
@@ -3221,7 +3244,7 @@
 
             for (let i = 0; i < flyers.length; i++) {
                 const bf = flyers[i];
-                const age = tau - bf.born;
+                const age = liveTau - bf.born;
                 if (age <= 0) continue;
                 const u = clamp01(age / 1.35);
                 const a = bf.ph + age * 2.1 * bf.dir;
@@ -3852,6 +3875,7 @@
             if (vw !== sc.vw || vh !== sc.vh || !sc.M0) rebuildViewCaches(vw, vh);
 
             const tau = sc.tau, clock = sc.clock;
+            const liveTau = tau + (sc.postClock || 0);
             const wake = smooth((tau - T.IMPACT) / 1.15);
 
             updateCamera(vw, vh);
@@ -3872,7 +3896,7 @@
 
             // 2. Tính trạng thái Đại Đoá Hoa Chủ Đạo & chuẩn bị vườn hoa 3D trên mặt hồ
             const hs = computeHeroState(tau);
-            prepareGardenFlowers(tau);
+            prepareGardenFlowers(liveTau);
             const heroZ = project(0, hs.H * 0.5, 0, Q) ? Q.z : 500;
             const env = computeEnvelope(tau, hs, vw, vh, envBaseW, info.idleY, info.idleRotZ);
             const envZ = (env.visible || env.origamiActive) ? env.depth : 1e9;
@@ -3883,7 +3907,7 @@
             }
 
             // 4. Sóng nước 3D lan toả trên mặt hồ + Vòng sóng phụ từ các giọt nước văng rơi xuống hồ
-            drawWaterRipples3D(gW, tau);
+            drawWaterRipples3D(gW, liveTau);
 
             // 5. Các đoá hoa trong vườn ở phía xa hơn Đại Đoá Hoa Chủ Đạo
             let gi = 0;
@@ -3910,7 +3934,7 @@
             // 9. Đại Đoá Hoa Chủ Đạo 3D (Thân Bezier liền mạch, Lá, Đài hoa, Cánh cong Bezier 3D đặc 100%, Sương mai, Nhụy vàng 3D)
             if (hs.visible) {
                 renderHeroFlower3D(gW, hs, false);
-                drawBloomDropsAndPollen3D(gW, tau, hs);
+                drawBloomDropsAndPollen3D(gW, liveTau, hs);
             }
 
             // 10. Bóng tiếp xúc vật lý & Đại Cảnh 4 Cánh Hoa Lớp Trong Cùng Gấp Origami 3D Thành Phong Bì
@@ -4060,12 +4084,12 @@
             sc.lastDt = dt;
             sc.clock += dt;
             sc.frameAvg = sc.frameAvg * 0.88 + dt * 0.12;
-            // Tầng 3 (Runtime Frame-Time Guardrail): Hạ từng bậc chất lượng (Tier 2 -> Tier 1 -> Tier 0) nếu thiết bị hụt khung hình thực tế
-            if (sc.clock > 0.30 && sc.quality > 0) {
-                const isUltra = !!(perf && perf.isUltraFlagship);
-                const slowDtLimit = isUltra ? 0.028 : 0.024;
-                const slowAvgLimit = isUltra ? 0.024 : 0.021;
-                const slowCountLimit = isUltra ? 8 : 5;
+            const isUltra = !!(perfProfile && perfProfile.isUltraFlagship);
+            // Tầng 3 (Runtime Frame-Time Guardrail): Chỉ hạ bậc trên thiết bị không phải Ultra Flagship nếu hụt khung hình liên tục
+            if (!isUltra && sc.clock > 0.45 && sc.quality > 0) {
+                const slowDtLimit = 0.026;
+                const slowAvgLimit = 0.023;
+                const slowCountLimit = 7;
                 if (dt > slowDtLimit) sc.slowFrames++;
                 else if (sc.slowFrames > 0) sc.slowFrames--;
                 if (sc.frameAvg > slowAvgLimit || sc.slowFrames >= slowCountLimit) {
@@ -4077,6 +4101,8 @@
             if (sc.tau < T.END) {
                 sc.tau = Math.min(T.END, sc.tau + speedAt(sc.tau) * dt);
                 if (sc.tau >= T.IMPACT && sc.impactClock < 0) sc.impactClock = sc.clock;
+            } else {
+                sc.postClock = (sc.postClock || 0) + dt;
             }
             window.CardAudio?.updateWishBloomAudioByTau(sc.tau, sc.skipped);
             sc.finished = sc.tau >= T.END;

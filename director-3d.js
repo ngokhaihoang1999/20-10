@@ -3367,6 +3367,12 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
     u3dActiveOnComplete = onComplete;
     document.body.classList.toggle('u3d-wish-cinematic', !!(skyOracleMode && window.WishBloomCutscene));
+
+    // Kích hoạt #step-3 trước khi gọi setMotionEffect để #showcase-bg-canvas nhận diện màn hình hoạt động ngay từ frame 0
+    step1?.classList.remove('active');
+    step2?.classList.remove('active', 'step2-preloading', 'step2-morph-from');
+    step3?.classList.add('active');
+
     setMotionEffect(motionId, false);
     applyEnvelopeThemeColors(themeKey);
 
@@ -3423,9 +3429,6 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         if (dlLabel) dlLabel.textContent = 'Lưu ảnh';
     }
 
-    step1?.classList.remove('active');
-    step2?.classList.remove('active', 'step2-preloading', 'step2-morph-from');
-    step3?.classList.add('active');
     fitCardShowcaseToWrap();
 
     // Giữ #card-showcase ở mức opacity 0.001 (thay vì 0) để trình duyệt di động luôn giữ sẵn texture ảnh trên GPU, không bao giờ bị chớp màn hình khi bàn giao!
@@ -3887,13 +3890,14 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     const EXTRACT_END = 2.32;
     const PRESENT_END = 2.94;
 
-    // Khởi tạo 14 hạt đom đóm / ánh sao lơ lửng nhẹ quanh phong bì lúc chờ mở (Scale theo kích thước Phong Bì!)
+    // Khởi tạo 14 hạt đom đóm / ánh sao lơ lửng nhẹ quanh phong bì xuyên suốt từ lúc đóng sáp đến khi mở (Scale theo kích thước Phong Bì!)
     for (let i = 0; i < 14; i++) {
         const ang = (i / 14) * Math.PI * 2;
         const radX = (140 + (i % 3) * 42) * motionScale;
         const radY = (105 + (i % 4) * 30) * motionScale;
         particles.push({
             type: i % 3 === 0 ? 'star' : 'bokeh',
+            isAmbientIdle: true,
             hasTrail: false,
             x: Math.cos(ang) * radX,
             y: Math.sin(ang) * radY,
@@ -3912,7 +3916,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             vrx: 0, vry: 0, vrz: 1.5,
             alpha: 0.85,
             life: 0,
-            maxLife: 12
+            maxLife: 120
         });
     }
 
@@ -5478,9 +5482,9 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             const floatT = now * 0.0022;
             const idleY = Math.sin(floatT) * 7;
             const idleRotZ = Math.cos(floatT * 0.7) * 1.2;
-            wishBloom.step(dt);
             let env = null;
             try {
+                wishBloom.step(dt);
                 env = wishBloom.render(ctxWorld, ctxFront, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY, idleRotZ });
             } catch (wishErr) {
                 console.error('Wish Bloom frame error:', wishErr);
@@ -6373,8 +6377,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             const idleRotZ = Math.cos(floatT * 0.7) * 1.2;
 
             if (wishBloom) {
-                wishBloom.step(dt);
                 try {
+                    wishBloom.step(dt);
                     wishBloom.render(ctxWorld, ctxFront, { vw: curVw, vh: curVh, dpr, envW: envBaseW, idleY, idleRotZ });
                 } catch (_) {}
             }
