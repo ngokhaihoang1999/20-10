@@ -3101,6 +3101,8 @@ function createAutoCroppedPortraitCanvas(rawImg, targetW = 1024, targetH = 1526)
     c.width = targetW;
     c.height = targetH;
     const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     const sw = rawImg.naturalWidth || rawImg.width || targetW;
     const sh = rawImg.naturalHeight || rawImg.height || targetH;
     const targetRatio = targetW / targetH;
@@ -3310,11 +3312,10 @@ if (typeof window !== 'undefined') {
     }
 }
 
-// Chuẩn hóa kích thước ảnh đầu vào (tối đa 1280px cạnh dài nhất) trước khi đưa vào Cropper.js:
-// Trên các flagship như OPPO Find X9, ảnh chụp từ camera/thư viện thường nặng 12MP-50MP (4096x3072 -> 8192x6144, tốn 50MB-200MB RAM/VRAM mỗi bản sao).
-// Thu gọn 1 lần về <=1280px (vẫn vượt độ phân giải vùng cửa sổ ảnh trên thiệp) giúp giảm 36% dung lượng Texture GPU và loại bỏ 100% hiện tượng khựng khi Morph sang trang Edit!
+// Giữ nguyên 100% file ảnh gốc (không nén lại) cho mọi ảnh <= 3072px để bảo toàn tuyệt đối độ nét khi người dùng zoom/cắt trong khung 1024x1526;
+// Chỉ thu gọn nhẹ nhàng về 3072px (với chất lượng 0.98) đối với ảnh cảm biến 24MP-50MP quá lớn để tránh tràn VRAM.
 async function normalizeInputPhotoForCropper(file) {
-    const MAX_DIM = 1280;
+    const MAX_DIM = 3072;
     try {
         if (typeof window.createImageBitmap === 'function') {
             const bmp = await window.createImageBitmap(file);
@@ -3336,7 +3337,7 @@ async function normalizeInputPhotoForCropper(file) {
             oCtx.drawImage(bmp, 0, 0, targetW, targetH);
             if (typeof bmp.close === 'function') bmp.close();
 
-            const blob = await new Promise((resolve) => off.toBlob(resolve, 'image/jpeg', 0.90));
+            const blob = await new Promise((resolve) => off.toBlob(resolve, 'image/jpeg', 0.98));
             if (blob) return URL.createObjectURL(blob);
         }
     } catch (_) {}
@@ -3832,7 +3833,12 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                     cardCropDone = true;
                     try {
                         if (cropperObj) {
-                            const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
+                            const canvas = cropperObj.getCroppedCanvas({
+                                width: 1024,
+                                height: 1526,
+                                imageSmoothingEnabled: true,
+                                imageSmoothingQuality: 'high'
+                            });
                             if (canvas) {
                                 canvas._renderId = Date.now();
                                 currentUserImage = canvas;
@@ -3925,7 +3931,12 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
             giftCropDone = true;
             try {
                 if (cropperObj) {
-                    const canvas = cropperObj.getCroppedCanvas({ width: 1024, height: 1526 });
+                    const canvas = cropperObj.getCroppedCanvas({
+                        width: 1024,
+                        height: 1526,
+                        imageSmoothingEnabled: true,
+                        imageSmoothingQuality: 'high'
+                    });
                     if (canvas) {
                         canvas._renderId = Date.now();
                         currentUserImage = canvas;
@@ -4652,6 +4663,8 @@ function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
     const ctx = targetCanvas.getContext('2d');
     targetCanvas.width = targetW;
     targetCanvas.height = targetH;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
 
     if (concept === 'aura' || concept === 'aura_arch' || concept === 'prism') {
         // ====== NHÓM KÍNH MỜ AURA & PHA LÊ (14, 15, 16): NỀN MỜ TỪ CHÍNH ẢNH NGƯỜI DÙNG PHỦ TOÀN BỘ THIỆP ======
@@ -4806,9 +4819,9 @@ function drawCanvasImageText(targetCanvas, isFinal, isPreviewOnly = false) {
                     const blobUrl = URL.createObjectURL(blob);
                     targetCanvas._lastObjectUrl = blobUrl;
                     applyCardUrl(blobUrl);
-                }, 'image/jpeg', 0.92);
+                }, 'image/jpeg', 0.98);
             } else {
-                const dataUrl = targetCanvas.toDataURL('image/jpeg', 0.92);
+                const dataUrl = targetCanvas.toDataURL('image/jpeg', 0.98);
                 applyCardUrl(dataUrl);
             }
 

@@ -222,9 +222,9 @@ async function uploadCardToTelegramBot() {
             return cachedTelegramFileId;
         }
 
-        // Chất lượng 0.92 giữ nguyên 100% độ nét Retina nhưng giảm ~65% dung lượng mạng (~280KB), tăng tốc độ tải lên gấp 2.8 lần
+        // Xuất ở chất lượng Studio 0.98 gửi qua sendDocument (Telegram giữ nguyên file gốc 100% không nén lại)
         const blob = await new Promise((resolve) => {
-            finalResultCanvas.toBlob(resolve, 'image/jpeg', 0.92);
+            finalResultCanvas.toBlob(resolve, 'image/jpeg', 0.98);
         });
         if (!blob) throw new Error('Không thể xuất file ảnh gốc');
 
@@ -748,7 +748,7 @@ async function resolveTelegramFileUrl(fileId, directFilePath = '', forceRefresh 
 // đồng thời kích hoạt nhánh dự phòng sau 220ms và 950ms nếu mạng khu vực chặn 1 tuyến.
 async function raceVerifyImageCandidates(rawUrl) {
     const candidates = [
-        { url: `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg&q=92`, delayMs: 0 },
+        { url: `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg&q=100`, delayMs: 0 },
         { url: rawUrl, delayMs: 220 },
         { url: `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`, delayMs: 950 }
     ];
@@ -982,7 +982,7 @@ window.handleRecipientDownloadCard = async function () {
             downloadCandidates.push(imgSrc);
         }
         if (rawSource && !rawSource.includes('wsrv.nl')) {
-            downloadCandidates.push(`https://wsrv.nl/?url=${encodeURIComponent(rawSource)}&output=jpg&q=95`);
+            downloadCandidates.push(`https://wsrv.nl/?url=${encodeURIComponent(rawSource)}&output=jpg&q=100`);
         }
         downloadCandidates.push(
             `https://corsproxy.io/?${encodeURIComponent(rawSource)}`,

@@ -8036,12 +8036,18 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = false) {
                 drawCanvasImageText(finalResultCanvas, true, true);
             };
 
+            const cropOpts = {
+                width: 1024,
+                height: 1526,
+                imageSmoothingEnabled: true,
+                imageSmoothingQuality: 'high'
+            };
             if (immediate) {
-                const canvas = cropperObj ? cropperObj.getCroppedCanvas({ width: 1024, height: 1526 }) : null;
+                const canvas = cropperObj ? cropperObj.getCroppedCanvas(cropOpts) : null;
                 finishDrawPreviewStep(canvas);
             } else {
                 requestAnimationFrame(() => {
-                    const canvas = cropperObj ? cropperObj.getCroppedCanvas({ width: 1024, height: 1526 }) : null;
+                    const canvas = cropperObj ? cropperObj.getCroppedCanvas(cropOpts) : null;
                     if (!canvas) return;
                     requestAnimationFrame(() => {
                         finishDrawPreviewStep(canvas);
