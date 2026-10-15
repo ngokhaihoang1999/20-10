@@ -1955,7 +1955,8 @@ body.self-oracle-mode #step-2 .step2-wish-area {
 }
 
 body[data-recipient-theme="blush"] .result-topbar,
-body[data-recipient-theme="rosegold"] .result-topbar {
+body[data-recipient-theme="rosegold"] .result-topbar,
+body[data-recipient-theme="ruby"] .result-topbar {
     background: rgba(64, 12, 33, 0.72);
 }
 
@@ -2397,7 +2398,8 @@ body.u3d-stage-active #step-3 .card-showcase {
 }
 
 body[data-recipient-theme="blush"] .showcase-pill-btn,
-body[data-recipient-theme="rosegold"] .showcase-pill-btn {
+body[data-recipient-theme="rosegold"] .showcase-pill-btn,
+body[data-recipient-theme="ruby"] .showcase-pill-btn {
     background: rgba(64, 12, 33, 0.68);
 }
 
@@ -3238,7 +3240,8 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 }
 
 body[data-recipient-theme="blush"] .result-actions-dual .btn-save-card,
-body[data-recipient-theme="rosegold"] .result-actions-dual .btn-save-card {
+body[data-recipient-theme="rosegold"] .result-actions-dual .btn-save-card,
+body[data-recipient-theme="ruby"] .result-actions-dual .btn-save-card {
     background: rgba(68, 14, 36, 0.72);
 }
 
@@ -3483,7 +3486,8 @@ body.recipient-mode #final-result-img {
 }
 
 body.recipient-mode[data-recipient-theme="blush"] .recipient-luxury-dock,
-body.recipient-mode[data-recipient-theme="rosegold"] .recipient-luxury-dock {
+body.recipient-mode[data-recipient-theme="rosegold"] .recipient-luxury-dock,
+body.recipient-mode[data-recipient-theme="ruby"] .recipient-luxury-dock {
     background: rgba(64, 12, 33, 0.74);
 }
 
@@ -4309,9 +4313,16 @@ body.recipient-mode .recipient-luxury-dock {
     padding: 14px;
 }
 
-.u3d-envelope-stage[data-theme="blush"] .u3d-card-back,
-.u3d-envelope-stage[data-theme="rosegold"] .u3d-card-back {
+.u3d-envelope-stage[data-theme="blush"] .u3d-card-back {
     background: linear-gradient(145deg, #6e1438 0%, #a82457 50%, #4a0b24 100%);
+}
+
+.u3d-envelope-stage[data-theme="rosegold"] .u3d-card-back {
+    background: linear-gradient(145deg, #69281d 0%, #9e4535 50%, #451810 100%);
+}
+
+.u3d-envelope-stage[data-theme="ruby"] .u3d-card-back {
+    background: linear-gradient(145deg, #5c071b 0%, #940f2e 50%, #380310 100%);
 }
 
 .u3d-envelope-stage[data-theme="lavender"] .u3d-card-back {

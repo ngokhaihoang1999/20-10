@@ -118,8 +118,27 @@ const ENVELOPE_THEME_PALETTES = {
         pocketB: ['#bf912a', '#946d17', '#66490d'],
         topFlap: ['#c99b32', '#997119', '#6b4d0e'],
         lining: ['#fffdf7', '#fbf3dc', '#f2e1b6']
+    },
+    ruby: {
+        back: ['#4a0616', '#6b0b22', '#36030f'],
+        pocketL: ['#9e1132', '#7a0b25', '#540618'],
+        pocketR: ['#910e2d', '#6e0920', '#4a0414'],
+        pocketB: ['#b81438', '#8a0d2a', '#5c071b'],
+        topFlap: ['#c4193f', '#940f2e', '#63081e'],
+        lining: ['#fff8f9', '#fde6ea', '#f7c8d1']
     }
 };
+
+// Ánh xạ 1-1 giữa Màu Hoa Trung Tâm và Màu Bì Thư Được Xếp Từ 4 Cánh Hoa
+const MOTION_TO_ENVELOPE_THEME = {
+    bloom: 'blush',
+    butterflies: 'champagne',
+    ribbon: 'lavender',
+    sakura: 'emerald',
+    hearts: 'rosegold',
+    galaxy: 'ruby'
+};
+window.MOTION_TO_ENVELOPE_THEME = MOTION_TO_ENVELOPE_THEME;
 
 function setGradientStops(gradId, colors) {
     const grad = document.getElementById(gradId);
@@ -3374,12 +3393,16 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     step3?.classList.add('active');
 
     setMotionEffect(motionId, false);
-    applyEnvelopeThemeColors(themeKey);
 
     const cfg = MOTION_EFFECTS_CONFIG[motionId] || MOTION_EFFECTS_CONFIG.bloom;
+    const effectiveThemeKey = (skyOracleMode && MOTION_TO_ENVELOPE_THEME[cfg.id])
+        ? MOTION_TO_ENVELOPE_THEME[cfg.id]
+        : (themeKey || 'emerald');
+
+    applyEnvelopeThemeColors(effectiveThemeKey);
     stage.setAttribute('data-motion', cfg.id);
-    stage.setAttribute('data-theme', themeKey);
-    document.body.setAttribute('data-recipient-theme', themeKey);
+    stage.setAttribute('data-theme', effectiveThemeKey);
+    document.body.setAttribute('data-recipient-theme', effectiveThemeKey);
 
     // Ẩn tuyệt đối 100% các nút chức năng bên dưới trong lúc đang ở màn hình Bì Thư 3D
     document.body.classList.add('u3d-stage-active');

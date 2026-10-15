@@ -435,8 +435,9 @@
     // 6 THẾ GIỚI CONCEPT (Bảng màu vật lý có AO sâu, sắc tố nhung đặc 100%, không cháy sáng)
     // ---------------------------------------------------------------------------------
     const THEMES = {
-        // 🌺 Đại Hoa Trà — Đêm Nhung Hồng Mận & Hồ Gương Ánh Trăng
+        // 🌺 Đại Hoa Trà — Hồng Nhung Phấn Đào (Velvet Blush Pink)
         bloom: {
+            envTheme: 'blush',
             veil: '#08030e',
             skyTop: '#070310', skyMid: '#1f0926', horizon: '#6b234b', horizonGlow: '#ff9ebb',
             lakeHorizon: '#4e193d', lakeMid: '#1e0922', lakeDeep: '#07020c',
@@ -448,15 +449,15 @@
             pad: ['#0d2e20', '#1f5c3e', '#5cb883'],
             petal: {
                 shape: 'camellia',
-                ao: '#2d0212',       // bóng sâu trong hốc hoa
-                base: '#940a3b',     // gốc cánh nhung đậm
-                mid: '#de3b70',      // bụng cánh hồng nhung giàu sắc tố
-                tip: '#f595b4',      // đầu cánh phấn hồng đậm đà (không cháy trắng)
-                rim: '#ffd8e5',      // viền bắt sáng ngọc trai dịu
-                backAo: '#21010d',   // mặt lưng khi khép nụ
-                backBase: '#70072e',
-                backTip: '#c9406d',
-                vein: '255,215,228',
+                ao: '#38071b',       // bóng sâu trong hốc hoa đồng điệu với blush envelope
+                base: '#91224c',     // gốc cánh hồng nhung đậm
+                mid: '#d84b7e',      // bụng cánh hồng phấn đào rực rỡ
+                tip: '#f598b9',      // đầu cánh phấn hồng dịu
+                rim: '#ffdce8',      // viền bắt sáng ngọc trai
+                backAo: '#290413',   // mặt lưng khi khép nụ
+                backBase: '#6e1638',
+                backTip: '#b83265',
+                vein: '255,215,230',
                 roundness: 0.72      // độ tròn đầy của đầu cánh
             },
             center: 'stamen', groundCount: 34, driftCount: 28, fireflies: 46,
@@ -471,8 +472,9 @@
                 ]
             }
         },
-        // 🦋 Hồ Điệp — Rừng Ngọc Lục Bảo & Đoá Sen Hoàng Kim Hồ Điệp
+        // 🦋 Hồ Điệp — Đoá Sen Hoàng Kim (Imperial Champagne Gold)
         butterflies: {
+            envTheme: 'champagne',
             veil: '#030b08',
             skyTop: '#020807', skyMid: '#07221d', horizon: '#1f5e48', horizonGlow: '#ffe082',
             lakeHorizon: '#164a39', lakeMid: '#08221b', lakeDeep: '#020a07',
@@ -484,15 +486,15 @@
             pad: ['#08291c', '#16593d', '#58c98e'],
             petal: {
                 shape: 'lotus_wing',
-                ao: '#261302',
-                base: '#915105',
-                mid: '#e0a416',
-                tip: '#f7dc72',
-                rim: '#fff2ba',
-                backAo: '#241202',
-                backBase: '#9e5b07',
-                backTip: '#e3b629',
-                vein: '255,240,185',
+                ao: '#2b1b03',
+                base: '#876314',
+                mid: '#c99b32',
+                tip: '#f5d97a',
+                rim: '#fff3bd',
+                backAo: '#211502',
+                backBase: '#66490d',
+                backTip: '#ad8221',
+                vein: '255,242,190',
                 roundness: 0.62
             },
             center: 'orb', groundCount: 32, driftCount: 30, fireflies: 58, butterflies: true,
@@ -506,28 +508,29 @@
                 ]
             }
         },
-        // 🎀 Ruy-băng — Mẫu Đơn Lụa Satin Pháp & Ngọc Trai Nam Hải
+        // 🎀 Ruy-băng — Mẫu Đơn Lụa Tím Oải Hương Hoàng Gia (Royal Amethyst Lavender)
         ribbon: {
-            veil: '#0a040d',
-            skyTop: '#09040e', skyMid: '#240d29', horizon: '#8c3b64', horizonGlow: '#ffd8ae',
-            lakeHorizon: '#4f1e3f', lakeMid: '#1f0a21', lakeDeep: '#09030b',
-            waterSubsurface: '255,165,205', waterSpec: '255,238,215',
-            mountainFar: '#240c2b', mountainNear: '#140519', mist: '255,210,228',
-            mote: [255, 216, 232], accent: '#ffe4ad', ripple: '255,220,235', firefly: '#ffebc2',
-            celestial: { dir: [0.66, 0.40, -0.63], size: 92, color: '#fff8f0', glow: '255,228,215', kind: 'moon' },
-            stars: 85, stem: '#b8862d', stemHi: '#fff0be', leaf: ['#4a2e1b', '#8c5a32', '#e6c280'],
-            pad: ['#2e1628', '#5e2b4c', '#b86b95'],
+            envTheme: 'lavender',
+            veil: '#07030e',
+            skyTop: '#06030d', skyMid: '#1a0c2e', horizon: '#5e3287', horizonGlow: '#e5c4ff',
+            lakeHorizon: '#3d1d5c', lakeMid: '#160926', lakeDeep: '#06020b',
+            waterSubsurface: '185,125,255', waterSpec: '245,230,255',
+            mountainFar: '#1e0d33', mountainNear: '#10061c', mist: '225,198,255',
+            mote: [228, 198, 255], accent: '#ffe4ad', ripple: '225,195,255', firefly: '#ffebc2',
+            celestial: { dir: [0.66, 0.40, -0.63], size: 92, color: '#faf5ff', glow: '225,195,255', kind: 'moon' },
+            stars: 92, stem: '#183d2c', stemHi: '#62bf8e', leaf: ['#0d261b', '#235e42', '#75d1a1'],
+            pad: ['#1a1430', '#38245e', '#7c56b8'],
             petal: {
                 shape: 'peony_silk',
-                ao: '#2b0414',
-                base: '#941146',
-                mid: '#de5487',
-                tip: '#f5a6c4',
-                rim: '#ffdfec',
-                backAo: '#1f020e',
-                backBase: '#6e0c35',
-                backTip: '#cc4e7d',
-                vein: '255,225,238',
+                ao: '#1f0b33',
+                base: '#5e3187',
+                mid: '#9860c9',
+                tip: '#d2abf5',
+                rim: '#f2e0ff',
+                backAo: '#160726',
+                backBase: '#48226b',
+                backTip: '#7e48ad',
+                vein: '238,218,255',
                 roundness: 0.78
             },
             center: 'pearls', groundCount: 32, driftCount: 28, fireflies: 42,
@@ -541,8 +544,9 @@
                 ]
             }
         },
-        // 🌹 Hồng Pháp — Đêm Rượu Vang Bordeaux & Đại Đoá Hồng Nhung Centifolia
+        // 🌹 Hồng Pháp — Đại Đoá Hồng Nhung Đỏ Rượu Vang Bordeaux (Royal Ruby Crimson)
         galaxy: {
+            envTheme: 'ruby',
             veil: '#090204',
             skyTop: '#080205', skyMid: '#240511', horizon: '#751930', horizonGlow: '#ffb088',
             lakeHorizon: '#470d1f', lakeMid: '#1c040d', lakeDeep: '#070104',
@@ -554,15 +558,15 @@
             pad: ['#14291b', '#265235', '#63a678'],
             petal: {
                 shape: 'rose',
-                ao: '#210107',
-                base: '#70051c',
-                mid: '#cc143d',
-                tip: '#f06e8b',
-                rim: '#ffc4d1',
-                backAo: '#170005',
-                backBase: '#4d0212',
-                backTip: '#9e0e30',
-                vein: '255,185,202',
+                ao: '#24020a',
+                base: '#7a0b25',
+                mid: '#c4193f',
+                tip: '#f06583',
+                rim: '#ffc7d4',
+                backAo: '#1a0107',
+                backBase: '#540618',
+                backTip: '#9e1132',
+                vein: '255,190,206',
                 roundness: 0.80
             },
             center: 'stamen', groundCount: 34, driftCount: 28, fireflies: 46,
@@ -577,28 +581,29 @@
                 ]
             }
         },
-        // 🌸 Anh Đào — Đêm Trăng Kyoto & Đoá Anh Đào Hoàng Gia
+        // 🌸 Thanh Liên Ngọc Bích — Đêm Trăng Hồ Ngọc Lục Bảo & Đoá Hoa Ngọc Bích (Celestial Jade Emerald)
         sakura: {
-            veil: '#060612',
-            skyTop: '#050613', skyMid: '#161838', horizon: '#6b3e6e', horizonGlow: '#ffc4dc',
-            lakeHorizon: '#3d244a', lakeMid: '#15122b', lakeDeep: '#050510',
-            waterSubsurface: '255,175,215', waterSpec: '255,240,250',
-            mountainFar: '#191736', mountainNear: '#0d0c21', mist: '255,205,230',
-            mote: [255, 205, 228], accent: '#ffe49e', ripple: '255,210,232', firefly: '#ffe8a3',
-            celestial: { dir: [0.64, 0.42, -0.64], size: 112, color: '#fff9f5', glow: '255,225,235', kind: 'moon' },
-            stars: 110, stem: '#2b1d28', stemHi: '#7d566a', leaf: ['#172e24', '#2e634a', '#78c79e'],
-            pad: ['#142b24', '#265747', '#6cc4a4'],
+            envTheme: 'emerald',
+            veil: '#030d0b',
+            skyTop: '#030d0b', skyMid: '#082620', horizon: '#166351', horizonGlow: '#a8ffdf',
+            lakeHorizon: '#0f4a3c', lakeMid: '#06211b', lakeDeep: '#020a08',
+            waterSubsurface: '65,225,180', waterSpec: '220,255,242',
+            mountainFar: '#092922', mountainNear: '#041713', mist: '175,250,225',
+            mote: [175, 250, 225], accent: '#ffe49e', ripple: '170,248,222', firefly: '#ffe8a3',
+            celestial: { dir: [0.64, 0.42, -0.64], size: 112, color: '#f2fffb', glow: '180,250,225', kind: 'moon' },
+            stars: 110, stem: '#123d2e', stemHi: '#56c49b', leaf: ['#0a291f', '#1c634b', '#68cfa8'],
+            pad: ['#09261d', '#175440', '#52b893'],
             petal: {
                 shape: 'sakura',
-                ao: '#33071c',
-                base: '#b3205b',
-                mid: '#eb679b',
-                tip: '#fab1cf',
-                rim: '#ffe0ed',
-                backAo: '#240514',
-                backBase: '#871a46',
-                backTip: '#de6495',
-                vein: '255,225,238',
+                ao: '#04261d',
+                base: '#0b614b',
+                mid: '#199e7c',
+                tip: '#7ce0c3',
+                rim: '#dcfff4',
+                backAo: '#031c15',
+                backBase: '#074837',
+                backTip: '#118064',
+                vein: '205,255,238',
                 roundness: 0.68
             },
             center: 'stamen', groundCount: 36, driftCount: 38, fireflies: 48,
@@ -612,28 +617,29 @@
                 ]
             }
         },
-        // 🌷 Tulip Nắng Mai — Bình Minh Vàng Mật Ong & Đại Đoá Tulip Hoàng Gia
+        // 🌷 Tulip Nắng Mai — Bình Minh Cam Đào & Đại Đoá Tulip Vàng Hồng (Sunset Coral Rose-Gold)
         hearts: {
-            veil: '#0d060a',
-            skyTop: '#120817', skyMid: '#42162b', horizon: '#c9564c', horizonGlow: '#ffe596',
-            lakeHorizon: '#7a2e38', lakeMid: '#2b0e1d', lakeDeep: '#0c040a',
+            envTheme: 'rosegold',
+            veil: '#0d0605',
+            skyTop: '#120807', skyMid: '#3d1812', horizon: '#bf5a45', horizonGlow: '#ffe596',
+            lakeHorizon: '#753124', lakeMid: '#2b100b', lakeDeep: '#0c0403',
             waterSubsurface: '255,155,115', waterSpec: '255,242,185',
-            mountainFar: '#301122', mountainNear: '#1a0813', mist: '255,215,175',
-            mote: [255, 222, 145], accent: '#ffe57f', ripple: '255,215,155', firefly: '#fff0a8',
+            mountainFar: '#2e120d', mountainNear: '#1a0906', mist: '255,215,185',
+            mote: [255, 222, 165], accent: '#ffe57f', ripple: '255,215,175', firefly: '#fff0a8',
             celestial: { dir: [0.66, 0.34, -0.66], size: 108, color: '#fffbe6', glow: '255,220,145', kind: 'sun' },
             stars: 60, stem: '#1b4f2e', stemHi: '#78d68a', leaf: ['#123820', '#2b7a46', '#82e096'],
             pad: ['#143822', '#286b40', '#70c989'],
             petal: {
                 shape: 'tulip',
-                ao: '#300511',
-                base: '#ab1845',
-                mid: '#e84d62',
-                tip: '#faa687',
-                rim: '#ffe2bd',
-                backAo: '#21030c',
-                backBase: '#7d1033',
-                backTip: '#db4b5e',
-                vein: '255,225,195',
+                ao: '#2e100a',
+                base: '#8c3f30',
+                mid: '#cf705c',
+                tip: '#f7b299',
+                rim: '#ffe6d9',
+                backAo: '#210b06',
+                backBase: '#63281d',
+                backTip: '#b35744',
+                vein: '255,228,210',
                 roundness: 0.68
             },
             center: 'stamen', groundCount: 34, driftCount: 28, fireflies: 42,
@@ -1092,7 +1098,7 @@
         return c;
     }
 
-    // Bảng màu 5 Tông Phong Bì Lụa Hoàng Gia (đồng bộ 100% với ENVELOPE_THEME_PALETTES trong director-3d.js)
+    // Bảng màu 6 Tông Phong Bì Lụa Hoàng Gia (đồng bộ 100% với ENVELOPE_THEME_PALETTES trong director-3d.js & màu hoa THEMES)
     const ENV_THEME_PALETTES = {
         emerald: {
             back: ['#074334', '#0a5844', '#053328'],
@@ -1133,6 +1139,14 @@
             pocketB: ['#bf912a', '#946d17', '#66490d'],
             topFlap: ['#c99b32', '#997119', '#6b4d0e'],
             lining: ['#fffdf7', '#fbf3dc', '#f2e1b6']
+        },
+        ruby: {
+            back: ['#4a0616', '#6b0b22', '#36030f'],
+            pocketL: ['#9e1132', '#7a0b25', '#540618'],
+            pocketR: ['#910e2d', '#6e0920', '#4a0414'],
+            pocketB: ['#b81438', '#8a0d2a', '#5c071b'],
+            topFlap: ['#c4193f', '#940f2e', '#63081e'],
+            lining: ['#fff8f9', '#fde6ea', '#f7c8d1']
         }
     };
 
@@ -3537,7 +3551,7 @@
             const canvasAlpha = 1 - smooth((tau - 6.26) / 0.20);
             if (canvasAlpha <= 0.005) return;
 
-            const themeAttr = (stageEl && stageEl.getAttribute('data-theme')) || 'emerald';
+            const themeAttr = th.envTheme || (stageEl && stageEl.getAttribute('data-theme')) || 'emerald';
             const envThemeObj = shadeLUT.origami[themeAttr] || shadeLUT.origami.emerald;
             const pal = envThemeObj.pal;
             const mSteps = envThemeObj.mSteps;

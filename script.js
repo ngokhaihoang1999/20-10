@@ -941,6 +941,24 @@ const COLOR_THEMES = {
         textBottom: '#084738',
         recipientColor: '#b83564',
         shadowRgba: 'rgba(175, 135, 40, 0.16)'
+    },
+    ruby: {
+        canvasBgStart: '#ffffff',
+        canvasBgMid: '#fff5f7',
+        canvasBgEnd: '#fdd8e0',
+        boxFillStart: 'rgba(255, 255, 255, 0.98)',
+        boxFillEnd: 'rgba(254, 232, 237, 0.95)',
+        borderPrimary: '#b81438',
+        borderSecondary: '#f2a7b8',
+        flowerMain: '#c4193f',
+        flowerSoft: '#f9bec9',
+        leafColor: '#4d9e7d',
+        goldAccent: '#e5b548',
+        textTop: '#59071a',
+        textMid: '#8a0d2a',
+        textBottom: '#420412',
+        recipientColor: '#0f7b5f',
+        shadowRgba: 'rgba(165, 20, 52, 0.16)'
     }
 };
 
@@ -3325,27 +3343,61 @@ async function normalizeInputPhotoForCropper(file) {
     return URL.createObjectURL(file);
 }
 
+// Ánh xạ 1-1 giữa Hoa Trung Tâm trên mặt hồ và Màu Bì Thư / Thiệp (Hoa màu gì -> 4 cánh xếp bì thư màu đó)
+const FLOWER_MOTION_TO_COLOR_THEME = {
+    bloom: 'blush',          // 🌺 Hoa Trà Hồng Nhung Phấn Đào -> Bì thư Hồng Phấn Đào
+    butterflies: 'champagne',// 🦋 Sen Hoàng Kim Hồ Điệp -> Bì thư Vàng Hoàng Kim
+    ribbon: 'lavender',      // 🎀 Mẫu Đơn Lụa Tím Oải Hương -> Bì thư Tím Hoàng Gia
+    sakura: 'emerald',       // 🌸 Thanh Liên Ngọc Bích -> Bì thư Xanh Ngọc Lục Bảo
+    hearts: 'rosegold',      // 🌷 Tulip Cam Đào Nắng Mai -> Bì thư Cam Đào Rose-Gold
+    galaxy: 'ruby'           // 🌹 Hồng Pháp Đỏ Rượu Vang -> Bì thư Đỏ Nhung Ruby
+};
+
+let shuffledFlowerMotionDeck = [];
+let lastPickedFlowerMotion = '';
+
+function pickNextRandomFlowerMotion() {
+    const allMotions = ['bloom', 'butterflies', 'ribbon', 'galaxy', 'sakura', 'hearts'];
+    if (shuffledFlowerMotionDeck.length === 0) {
+        shuffledFlowerMotionDeck = allMotions.slice();
+        for (let i = shuffledFlowerMotionDeck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = shuffledFlowerMotionDeck[i];
+            shuffledFlowerMotionDeck[i] = shuffledFlowerMotionDeck[j];
+            shuffledFlowerMotionDeck[j] = tmp;
+        }
+        // Đảm bảo đầu bộ bài mới không trùng với màu hoa vừa xuất hiện ở cuối bộ bài cũ
+        if (shuffledFlowerMotionDeck[shuffledFlowerMotionDeck.length - 1] === lastPickedFlowerMotion && shuffledFlowerMotionDeck.length > 1) {
+            const first = shuffledFlowerMotionDeck[0];
+            shuffledFlowerMotionDeck[0] = shuffledFlowerMotionDeck[shuffledFlowerMotionDeck.length - 1];
+            shuffledFlowerMotionDeck[shuffledFlowerMotionDeck.length - 1] = first;
+        }
+    }
+    const picked = shuffledFlowerMotionDeck.pop();
+    lastPickedFlowerMotion = picked;
+    return picked;
+}
+
 // Hàm bốc thăm ngẫu nhiên Khung + Viền + Tông màu + Lời chúc + Hiệu ứng mở 3D cho luồng "Lời chúc dành cho bạn"
 // (GIỮ NGUYÊN 100% Filter màu & Mức độ Filter mà người dùng đã tự chọn!)
 function applyRandomSelfOracleArtSelections(presetMotion) {
     currentSelectedFrameId = Math.floor(Math.random() * framesConfig.length);
     const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
 
-    const themeKeys = ['emerald', 'blush', 'rosegold', 'lavender', 'champagne'];
     const borderKeys = ['sakura', 'ribbon', 'hearts', 'daisy', 'vintage'];
     const motionKeys = ['bloom', 'butterflies', 'ribbon', 'galaxy', 'sakura', 'hearts'];
 
     if (cfg && CONCEPT_HARMONY_MAP[cfg.concept] && Math.random() < 0.65) {
         const harmony = CONCEPT_HARMONY_MAP[cfg.concept];
         currentBorderStyle = harmony.border;
-        currentColorTheme = harmony.theme;
     } else {
         currentBorderStyle = borderKeys[Math.floor(Math.random() * borderKeys.length)];
-        currentColorTheme = themeKeys[Math.floor(Math.random() * themeKeys.length)];
     }
 
-    const randomMotion = (presetMotion && motionKeys.includes(presetMotion)) ? presetMotion : motionKeys[Math.floor(Math.random() * motionKeys.length)];
+    const randomMotion = (presetMotion && motionKeys.includes(presetMotion)) ? presetMotion : pickNextRandomFlowerMotion();
     window.currentMotionEffect = randomMotion;
+    // Hoa màu gì thì 4 cánh xếp thành bì thư & thiệp bên trong mang đúng màu đó 100%
+    currentColorTheme = FLOWER_MOTION_TO_COLOR_THEME[randomMotion] || 'blush';
 
     isCustomWishActive = false;
     customWishText = '';
@@ -3386,9 +3438,8 @@ async function handleImageInput(e) {
         if (generateBtnEl) generateBtnEl.textContent = 'Nhận lời chúc';
         currentWishMode = 'surprise';
         currentBorderStyle = 'sakura';
-        currentColorTheme = 'emerald';
-        const motionKeys = ['bloom', 'butterflies', 'ribbon', 'galaxy', 'sakura', 'hearts'];
-        window.presetSelfOracleMotion = motionKeys[Math.floor(Math.random() * motionKeys.length)];
+        window.presetSelfOracleMotion = pickNextRandomFlowerMotion();
+        currentColorTheme = FLOWER_MOTION_TO_COLOR_THEME[window.presetSelfOracleMotion] || 'blush';
         syncFilterIntensityUI();
     } else {
         if (headerTitleEl) headerTitleEl.textContent = '✨ Thiết Kế Thiệp 🌸';
