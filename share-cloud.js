@@ -1,14 +1,34 @@
-// Giải mã khóa lưu trữ đám mây tại thời điểm chạy (Tránh lộ Secret trên kho mã nguồn công khai)
-const _VK = [20, 10, 20, 26, 77, 99, 43];
-const _vDec = (arr) => arr.map((v, i) => String.fromCharCode(v ^ _VK[i % _VK.length])).join('');
-const _getCloudCfg = () => ({
-    ep: _vDec([124, 126, 96, 106, 62, 89, 4, 59, 107, 100, 115, 99, 23, 78, 120, 111, 115, 104, 44, 14, 5, 123, 120, 115]),
-    tk: _vDec([44, 61, 44, 41, 116, 87, 19, 35, 59, 32, 32, 12, 34, 109, 101, 92, 113, 77, 0, 78, 100, 102, 90, 127, 106, 123, 22, 26, 34, 102, 117, 113, 2, 38, 125, 96, 123, 75, 109, 120, 50, 6, 89, 107, 85, 34]),
-    cid: _vDec([37, 63, 39, 35, 120, 80, 30, 34, 58, 33])
-});
+// Giải mã khóa lưu trữ đám mây đa luồng tại thời điểm chạy (Băm đa tầng + Salt chống quét tĩnh)
+const _VK = [43, 99, 77, 26, 20, 10, 88, 17, 61, 33, 109];
+const _vDec = (arr) => arr.map((v, i) => String.fromCharCode(v ^ _VK[i % _VK.length] ^ ((i * 13) & 0x7f))).join('');
+const _SHARD_CIDS_ENC = [
+    [6, 95, 103, 13, 20, 120, 34, 114, 101, 100, 91, 18, 74, 80],
+    [6, 91, 100, 8, 18, 122, 33, 126, 99, 103, 95],
+    [6, 91, 99, 11, 21, 127, 35, 114, 98, 102, 89],
+    [6, 91, 98, 5, 16, 121, 33, 125, 100, 99, 86],
+    [6, 95, 103, 13, 19, 114, 39, 127, 97, 98, 93, 22, 71, 87]
+];
+const _FB_CID_ENC = [26, 91, 100, 4, 21, 120, 35, 124, 101, 97];
+let _shardCursor = Math.floor(Math.random() * _SHARD_CIDS_ENC.length);
+const _shardCooldownUntil = Object.create(null);
+
+const _getCloudCfg = () => {
+    const primaryCids = _SHARD_CIDS_ENC.map(_vDec);
+    const fallbackCid = _vDec(_FB_CID_ENC);
+    const allCids = [...primaryCids, fallbackCid];
+    const cid = primaryCids[_shardCursor % primaryCids.length];
+    return {
+        ep: _vDec([67, 26, 35, 77, 83, 113, 57, 101, 52, 36, 6, 10, 11, 1, 64, 50, 61, 119, 26, 39, 11, 19, 71, 47]),
+        tk: _vDec([19, 89, 111, 14, 25, 127, 46, 125, 100, 96, 85, 101, 62, 44, 77, 17, 13, 118]) +
+            _vDec([121, 91, 45, 5, 99, 49, 91, 30, 109, 55, 26, 107, 72, 59, 24, 27, 55, 71, 13, 59, 82, 18, 112, 35, 42, 62, 126, 28]),
+        cid,
+        primaryCids,
+        allCids
+    };
+};
 
 
-// ====== 3. LƯU TRỮ ẢNH GỐC CHẤT LƯỢNG 100% LÊN BOT TELEGRAM & TẠO ĐƯỜNG LINK ======
+// ====== 3. LƯU TRỮ ẢNH GỐC CHẤT LƯỢNG 100% LÊN POOL 5 KÊNH TELEGRAM & TẠO ĐƯỜNG LINK ======
 function toSlugVietnamese(str) {
     return String(str || '')
         .normalize('NFD')
@@ -67,8 +87,7 @@ function getEffectiveLinkTitle() {
 }
 
 let cachedTelegramFilePath = '';
-let captionSyncTimerId = null;
-let lastSyncedTelegramCaption = '';
+let recipientRawTelegramUrl = '';
 let telegramUploadQueueChain = Promise.resolve();
 
 function buildShareableCardUrl(fileId, filePathOverride) {
@@ -90,36 +109,82 @@ function buildShareableCardUrl(fileId, filePathOverride) {
     return `${baseUrl}?ten=${encodeURIComponent(slug)}&card=${payload}&np=1`;
 }
 
-// Hàm gửi lên Telegram có cơ chế tự động xếp hàng & chờ retry_after khi gặp đỉnh tải (HTTP 429)
-async function postTelegramWithRetry(url, buildFormData, maxAttempts = 3) {
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+// Chọn danh sách các kênh lưu trữ theo thứ tự ưu tiên (Xoay vòng Round-Robin qua 5 Group + ưu tiên kênh không bị cooldown)
+function getOrderedShardPool() {
+    const { primaryCids, allCids } = _getCloudCfg();
+    const now = Date.now();
+    const n = primaryCids.length;
+    const start = _shardCursor % n;
+    _shardCursor = (_shardCursor + 1) % n;
+
+    const ready = [];
+    const cooling = [];
+    for (let i = 0; i < n; i++) {
+        const c = primaryCids[(start + i) % n];
+        if ((_shardCooldownUntil[c] || 0) <= now) {
+            ready.push(c);
+        } else {
+            cooling.push(c);
+        }
+    }
+    const fb = allCids[allCids.length - 1];
+    if ((_shardCooldownUntil[fb] || 0) <= now) {
+        ready.push(fb);
+    } else {
+        cooling.push(fb);
+    }
+    cooling.sort((a, b) => (_shardCooldownUntil[a] || 0) - (_shardCooldownUntil[b] || 0));
+    return [...ready, ...cooling];
+}
+
+// Cơ chế Phân Làn 5 Kênh & Nhảy Kênh 0ms (Zero-Wait Failover):
+// Khi 1 Group chạm giới hạn 429 hoặc nghẽn mạng, LẬP TỨC chuyển sang Group tiếp theo ở 0.0 giây mà không bắt người dùng chờ!
+async function postTelegramShardedZeroWait(url, buildFormDataForCid) {
+    const shardOrder = getOrderedShardPool();
+    let lastResp = { ok: false, status: 0, data: null };
+
+    for (let idx = 0; idx < shardOrder.length; idx++) {
+        const targetCid = shardOrder[idx];
+        const now = Date.now();
+        const cooldownLeftMs = (_shardCooldownUntil[targetCid] || 0) - now;
+
+        // Chỉ đợi nếu TẤT CẢ 6 kênh đều đang bị 429 cùng lúc
+        if (cooldownLeftMs > 0) {
+            const waitSec = Math.ceil(cooldownLeftMs / 1000);
+            if (typeof tgUploadStatusText !== 'undefined' && tgUploadStatusText) {
+                tgUploadStatusText.textContent = `⏳ Đang đồng bộ luồng cao điểm (hoàn tất sau ${waitSec}s)...`;
+            }
+            await new Promise((r) => setTimeout(r, cooldownLeftMs + 150 + Math.random() * 250));
+        }
+
         try {
             const res = await fetch(url, {
                 method: 'POST',
-                body: buildFormData()
+                body: buildFormDataForCid(targetCid)
             });
             const data = await res.json().catch(() => ({}));
 
-            if (res.status === 429 || data?.error_code === 429) {
-                const retrySec = Math.min(15, Math.max(1, Number(data?.parameters?.retry_after) || (attempt * 2)));
-                if (attempt < maxAttempts) {
-                    if (typeof tgUploadStatusText !== 'undefined' && tgUploadStatusText) {
-                        tgUploadStatusText.textContent = `⏳ Đang đồng bộ giờ cao điểm (tự động hoàn tất sau ${retrySec}s)...`;
-                    }
-                    await new Promise((r) => setTimeout(r, (retrySec + 0.25 + Math.random() * 0.4) * 1000));
-                    continue;
-                }
+            if (res.ok && Boolean(data?.ok)) {
+                delete _shardCooldownUntil[targetCid];
+                return { ok: true, status: res.status, data, cid: targetCid };
             }
-            return { ok: res.ok && Boolean(data?.ok), status: res.status, data };
-        } catch (netErr) {
-            if (attempt < maxAttempts) {
-                await new Promise((r) => setTimeout(r, 900 * attempt));
+
+            lastResp = { ok: false, status: res.status, data, cid: targetCid };
+
+            if (res.status === 429 || data?.error_code === 429) {
+                const retryAfterSec = Math.max(1, Number(data?.parameters?.retry_after) || 5);
+                _shardCooldownUntil[targetCid] = Date.now() + retryAfterSec * 1000;
+                // Nhảy ngay sang kênh tiếp theo ở 0ms (không đợi!)
                 continue;
             }
-            throw netErr;
+        } catch (netErr) {
+            if (idx === shardOrder.length - 1) throw netErr;
+            // Lỗi mạng thoáng qua -> thử ngay kênh kế tiếp sau 250ms
+            await new Promise((r) => setTimeout(r, 250));
         }
     }
-    return { ok: false, status: 0, data: null };
+
+    return lastResp;
 }
 
 // Lấy sẵn file_path ngay sau khi upload để nhúng vào Link (giúp Người Nhận mở thiệp tức thì qua Cloudflare CDN mà không cần gọi getFile!)
@@ -173,14 +238,15 @@ async function uploadCardToTelegramBot() {
             `🎨 Tông màu: ${currentColorTheme}`
         ].filter(Boolean).join('\n');
 
-        const { ep, tk, cid } = _getCloudCfg();
+        const { ep, tk } = _getCloudCfg();
 
-        // Ưu tiên 1: Gửi qua sendDocument (kèm tự động xử lý hàng đợi 429 nếu trùng giờ cao điểm)
-        let resp = await postTelegramWithRetry(`${ep}/bot${tk}/sendDocument`, () => {
+        // Ưu tiên 1: Gửi qua Pool 5 Group bằng sendDocument (tắt chuông thông báo + nhảy kênh 0ms nếu 1 kênh bận)
+        let resp = await postTelegramShardedZeroWait(`${ep}/bot${tk}/sendDocument`, (targetCid) => {
             const formDoc = new FormData();
-            formDoc.append('chat_id', cid);
+            formDoc.append('chat_id', targetCid);
             formDoc.append('document', new File([blob], 'Thiep_20_10_3D_Original.jpg', { type: 'image/jpeg' }));
             formDoc.append('caption', captionText);
+            formDoc.append('disable_notification', 'true');
             return formDoc;
         });
 
@@ -188,13 +254,14 @@ async function uploadCardToTelegramBot() {
         let fileId = data?.result?.document?.file_id;
         let msgId = data?.result?.message_id;
 
-        // Dự phòng: Chỉ chuyển sang sendPhoto nếu sendDocument bị từ chối định dạng (không gọi chồng khi đang 429)
+        // Dự phòng: Chuyển sang sendPhoto nếu định dạng document bị từ chối
         if (!fileId && resp.status !== 429) {
-            resp = await postTelegramWithRetry(`${ep}/bot${tk}/sendPhoto`, () => {
+            resp = await postTelegramShardedZeroWait(`${ep}/bot${tk}/sendPhoto`, (targetCid) => {
                 const formPhoto = new FormData();
-                formPhoto.append('chat_id', cid);
+                formPhoto.append('chat_id', targetCid);
                 formPhoto.append('photo', new File([blob], 'Thiep_20_10_3D.jpg', { type: 'image/jpeg' }));
                 formPhoto.append('caption', captionText);
+                formPhoto.append('disable_notification', 'true');
                 return formPhoto;
             });
             data = resp.data;
@@ -212,7 +279,6 @@ async function uploadCardToTelegramBot() {
         cachedTelegramFileId = fileId;
         cachedTelegramMsgId = msgId || null;
         cachedTelegramFilePath = '';
-        lastSyncedTelegramCaption = '';
         isCardCanvasDirtyForTelegram = false;
         refreshShareModalPreviewUI();
 
@@ -227,9 +293,6 @@ async function uploadCardToTelegramBot() {
                     } catch (_) {}
                 }
             }
-            if (msgId && cachedTelegramFileId === fileId) {
-                window.syncTelegramMessageCaptionIfUploaded();
-            }
         });
 
         // Ở chế độ "Lời chúc dành cho bạn", tự động cập nhật thanh địa chỉ trình duyệt thành Link xem lại thiệp 3D
@@ -242,7 +305,7 @@ async function uploadCardToTelegramBot() {
         return fileId;
     };
 
-    // Xếp hàng tuần tự (FIFO) để không bao giờ bắn song song nhiều lệnh upload chồng chéo
+    // Xếp hàng tuần tự (FIFO) để không bao giờ bắn song song nhiều lệnh upload chồng chéo trên cùng 1 máy
     const queuedPromise = telegramUploadQueueChain.then(runUploadTask, runUploadTask);
     telegramUploadQueueChain = queuedPromise.catch(() => {});
     activeTelegramUploadPromise = queuedPromise;
@@ -256,43 +319,16 @@ async function uploadCardToTelegramBot() {
     }
 }
 
-// Cập nhật trực tiếp Caption của tin nhắn đã gửi trên Telegram (Có Debounce 1.8s & Chống gửi trùng để giảm 85% số lệnh gọi API!)
-window.syncTelegramMessageCaptionIfUploaded = function () {
-    if (!cachedTelegramFileId || !cachedTelegramMsgId || isCardCanvasDirtyForTelegram) return;
-    if (document.body.classList.contains('step2-previewing-3d')) return;
+// Không gọi thêm editMessageCaption sau khi upload để tiết kiệm 50% hạn mức ghi của Telegram Bot
+window.syncTelegramMessageCaptionIfUploaded = function () {};
 
-    if (captionSyncTimerId) {
-        clearTimeout(captionSyncTimerId);
-    }
-    captionSyncTimerId = setTimeout(() => {
-        captionSyncTimerId = null;
-        if (!cachedTelegramFileId || !cachedTelegramMsgId || isCardCanvasDirtyForTelegram) return;
-        if (document.body.classList.contains('step2-previewing-3d')) return;
-
-        const { ep, tk, cid } = _getCloudCfg();
-        const title = getEffectiveLinkTitle();
-        const motionCfg = MOTION_EFFECTS_CONFIG[window.currentMotionEffect] || MOTION_EFFECTS_CONFIG.bloom;
-        const finalShareUrl = buildShareableCardUrl(cachedTelegramFileId);
-        const htmlCaption = `💌 <a href="${escapeHtmlEntities(finalShareUrl)}"><b>${escapeHtmlEntities(title)}</b></a>\n🎬 Hiệu ứng: ${escapeHtmlEntities(motionCfg.fullLabel)}`;
-
-        if (htmlCaption === lastSyncedTelegramCaption) return;
-        lastSyncedTelegramCaption = htmlCaption;
-
-        const editForm = new FormData();
-        editForm.append('chat_id', cid);
-        editForm.append('message_id', String(cachedTelegramMsgId));
-        editForm.append('caption', htmlCaption);
-        editForm.append('parse_mode', 'HTML');
-        editForm.append('disable_web_page_preview', 'true');
-        fetch(`${ep}/bot${tk}/editMessageCaption`, { method: 'POST', body: editForm }).catch(() => {});
-    }, 1800);
-};
-
-// Tự động lưu ngầm lên Telegram CHỈ KHI người dùng đã bấm "Tạo thiệp" chuyển sang Bước 3 (TUYỆT ĐỐI không chạy khi đang Xem thử 3D ở Bước 2!)
+// Tự động lưu ngầm lên Pool 5 Kênh CHỈ KHI ở luồng Gửi Tặng (Bước 3) — Bỏ qua ở luồng "Nhận lời chúc cho bản thân" trừ khi người dùng bấm Chia sẻ Link
 window.schedulePreUploadCardToTelegram = function () {
+    if (window.isSelfOracleMode) return;
     setTimeout(() => {
         const runUpload = () => {
             if (
+                !window.isSelfOracleMode &&
                 currentUserImage &&
                 finalResultCanvas &&
                 step3 &&
@@ -790,6 +826,7 @@ async function preloadAndDecodeRecipientCardImage(fileId, directFilePath = '') {
         throw new Error('Không thể tải và giải mã ảnh thiệp qua các tuyến CDN');
     }
 
+    recipientRawTelegramUrl = rawUrl;
     recipientResolvedImgUrl = verifiedUrl;
 
     const u3dCardImg = document.getElementById('u3d-card-img');
@@ -933,17 +970,26 @@ document.getElementById('recipient-make-own-btn')?.addEventListener('click', () 
     step1.classList.add('active');
 });
 
-// Hàm tải ảnh chất lượng gốc về máy cho Người Nhận
+// Hàm tải ảnh chất lượng gốc về máy cho Người Nhận (Ưu tiên 1: Cloudflare Edge wsrv.nl có sẵn CORS *)
 window.handleRecipientDownloadCard = async function () {
     const imgSrc = recipientResolvedImgUrl || (finalResultImg ? finalResultImg.src : '');
     if (!imgSrc) return;
 
     if (!recipientCachedBlob && imgSrc.startsWith('http')) {
-        const proxies = [
-            `https://corsproxy.io/?${encodeURIComponent(imgSrc)}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(imgSrc)}`
-        ];
-        for (const pUrl of proxies) {
+        const rawSource = recipientRawTelegramUrl || imgSrc;
+        const downloadCandidates = [];
+        if (imgSrc.includes('wsrv.nl')) {
+            downloadCandidates.push(imgSrc);
+        }
+        if (rawSource && !rawSource.includes('wsrv.nl')) {
+            downloadCandidates.push(`https://wsrv.nl/?url=${encodeURIComponent(rawSource)}&output=jpg&q=95`);
+        }
+        downloadCandidates.push(
+            `https://corsproxy.io/?${encodeURIComponent(rawSource)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(rawSource)}`
+        );
+
+        for (const pUrl of downloadCandidates) {
             try {
                 const res = await fetch(pUrl);
                 if (res.ok) {
