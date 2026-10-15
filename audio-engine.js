@@ -1234,7 +1234,7 @@
         // 1. Khởi đầu đại cảnh Hồ Gương (tau >= 0.02s)
         if (!wishBloomCueState.started && tau >= 0.02) {
             wishBloomCueState.started = true;
-            setBgmDuck(0.36, 7.2);
+            setBgmDuck(0.36, 8.0);
             setEnvelopeSpatialMuffle(false, 0.4);
             if (canPlayAudio()) {
                 playWarmPadChord(suite.bars[0].pad, now, 2.2, 0.035, sfxBus);
@@ -1297,19 +1297,19 @@
             }
         }
 
-        // 6. Vương miện 42 nhụy vàng tỏa sáng & 4 cánh hoa trong tách khỏi nhụy (tau >= 2.95s)
-        if (!wishBloomCueState.heart && tau >= 2.95) {
+        // 6. Vương miện 42 nhụy vàng tỏa sáng rực rỡ giữa lòng hoa mãn khai (tau >= 2.88s)
+        if (!wishBloomCueState.heart && tau >= 2.88) {
             wishBloomCueState.heart = true;
             if (canPlayAudio()) {
                 playSilkPaperWhoosh(0.42, 340, 760, 0.11, 0, 0);
                 suite.pentatonic.slice(2, 7).forEach((noteName, idx) => {
-                    playMelodyNote(n(noteName), now + idx * 0.055, 1.1, 0.13, 'grand_piano', (idx - 2) * 0.2, sfxBus);
+                    playMelodyNote(n(noteName), now + idx * 0.055, 1.25, 0.13, 'grand_piano', (idx - 2) * 0.2, sfxBus);
                 });
             }
         }
 
-        // 7. 4 Cánh hoa gấp Origami 3D thong thả thành 4 vạt chiếc phong bì trên đài hoa (tau >= 3.42s)
-        if (!wishBloomCueState.envIn && tau >= 3.42) {
+        // 7. 4 Cánh hoa gấp Origami 3D thong thả thành 4 vạt chiếc phong bì trên đài hoa (tau >= 4.12s)
+        if (!wishBloomCueState.envIn && tau >= 4.12) {
             wishBloomCueState.envIn = true;
             if (canPlayAudio()) {
                 playSilkPaperWhoosh(1.05, 380, 880, 0.13, 0, 0.02);
@@ -1321,8 +1321,8 @@
             }
         }
 
-        // 8. Đài hoa nâng phong bì dâng tặng về phía người xem (tau >= 5.35s = T.LIFT)
-        if (!wishBloomCueState.lift && tau >= 5.35) {
+        // 8. Đài hoa nâng phong bì dâng tặng về phía người xem (tau >= 6.05s = T.LIFT)
+        if (!wishBloomCueState.lift && tau >= 6.05) {
             wishBloomCueState.lift = true;
             setEnvelopeSpatialMuffle(true, 0.9);
             if (canPlayAudio()) {

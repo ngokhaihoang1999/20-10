@@ -64,6 +64,9 @@ window.DevicePerfGovernor = (function () {
         }
 
         const r = renderer.toLowerCase();
+        const cores = navigator.hardwareConcurrency || 4;
+        const mem = navigator.deviceMemory || 0;
+        const rawDpr = window.devicePixelRatio || 1;
         if (
             /swiftshader|llvmpipe|software|basic render|microsoft basic/i.test(r) ||
             /mali-4|mali-t|mali-g3|mali-g51|mali-g52|mali-g57/i.test(r) ||
@@ -81,14 +84,13 @@ window.DevicePerfGovernor = (function () {
         ) {
             gpuTier = 1;
         } else if (
-            /immortalis|mali-g(715|720|925)|adreno[^0-9]*(730|740|750|8\d\d)/i.test(r) ||
+            /immortalis|mali-g(715|720|9\d\d)|maleoon|xclipse\s*9|adreno[^0-9]*(730|735|740|750|8\d\d)/i.test(r) ||
             /apple m[1-9]|apple a(15|16|17|18|19)\b/i.test(r) ||
             /rtx|radeon rx|geforce gtx (16|20|30|40)|arc/i.test(r)
         ) {
             gpuTier = 3;
         } else if (/apple gpu/i.test(r)) {
             const maxDim = Math.max(window.screen ? window.screen.width : 390, window.screen ? window.screen.height : 844);
-            const rawDpr = window.devicePixelRatio || 2;
             if (maxDim <= 736 || rawDpr < 2.5) {
                 gpuTier = 1;
             } else if (maxDim >= 844 && rawDpr >= 3) {
@@ -96,6 +98,10 @@ window.DevicePerfGovernor = (function () {
             } else {
                 gpuTier = 2;
             }
+        } else if (cores >= 8 && (mem === 0 || mem >= 6) && rawDpr >= 2.2) {
+            // Chrome Android (kể cả trên OPPO Find X9 / Flagship Android 15+) đôi khi ẩn tên GPU thành chuỗi chung (Vulkan/ANGLE/Mali)
+            // Nếu có >= 8 nhân CPU, RAM >= 6GB và màn hình độ phân giải cao (DPR >= 2.2) mà không nằm trong danh sách GPU yếu -> Nhận diện chuẩn Flagship Tier 3!
+            gpuTier = 3;
         }
         return { renderer, gpuTier };
     }
@@ -124,12 +130,13 @@ window.DevicePerfGovernor = (function () {
                     g.fill();
                 }
             };
-            pass(3);
+            pass(4);
+            pass(4);
             const t0 = performance.now();
             pass(18);
             return Math.max(0.08, performance.now() - t0);
         } catch (_) {
-            return 2.0;
+            return 1.2;
         }
     }
 
@@ -137,6 +144,7 @@ window.DevicePerfGovernor = (function () {
         if (document.body) {
             document.body.setAttribute('data-perf-tier', String(prof.tier));
             document.body.setAttribute('data-perf-quality', String(prof.qualityTier));
+            document.body.setAttribute('data-perf-hz', String(prof.refreshHz || 60));
         }
     }
 
@@ -148,27 +156,25 @@ window.DevicePerfGovernor = (function () {
             prof.gpuTier === 0 ||
             prof.cores <= 4 ||
             (prof.memory > 0 && prof.memory <= 3) ||
-            prof.benchMs > 3.6 ||
-            (rafProbe.is30HzCapped && prof.benchMs > 2.2) ||
-            (prof.isInApp && (prof.cores <= 6 || (prof.memory > 0 && prof.memory <= 4)) && prof.benchMs > 2.3)
+            prof.benchMs > 4.5 ||
+            (rafProbe.is30HzCapped && prof.benchMs > 2.8)
         ) {
             qualityTier = 0;
         } else if (
-            prof.gpuTier === 1 ||
-            prof.isInApp ||
-            rafProbe.is30HzCapped ||
-            rafProbe.isJittery ||
-            prof.benchMs > 1.65 ||
-            (prof.isMobile && prof.memory > 0 && prof.memory <= 4)
-        ) {
-            qualityTier = 1;
-        } else if (
             prof.gpuTier === 3 &&
-            prof.benchMs <= 1.25 &&
             !rafProbe.is30HzCapped &&
             (prof.memory === 0 || prof.memory >= 6)
         ) {
+            // Các dòng máy Flagship (như OPPO Find X9 / Immortalis-G925 / Adreno 730-830 / Apple Pro)
+            // luôn được cấp quyền Ultra Flagship (qualityTier = 3) để chạy full 100% hiệu ứng mà không bị nhiễu bởi độ trễ nạp trang ban đầu!
             qualityTier = 3;
+        } else if (
+            prof.gpuTier === 1 ||
+            rafProbe.is30HzCapped ||
+            prof.benchMs > 2.6 ||
+            (prof.isMobile && prof.memory > 0 && prof.memory <= 4)
+        ) {
+            qualityTier = 1;
         } else {
             qualityTier = 2;
         }
@@ -184,11 +190,11 @@ window.DevicePerfGovernor = (function () {
         prof.targetFrameMs = rafProbe.refreshHz >= 90 ? (1000 / rafProbe.refreshHz) : 16.67;
 
         prof.worldDpr = qualityTier === 3
-            ? Math.min(rawDpr, prof.isMobile ? 1.32 : 1.5)
-            : (tier === 2 ? Math.min(rawDpr, prof.isMobile ? 1.22 : 1.42) : (tier === 1 ? Math.min(rawDpr, 1.0) : Math.min(rawDpr, 0.82)));
+            ? Math.min(rawDpr, prof.isMobile ? 1.35 : 1.5)
+            : (tier === 2 ? Math.min(rawDpr, prof.isMobile ? 1.25 : 1.42) : (tier === 1 ? Math.min(rawDpr, 1.05) : Math.min(rawDpr, 0.85)));
         prof.directorDpr = qualityTier === 3
-            ? Math.min(rawDpr, 1.45)
-            : (tier === 2 ? Math.min(rawDpr, 1.35) : (tier === 1 ? Math.min(rawDpr, 1.18) : Math.min(rawDpr, 1.0)));
+            ? Math.min(rawDpr, 1.5)
+            : (tier === 2 ? Math.min(rawDpr, 1.38) : (tier === 1 ? Math.min(rawDpr, 1.2) : Math.min(rawDpr, 1.0)));
         prof.bgDpr = qualityTier >= 2
             ? Math.min(rawDpr, 1.35)
             : (tier === 1 ? Math.min(rawDpr, 1.15) : 1.0);
@@ -200,9 +206,16 @@ window.DevicePerfGovernor = (function () {
     function startPassiveProbe() {
         if (rafProbe.running || rafProbe.done || typeof requestAnimationFrame !== 'function') return;
         rafProbe.running = true;
+        let warmupFrames = 8; // Bỏ qua 8 frame đầu lúc trình duyệt vừa parse HTML/CSS để đo đúng tần số quét thật (60/90/120Hz)
         function tick(now) {
             if (document.hidden) {
                 rafProbe.lastTs = 0;
+                requestAnimationFrame(tick);
+                return;
+            }
+            if (warmupFrames > 0) {
+                warmupFrames--;
+                rafProbe.lastTs = now;
                 requestAnimationFrame(tick);
                 return;
             }
@@ -223,7 +236,7 @@ window.DevicePerfGovernor = (function () {
                 rafProbe.p85Ms = p85;
                 rafProbe.is30HzCapped = mid > 26.5 && mid < 42.0;
                 rafProbe.refreshHz = mid < 9.8 ? 120 : (mid < 13.2 ? 90 : (rafProbe.is30HzCapped ? 30 : 60));
-                rafProbe.isJittery = !rafProbe.is30HzCapped && p85 > 22.5;
+                rafProbe.isJittery = !rafProbe.is30HzCapped && p85 > 26.0;
                 rafProbe.done = true;
                 rafProbe.running = false;
                 if (profile) recompute(profile);
@@ -301,12 +314,12 @@ window.DevicePerfGovernor = (function () {
         const budget = prof.is30HzCapped ? 33.3 : 16.8;
         const pressure = Math.max(prof.emaFrameMs / budget, (prof.emaRenderMs * 1.45) / budget);
         let targetScale = 1.0;
-        if (pressure > 1.35) {
-            targetScale = 0.45;
-        } else if (pressure > 1.12) {
-            targetScale = 0.68;
-        } else if (pressure > 0.95) {
-            targetScale = 0.85;
+        if (pressure > 1.45) {
+            targetScale = prof.isUltraFlagship ? 0.85 : 0.45;
+        } else if (pressure > 1.20) {
+            targetScale = prof.isUltraFlagship ? 0.94 : 0.68;
+        } else if (pressure > 1.02) {
+            targetScale = prof.isUltraFlagship ? 1.0 : 0.85;
         }
         prof.dynamicScale = prof.dynamicScale * 0.90 + targetScale * 0.10;
         return prof.dynamicScale;
@@ -316,17 +329,19 @@ window.DevicePerfGovernor = (function () {
     // KHÔNG BAO GIỜ trả về 0 để mọi hoạt ảnh nền luôn tiếp diễn liên tục 100%!
     function getBgBudget(phase = 'idle') {
         const prof = getProfile();
-        const baseByTier = prof.qualityTier === 3 ? 1.0 : (prof.tier === 2 ? 0.88 : (prof.tier === 1 ? 0.68 : 0.46));
+        if (prof.qualityTier === 3) {
+            return 1.0; // Máy Ultra Flagship (như OPPO Find X9) luôn chạy full 100% hạt nền ở mọi pha
+        }
+        const baseByTier = prof.tier === 2 ? 0.92 : (prof.tier === 1 ? 0.72 : 0.50);
         let phaseMult = 1.0;
         if (phase === 'morph' || isTransitionActive('step2-morph')) {
-            // Khi đang morph DOM Bước 1 -> Bước 2: Vẫn vẽ hoa rơi liên tục nhưng điều tiết số lượng hạt thông minh theo cấp máy
-            phaseMult = prof.qualityTier === 3 ? 0.85 : (prof.tier === 2 ? 0.72 : (prof.tier === 1 ? 0.55 : 0.40));
+            phaseMult = prof.tier === 2 ? 0.85 : (prof.tier === 1 ? 0.65 : 0.48);
         } else if (phase === 'arriving' || phase === 'wish_stamp' || phase === 'sky_descending' || phase === 'summoning') {
-            phaseMult = prof.qualityTier === 3 ? 0.82 : (prof.tier === 2 ? 0.68 : (prof.tier === 1 ? 0.52 : 0.38));
+            phaseMult = prof.tier === 2 ? 0.85 : (prof.tier === 1 ? 0.65 : 0.48);
         } else if (phase === 'opening_peak') {
-            phaseMult = prof.qualityTier === 3 ? 0.76 : (prof.tier === 2 ? 0.62 : (prof.tier === 1 ? 0.46 : 0.35));
+            phaseMult = prof.tier === 2 ? 0.80 : (prof.tier === 1 ? 0.60 : 0.45);
         }
-        return Math.max(0.32, Math.min(1.0, baseByTier * phaseMult * prof.dynamicScale));
+        return Math.max(0.35, Math.min(1.0, baseByTier * phaseMult * prof.dynamicScale));
     }
 
     function getParticleCount(baseCount, minCount = 4, phase = 'idle') {
