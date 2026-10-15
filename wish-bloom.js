@@ -1403,22 +1403,30 @@
             });
         }
 
-        // Đàn bướm 3D
+        // Đàn bướm 3D lượn tự nhiên trong khu vườn (không bao giờ xoáy tròn như lốc cuốn)
         const flyers = [];
-        const baseFlyers = th.butterflies ? 16 : 5;
+        const baseFlyers = th.butterflies ? 14 : 5;
         const flyerCount = perfTier === 2 ? baseFlyers : (perfTier === 1 ? Math.max(4, Math.round(baseFlyers * 0.75)) : Math.max(3, Math.round(baseFlyers * 0.55)));
         for (let i = 0; i < flyerCount; i++) {
-            const fromHeart = i >= Math.floor(flyerCount * 0.45);
+            const fromHeart = i >= Math.floor(flyerCount * 0.50);
+            const az0 = ((i / flyerCount) + (R() - 0.5) * 0.16) * TAU;
+            const startR = 95 + R() * 195;
+            const heading = az0 + (i % 2 === 0 ? 1 : -1) * (0.42 + R() * 0.52);
+            const spd = 26 + R() * 22;
             flyers.push({
-                born: fromHeart ? 4.55 + (i % 6) * 0.06 : T.IMPACT + 0.35 + R() * 0.45,
+                born: fromHeart ? (T.HEART + 0.08 + (i % 5) * 0.14) : (T.BUD + 0.35 + R() * 0.65),
                 fromHeart,
-                ox: (R() - 0.5) * 620,
-                oz: (R() - 0.5) * 520,
-                rad: fromHeart ? 145 + R() * 125 : 110 + R() * 175,
-                h: 56 + R() * 155,
-                dir: R() < 0.5 ? -1 : 1,
+                az0,
+                ox: Math.cos(az0) * startR,
+                oz: Math.sin(az0) * startR,
+                vx: Math.cos(heading) * spd,
+                vz: Math.sin(heading) * spd,
+                rad: fromHeart ? 115 + R() * 95 : 85 + R() * 110,
+                h: 58 + R() * 115,
+                dir: i % 2 === 0 ? 1 : -1,
                 ph: R() * TAU,
-                sz: (th.butterflies ? 20 : 15) + R() * 9,
+                flapSpd: 9.0 + R() * 2.4,
+                sz: (th.butterflies ? 19 : 15) + R() * 8,
                 fp: R() * TAU
             });
         }
@@ -3230,34 +3238,63 @@
         // =================================================================================
         // 5. BƯỚM 3D CÁNH LỤA TRONG SUỐT CÓ GÂN CÁNH & ĐỐM NGỌC, CÁNH HOA BAY 3D & BOKEH
         // =================================================================================
-        function drawButterfly3D(g, x, y, k, size, flap, yawAngle) {
+        function evalButterflyPos3D(bf, age, hs, out) {
+            const lift = 1 - Math.exp(-age * 0.55);
+            const flapBob = Math.sin(age * bf.flapSpd + bf.fp) * 1.8;
+            if (bf.fromHeart) {
+                // Bướm từ nhụy hoa bay toả nhẹ nhàng ra không gian theo đường lượn chữ S mềm mại (không xoáy vòng lốc cuốn)
+                const az = bf.az0 + Math.sin(age * 0.72 + bf.ph) * 0.28 + age * 0.14 * bf.dir;
+                const r = 16 + lift * bf.rad + age * 22;
+                out.x = hs.sway + Math.cos(az) * r;
+                out.z = Math.sin(az) * r;
+                out.y = hs.H + 18 + lift * bf.h + Math.sin(age * 1.65 + bf.ph) * 8 + flapBob;
+            } else {
+                // Bướm trong vườn hoa mặt hồ bay lượn tự nhiên theo hướng riêng (vx, vz) kết hợp sóng lượn nhẹ
+                const weave = Math.sin(age * 0.88 + bf.ph) * 28;
+                const perpX = -bf.vz / 32, perpZ = bf.vx / 32;
+                out.x = bf.ox + bf.vx * age + perpX * weave;
+                out.z = bf.oz + bf.vz * age + perpZ * weave;
+                out.y = 14 + lift * bf.h + Math.sin(age * 1.55 + bf.ph) * 9 + flapBob;
+            }
+        }
+
+        function drawButterfly3D(g, x, y, k, size, flapPhase, dxScr, dyScr, alpha) {
             const s = size * k;
-            if (s < 2) return;
-            const wingFold = 0.20 + 0.80 * Math.abs(Math.cos(flap));
+            if (s < 2 || alpha <= 0.02) return;
+            // Nhịp đập cánh sinh học mượt mà (nhịp vỗ xuống nhanh, lướt mở cánh êm, không dùng abs(cos) giật góc)
+            const wave = Math.sin(flapPhase) + 0.22 * Math.cos(2 * flapPhase);
+            const wingOpen = 0.24 + 0.76 * (0.5 + 0.5 * wave);
             const wScale = s / 54;
+
+            // Xoay đầu và thân bướm hướng chuẩn xác theo vector vận tốc bay trên màn hình (không bao giờ đập cánh bay ngang!)
+            const headingAng = Math.atan2(dxScr, Math.max(3.5, -dyScr * 0.9 + Math.hypot(dxScr, dyScr) * 0.32));
+            const bank = Math.sin(headingAng);
+
             g.save();
             g.globalCompositeOperation = 'source-over';
-            g.globalAlpha = 1;
-            g.translate(x, y);
-            g.rotate(Math.sin(yawAngle) * 0.25);
+            g.globalAlpha = alpha;
+            g.translate(x, y - wave * 1.6 * k);
+            g.rotate(headingAng);
 
-            drawAdditive(g, S.softAccent, 0, 0, s * 2.6, s * 2.6, 0.24);
+            drawAdditive(g, S.softAccent, 0, 0, s * 2.5, s * 2.5, 0.22 * alpha);
 
             for (let side = -1; side <= 1; side += 2) {
                 g.save();
-                g.scale(side * wingFold, 1);
-                g.globalAlpha = 0.94;
+                // Phối cảnh 3D khi bướm nghiêng người lượn sang trái/phải
+                const perspWing = Math.max(0.18, wingOpen * (1 - 0.16 * side * bank));
+                g.scale(side * perspWing, 1);
+                g.globalAlpha = 0.94 * alpha;
                 g.drawImage(S.butterflyWing, -8 * wScale, -68 * wScale, 96 * wScale, 144 * wScale);
                 g.restore();
             }
 
-            // Thân bướm & 2 râu mảnh
+            // Thân bướm & 2 râu mảnh luôn hướng về phía trước theo chiều bay
             g.fillStyle = '#fff6d6';
             g.beginPath();
             g.ellipse(0, 0, Math.max(0.9, s * 0.065), Math.max(2.2, s * 0.38), 0, 0, TAU);
             g.fill();
             if (s > 6) {
-                g.strokeStyle = 'rgba(255, 248, 220, 0.65)';
+                g.strokeStyle = `rgba(255, 248, 220, ${(0.65 * alpha).toFixed(3)})`;
                 g.lineWidth = Math.max(0.35, 0.45 * k);
                 g.beginPath();
                 g.moveTo(-s * 0.02, -s * 0.32);
@@ -3340,25 +3377,17 @@
                 const bf = flyers[i];
                 const age = liveTau - bf.born;
                 if (age <= 0) continue;
-                const u = clamp01(age / 1.35);
-                const a = bf.ph + age * 2.1 * bf.dir;
-                let x, y, z;
-                if (bf.fromHeart) {
-                    const r = easeOutCubic(u) * bf.rad;
-                    x = Math.cos(a) * r;
-                    z = Math.sin(a) * r;
-                    y = hs.H + 14 + easeOutCubic(u) * bf.h + Math.sin(age * 4.2 + bf.ph) * 8;
-                } else {
-                    const r = lerp(bf.rad * 1.4, bf.rad, easeOutCubic(u));
-                    x = lerp(bf.ox, Math.cos(a) * r, easeOutCubic(u));
-                    z = lerp(bf.oz, Math.sin(a) * r, easeOutCubic(u));
-                    y = lerp(14, bf.h, easeOutCubic(u)) + Math.sin(age * 4 + bf.ph) * 8;
-                }
-                if (!project(x, y, z, Q)) continue;
+                evalButterflyPos3D(bf, age, hs, W0);
+                if (!project(W0.x, W0.y, W0.z, Q)) continue;
                 const isBehind = Q.z >= heroZ;
                 if ((pass === 0) !== isBehind) continue;
+                evalButterflyPos3D(bf, age + 0.08, hs, W1);
+                const hasNext = project(W1.x, W1.y, W1.z, Q2);
+                const dxScr = hasNext ? (Q2.x - Q.x) : (bf.dir * 3);
+                const dyScr = hasNext ? (Q2.y - Q.y) : -4;
+                const bfAlpha = smooth(age / 0.35);
                 const target = (pass === 1 && Q.z < envZ) ? gF : gW;
-                drawButterfly3D(target, Q.x, Q.y, Q.k, bf.sz, sc.clock * 15 + bf.fp, a);
+                drawButterfly3D(target, Q.x, Q.y, Q.k, bf.sz, sc.clock * bf.flapSpd + bf.fp, dxScr, dyScr, bfAlpha);
             }
             gW.globalCompositeOperation = 'source-over';
             gW.globalAlpha = 1;
