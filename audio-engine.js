@@ -1061,11 +1061,12 @@
         setBgmDuck(0.22, 8.8);
         triggerSubtleHaptic('light');
 
-        // Quầng sáng tinh tú ngân vang ấm áp trên vòm trời đêm (Warm Celestial Halo Pad + 2 nốt Harp trầm ấm, không dùng chuông cao tần)
-        playWarmShimmerPad(['D4', 'Fsharp4', 'A4', 'Csharp5'], t0, 2.2, 0.045);
-        playHarpPluck(n('A4'), t0 + 0.01, 1.65, 0.16, 0.18);
-        playHarpPluck(n('E5'), t0 + 0.14, 1.75, 0.14, 0.24);
-        playSilkPaperWhoosh(0.52, 360, 880, 0.16, 0.18, 0.02);
+        // Quầng sáng tinh tú ngân vang lấp lánh trên bầu trời đêm
+        playWarmShimmerPad(['D4', 'Fsharp4', 'A4', 'Csharp5'], t0, 2.2, 0.046);
+        playHarmonicChime(n('A5'), t0, 1.35, 0.18, 0.22);
+        playHarpPluck(n('E5'), t0 + 0.055, 1.55, 0.16, 0.28);
+        playHarpPluck(n('Csharp5'), t0 + 0.12, 1.65, 0.14, 0.16);
+        playSilkPaperWhoosh(0.52, 380, 960, 0.18, 0.20, 0.02);
     }
 
     function updateWishBloomAudioByTau(tau, isSkipped) {
@@ -1084,7 +1085,7 @@
         const now = ctx.currentTime;
 
         // =====================================================================
-        // DIỄN BIẾN 1: VÌ TINH TÚ THỨC TỈNH (tau = 0.01s -> 0.68s)
+        // DIỄN BIẾN 1: VÌ TINH TÚ THỨC TỈNH TRÊN BẦU TRỜI ĐÊM (tau = 0.01s -> 0.68s)
         // =====================================================================
         if (!wishBloomCueState.started && tau >= 0.01) {
             wishBloomCueState.started = true;
@@ -1095,14 +1096,24 @@
             }
         }
 
+        // Nhịp lóe sáng lấy đà ngay trước khi tinh tú rời vòm trời (tau = 0.38s)
+        if (!wishBloomCueState.skyTwinkle1 && tau >= 0.38 && tau < 0.68) {
+            wishBloomCueState.skyTwinkle1 = true;
+            if (canPlayAudio()) {
+                playHarpPluck(n('Fsharp5'), now, 1.15, 0.14, 0.24);
+                playHarmonicChime(n('A5'), now + 0.05, 1.15, 0.15, 0.18);
+            }
+        }
+
         // =====================================================================
-        // DIỄN BIẾN 2: SAO BĂNG LƯỚT GIÓ BAY XUỐNG (tau = 0.70s -> 1.58s)
-        // (Thuần tiếng gió lụa ấm áp + 2 nốt Harp êm dịu, bỏ hoàn toàn chuỗi nốt rơi lẻ tẻ)
+        // DIỄN BIẾN 2: TIẾNG RƠI CỦA VÌ TINH TÚ — SAO BĂNG XÉ GIÓ LAO XUỐNG HỒ (tau = 0.70s -> 1.58s, ~0.62s thực tế)
         // =====================================================================
         if (!wishBloomCueState.fall && tau >= 0.70) {
             wishBloomCueState.fall = true;
             if (canPlayAudio()) {
-                const fallDur = 0.58;
+                const fallDur = 0.60;
+
+                // 1. Luồng gió khí động học của sao băng lao vút từ bầu trời xuống mặt hồ (1950Hz -> 220Hz, tăng tốc mạnh về cuối)
                 if (pinkNoiseBuffer) {
                     const whooshSrc = ctx.createBufferSource();
                     whooshSrc.buffer = pinkNoiseBuffer;
@@ -1110,84 +1121,199 @@
 
                     const whooshBp = ctx.createBiquadFilter();
                     whooshBp.type = 'bandpass';
-                    whooshBp.Q.setValueAtTime(1.05, now);
-                    whooshBp.frequency.setValueAtTime(1280, now);
-                    whooshBp.frequency.exponentialRampToValueAtTime(280, now + fallDur);
+                    whooshBp.Q.setValueAtTime(1.0, now);
+                    whooshBp.frequency.setValueAtTime(1950, now);
+                    whooshBp.frequency.exponentialRampToValueAtTime(220, now + fallDur);
 
                     const whooshLp = ctx.createBiquadFilter();
                     whooshLp.type = 'lowpass';
-                    whooshLp.frequency.setValueAtTime(1800, now);
+                    whooshLp.frequency.setValueAtTime(2600, now);
 
                     const whooshEnv = ctx.createGain();
-                    whooshEnv.gain.setValueAtTime(0.012, now);
-                    whooshEnv.gain.exponentialRampToValueAtTime(0.32, now + fallDur * 0.85);
+                    whooshEnv.gain.setValueAtTime(0.018, now);
+                    whooshEnv.gain.exponentialRampToValueAtTime(0.48, now + fallDur * 0.88);
                     whooshEnv.gain.exponentialRampToValueAtTime(0.0001, now + fallDur + 0.05);
 
                     whooshSrc.connect(whooshBp);
                     whooshBp.connect(whooshLp);
                     whooshLp.connect(whooshEnv);
-                    connectWithPanAndReverb(whooshEnv, 0.22, 0.14);
+                    connectWithPanAndReverb(whooshEnv, 0.25, 0.18);
                     whooshSrc.start(now, Math.random() * 0.5);
                     whooshSrc.stop(now + fallDur + 0.06);
                 }
 
-                playHarpPluck(n('E5'), now + 0.02, 1.35, 0.13, 0.20);
-                playHarpPluck(n('A4'), now + 0.24, 1.45, 0.14, 0.05);
+                // 2. Âm vệt sáng sao băng lao xuống rõ nét (Dual-Detuned Shimmer Fall Glide: 880Hz A5 -> 520Hz -> 196Hz G3)
+                const fallFlt = ctx.createBiquadFilter();
+                fallFlt.type = 'lowpass';
+                fallFlt.frequency.setValueAtTime(2400, now);
+                fallFlt.frequency.exponentialRampToValueAtTime(480, now + fallDur);
+
+                const fallEnv = ctx.createGain();
+                fallEnv.gain.setValueAtTime(0.0001, now);
+                fallEnv.gain.linearRampToValueAtTime(0.18, now + 0.08);
+                fallEnv.gain.linearRampToValueAtTime(0.22, now + fallDur * 0.82);
+                fallEnv.gain.exponentialRampToValueAtTime(0.0001, now + fallDur + 0.04);
+
+                fallFlt.connect(fallEnv);
+                connectWithPanAndReverb(fallEnv, 0.30, 0.12);
+
+                ['sine', 'triangle'].forEach((waveType, idx) => {
+                    const osc = ctx.createOscillator();
+                    osc.type = waveType;
+                    osc.detune.setValueAtTime(idx === 0 ? -4 : 4, now);
+                    osc.frequency.setValueAtTime(880, now);
+                    osc.frequency.exponentialRampToValueAtTime(520, now + fallDur * 0.50);
+                    osc.frequency.exponentialRampToValueAtTime(196, now + fallDur);
+                    const g = ctx.createGain();
+                    g.gain.setValueAtTime(idx === 0 ? 0.65 : 0.35, now);
+                    osc.connect(g);
+                    g.connect(fallFlt);
+                    osc.start(now);
+                    osc.stop(now + fallDur + 0.05);
+                });
+
+                // 3. Đuôi bụi sao Harp lướt theo quỹ đạo rơi (A5 -> E5 -> C#5 -> A4)
+                ['A5', 'E5', 'Csharp5', 'A4'].forEach((noteName, idx) => {
+                    const pan = 0.26 - idx * 0.08;
+                    playHarpPluck(n(noteName), now + idx * 0.12, 0.85, 0.12, pan);
+                });
             }
         }
 
         // =====================================================================
-        // DIỄN BIẾN 3: TINH TÚ HỘI TỤ & BÙNG SÁNG HÓA NỤ HOA (tau = 1.59s -> 1.86s)
-        // (BỎ HOÀN TOÀN tiếng giọt nước rơi / tiếng tõm / sóng nước! Chỉ dùng Hợp âm Ánh Sáng & Đàn Harp ấm áp)
+        // DIỄN BIẾN 3: TIẾNG ĐÁP XUỐNG CỦA MẶT NƯỚC & SÓNG NƯỚC DÂNG TRÀN (tau = 1.59s -> 1.86s)
+        // (Có đầy đủ tiếng chạm mặt nước "ÀO!" + sóng nước lan rộng Slow-Motion, nhưng TUYỆT ĐỐI KHÔNG có tiếng giọt nước nhỏ rơi lẻ tẻ!)
         // =====================================================================
         if (!wishBloomCueState.impact && tau >= 1.59) {
             wishBloomCueState.impact = true;
             if (canPlayAudio()) {
-                triggerSubtleHaptic('light');
-                playSilkPaperWhoosh(0.65, 280, 760, 0.26, 0, 0);
-                playWarmShimmerPad(['D4', 'Fsharp4', 'A4', 'E5'], now + 0.01, 1.9, 0.048);
-                ['D4', 'A4', 'Csharp5', 'E5'].forEach((noteName, idx) => {
-                    const pan = ((idx / 3) - 0.5) * 0.55;
-                    playHarpPluck(n(noteName), now + 0.015 + idx * 0.075, 1.75, 0.15, pan);
+                triggerSubtleHaptic('water_drop');
+
+                // A. Lực trầm sâu khi sao băng đáp xuống lòng hồ (Deep Lake Displacement 135Hz -> 40Hz — dải Sub-Bass uy lực, không có tiếng "tõm" giọt nước)
+                const subOsc = ctx.createOscillator();
+                const subEnv = ctx.createGain();
+                subOsc.type = 'triangle';
+                subOsc.frequency.setValueAtTime(135, now);
+                subOsc.frequency.exponentialRampToValueAtTime(40, now + 0.48);
+                subEnv.gain.setValueAtTime(0.0001, now);
+                subEnv.gain.exponentialRampToValueAtTime(0.56, now + 0.008);
+                subEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.54);
+                subOsc.connect(subEnv);
+                subEnv.connect(sfxBus);
+                subOsc.start(now);
+                subOsc.stop(now + 0.58);
+
+                // B. Tiếng cú chạm mặt nước tung bọt trắng xóa ngay khoảnh khắc tiếp nước (Crisp Water-Surface Splash Strike 0.00s -> 0.18s)
+                const splashBuf = noiseBuffer || pinkNoiseBuffer;
+                if (splashBuf) {
+                    const strikeSrc = ctx.createBufferSource();
+                    strikeSrc.buffer = splashBuf;
+                    strikeSrc.loop = true;
+
+                    const strikeBp = ctx.createBiquadFilter();
+                    strikeBp.type = 'bandpass';
+                    strikeBp.Q.setValueAtTime(0.85, now);
+                    strikeBp.frequency.setValueAtTime(1850, now);
+                    strikeBp.frequency.exponentialRampToValueAtTime(420, now + 0.16);
+
+                    const strikeLp = ctx.createBiquadFilter();
+                    strikeLp.type = 'lowpass';
+                    strikeLp.frequency.setValueAtTime(2800, now);
+
+                    const strikeEnv = ctx.createGain();
+                    strikeEnv.gain.setValueAtTime(0.0001, now);
+                    strikeEnv.gain.exponentialRampToValueAtTime(0.46, now + 0.006);
+                    strikeEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+
+                    strikeSrc.connect(strikeBp);
+                    strikeBp.connect(strikeLp);
+                    strikeLp.connect(strikeEnv);
+                    connectWithPanAndReverb(strikeEnv, 0.30, 0);
+                    strikeSrc.start(now, Math.random() * 0.4);
+                    strikeSrc.stop(now + 0.20);
+                }
+
+                // C. Tiếng sóng nước mặt hồ dâng trào và lan rộng sang 2 bên trong Bullet-Time Slow-Motion (0.86s Wide Stereo Water Wave Wash)
+                if (pinkNoiseBuffer) {
+                    [-0.45, 0.45].forEach((panSide, idx) => {
+                        const waveSrc = ctx.createBufferSource();
+                        waveSrc.buffer = pinkNoiseBuffer;
+                        waveSrc.loop = true;
+
+                        const waveBp = ctx.createBiquadFilter();
+                        waveBp.type = 'bandpass';
+                        waveBp.Q.setValueAtTime(0.95, now);
+                        waveBp.frequency.setValueAtTime(1520 - idx * 140, now);
+                        waveBp.frequency.exponentialRampToValueAtTime(220, now + 0.82);
+
+                        const waveLp = ctx.createBiquadFilter();
+                        waveLp.type = 'lowpass';
+                        waveLp.frequency.setValueAtTime(2200, now);
+
+                        const waveEnv = ctx.createGain();
+                        waveEnv.gain.setValueAtTime(0.0001, now);
+                        waveEnv.gain.linearRampToValueAtTime(0.42, now + 0.030 + idx * 0.018);
+                        waveEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.86);
+
+                        waveSrc.connect(waveBp);
+                        waveBp.connect(waveLp);
+                        waveLp.connect(waveEnv);
+                        connectWithPanAndReverb(waveEnv, 0.36, panSide);
+                        waveSrc.start(now, Math.random() * 0.5);
+                        waveSrc.stop(now + 0.90);
+                    });
+                }
+
+                // D. Hợp âm Cột Sáng & Sóng Nước Ngân Vang (Dmaj9 / Aadd9)
+                playWarmShimmerPad(['D4', 'Fsharp4', 'A4', 'E5'], now + 0.03, 1.8, 0.046);
+                ['D4', 'A4', 'Csharp5', 'E5', 'A5'].forEach((noteName, idx) => {
+                    const pan = ((idx / 4) - 0.5) * 0.65;
+                    playHarpPluck(n(noteName), now + 0.03 + idx * 0.068, 1.75, 0.15, pan);
                 });
             }
         }
 
         // =====================================================================
         // DIỄN BIẾN 4: ĐẠI ĐÓA HOA TRỒI LÊN & BUNG NỞ 5 TẦNG CÁNH NHUNG (tau = 1.87s -> 2.88s)
+        // (Không dùng sine trượt lên 105->215Hz để không tạo tiếng bong bóng/giọt nước nhỏ)
         // =====================================================================
         if (!wishBloomCueState.bud && tau >= 1.87) {
             wishBloomCueState.bud = true;
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(0.48, 240, 680, 0.26, 0, 0);
-                playHarpPluck(n('D4'), now + 0.015, 1.65, 0.15, -0.15);
-                playHarpPluck(n('A4'), now + 0.095, 1.55, 0.14, 0.15);
+                // Tiếng mặt nước rẽ đôi nâng Nụ Hoa & Đài Sen vươn lên (200Hz -> 740Hz)
+                playSilkPaperWhoosh(0.50, 200, 740, 0.34, 0, 0);
+                playHarpPluck(n('D4'), now + 0.015, 1.65, 0.16, -0.15);
+                playHarpPluck(n('A4'), now + 0.090, 1.55, 0.15, 0.15);
             }
         }
 
         if (!wishBloomCueState.openLayer1 && tau >= 2.04) {
             wishBloomCueState.openLayer1 = true;
-            playVelvetPetalBloomLayer(0, -0.28);
+            playVelvetPetalBloomLayer(0, -0.30);
         }
-        if (!wishBloomCueState.openLayer2 && tau >= 2.22) {
+        if (!wishBloomCueState.openLayer2 && tau >= 2.20) {
             wishBloomCueState.openLayer2 = true;
-            playVelvetPetalBloomLayer(1, 0.28);
+            playVelvetPetalBloomLayer(1, 0.30);
         }
-        if (!wishBloomCueState.openLayer3 && tau >= 2.42) {
+        if (!wishBloomCueState.openLayer3 && tau >= 2.36) {
             wishBloomCueState.openLayer3 = true;
-            playVelvetPetalBloomLayer(2, -0.18);
+            playVelvetPetalBloomLayer(2, -0.20);
+        }
+        if (!wishBloomCueState.openLayer4 && tau >= 2.52) {
+            wishBloomCueState.openLayer4 = true;
+            playVelvetPetalBloomLayer(3, 0.20);
         }
 
-        // Đại đóa hoa bung nở rực rỡ 100% (tau >= 2.68s)
-        if (!wishBloomCueState.heart && tau >= 2.68) {
+        // Đại đóa hoa bung nở rực rỡ 100% (tau >= 2.72s)
+        if (!wishBloomCueState.heart && tau >= 2.72) {
             wishBloomCueState.heart = true;
             if (canPlayAudio()) {
                 triggerSubtleHaptic('light');
                 playWarmShimmerPad(RIVER_WARM_PAD, now, 2.3, 0.046);
-                playSilkPaperWhoosh(0.48, 340, 880, 0.22, 0, 0);
+                playSilkPaperWhoosh(0.48, 340, 880, 0.24, 0, 0);
                 ['A4', 'Csharp5', 'E5', 'A5'].forEach((noteName, idx) => {
                     const pan = ((idx / 3) - 0.5) * 0.55;
-                    playHarpPluck(n(noteName), now + idx * 0.065, 1.65, 0.14, pan);
+                    playHarpPluck(n(noteName), now + idx * 0.065, 1.65, 0.15, pan);
                 });
             }
         }
@@ -1199,7 +1325,7 @@
             wishBloomCueState.weave = true;
             if (canPlayAudio()) {
                 triggerSubtleHaptic('light');
-                playSilkPaperWhoosh(0.88, 300, 980, 0.26, 0, 0);
+                playSilkPaperWhoosh(0.88, 300, 980, 0.28, 0, 0);
                 playWarmShimmerPad(['Fsharp4', 'A4', 'Csharp5', 'E5'], now + 0.02, 1.6, 0.042);
                 ['A4', 'Csharp5', 'E5'].forEach((noteName, idx) => {
                     playHarpPluck(n(noteName), now + idx * 0.14, 1.45, 0.13, (idx - 1) * 0.22);
@@ -1223,9 +1349,9 @@
         if (!wishBloomCueState.origamiDetach && tau >= 4.15) {
             wishBloomCueState.origamiDetach = true;
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(0.65, 280, 780, 0.26, 0, 0.01);
+                playSilkPaperWhoosh(0.65, 280, 780, 0.28, 0, 0.01);
                 ['D4', 'A4', 'E5'].forEach((noteName, idx) => {
-                    playHarpPluck(n(noteName), now + idx * 0.08, 1.35, 0.13, (idx - 1) * 0.25);
+                    playHarpPluck(n(noteName), now + idx * 0.08, 1.35, 0.14, (idx - 1) * 0.25);
                 });
             }
         }
@@ -1259,7 +1385,7 @@
             wishBloomCueState.lift = true;
             setEnvelopeSpatialMuffle(true, 0.9);
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(0.92, 260, 840, 0.28, 0, 0);
+                playSilkPaperWhoosh(0.92, 260, 840, 0.30, 0, 0);
                 ['D4', 'Fsharp4', 'A4', 'Csharp5', 'E5'].forEach((noteName, idx) => {
                     playHarpPluck(n(noteName), now + idx * 0.085, 1.55, 0.13, (idx - 2) * 0.20);
                 });
@@ -1269,7 +1395,7 @@
         if (!wishBloomCueState.presentSettle && tau >= 7.36) {
             wishBloomCueState.presentSettle = true;
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(0.28, 580, 280, 0.20, 0, 0);
+                playSilkPaperWhoosh(0.28, 580, 280, 0.22, 0, 0);
             }
         }
     }
