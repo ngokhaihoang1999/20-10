@@ -3632,6 +3632,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
     let openStartTime = null;
     let lastFrameTime = null;
     let summonSpawnAccum = 0;
+    let hasStartedArrivalStampDescent = false;
     let hasSpawnedArrivalStamp = false;
     window.CardAudio?.setMotionTheme(cfg.id);
 
@@ -5531,6 +5532,7 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             if (wishBloom.finished) {
                 u3dCurrentDirectorState = 'wish_stamp';
                 arriveStartTime = now;
+                hasStartedArrivalStampDescent = false;
                 hasSpawnedArrivalStamp = false;
                 stage.classList.remove('is-summoning');
                 stage.classList.add('is-arriving');
@@ -5571,6 +5573,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             let sealOp = 0;
             let recoil = 0;
             if (sealP < 0.62) {
+                if (!hasStartedArrivalStampDescent) {
+                    hasStartedArrivalStampDescent = true;
+                    window.CardAudio?.playWaxSealDescentWhoosh?.(0.30);
+                }
                 const d = sealP / 0.62;
                 const ed = d * d;
                 sealScale = 1.88 - 0.96 * ed;
@@ -6127,6 +6133,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
             if (sealP > 0) {
                 if (sealP < 0.62) {
+                    if (!hasStartedArrivalStampDescent) {
+                        hasStartedArrivalStampDescent = true;
+                        window.CardAudio?.playWaxSealDescentWhoosh?.(0.30);
+                    }
                     const downP = sealP / 0.62;
                     const easeDown = downP * downP;
                     sealScale = 1.88 - 0.96 * easeDown;
@@ -6299,6 +6309,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
             if (window.isRecipientCardImageReady && summonElapsed >= 0.72) {
                 u3dCurrentDirectorState = 'arriving';
                 arriveStartTime = now;
+                hasStartedArrivalStampDescent = false;
+                hasSpawnedArrivalStamp = false;
                 stage.classList.remove('is-summoning');
                 stage.classList.add('is-arriving');
                 spawnSealBreakExplosion(0);
@@ -6327,6 +6339,10 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
 
             if (sealP > 0) {
                 if (sealP < 0.62) {
+                    if (!hasStartedArrivalStampDescent) {
+                        hasStartedArrivalStampDescent = true;
+                        window.CardAudio?.playWaxSealDescentWhoosh?.(0.24);
+                    }
                     const downP = sealP / 0.62;
                     const easeDown = downP * downP;
                     sealScale = 1.88 - 0.96 * easeDown; // 1.88 -> 0.92

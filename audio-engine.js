@@ -933,8 +933,10 @@
     // =========================================================================
     // 6. ĐẠI CẢNH 3D "NỤ HOA ƯỚC NGUYỆN" (wish-bloom.js) — ĐỒNG BỘ KHUNG HÌNH 100% VỚI TRỤC TAU
     // =========================================================================
-    function resetWishBloomCues() {
+    function resetWishBloomCues(preservePreludeStar = false) {
+        const hadPrelude = preservePreludeStar && wishBloomCueState && wishBloomCueState.preludeStar;
         wishBloomCueState = createEmptyWishBloomCueState();
+        if (hadPrelude) wishBloomCueState.preludeStar = true;
     }
 
     // 6.0A. Âm thanh Giọt Nước / Giọt Sương Pha Lê Rơi Xuống Mặt Hồ (Minnaert Bubble Plink)

@@ -1245,7 +1245,7 @@
     function createScene(motionId, stageEl) {
         const id = THEMES[motionId] ? motionId : 'bloom';
         window.CardAudio?.setMotionTheme(id);
-        window.CardAudio?.resetWishBloomCues();
+        window.CardAudio?.resetWishBloomCues(!!preludeEl);
         const th = THEMES[id];
         const S = buildThemeSprites(id);
         const shadeLUT = S.shadeLUT;
@@ -4449,6 +4449,8 @@
     let preludeEl = null;
     function beginPrelude(motionId) {
         window.CardAudio?.setMotionTheme(motionId);
+        window.CardAudio?.resetWishBloomCues(false);
+        window.CardAudio?.playPreludeStarAppear?.();
         const th = THEMES[motionId] || THEMES.bloom;
         endPreludeImmediate();
         const el = document.createElement('div');
