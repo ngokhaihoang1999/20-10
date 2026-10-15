@@ -66,23 +66,17 @@
             preludeStar: false,
             started: false,
             skyTwinkle1: false,
-            skyTwinkle2: false,
             fall: false,
-            fallSpark1: false,
-            fallSpark2: false,
             preImpact: false,
             impact: false,
-            droplet1: false,
-            droplet2: false,
-            droplet3: false,
             bud: false,
-            dewdrop1: false,
-            dewdrop2: false,
             openLayer1: false,
             openLayer2: false,
             openLayer3: false,
+            openLayer4: false,
             heart: false,
             weave: false,
+            crestFlare: false,
             calligraphy1: false,
             calligraphy2: false,
             calligraphy3: false,
@@ -654,58 +648,38 @@
         });
     }
 
-    // 5.5. Tiếng Lụa / Giấy Mỹ Thuật Trượt Mềm (Dual-Formant Physical Friction)
-    function playSilkPaperWhoosh(duration = 0.38, startFreq = 360, endFreq = 920, peakGain = 0.24, pan = 0, delaySec = 0) {
+    // 5.5. Tiếng Lụa / Giấy Mỹ Thuật Trượt Mềm (Warm Lowpass-Tamed Silk & Parchment Friction)
+    function playSilkPaperWhoosh(duration = 0.38, startFreq = 340, endFreq = 860, peakGain = 0.22, pan = 0, delaySec = 0) {
         if (!canPlayAudio() || !pinkNoiseBuffer) return;
         const t0 = ctx.currentTime + Math.max(0.004, delaySec);
 
-        // Lớp 1: Thân giấy/lụa ấm (Low-Mid Formant Body, Q = 1.25 để giữ trọn năng lượng dải trung)
         const src = ctx.createBufferSource();
         src.buffer = pinkNoiseBuffer;
         src.loop = true;
 
-        const filter = ctx.createBiquadFilter();
-        filter.type = 'bandpass';
-        filter.Q.setValueAtTime(1.25, t0);
-        filter.frequency.setValueAtTime(startFreq, t0);
-        filter.frequency.exponentialRampToValueAtTime(endFreq, t0 + duration * 0.62);
-        filter.frequency.exponentialRampToValueAtTime(Math.max(220, startFreq * 0.82), t0 + duration);
+        const bpFilter = ctx.createBiquadFilter();
+        bpFilter.type = 'bandpass';
+        bpFilter.Q.setValueAtTime(1.2, t0);
+        bpFilter.frequency.setValueAtTime(startFreq, t0);
+        bpFilter.frequency.exponentialRampToValueAtTime(endFreq, t0 + duration * 0.60);
+        bpFilter.frequency.exponentialRampToValueAtTime(Math.max(200, startFreq * 0.80), t0 + duration);
+
+        // Bộ lọc thông thấp (Warmth Lowpass) gọt bỏ hoàn toàn dải tần chói gắt trên 2600Hz để tiếng lụa/giấy luôn mượt như nhung
+        const lpFilter = ctx.createBiquadFilter();
+        lpFilter.type = 'lowpass';
+        lpFilter.frequency.setValueAtTime(2400, t0);
 
         const env = ctx.createGain();
         env.gain.setValueAtTime(0.0001, t0);
-        env.gain.linearRampToValueAtTime(peakGain, t0 + duration * 0.26);
+        env.gain.linearRampToValueAtTime(peakGain, t0 + duration * 0.28);
         env.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
 
-        src.connect(filter);
-        filter.connect(env);
-        connectWithPanAndReverb(env, 0.16, pan);
+        src.connect(bpFilter);
+        bpFilter.connect(lpFilter);
+        lpFilter.connect(env);
+        connectWithPanAndReverb(env, 0.22, pan);
 
-        // Lớp 2: Sớ sợi giấy ngọc trai sột soạt sắc nét ở dải cao (Crisp Fiber Sheen 2200Hz -> 3600Hz)
-        if (noiseBuffer) {
-            const crispSrc = ctx.createBufferSource();
-            crispSrc.buffer = noiseBuffer;
-            crispSrc.loop = true;
-
-            const crispFlt = ctx.createBiquadFilter();
-            crispFlt.type = 'bandpass';
-            crispFlt.Q.setValueAtTime(1.6, t0);
-            crispFlt.frequency.setValueAtTime(Math.min(4200, startFreq * 3.2), t0);
-            crispFlt.frequency.exponentialRampToValueAtTime(Math.min(5400, endFreq * 3.0), t0 + duration * 0.58);
-
-            const crispEnv = ctx.createGain();
-            crispEnv.gain.setValueAtTime(0.0001, t0);
-            crispEnv.gain.linearRampToValueAtTime(peakGain * 0.34, t0 + duration * 0.22);
-            crispEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + duration * 0.92);
-
-            crispSrc.connect(crispFlt);
-            crispFlt.connect(crispEnv);
-            connectWithPanAndReverb(crispEnv, 0.10, pan);
-
-            crispSrc.start(t0, Math.random() * 0.5);
-            crispSrc.stop(t0 + duration + 0.03);
-        }
-
-        src.start(t0, Math.random() * 0.5);
+        src.start(t0, Math.random() * 0.6);
         src.stop(t0 + duration + 0.04);
     }
 
@@ -715,175 +689,168 @@
         triggerSubtleHaptic('seal_pop');
         const t0 = ctx.currentTime + 0.005;
 
-        // Lớp 1: Cộng hưởng thân sáp vàng tách giòn (Warm Body Thump 240Hz -> 72Hz rõ trên loa điện thoại)
+        // Lớp 1: Cộng hưởng thân sáp vàng tách giòn (Warm Body Thump 220Hz -> 68Hz)
         const bodyOsc = ctx.createOscillator();
         const bodyEnv = ctx.createGain();
         bodyOsc.type = 'triangle';
-        bodyOsc.frequency.setValueAtTime(240, t0);
-        bodyOsc.frequency.exponentialRampToValueAtTime(72, t0 + 0.072);
+        bodyOsc.frequency.setValueAtTime(220, t0);
+        bodyOsc.frequency.exponentialRampToValueAtTime(68, t0 + 0.075);
         bodyEnv.gain.setValueAtTime(0.0001, t0);
-        bodyEnv.gain.exponentialRampToValueAtTime(0.42, t0 + 0.005);
-        bodyEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.085);
+        bodyEnv.gain.exponentialRampToValueAtTime(0.38, t0 + 0.005);
+        bodyEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.088);
         bodyOsc.connect(bodyEnv);
         bodyEnv.connect(sfxBus);
         bodyOsc.start(t0);
-        bodyOsc.stop(t0 + 0.095);
+        bodyOsc.stop(t0 + 0.098);
 
-        // Lớp 2: Tiếng nứt sáp giòn tan 2 nhịp ("tách-rắc!") ở dải cao (Crisp Double-Snap 2400Hz & 3400Hz)
-        if (noiseBuffer) {
-            [0, 0.018].forEach((offset, idx) => {
-                const snapSrc = ctx.createBufferSource();
-                snapSrc.buffer = noiseBuffer;
-                const snapFlt = ctx.createBiquadFilter();
-                snapFlt.type = 'bandpass';
-                snapFlt.frequency.setValueAtTime(idx === 0 ? 2350 : 3350, t0 + offset);
-                snapFlt.Q.setValueAtTime(1.5, t0 + offset);
-                const snapEnv = ctx.createGain();
-                snapEnv.gain.setValueAtTime(0.0001, t0 + offset);
-                snapEnv.gain.exponentialRampToValueAtTime(idx === 0 ? 0.44 : 0.34, t0 + offset + 0.0025);
-                snapEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + offset + 0.036);
-                snapSrc.connect(snapFlt);
-                snapFlt.connect(snapEnv);
-                connectWithPanAndReverb(snapEnv, 0.16, idx === 0 ? -0.12 : 0.14);
-                snapSrc.start(t0 + offset, Math.random() * 0.4);
-                snapSrc.stop(t0 + offset + 0.045);
-            });
+        // Lớp 2: Tiếng nứt sáp ấm gọn (Warm Wax Snap 1850Hz)
+        if (pinkNoiseBuffer) {
+            const snapSrc = ctx.createBufferSource();
+            snapSrc.buffer = pinkNoiseBuffer;
+            const snapFlt = ctx.createBiquadFilter();
+            snapFlt.type = 'bandpass';
+            snapFlt.frequency.setValueAtTime(1850, t0);
+            snapFlt.Q.setValueAtTime(1.8, t0);
+            const snapEnv = ctx.createGain();
+            snapEnv.gain.setValueAtTime(0.0001, t0);
+            snapEnv.gain.exponentialRampToValueAtTime(0.34, t0 + 0.003);
+            snapEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.042);
+            snapSrc.connect(snapFlt);
+            snapFlt.connect(snapEnv);
+            connectWithPanAndReverb(snapEnv, 0.20, 0);
+            snapSrc.start(t0, Math.random() * 0.4);
+            snapSrc.stop(t0 + 0.05);
         }
 
         // Lớp 3: Chùm kim tuyến 24K bung sáng đồng điệu hợp âm Aadd9
         const sparkleNotes = ['A4', 'Csharp5', 'E5', 'A5'];
         sparkleNotes.forEach((noteName, idx) => {
-            playHarmonicChime(n(noteName), t0 + 0.016 + idx * 0.038, 0.58, 0.11, (idx - 1.5) * 0.22);
+            playHarmonicChime(n(noteName), t0 + 0.016 + idx * 0.042, 0.72, 0.12, (idx - 1.5) * 0.22);
         });
     }
 
-    // 5.6B. Tiếng Con Dấu Sáp Vàng 24K Xé Gió Giáng Xuống Từ Trên Cao (Wax Seal Descent Whoosh)
-    function playWaxSealDescentWhoosh(durationSec = 0.28) {
+    // 5.6B. Tiếng Con Dấu Sáp Vàng 24K Lao Xuống Từ Trên Cao (0.32s dẫn thẳng vào cú đóng dấu)
+    function playWaxSealDescentWhoosh(durationSec = 0.31) {
         if (!canPlayAudio()) return;
         const t0 = ctx.currentTime + 0.004;
-        const dur = Math.max(0.18, Math.min(0.42, durationSec));
+        const dur = Math.max(0.20, Math.min(0.42, durationSec));
 
-        // Lớp 1: Luồng gió nén tăng tốc từ cao xuống thấp (Focused Air Whoosh 2200Hz -> 280Hz, Q = 1.15)
+        // Lớp 1: Luồng gió nặng khí động học của khuôn ấn bằng đồng lao xuống (1450Hz -> 220Hz)
+        // Đường bao tăng tốc bậc hai (ease-in) đạt đỉnh ngay sát khoảnh khắc chạm mặt thư!
         if (pinkNoiseBuffer) {
             const src = ctx.createBufferSource();
             src.buffer = pinkNoiseBuffer;
             src.loop = true;
 
-            const flt = ctx.createBiquadFilter();
-            flt.type = 'bandpass';
-            flt.Q.setValueAtTime(1.15, t0);
-            flt.frequency.setValueAtTime(2200, t0);
-            flt.frequency.exponentialRampToValueAtTime(280, t0 + dur);
+            const bp = ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.Q.setValueAtTime(1.15, t0);
+            bp.frequency.setValueAtTime(1450, t0);
+            bp.frequency.exponentialRampToValueAtTime(220, t0 + dur);
+
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.setValueAtTime(2100, t0);
 
             const env = ctx.createGain();
-            env.gain.setValueAtTime(0.0001, t0);
-            env.gain.exponentialRampToValueAtTime(0.36, t0 + dur * 0.72);
+            env.gain.setValueAtTime(0.002, t0);
+            env.gain.exponentialRampToValueAtTime(0.38, t0 + dur * 0.88);
             env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.025);
 
-            src.connect(flt);
-            flt.connect(env);
-            connectWithPanAndReverb(env, 0.14, 0);
+            src.connect(bp);
+            bp.connect(lp);
+            lp.connect(env);
+            connectWithPanAndReverb(env, 0.16, 0);
             src.start(t0, Math.random() * 0.4);
             src.stop(t0 + dur + 0.04);
         }
 
-        // Lớp 2: Âm rít kim loại khuôn đồng lao xuống (Brass Signet Doppler Sweep 980Hz -> 195Hz)
+        // Lớp 2: Âm ánh kim hội tụ mềm mại (A5 -> A4 sine) tạo cảm giác vật thể bằng vàng ròng đang giáng xuống
         const osc = ctx.createOscillator();
         const env = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(980, t0);
-        osc.frequency.exponentialRampToValueAtTime(195, t0 + dur);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(n('A5'), t0);
+        osc.frequency.exponentialRampToValueAtTime(n('A4'), t0 + dur);
         env.gain.setValueAtTime(0.0001, t0);
-        env.gain.exponentialRampToValueAtTime(0.20, t0 + dur * 0.78);
+        env.gain.linearRampToValueAtTime(0.11, t0 + dur * 0.82);
         env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur + 0.02);
         osc.connect(env);
-        connectWithPanAndReverb(env, 0.18, 0);
+        connectWithPanAndReverb(env, 0.25, 0);
         osc.start(t0);
         osc.stop(t0 + dur + 0.03);
     }
 
-    // 5.7. Tiếng Đóng Ấn Sáp Vàng 24K Uy Lực & Chân Thực (Khi Ấn Sáp Vàng chạm Nắp Thư 3D)
+    // 5.7. Tiếng Đóng Ấn Sáp Vàng 24K Uy Lực, Đầm Chắc & Sang Trọng (Cao trào kết thúc chuỗi đóng thư)
     function playWaxSealStampImpact() {
         if (!canPlayAudio()) return;
         triggerSubtleHaptic('stamp');
         const t0 = ctx.currentTime + 0.004;
 
-        // Khôi phục dần nhạc nền sau khi đóng ấn hoàn tất
-        setBgmDuck(0.28, 1.35);
+        // Giữ nhạc nền dịu thêm 1.2s để tiếng ngân của ấn vàng 24K tỏa sáng trọn vẹn rồi mới nâng BGM lên lại
+        setBgmDuck(0.32, 1.25);
 
-        // Lớp 1A: Lực đầm vật lý của khuôn đồng ép xuống bàn/phong bì (Heavy Low-Mid Punch 210Hz -> 52Hz)
+        // Lớp 1A: Lực đầm vật lý trầm ấm của khuôn đồng ép chặt xuống phong bì (Heavy Brass Thud 195Hz -> 45Hz)
         const subOsc = ctx.createOscillator();
         const subEnv = ctx.createGain();
         subOsc.type = 'triangle';
-        subOsc.frequency.setValueAtTime(210, t0);
-        subOsc.frequency.exponentialRampToValueAtTime(52, t0 + 0.15);
+        subOsc.frequency.setValueAtTime(195, t0);
+        subOsc.frequency.exponentialRampToValueAtTime(45, t0 + 0.16);
         subEnv.gain.setValueAtTime(0.0001, t0);
-        subEnv.gain.exponentialRampToValueAtTime(0.56, t0 + 0.005);
-        subEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+        subEnv.gain.exponentialRampToValueAtTime(0.54, t0 + 0.006);
+        subEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.19);
         subOsc.connect(subEnv);
         subEnv.connect(sfxBus);
         subOsc.start(t0);
-        subOsc.stop(t0 + 0.20);
+        subOsc.stop(t0 + 0.21);
 
-        // Lớp 1B: Tiếng "CỘP!" đanh chắc của khuôn ấn chạm giấy bìa (Wood/Parchment Knock 520Hz -> 135Hz)
-        // Giúp loa điện thoại (vốn cắt tần dưới 150Hz) vẫn nghe rõ lực đóng dấu cực kỳ uy lực!
+        // Lớp 1B: Tiếng "CỘP!" ấm chắc của khuôn ấn chạm giấy bìa mỹ thuật (Warm Parchment Knock 390Hz -> 108Hz)
         const knockOsc = ctx.createOscillator();
         const knockEnv = ctx.createGain();
         knockOsc.type = 'sine';
-        knockOsc.frequency.setValueAtTime(520, t0);
-        knockOsc.frequency.exponentialRampToValueAtTime(135, t0 + 0.055);
+        knockOsc.frequency.setValueAtTime(390, t0);
+        knockOsc.frequency.exponentialRampToValueAtTime(108, t0 + 0.065);
         knockEnv.gain.setValueAtTime(0.0001, t0);
-        knockEnv.gain.exponentialRampToValueAtTime(0.46, t0 + 0.003);
-        knockEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.068);
+        knockEnv.gain.exponentialRampToValueAtTime(0.42, t0 + 0.004);
+        knockEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.078);
         knockOsc.connect(knockEnv);
         knockEnv.connect(sfxBus);
         knockOsc.start(t0);
-        knockOsc.stop(t0 + 0.08);
+        knockOsc.stop(t0 + 0.09);
 
-        // Lớp 2A: Tiếng mặt dấu kim loại chạm giấy (Crisp Surface Smack 2150Hz, Q = 1.3)
-        if (noiseBuffer) {
-            const impSrc = ctx.createBufferSource();
-            impSrc.buffer = noiseBuffer;
-            const impFlt = ctx.createBiquadFilter();
-            impFlt.type = 'bandpass';
-            impFlt.frequency.setValueAtTime(2150, t0);
-            impFlt.Q.setValueAtTime(1.3, t0);
-            const impEnv = ctx.createGain();
-            impEnv.gain.setValueAtTime(0.0001, t0);
-            impEnv.gain.exponentialRampToValueAtTime(0.48, t0 + 0.003);
-            impEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.045);
-            impSrc.connect(impFlt);
-            impFlt.connect(impEnv);
-            connectWithPanAndReverb(impEnv, 0.14, 0);
-            impSrc.start(t0, Math.random() * 0.4);
-            impSrc.stop(t0 + 0.055);
-        }
-
-        // Lớp 2B: Tiếng sáp vàng nóng chảy phì nhẹ & tràn viền quanh khuôn đồng (Molten Wax Squish & Sizzle)
+        // Lớp 2: Tiếng sáp vàng nóng ấm dàn đều dưới mặt khuôn đồng (Warm Molten Wax Press 960Hz -> 310Hz)
         if (pinkNoiseBuffer) {
             const waxSrc = ctx.createBufferSource();
             waxSrc.buffer = pinkNoiseBuffer;
             waxSrc.loop = true;
-            const waxFlt = ctx.createBiquadFilter();
-            waxFlt.type = 'bandpass';
-            waxFlt.Q.setValueAtTime(1.4, t0 + 0.012);
-            waxFlt.frequency.setValueAtTime(1450, t0 + 0.012);
-            waxFlt.frequency.exponentialRampToValueAtTime(420, t0 + 0.165);
+
+            const waxBp = ctx.createBiquadFilter();
+            waxBp.type = 'bandpass';
+            waxBp.Q.setValueAtTime(1.3, t0);
+            waxBp.frequency.setValueAtTime(960, t0);
+            waxBp.frequency.exponentialRampToValueAtTime(310, t0 + 0.16);
+
+            const waxLp = ctx.createBiquadFilter();
+            waxLp.type = 'lowpass';
+            waxLp.frequency.setValueAtTime(1750, t0);
+
             const waxEnv = ctx.createGain();
-            waxEnv.gain.setValueAtTime(0.0001, t0 + 0.012);
-            waxEnv.gain.linearRampToValueAtTime(0.36, t0 + 0.035);
+            waxEnv.gain.setValueAtTime(0.0001, t0);
+            waxEnv.gain.linearRampToValueAtTime(0.36, t0 + 0.015);
             waxEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.175);
-            waxSrc.connect(waxFlt);
-            waxFlt.connect(waxEnv);
-            connectWithPanAndReverb(waxEnv, 0.16, 0);
-            waxSrc.start(t0 + 0.012, Math.random() * 0.4);
+
+            waxSrc.connect(waxBp);
+            waxBp.connect(waxLp);
+            waxLp.connect(waxEnv);
+            connectWithPanAndReverb(waxEnv, 0.18, 0);
+            waxSrc.start(t0, Math.random() * 0.4);
             waxSrc.stop(t0 + 0.19);
         }
 
-        // Lớp 3: Tiếng ngân kim loại hoàng gia của khuôn ấn vàng 24K (Brass Signet Ring: A4 + E5 + C#6)
-        playHarmonicChime(n('A4'), t0 + 0.006, 0.92, 0.20, -0.14);
-        playHarmonicChime(n('E5'), t0 + 0.022, 0.98, 0.18, 0.14);
-        playHarmonicChime(n('A5'), t0 + 0.045, 1.05, 0.16, 0.0);
+        // Lớp 3: Hợp âm Chuông Vàng & Đàn Harp Hoàng Gia ngân vang khi 18 hạt bụi vàng bung tỏa quanh con dấu (Aadd9 Resolution)
+        playHarpPluck(n('A4'), t0 + 0.008, 1.55, 0.18, -0.22);
+        playHarmonicChime(n('Csharp5'), t0 + 0.025, 1.35, 0.16, 0.22);
+        playHarmonicChime(n('E5'), t0 + 0.052, 1.45, 0.16, -0.12);
+        playHarmonicChime(n('A5'), t0 + 0.085, 1.65, 0.18, 0.0);
     }
 
     // 5.8. Tiếng Mở Phong Bì Vật Lý Bước 1 (Full Choreography)
@@ -969,7 +936,8 @@
     }
 
     // =========================================================================
-    // 6. ĐẠI CẢNH 3D "NỤ HOA ƯỚC NGUYỆN" (wish-bloom.js) — PHYSICAL FOLEY & FRAME-LOCKED TAU
+    // 6. ĐẠI CẢNH 3D "NỤ HOA ƯỚC NGUYỆN" (wish-bloom.js) — 7 DIỄN BIẾN CHÍNH ĐIỆN ẢNH
+    //    (Đã căn chỉnh 100% theo thời gian thực dt_real = d_tau / speedAt(tau) của wish-bloom.js)
     // =========================================================================
     function resetWishBloomCues(preservePreludeStar = false) {
         const hadPrelude = preservePreludeStar && wishBloomCueState && wishBloomCueState.preludeStar;
@@ -977,347 +945,217 @@
         if (hadPrelude) wishBloomCueState.preludeStar = true;
     }
 
-    // 6.0A. Tiếng Giọt Nước Thật Rơi Xuống Mặt Hồ (2-Stage Meniscus Pitch-Dip + Bubble Pop: "Plip-bloop!")
-    function playWaterDropletPlink(baseFreq = 520, endFreq = 1380, duration = 0.095, peakGain = 0.28, pan = 0, delaySec = 0) {
+    // 6.0A. Tiếng Cánh Hoa Nhung Bung Mở Đa Tầng (Velvet Botanical Unfurl + Concert Harp Bloom)
+    function playVelvetPetalBloomLayer(layerIdx = 0, pan = 0) {
         if (!canPlayAudio()) return;
-        const t0 = ctx.currentTime + Math.max(0.003, delaySec);
-
-        // 1. Bọt khí Minnaert thật: Khi giọt nước chạm mặt hồ, khoang khí lõm xuống (tần số hạ nhẹ 0->18ms)
-        // rồi khép cổ phóng bọt khí lên (tần số vọt nhanh từ baseFreq -> endFreq tạo tiếng "plip!" ướt át đặc trưng)
-        const osc = ctx.createOscillator();
-        const env = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(baseFreq * 1.35, t0);
-        osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.82, t0 + duration * 0.22);
-        osc.frequency.exponentialRampToValueAtTime(endFreq, t0 + duration * 0.88);
-
-        env.gain.setValueAtTime(0.0001, t0);
-        env.gain.exponentialRampToValueAtTime(peakGain, t0 + 0.005);
-        env.gain.exponentialRampToValueAtTime(peakGain * 0.65, t0 + duration * 0.35);
-        env.gain.exponentialRampToValueAtTime(0.0001, t0 + duration);
-
-        osc.connect(env);
-        connectWithPanAndReverb(env, 0.28, pan);
-        osc.start(t0);
-        osc.stop(t0 + duration + 0.02);
-
-        // 2. Tiếng màng nước tách nhẹ trên bề mặt (Wet Surface Transient 2800Hz)
-        if (noiseBuffer) {
-            const popSrc = ctx.createBufferSource();
-            popSrc.buffer = noiseBuffer;
-            const popFlt = ctx.createBiquadFilter();
-            popFlt.type = 'bandpass';
-            popFlt.frequency.setValueAtTime(2800, t0);
-            popFlt.Q.setValueAtTime(1.8, t0);
-            const popEnv = ctx.createGain();
-            popEnv.gain.setValueAtTime(0.0001, t0);
-            popEnv.gain.exponentialRampToValueAtTime(peakGain * 0.45, t0 + 0.002);
-            popEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.018);
-            popSrc.connect(popFlt);
-            popFlt.connect(popEnv);
-            connectWithPanAndReverb(popEnv, 0.15, pan);
-            popSrc.start(t0, Math.random() * 0.5);
-            popSrc.stop(t0 + 0.024);
-        }
-    }
-
-    // 6.0B. Tiếng Đập Cánh Bướm Lụa Rõ Nét Trên Mặt Hồ (4 nhịp vỗ cánh "phập-phập-phập-phập")
-    function playButterflyWingFlutter(pan = 0, delaySec = 0) {
-        if (!canPlayAudio() || !pinkNoiseBuffer) return;
-        for (let w = 0; w < 4; w++) {
-            const tFlap = ctx.currentTime + Math.max(0.004, delaySec + w * 0.056);
-            const flapPan = Math.max(-0.85, Math.min(0.85, pan + (w - 1.5) * 0.14));
-
-            // Tiếng cánh bướm quạt không khí (Low-Mid Wing Beat + Soft Silk Rustle)
-            const src = ctx.createBufferSource();
-            src.buffer = pinkNoiseBuffer;
-            const flt = ctx.createBiquadFilter();
-            flt.type = 'bandpass';
-            flt.Q.setValueAtTime(1.4, tFlap);
-            flt.frequency.setValueAtTime(480 + w * 90, tFlap);
-            flt.frequency.exponentialRampToValueAtTime(1350 + w * 140, tFlap + 0.042);
-
-            const env = ctx.createGain();
-            env.gain.setValueAtTime(0.0001, tFlap);
-            env.gain.linearRampToValueAtTime(0.22 - w * 0.025, tFlap + 0.012);
-            env.gain.exponentialRampToValueAtTime(0.0001, tFlap + 0.048);
-
-            src.connect(flt);
-            flt.connect(env);
-            connectWithPanAndReverb(env, 0.14, flapPan);
-            src.start(tFlap, Math.random() * 0.5);
-            src.stop(tFlap + 0.055);
-        }
-    }
-
-    // 6.0C. Tiếng Bụi Sao Lấp Lánh Nổ Nhẹ Dọc Đuôi Sao Băng (Crisp Stardust Sparkle Crackle)
-    function playStardustSparkCrackle(freq = 2400, pan = 0) {
-        if (!canPlayAudio()) return;
-        const t0 = ctx.currentTime + 0.003;
-
-        // 2 hạt tia lửa sao nổ lách tách cực ngắn ("tách-tinh!")
-        if (noiseBuffer) {
-            for (let i = 0; i < 2; i++) {
-                const ts = t0 + i * 0.026;
-                const src = ctx.createBufferSource();
-                src.buffer = noiseBuffer;
-                const flt = ctx.createBiquadFilter();
-                flt.type = 'bandpass';
-                flt.Q.setValueAtTime(2.2, ts);
-                flt.frequency.setValueAtTime(3400 + i * 900, ts);
-                const env = ctx.createGain();
-                env.gain.setValueAtTime(0.0001, ts);
-                env.gain.exponentialRampToValueAtTime(0.24, ts + 0.002);
-                env.gain.exponentialRampToValueAtTime(0.0001, ts + 0.022);
-                src.connect(flt);
-                flt.connect(env);
-                connectWithPanAndReverb(env, 0.18, pan + (i === 0 ? -0.08 : 0.08));
-                src.start(ts, Math.random() * 0.6);
-                src.stop(ts + 0.028);
-            }
-        }
-
-        // Tiếng ngân pha lê siêu ngắn ở tần số cao
-        const osc = ctx.createOscillator();
-        const env = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, t0);
-        osc.frequency.exponentialRampToValueAtTime(freq * 1.45, t0 + 0.065);
-        env.gain.setValueAtTime(0.0001, t0);
-        env.gain.exponentialRampToValueAtTime(0.11, t0 + 0.004);
-        env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
-        osc.connect(env);
-        connectWithPanAndReverb(env, 0.24, pan);
-        osc.start(t0);
-        osc.stop(t0 + 0.10);
-    }
-
-    // 6.0D. Tiếng Cánh Hoa Nhung Bung Nở Đa Tầng (Organic Velvet Petal Unfurl Swell)
-    function playVelvetPetalUnfurl(layerIdx = 0, pan = 0) {
-        if (!canPlayAudio() || !pinkNoiseBuffer) return;
         const t0 = ctx.currentTime + 0.004;
 
-        // Cánh hoa nhung tách mở có 2 nhịp ma sát mềm ("phựt-xòe" tự nhiên như cánh sen/cánh hồng bung nở)
-        const baseF = 340 + layerIdx * 110;
-        const peakF = 980 + layerIdx * 180;
-
-        const src = ctx.createBufferSource();
-        src.buffer = pinkNoiseBuffer;
-        src.loop = true;
-
-        const flt = ctx.createBiquadFilter();
-        flt.type = 'bandpass';
-        flt.Q.setValueAtTime(1.3, t0);
-        flt.frequency.setValueAtTime(baseF, t0);
-        flt.frequency.exponentialRampToValueAtTime(peakF, t0 + 0.09);
-        flt.frequency.exponentialRampToValueAtTime(baseF * 1.25, t0 + 0.16);
-        flt.frequency.exponentialRampToValueAtTime(peakF * 1.15, t0 + 0.28);
-
-        const env = ctx.createGain();
-        env.gain.setValueAtTime(0.0001, t0);
-        env.gain.linearRampToValueAtTime(0.28, t0 + 0.045);
-        env.gain.linearRampToValueAtTime(0.14, t0 + 0.13);
-        env.gain.linearRampToValueAtTime(0.24, t0 + 0.21);
-        env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.34);
-
-        src.connect(flt);
-        flt.connect(env);
-        connectWithPanAndReverb(env, 0.18, pan);
-        src.start(t0, Math.random() * 0.4);
-        src.stop(t0 + 0.36);
-
-        // Nốt đàn Harp ấm áp đi kèm đúng tầng cánh hoa (chỉ 1 nốt rõ ràng cho mỗi tầng cánh để không bị rối)
-        const layerNotes = ['A4', 'Csharp5', 'E5'];
-        playHarpPluck(n(layerNotes[layerIdx % layerNotes.length]), t0 + 0.015, 0.95, 0.15, pan);
-    }
-
-    // 6.0E. Tiếng Ngòi Bút Máy Vàng Khắc Thư Pháp ASMR Lên Giấy Ngọc Trai (Fountain-Pen Nib Scratch)
-    function playGoldenNibStroke(lineIdx = 0) {
-        if (!canPlayAudio()) return;
-        const t0 = ctx.currentTime + 0.003;
-        const pan = -0.26 + lineIdx * 0.17; // Quét stereo từ trái sang phải theo từng dòng chữ
-
-        // 3 nhịp nét bút thanh-đậm liên tiếp ("sột-soạt-sẹt!") mô phỏng ngòi bút kim loại lướt trên mặt giấy nhám
-        const subStrokes = [
-            { offset: 0.000, dur: 0.032, f1: 2400, f2: 3500, gain: 0.30 },
-            { offset: 0.036, dur: 0.026, f1: 3100, f2: 2200, gain: 0.22 },
-            { offset: 0.066, dur: 0.038, f1: 2600, f2: 3900, gain: 0.32 }
-        ];
-
-        subStrokes.forEach((st) => {
-            const ts = t0 + st.offset;
-            const buf = noiseBuffer || pinkNoiseBuffer;
-            if (!buf) return;
-
+        // 1. Tiếng cánh hoa nhung tách mở mượt mà (Warm Velvet Unfurl 280Hz -> 820Hz, có lowpass 2100Hz êm ái)
+        if (pinkNoiseBuffer) {
             const src = ctx.createBufferSource();
-            src.buffer = buf;
+            src.buffer = pinkNoiseBuffer;
             src.loop = true;
 
-            const flt = ctx.createBiquadFilter();
-            flt.type = 'bandpass';
-            flt.Q.setValueAtTime(1.8, ts);
-            flt.frequency.setValueAtTime(st.f1 + lineIdx * 120, ts);
-            flt.frequency.exponentialRampToValueAtTime(st.f2 + lineIdx * 120, ts + st.dur);
+            const bp = ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.Q.setValueAtTime(1.15, t0);
+            const fStart = 260 + layerIdx * 75;
+            const fPeak = 740 + layerIdx * 130;
+            bp.frequency.setValueAtTime(fStart, t0);
+            bp.frequency.exponentialRampToValueAtTime(fPeak, t0 + 0.22);
+            bp.frequency.exponentialRampToValueAtTime(fStart * 1.15, t0 + 0.42);
+
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.setValueAtTime(2100, t0);
 
             const env = ctx.createGain();
-            env.gain.setValueAtTime(0.0001, ts);
-            env.gain.linearRampToValueAtTime(st.gain, ts + 0.006);
-            env.gain.exponentialRampToValueAtTime(0.0001, ts + st.dur);
+            env.gain.setValueAtTime(0.0001, t0);
+            env.gain.linearRampToValueAtTime(0.24, t0 + 0.08);
+            env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.44);
 
-            src.connect(flt);
-            flt.connect(env);
-            connectWithPanAndReverb(env, 0.10, pan);
-            src.start(ts, Math.random() * 0.5);
-            src.stop(ts + st.dur + 0.01);
-        });
+            src.connect(bp);
+            bp.connect(lp);
+            lp.connect(env);
+            connectWithPanAndReverb(env, 0.24, pan);
+            src.start(t0, Math.random() * 0.5);
+            src.stop(t0 + 0.46);
+        }
 
-        // Cộng hưởng thân ngòi bút kim loại chạm giấy (Metallic Nib Tick 1450Hz -> 920Hz)
-        const nibOsc = ctx.createOscillator();
-        const nibEnv = ctx.createGain();
-        nibOsc.type = 'triangle';
-        nibOsc.frequency.setValueAtTime(1380 + lineIdx * 110, t0);
-        nibOsc.frequency.exponentialRampToValueAtTime(860 + lineIdx * 80, t0 + 0.035);
-        nibEnv.gain.setValueAtTime(0.0001, t0);
-        nibEnv.gain.exponentialRampToValueAtTime(0.12, t0 + 0.003);
-        nibEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.042);
-        nibOsc.connect(nibEnv);
-        connectWithPanAndReverb(nibEnv, 0.12, pan);
-        nibOsc.start(t0);
-        nibOsc.stop(t0 + 0.05);
+        // 2. Cặp nốt Đàn Harp ấm áp nở dần từ trầm lên cao theo đúng 4 đợt bung cánh (tau = 2.04, 2.20, 2.36, 2.52)
+        const bloomChords = [
+            ['Fsharp4', 'A4'],
+            ['A4', 'Csharp5'],
+            ['B4', 'E5'],
+            ['D5', 'Fsharp5']
+        ];
+        const pair = bloomChords[layerIdx % bloomChords.length];
+        playHarpPluck(n(pair[0]), t0 + 0.005, 1.55, 0.15, pan * 0.8);
+        playHarpPluck(n(pair[1]), t0 + 0.065, 1.65, 0.14, pan);
     }
 
-    // 6.0F. Tiếng Gấp Từng Cánh Hoa Origami 3D Thành Vạt Phong Bì (Crisp Cardstock Fold & Crease)
+    // 6.0B. Tiếng Nét Bút Lông Vũ Ánh Kim Lướt Êm Trên Giấy Lụa (Velvet Quill Glide — Không rè, không chói)
+    function playGoldenQuillGlide(lineIdx = 0) {
+        if (!canPlayAudio()) return;
+        const t0 = ctx.currentTime + 0.004;
+        const pan = -0.24 + lineIdx * 0.16;
+
+        // Tiếng ngòi bút lướt mượt trên giấy ngọc trai (chỉ dùng dải trung ấm 520Hz -> 1080Hz + lowpass 1800Hz)
+        if (pinkNoiseBuffer) {
+            const src = ctx.createBufferSource();
+            src.buffer = pinkNoiseBuffer;
+            src.loop = true;
+
+            const bp = ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.Q.setValueAtTime(1.4, t0);
+            bp.frequency.setValueAtTime(520 + lineIdx * 65, t0);
+            bp.frequency.exponentialRampToValueAtTime(1080 + lineIdx * 85, t0 + 0.18);
+            bp.frequency.exponentialRampToValueAtTime(640, t0 + 0.30);
+
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.setValueAtTime(1850, t0);
+
+            const env = ctx.createGain();
+            env.gain.setValueAtTime(0.0001, t0);
+            env.gain.linearRampToValueAtTime(0.18, t0 + 0.045);
+            env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.32);
+
+            src.connect(bp);
+            bp.connect(lp);
+            lp.connect(env);
+            connectWithPanAndReverb(env, 0.20, pan);
+            src.start(t0, Math.random() * 0.5);
+            src.stop(t0 + 0.34);
+        }
+
+        // Giai điệu Chuông Pha Lê khắc chữ vàng (C#5 -> E5 -> F#5 -> A5)
+        const inkNotes = ['Csharp5', 'E5', 'Fsharp5', 'A5'];
+        playHarmonicChime(n(inkNotes[lineIdx % inkNotes.length]), t0 + 0.012, 0.85, 0.12, pan);
+    }
+
+    // 6.0C. Tiếng Gấp Vạt Phong Bì Origami 3D Hai Giai Đoạn (Khớp 100% với FOLD_DURS = 0.74 tau = 1.15s thực tế!)
+    //   - Pha 1 (0.00s -> 0.48s): Cánh hoa nhung vươn lên và lật qua không trung (foldRaw = 0.0 -> 0.42)
+    //   - Pha 2 (0.46s -> 0.78s): Vạt giấy bìa khép xuống ôm sát vào Lõi Thư & vào nếp (foldRaw = 0.42 -> 0.85)
     function playOrigamiFlapFold(slotIdx = 0, pan = 0) {
         if (!canPlayAudio()) return;
         const t0 = ctx.currentTime + 0.004;
         triggerSubtleHaptic('light');
 
-        // 1. Tiếng vạt giấy bìa mỹ thuật uốn cong qua không khí (0 -> 140ms)
-        const startF = 420 + slotIdx * 65;
-        const endF = 1280 + slotIdx * 110;
-        playSilkPaperWhoosh(0.24, startF, endF, 0.34, pan, 0);
+        // PHA 1 (0.00s -> 0.48s): Tiếng cánh hoa lụa uốn cong và quạt qua không khí khi bắt đầu dựng bản lề
+        const startF = 300 + slotIdx * 45;
+        const peakF = 820 + slotIdx * 75;
+        playSilkPaperWhoosh(0.48, startF, peakF, 0.24, pan, 0);
 
-        // 2. Tiếng miết gáy giấy vào nếp sắc lẹm ("xoẹt-cụp!" ở 135ms khi cánh hoa khép vào cạnh thiệp)
-        const tCrease = t0 + 0.135;
-        if (noiseBuffer) {
+        // Nốt Harp mở đầu nâng cánh hoa lên (D4 -> F#4 -> A4 -> C#5)
+        const liftNotes = ['D4', 'Fsharp4', 'A4', 'Csharp5'];
+        playHarpPluck(n(liftNotes[slotIdx % liftNotes.length]), t0 + 0.02, 1.25, 0.14, pan);
+
+        // PHA 2 (+0.45s thực tế = đúng lúc vạt thư gập qua góc 90° và ép phẳng xuống mặt thiệp!):
+        // Tiếng miết nếp giấy bìa ấm chắc + lực ôm nhẹ vào thân thiệp
+        const tCrease = t0 + 0.45;
+        if (pinkNoiseBuffer) {
             const crSrc = ctx.createBufferSource();
-            crSrc.buffer = noiseBuffer;
-            const crFlt = ctx.createBiquadFilter();
-            crFlt.type = 'bandpass';
-            crFlt.Q.setValueAtTime(1.5, tCrease);
-            crFlt.frequency.setValueAtTime(2100 + slotIdx * 180, tCrease);
-            crFlt.frequency.exponentialRampToValueAtTime(920, tCrease + 0.075);
+            crSrc.buffer = pinkNoiseBuffer;
+            crSrc.loop = true;
+
+            const crBp = ctx.createBiquadFilter();
+            crBp.type = 'bandpass';
+            crBp.Q.setValueAtTime(1.3, tCrease);
+            crBp.frequency.setValueAtTime(980 + slotIdx * 80, tCrease);
+            crBp.frequency.exponentialRampToValueAtTime(360, tCrease + 0.24);
+
+            const crLp = ctx.createBiquadFilter();
+            crLp.type = 'lowpass';
+            crLp.frequency.setValueAtTime(1950, tCrease);
 
             const crEnv = ctx.createGain();
             crEnv.gain.setValueAtTime(0.0001, tCrease);
-            crEnv.gain.linearRampToValueAtTime(0.36, tCrease + 0.008);
-            crEnv.gain.exponentialRampToValueAtTime(0.0001, tCrease + 0.085);
+            crEnv.gain.linearRampToValueAtTime(0.28, tCrease + 0.035);
+            crEnv.gain.exponentialRampToValueAtTime(0.0001, tCrease + 0.26);
 
-            crSrc.connect(crFlt);
-            crFlt.connect(crEnv);
-            connectWithPanAndReverb(crEnv, 0.12, pan * 0.7);
-            crSrc.start(tCrease, Math.random() * 0.4);
-            crSrc.stop(tCrease + 0.095);
+            crSrc.connect(crBp);
+            crBp.connect(crLp);
+            crLp.connect(crEnv);
+            connectWithPanAndReverb(crEnv, 0.16, pan * 0.65);
+            crSrc.start(tCrease, Math.random() * 0.5);
+            crSrc.stop(tCrease + 0.28);
         }
 
-        // Lực đập nhẹ của vạt giấy khi ôm sát vào thân thiệp (Paper Flap Settle Thump 260Hz -> 95Hz)
+        // Tiếng vạt giấy bìa khép êm xuống mặt thiệp (Warm Cardstock Settle Thud 210Hz -> 72Hz tại +0.46s)
         const thumpOsc = ctx.createOscillator();
         const thumpEnv = ctx.createGain();
         thumpOsc.type = 'triangle';
-        thumpOsc.frequency.setValueAtTime(260 + slotIdx * 20, tCrease);
-        thumpOsc.frequency.exponentialRampToValueAtTime(95, tCrease + 0.055);
-        thumpEnv.gain.setValueAtTime(0.0001, tCrease);
-        thumpEnv.gain.exponentialRampToValueAtTime(0.26, tCrease + 0.004);
-        thumpEnv.gain.exponentialRampToValueAtTime(0.0001, tCrease + 0.065);
+        thumpOsc.frequency.setValueAtTime(210 + slotIdx * 15, tCrease + 0.01);
+        thumpOsc.frequency.exponentialRampToValueAtTime(72, tCrease + 0.095);
+        thumpEnv.gain.setValueAtTime(0.0001, tCrease + 0.01);
+        thumpEnv.gain.exponentialRampToValueAtTime(0.26, tCrease + 0.016);
+        thumpEnv.gain.exponentialRampToValueAtTime(0.0001, tCrease + 0.11);
         thumpOsc.connect(thumpEnv);
-        connectWithPanAndReverb(thumpEnv, 0.10, pan * 0.6);
-        thumpOsc.start(tCrease);
-        thumpOsc.stop(tCrease + 0.075);
+        connectWithPanAndReverb(thumpEnv, 0.12, pan * 0.5);
+        thumpOsc.start(tCrease + 0.01);
+        thumpOsc.stop(tCrease + 0.12);
 
-        // 3. Điểm 1 nốt Harp gọn gàng nâng dần theo 4 vạt (Trái A4 -> Phải C#5 -> Đáy E5 -> Nắp A5)
-        const foldNotes = ['A4', 'Csharp5', 'E5', 'A5'];
-        playHarpPluck(n(foldNotes[slotIdx % foldNotes.length]), t0 + 0.02, 0.72, 0.14, pan);
+        // Nốt Chuông Pha Lê điểm nhẹ đúng khoảnh khắc vạt thư vừa khép vào nếp (+0.46s)
+        const settleNotes = ['A4', 'Csharp5', 'E5', 'A5'];
+        playHarmonicChime(n(settleNotes[slotIdx % settleNotes.length]), tCrease + 0.015, 0.85, 0.13, pan * 0.6);
     }
 
-    // 6.0G. Tiếng Khóa Khép Kín 4 Vạt Phong Bì & Nhún Đài Hoa (tau = 6.02s)
+    // 6.0D. Tiếng Khóa Khép Kín 4 Vạt Phong Bì & Nhún Xuống Đài Hoa (tau = 6.02s = dropSettle & lockDip)
     function playOrigamiEnvelopeLockBurst() {
         if (!canPlayAudio()) return;
         const t0 = ctx.currentTime + 0.004;
         triggerSubtleHaptic('seal_pop');
 
-        // 1. Tiếng khóa khít đỉnh chữ V & phong bì nhún nhẹ lên đài hoa (Crisp Latch Snap + Bounce 240Hz -> 68Hz)
+        // 1. Lực nhún đàn hồi khi phong bì vừa hoàn thiện đè nhẹ xuống đài hoa (dropSettle bounce 215Hz -> 56Hz)
         const lockOsc = ctx.createOscillator();
         const lockEnv = ctx.createGain();
         lockOsc.type = 'triangle';
-        lockOsc.frequency.setValueAtTime(240, t0);
-        lockOsc.frequency.exponentialRampToValueAtTime(68, t0 + 0.105);
+        lockOsc.frequency.setValueAtTime(215, t0);
+        lockOsc.frequency.exponentialRampToValueAtTime(56, t0 + 0.12);
         lockEnv.gain.setValueAtTime(0.0001, t0);
-        lockEnv.gain.exponentialRampToValueAtTime(0.42, t0 + 0.005);
-        lockEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12);
+        lockEnv.gain.exponentialRampToValueAtTime(0.42, t0 + 0.006);
+        lockEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
         lockOsc.connect(lockEnv);
         lockEnv.connect(sfxBus);
         lockOsc.start(t0);
-        lockOsc.stop(t0 + 0.135);
+        lockOsc.stop(t0 + 0.155);
 
-        // Tiếng mép giấy bìa ăn khớp giòn tan ("tách-khít!")
-        if (noiseBuffer) {
-            const snapSrc = ctx.createBufferSource();
-            snapSrc.buffer = noiseBuffer;
-            const snapFlt = ctx.createBiquadFilter();
-            snapFlt.type = 'bandpass';
-            snapFlt.Q.setValueAtTime(1.6, t0);
-            snapFlt.frequency.setValueAtTime(2450, t0);
-            const snapEnv = ctx.createGain();
-            snapEnv.gain.setValueAtTime(0.0001, t0);
-            snapEnv.gain.exponentialRampToValueAtTime(0.38, t0 + 0.003);
-            snapEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.042);
-            snapSrc.connect(snapFlt);
-            snapFlt.connect(snapEnv);
-            connectWithPanAndReverb(snapEnv, 0.14, 0);
-            snapSrc.start(t0, Math.random() * 0.5);
-            snapSrc.stop(t0 + 0.05);
-        }
+        // 2. Tiếng mép giấy bìa khóa khít êm ái (Warm Cardstock Latch)
+        playSilkPaperWhoosh(0.24, 920, 380, 0.26, 0, 0);
 
-        // 2. Hợp âm 3 nốt gọn sáng báo hiệu phong bì hoàn chỉnh (A4 - E5 - A5)
-        playHarmonicChime(n('A4'), t0 + 0.012, 0.78, 0.15, -0.22);
-        playHarmonicChime(n('E5'), t0 + 0.045, 0.85, 0.15, 0.22);
-        playHarmonicChime(n('A5'), t0 + 0.082, 0.95, 0.16, 0.0);
+        // 3. Hợp âm Đàn Harp & Chuông Vàng tỏa sáng khi 24 hạt phấn vàng bung ra quanh mép phong bì
+        const lockChord = ['D4', 'A4', 'Csharp5', 'E5', 'A5'];
+        lockChord.forEach((noteName, idx) => {
+            const pan = ((idx / (lockChord.length - 1)) - 0.5) * 0.65;
+            if (idx < 2) {
+                playHarpPluck(n(noteName), t0 + 0.01 + idx * 0.04, 1.45, 0.15, pan);
+            } else {
+                playHarmonicChime(n(noteName), t0 + 0.015 + idx * 0.042, 1.15, 0.14, pan);
+            }
+        });
     }
 
-    // 6.1. Tiếng Tinh Tú Bừng Sáng Ngay Khoảnh Khắc Bấm Mở Đầu (beginPrelude / tau = 0.01s)
+    // 6.1. DIỄN BIẾN 1: VÌ TINH TÚ THỨC TỈNH TRÊN BẦU TRỜI ĐÊM (beginPrelude / tau = 0.01s -> 0.68s)
     function playPreludeStarAppear() {
         if (!canPlayAudio()) return;
         if (wishBloomCueState.preludeStar) return;
         wishBloomCueState.preludeStar = true;
         const t0 = ctx.currentTime + 0.004;
 
-        // Hạ nhạc nền xuống ngưỡng 20% trong suốt 8.5s cutscene để toàn bộ Foley & SFX nổi bật rõ nét 100%
-        setBgmDuck(0.20, 8.6);
+        // Hạ nhạc nền xuống ngưỡng 22% xuyên suốt cutscene để 7 diễn biến chính nổi bật trong trẻo
+        setBgmDuck(0.22, 8.8);
         triggerSubtleHaptic('light');
 
-        // 1. Tia sáng tinh tú lóe lên giữa bầu trời đêm (Crystal Ignition Shimmer Sweep 1400Hz -> 4800Hz)
-        if (noiseBuffer) {
-            const ignSrc = ctx.createBufferSource();
-            ignSrc.buffer = noiseBuffer;
-            const ignFlt = ctx.createBiquadFilter();
-            ignFlt.type = 'bandpass';
-            ignFlt.Q.setValueAtTime(1.8, t0);
-            ignFlt.frequency.setValueAtTime(1400, t0);
-            ignFlt.frequency.exponentialRampToValueAtTime(4800, t0 + 0.24);
-            const ignEnv = ctx.createGain();
-            ignEnv.gain.setValueAtTime(0.0001, t0);
-            ignEnv.gain.linearRampToValueAtTime(0.28, t0 + 0.035);
-            ignEnv.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
-            ignSrc.connect(ignFlt);
-            ignFlt.connect(ignEnv);
-            connectWithPanAndReverb(ignEnv, 0.26, 0.28);
-            ignSrc.start(t0, Math.random() * 0.4);
-            ignSrc.stop(t0 + 0.30);
-        }
+        // 1. Quầng sáng tinh tú ngân vang ấm áp trên vòm trời đêm (Warm Celestial Halo Pad + Glocken Bell)
+        playWarmShimmerPad(['D4', 'A4', 'Csharp5', 'E5'], t0, 2.2, 0.045);
 
-        // 2. Chuông Pha Lê Tinh Tú (Astral Bell Ping A5 + E6 + A6 ngân trong trẻo ở góc phải trên bầu trời)
-        playHarmonicChime(n('A5'), t0, 1.05, 0.22, 0.28);
-        playHarmonicChime(n('E6'), t0 + 0.042, 1.15, 0.18, 0.34);
+        // 2. Chuông Tinh Tú 3 nốt trong vắt (A5 -> E6 -> C#6) kèm làn gió đêm dịu nhẹ
+        playHarmonicChime(n('A5'), t0, 1.35, 0.19, 0.25);
+        playHarmonicChime(n('E6'), t0 + 0.065, 1.45, 0.16, 0.32);
+        playHarmonicChime(n('Csharp6'), t0 + 0.14, 1.55, 0.14, 0.18);
+        playSilkPaperWhoosh(0.52, 420, 1120, 0.16, 0.22, 0.02);
     }
 
     function updateWishBloomAudioByTau(tau, isSkipped) {
@@ -1327,7 +1165,7 @@
                 wishBloomCueState.lift = true;
                 setEnvelopeSpatialMuffle(true, 0.6);
                 if (canPlayAudio()) {
-                    playSilkPaperWhoosh(0.45, 380, 920, 0.24, 0, 0);
+                    playSilkPaperWhoosh(0.45, 380, 920, 0.22, 0, 0);
                 }
             }
             return;
@@ -1336,380 +1174,352 @@
         const now = ctx.currentTime;
 
         // =====================================================================
-        // GIAI ĐOẠN 1: VÌ TINH TÚ XUẤT HIỆN & LẤP LÁNH TRÊN TRỜI ĐÊM (tau = 0.01s -> 0.68s)
+        // DIỄN BIẾN 1: VÌ TINH TÚ THỨC TỈNH & SOI BÓNG TRÊN ĐÊM HỒ GƯƠNG (tau = 0.01s -> 0.68s)
         // =====================================================================
         if (!wishBloomCueState.started && tau >= 0.01) {
             wishBloomCueState.started = true;
-            setBgmDuck(0.20, 8.5);
+            setBgmDuck(0.22, 8.6);
             setEnvelopeSpatialMuffle(false, 0.4);
             if (canPlayAudio()) {
                 playPreludeStarAppear();
             }
         }
 
-        // Nhịp mạch sáng của ngôi sao khi lướt nhẹ và soi bóng xuống mặt hồ (tau = 0.34s)
-        if (!wishBloomCueState.skyTwinkle1 && tau >= 0.34 && tau < 0.68) {
+        // Tinh tú lóe nhịp sáng chuẩn bị rời vòm trời (tau = 0.38s)
+        if (!wishBloomCueState.skyTwinkle1 && tau >= 0.38 && tau < 0.68) {
             wishBloomCueState.skyTwinkle1 = true;
             if (canPlayAudio()) {
-                playStardustSparkCrackle(n('Csharp6'), 0.26);
-                playHarmonicChime(n('Csharp6'), now + 0.01, 0.65, 0.14, 0.24);
+                playHarmonicChime(n('Fsharp5'), now, 0.95, 0.13, 0.26);
+                playHarmonicChime(n('A5'), now + 0.06, 1.05, 0.14, 0.18);
             }
         }
 
         // =====================================================================
-        // GIAI ĐOẠN 2: TINH TÚ HÓA SAO BĂNG XÉ GIÓ LAO CHÉO XUỐNG HỒ (tau = 0.70s -> 1.58s)
-        // (Lưu ý: speedAt(0.70..1.60) tăng tốc 1.0 -> 1.75x nên 0.89 tau diễn ra trong ~0.62s thực tế!)
+        // DIỄN BIẾN 2: SAO BĂNG RẼ GIÓ LAO CHÉO XUỐNG MẶT HỒ (tau = 0.70s -> 1.58s, ~0.62s thực tế)
         // =====================================================================
         if (!wishBloomCueState.fall && tau >= 0.70) {
             wishBloomCueState.fall = true;
             if (canPlayAudio()) {
                 const fallDur = 0.60;
 
-                // 1. Tiếng gió sao băng lao vút từ cao xuống thấp (Accelerating Meteor Whoosh: 2600Hz -> 260Hz)
-                // Âm lượng tăng dần (ease-in) đúng theo gia tốc rơi của sao băng, cực đại ngay trước mặt nước!
+                // 1. Luồng gió sao băng ấm và mượt (Warm Aerodynamic Wind Rush 1650Hz -> 240Hz, có lowpass 2200Hz)
+                // Âm lượng tăng tốc theo đường cong bậc hai (ease-in) tạo cảm giác lao vút xuống mặt nước!
                 if (pinkNoiseBuffer) {
                     const whooshSrc = ctx.createBufferSource();
                     whooshSrc.buffer = pinkNoiseBuffer;
                     whooshSrc.loop = true;
 
-                    const whooshFlt = ctx.createBiquadFilter();
-                    whooshFlt.type = 'bandpass';
-                    whooshFlt.Q.setValueAtTime(1.1, now);
-                    whooshFlt.frequency.setValueAtTime(2600, now);
-                    whooshFlt.frequency.exponentialRampToValueAtTime(260, now + fallDur);
+                    const whooshBp = ctx.createBiquadFilter();
+                    whooshBp.type = 'bandpass';
+                    whooshBp.Q.setValueAtTime(1.05, now);
+                    whooshBp.frequency.setValueAtTime(1650, now);
+                    whooshBp.frequency.exponentialRampToValueAtTime(240, now + fallDur);
+
+                    const whooshLp = ctx.createBiquadFilter();
+                    whooshLp.type = 'lowpass';
+                    whooshLp.frequency.setValueAtTime(2200, now);
 
                     const whooshEnv = ctx.createGain();
-                    whooshEnv.gain.setValueAtTime(0.01, now);
-                    whooshEnv.gain.exponentialRampToValueAtTime(0.42, now + fallDur * 0.86);
-                    whooshEnv.gain.exponentialRampToValueAtTime(0.0001, now + fallDur + 0.04);
+                    whooshEnv.gain.setValueAtTime(0.015, now);
+                    whooshEnv.gain.exponentialRampToValueAtTime(0.38, now + fallDur * 0.88);
+                    whooshEnv.gain.exponentialRampToValueAtTime(0.0001, now + fallDur + 0.05);
 
-                    whooshSrc.connect(whooshFlt);
-                    whooshFlt.connect(whooshEnv);
-                    connectWithPanAndReverb(whooshEnv, 0.18, 0.16);
-                    whooshSrc.start(now, Math.random() * 0.4);
-                    whooshSrc.stop(now + fallDur + 0.05);
+                    whooshSrc.connect(whooshBp);
+                    whooshBp.connect(whooshLp);
+                    whooshLp.connect(whooshEnv);
+                    connectWithPanAndReverb(whooshEnv, 0.24, 0.16);
+                    whooshSrc.start(now, Math.random() * 0.5);
+                    whooshSrc.stop(now + fallDur + 0.06);
                 }
 
-                // 2. Tiếng còi sao băng Doppler (Whistling Meteor Core: E6 -> A4 -> D3)
-                const whistleOsc = ctx.createOscillator();
-                const whistleEnv = ctx.createGain();
-                whistleOsc.type = 'triangle';
-                whistleOsc.frequency.setValueAtTime(n('E6'), now);
-                whistleOsc.frequency.exponentialRampToValueAtTime(n('A4'), now + fallDur * 0.65);
-                whistleOsc.frequency.exponentialRampToValueAtTime(146, now + fallDur);
-
-                whistleEnv.gain.setValueAtTime(0.0001, now);
-                whistleEnv.gain.linearRampToValueAtTime(0.18, now + fallDur * 0.35);
-                whistleEnv.gain.linearRampToValueAtTime(0.24, now + fallDur * 0.85);
-                whistleEnv.gain.exponentialRampToValueAtTime(0.0001, now + fallDur + 0.03);
-
-                whistleOsc.connect(whistleEnv);
-                connectWithPanAndReverb(whistleEnv, 0.22, 0.14);
-                whistleOsc.start(now);
-                whistleOsc.stop(now + fallDur + 0.04);
+                // 2. Dải đuôi bụi sao lấp lánh cuốn theo quỹ đạo rơi từ cao xuống thấp (Descending Stardust Harp Trail)
+                // Thay thế hoàn toàn tiếng còi hú điện tử bằng chùm nốt sao rơi mượt mà A5 -> F#5 -> E5 -> C#5 -> A4!
+                const trailNotes = ['A5', 'Fsharp5', 'E5', 'Csharp5', 'A4'];
+                trailNotes.forEach((noteName, idx) => {
+                    const pan = 0.28 - idx * 0.065;
+                    playHarmonicChime(n(noteName), now + idx * 0.105, 0.72, 0.11 + idx * 0.01, pan);
+                });
             }
         }
 
-        // Các hạt lửa sao (sparks) nổ lách tách dọc đuôi sao băng (tau = 0.92s & 1.18s)
-        if (!wishBloomCueState.fallSpark1 && tau >= 0.92 && tau < 1.55) {
-            wishBloomCueState.fallSpark1 = true;
-            playStardustSparkCrackle(2800, 0.18);
-        }
-        if (!wishBloomCueState.fallSpark2 && tau >= 1.18 && tau < 1.58) {
-            wishBloomCueState.fallSpark2 = true;
-            playStardustSparkCrackle(2100, 0.06);
-        }
-
-        // Áp suất không khí ép lõm mặt nước ngay trước khi sao chạm hồ (preIndent tại tau = 1.38s..1.58s)
+        // Áp suất không khí ép lõm mặt hồ ngay trước khi sao băng chạm nước (preIndent tại tau = 1.38s)
         if (!wishBloomCueState.preImpact && tau >= 1.38 && tau < 1.59) {
             wishBloomCueState.preImpact = true;
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(0.16, 240, 780, 0.28, 0, 0);
+                playSilkPaperWhoosh(0.18, 220, 640, 0.26, 0, 0);
             }
         }
 
         // =====================================================================
-        // GIAI ĐOẠN 3: CHẠM MẶT HỒ GƯƠNG, BÙNG CỘT SÁNG & CROWN SPLASH SLOW-MO (tau = 1.59s -> 2.08s)
+        // DIỄN BIẾN 3: CHẠM MẶT HỒ GƯƠNG, BÙNG CỘT SÁNG & SÓNG NƯỚC BULLET-TIME (tau = 1.59s -> 1.86s)
+        // (Lưu ý: speedAt(1.60..1.80) = 0.27x Slow-Motion nên khoảnh khắc sóng nước lan tỏa kéo dài ~0.95s thực tế!)
         // =====================================================================
         if (!wishBloomCueState.impact && tau >= 1.59) {
             wishBloomCueState.impact = true;
             if (canPlayAudio()) {
                 triggerSubtleHaptic('water_drop');
 
-                // A. Tiếng vỗ mặt nước sắc gọn ngay khoảnh khắc sao băng xuyên qua mặt hồ ("CHÕM / PLash!")
-                if (noiseBuffer) {
-                    const slapSrc = ctx.createBufferSource();
-                    slapSrc.buffer = noiseBuffer;
-                    const slapFlt = ctx.createBiquadFilter();
-                    slapFlt.type = 'bandpass';
-                    slapFlt.Q.setValueAtTime(1.2, now);
-                    slapFlt.frequency.setValueAtTime(2400, now);
-                    slapFlt.frequency.exponentialRampToValueAtTime(680, now + 0.065);
-                    const slapEnv = ctx.createGain();
-                    slapEnv.gain.setValueAtTime(0.0001, now);
-                    slapEnv.gain.exponentialRampToValueAtTime(0.48, now + 0.003);
-                    slapEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.075);
-                    slapSrc.connect(slapFlt);
-                    slapFlt.connect(slapEnv);
-                    connectWithPanAndReverb(slapEnv, 0.22, 0);
-                    slapSrc.start(now, Math.random() * 0.4);
-                    slapSrc.stop(now + 0.085);
-                }
-
-                // B. Lực trầm sâu khi sao băng lao vào lòng nước (Hydro-Cavitation Plunge 220Hz -> 48Hz)
+                // A. Lực trầm sâu khi sao băng lao vào lòng hồ (Deep Warm Water Plunge 175Hz -> 44Hz + 310Hz -> 82Hz)
                 const subOsc = ctx.createOscillator();
                 const subEnv = ctx.createGain();
                 subOsc.type = 'triangle';
-                subOsc.frequency.setValueAtTime(220, now);
-                subOsc.frequency.exponentialRampToValueAtTime(48, now + 0.38);
+                subOsc.frequency.setValueAtTime(175, now);
+                subOsc.frequency.exponentialRampToValueAtTime(44, now + 0.52);
                 subEnv.gain.setValueAtTime(0.0001, now);
-                subEnv.gain.exponentialRampToValueAtTime(0.50, now + 0.008);
-                subEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+                subEnv.gain.exponentialRampToValueAtTime(0.52, now + 0.010);
+                subEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.58);
                 subOsc.connect(subEnv);
                 subEnv.connect(sfxBus);
                 subOsc.start(now);
-                subOsc.stop(now + 0.45);
+                subOsc.stop(now + 0.62);
 
-                // C. Cặp bọt khí lớn sục lên từ tâm va chạm ("Blub-Bloop!" đặc trưng của vật thể rơi xuống nước sâu)
-                playWaterDropletPlink(290, 960, 0.14, 0.44, -0.06, 0.012);
-                playWaterDropletPlink(460, 1420, 0.11, 0.36, 0.08, 0.068);
+                const bodyOsc = ctx.createOscillator();
+                const bodyEnv = ctx.createGain();
+                bodyOsc.type = 'sine';
+                bodyOsc.frequency.setValueAtTime(310, now);
+                bodyOsc.frequency.exponentialRampToValueAtTime(82, now + 0.22);
+                bodyEnv.gain.setValueAtTime(0.0001, now);
+                bodyEnv.gain.exponentialRampToValueAtTime(0.38, now + 0.006);
+                bodyEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+                bodyOsc.connect(bodyEnv);
+                bodyEnv.connect(sfxBus);
+                bodyOsc.start(now);
+                bodyOsc.stop(now + 0.28);
 
-                // D. Tiếng vương miện nước (Crown Splash) bung xòe trong Bullet-Time Slow-Mo (Pink Noise + LFO 14Hz)
+                // B. Sóng nước mặt hồ dâng lên và lan rộng sang 2 bên trong Bullet-Time Slow-Mo (0.82s Stereo Wave Surge)
                 if (pinkNoiseBuffer) {
-                    const spSrc = ctx.createBufferSource();
-                    spSrc.buffer = pinkNoiseBuffer;
-                    spSrc.loop = true;
-                    const spFlt = ctx.createBiquadFilter();
-                    spFlt.type = 'bandpass';
-                    spFlt.Q.setValueAtTime(1.15, now + 0.02);
-                    spFlt.frequency.setValueAtTime(1850, now + 0.02);
-                    spFlt.frequency.exponentialRampToValueAtTime(480, now + 0.42);
+                    [-0.42, 0.42].forEach((panSide, idx) => {
+                        const waveSrc = ctx.createBufferSource();
+                        waveSrc.buffer = pinkNoiseBuffer;
+                        waveSrc.loop = true;
 
-                    const spEnv = ctx.createGain();
-                    spEnv.gain.setValueAtTime(0.0001, now + 0.02);
-                    spEnv.gain.linearRampToValueAtTime(0.38, now + 0.055);
-                    spEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.44);
+                        const waveBp = ctx.createBiquadFilter();
+                        waveBp.type = 'bandpass';
+                        waveBp.Q.setValueAtTime(1.0, now);
+                        waveBp.frequency.setValueAtTime(1320 - idx * 140, now);
+                        waveBp.frequency.exponentialRampToValueAtTime(260, now + 0.78);
 
-                    spSrc.connect(spFlt);
-                    spFlt.connect(spEnv);
-                    connectWithPanAndReverb(spEnv, 0.28, 0);
-                    spSrc.start(now + 0.02, Math.random() * 0.4);
-                    spSrc.stop(now + 0.46);
+                        const waveLp = ctx.createBiquadFilter();
+                        waveLp.type = 'lowpass';
+                        waveLp.frequency.setValueAtTime(1950, now);
+
+                        const waveEnv = ctx.createGain();
+                        waveEnv.gain.setValueAtTime(0.0001, now);
+                        waveEnv.gain.linearRampToValueAtTime(0.30, now + 0.035 + idx * 0.02);
+                        waveEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.82);
+
+                        waveSrc.connect(waveBp);
+                        waveBp.connect(waveLp);
+                        waveLp.connect(waveEnv);
+                        connectWithPanAndReverb(waveEnv, 0.34, panSide);
+                        waveSrc.start(now, Math.random() * 0.5);
+                        waveSrc.stop(now + 0.86);
+                    });
                 }
 
-                // E. Âm ngân Cột Sáng Thiên Đỉnh (chỉ điểm 2 nốt A4 & E5 trong vắt để không lấn át tiếng nước!)
-                playHarmonicChime(n('A4'), now + 0.025, 1.10, 0.16, -0.20);
-                playHarmonicChime(n('E5'), now + 0.075, 1.15, 0.15, 0.20);
+                // C. Hợp âm Cột Sáng Thiên Đỉnh & Vòng Sóng Vàng (Slow-Motion Luminous Chord Swell)
+                playWarmShimmerPad(['D4', 'Fsharp4', 'A4', 'E5'], now + 0.03, 1.8, 0.048);
+                ['D4', 'A4', 'Csharp5', 'E5', 'A5'].forEach((noteName, idx) => {
+                    const pan = ((idx / 4) - 0.5) * 0.65;
+                    playHarpPluck(n(noteName), now + 0.02 + idx * 0.068, 1.75, 0.15, pan);
+                });
             }
         }
 
-        // 36 hạt nước văng Parabol rơi lộp bộp trở lại mặt hồ tạo vòng sóng phụ (tau = 1.72s, 1.83s, 1.93s)
-        // Không gắn thêm tiếng chuông vào đây để người nghe cảm nhận rõ 100% tiếng giọt nước "plip-plop" chân thực!
-        if (!wishBloomCueState.droplet1 && tau >= 1.72 && tau < 2.10) {
-            wishBloomCueState.droplet1 = true;
-            playWaterDropletPlink(560, 1480, 0.078, 0.30, -0.38, 0);
-            playWaterDropletPlink(740, 1720, 0.068, 0.25, 0.34, 0.048);
-        }
-        if (!wishBloomCueState.droplet2 && tau >= 1.83 && tau < 2.15) {
-            wishBloomCueState.droplet2 = true;
-            playWaterDropletPlink(520, 1360, 0.082, 0.28, 0.42, 0);
-            playWaterDropletPlink(680, 1620, 0.066, 0.24, -0.28, 0.052);
-        }
-        if (!wishBloomCueState.droplet3 && tau >= 1.93 && tau < 2.20) {
-            wishBloomCueState.droplet3 = true;
-            playWaterDropletPlink(640, 1540, 0.072, 0.24, -0.20, 0.008);
-            playWaterDropletPlink(820, 1820, 0.062, 0.20, 0.24, 0.055);
-        }
-
         // =====================================================================
-        // GIAI ĐOẠN 4: NỤ HOA 3D TRỔI DẬY TỪ LÒNG NƯỚC & GIỌT SƯƠNG RƠI (tau = 1.95s -> 2.48s)
+        // DIỄN BIẾN 4: ĐẠI ĐÓA HOA TRỒI LÊN & BUNG NỞ 5 TẦNG CÁNH NHUNG (tau = 1.87s -> 2.88s)
+        // (Khớp chính xác 100% với computeHeroState trong wish-bloom.js:
+        //  - tBud bắt đầu tại T.BUD - 0.08 = 1.87s
+        //  - open bắt đầu tại T.BUD + 0.09 = 2.04s -> hoàn tất tại 3.08s!)
         // =====================================================================
-        if (!wishBloomCueState.bud && tau >= 1.95) {
+        // 4.1. Nụ hoa khổng lồ & Đài Lá Sen Hoàng Gia phá mặt nước trồi lên (tau >= 1.87s)
+        if (!wishBloomCueState.bud && tau >= 1.87) {
             wishBloomCueState.bud = true;
             if (canPlayAudio()) {
-                // 1. Tiếng mặt nước rẽ đôi & thân hoa vươn lên từ tâm hồ (Upward Water-Parting Surge 220Hz -> 1080Hz)
-                playSilkPaperWhoosh(0.46, 220, 1080, 0.34, 0, 0);
+                // Tiếng mặt nước rẽ đôi nâng nụ hoa vọt lên theo lực đẩy Archimedes (180Hz -> 720Hz)
+                playSilkPaperWhoosh(0.52, 180, 720, 0.32, 0, 0);
 
-                // 2. Âm trầm sinh học của thân cây và đài hoa trồi lên (Botanical Stem Swell 130Hz -> 260Hz)
+                // Âm trầm ấm của thân hoa và đài sen vươn lên (105Hz -> 215Hz)
                 const stemOsc = ctx.createOscillator();
                 const stemEnv = ctx.createGain();
-                stemOsc.type = 'triangle';
-                stemOsc.frequency.setValueAtTime(130, now);
-                stemOsc.frequency.exponentialRampToValueAtTime(260, now + 0.42);
+                stemOsc.type = 'sine';
+                stemOsc.frequency.setValueAtTime(105, now);
+                stemOsc.frequency.exponentialRampToValueAtTime(215, now + 0.44);
                 stemEnv.gain.setValueAtTime(0.0001, now);
-                stemEnv.gain.linearRampToValueAtTime(0.22, now + 0.16);
-                stemEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.46);
+                stemEnv.gain.linearRampToValueAtTime(0.24, now + 0.15);
+                stemEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.48);
                 stemOsc.connect(stemEnv);
-                connectWithPanAndReverb(stemEnv, 0.20, 0);
+                connectWithPanAndReverb(stemEnv, 0.24, 0);
                 stemOsc.start(now);
-                stemOsc.stop(now + 0.48);
+                stemOsc.stop(now + 0.50);
 
-                playHarpPluck(n('D4'), now + 0.02, 1.35, 0.16, -0.15);
+                playHarpPluck(n('D4'), now + 0.015, 1.65, 0.16, -0.15);
+                playHarpPluck(n('A4'), now + 0.085, 1.55, 0.14, 0.15);
             }
         }
 
-        // Giọt sương mai (bloomDrops) trượt khỏi búp hoa rơi xuống hồ & cánh bướm vỗ nhẹ (tau = 2.15s & 2.34s)
-        if (!wishBloomCueState.dewdrop1 && tau >= 2.15 && tau < 2.55) {
-            wishBloomCueState.dewdrop1 = true;
-            playWaterDropletPlink(580, 1460, 0.080, 0.28, -0.26, 0);
-            playButterflyWingFlutter(0.28, 0.03);
-        }
-        if (!wishBloomCueState.dewdrop2 && tau >= 2.34 && tau < 2.65) {
-            wishBloomCueState.dewdrop2 = true;
-            playWaterDropletPlink(710, 1640, 0.074, 0.26, 0.26, 0);
-        }
-
-        // =====================================================================
-        // GIAI ĐOẠN 5: ĐẠI ĐÓA HOA BUNG NỞ 3 LỚP CÁNH NHUNG & NHỤY VÀNG (tau = 2.50s -> 3.08s)
-        // =====================================================================
-        // Tầng cánh ngoài bung mở (tau >= 2.50s = T.OPEN)
-        if (!wishBloomCueState.openLayer1 && tau >= 2.50) {
+        // 4.2. Năm tầng cánh hoa nhung bung nở liên tiếp từ ngoài vào trong (tau = 2.04s, 2.20s, 2.36s, 2.52s)
+        if (!wishBloomCueState.openLayer1 && tau >= 2.04) {
             wishBloomCueState.openLayer1 = true;
-            playVelvetPetalUnfurl(0, -0.22);
+            playVelvetPetalBloomLayer(0, -0.32);
         }
-        // Tầng cánh giữa bung mở (tau >= 2.62s)
-        if (!wishBloomCueState.openLayer2 && tau >= 2.62) {
+        if (!wishBloomCueState.openLayer2 && tau >= 2.20) {
             wishBloomCueState.openLayer2 = true;
-            playVelvetPetalUnfurl(1, 0.22);
+            playVelvetPetalBloomLayer(1, 0.32);
         }
-        // Tầng cánh lụa trong cùng bung mở (tau >= 2.74s)
-        if (!wishBloomCueState.openLayer3 && tau >= 2.74) {
+        if (!wishBloomCueState.openLayer3 && tau >= 2.36) {
             wishBloomCueState.openLayer3 = true;
-            playVelvetPetalUnfurl(2, 0.0);
+            playVelvetPetalBloomLayer(2, -0.20);
+        }
+        if (!wishBloomCueState.openLayer4 && tau >= 2.52) {
+            wishBloomCueState.openLayer4 = true;
+            playVelvetPetalBloomLayer(3, 0.20);
         }
 
-        // Vương miện 42 nhụy vàng & đàn bướm bay lên từ tâm hoa (tau >= 2.88s = T.HEART)
-        if (!wishBloomCueState.heart && tau >= 2.88) {
+        // 4.3. Đại đóa hoa bung nở rực rỡ 100% & 42 nhụy vàng tỏa phấn hoàng kim (tau >= 2.72s -> T.HEART = 2.88s)
+        if (!wishBloomCueState.heart && tau >= 2.72) {
             wishBloomCueState.heart = true;
             if (canPlayAudio()) {
                 triggerSubtleHaptic('light');
-                playStardustSparkCrackle(n('A5'), -0.18);
-                playStardustSparkCrackle(n('E6'), 0.18);
-                playHarmonicChime(n('A5'), now + 0.01, 0.95, 0.16, -0.15);
-                playHarmonicChime(n('Csharp6'), now + 0.055, 1.05, 0.15, 0.15);
-                playButterflyWingFlutter(-0.24, 0.04);
+                playWarmShimmerPad(RIVER_WARM_PAD, now, 2.4, 0.046);
+                playSilkPaperWhoosh(0.48, 360, 960, 0.22, 0, 0);
+                ['A4', 'Csharp5', 'E5', 'Fsharp5', 'A5'].forEach((noteName, idx) => {
+                    const pan = ((idx / 4) - 0.5) * 0.65;
+                    playHarmonicChime(n(noteName), now + idx * 0.055, 1.25, 0.14, pan);
+                });
             }
         }
 
         // =====================================================================
-        // GIAI ĐOẠN 6: DỆT LÕI THƯ TỪ TƠ VÀNG, KHẮC 4 DÒNG THƯ PHÁP & ĐÓNG ẤN GÓC (tau = 3.12s -> 4.05s)
+        // DIỄN BIẾN 5: 42 NHỤY VÀNG NGÂN RUNG KẾT TINH LÕI THƯ & KHẮC THƯ PHÁP (tau = 3.12s -> 4.05s)
+        // (Lưu ý: speedAt = 0.64x nên quá trình kết tinh Lõi Thư 3.12..3.84 kéo dài ~1.12s thực tế!)
         // =====================================================================
-        // 36 hạt phấn hoa bay lên dệt thành tấm thiệp ngọc trai từ đáy lên đỉnh (tau >= 3.12s = T_CARD_WEAVE)
-        if (!wishBloomCueState.weave && tau >= 3.12) {
+        if (!wishBloomCueState.weave && tau >= 3.14) {
             wishBloomCueState.weave = true;
             if (canPlayAudio()) {
                 triggerSubtleHaptic('light');
-                // Tiếng tơ lụa vàng đan nhanh từ đáy lên đỉnh tấm thiệp (420Hz -> 1680Hz)
-                playSilkPaperWhoosh(0.44, 420, 1680, 0.30, 0, 0);
-                playHarpPluck(n('A4'), now + 0.01, 1.10, 0.14, -0.18);
-                playHarpPluck(n('E5'), now + 0.08, 1.15, 0.14, 0.18);
+                // Tiếng 42 sợi nhụy vàng ngân rung cộng hưởng & tơ lụa đan kết tinh tấm thiệp từ đáy lên đỉnh (0.95s)
+                playSilkPaperWhoosh(0.92, 300, 1180, 0.28, 0, 0);
+                playWarmShimmerPad(['A4', 'Csharp5', 'E5'], now + 0.02, 1.6, 0.042);
+                ['A4', 'Csharp5', 'E5', 'Fsharp5'].forEach((noteName, idx) => {
+                    playHarpPluck(n(noteName), now + idx * 0.14, 1.45, 0.13, (idx - 1.5) * 0.22);
+                });
             }
         }
 
-        // 4 dòng thư pháp ánh kim tự động khắc lên thiệp (lineStart = 3.56, 3.65, 3.74, 3.83)
-        // Mỗi dòng phát ra tiếng ngòi bút máy vàng khắc sột soạt ASMR rõ nét trên giấy mỹ thuật!
+        // 4 dòng thư pháp ánh kim lướt êm trên thiệp (lineStart = 3.56, 3.66, 3.76, 3.86)
         if (!wishBloomCueState.calligraphy1 && tau >= 3.56) {
             wishBloomCueState.calligraphy1 = true;
-            playGoldenNibStroke(0);
+            playGoldenQuillGlide(0);
         }
-        if (!wishBloomCueState.calligraphy2 && tau >= 3.65) {
+        if (!wishBloomCueState.calligraphy2 && tau >= 3.66) {
             wishBloomCueState.calligraphy2 = true;
-            playGoldenNibStroke(1);
+            playGoldenQuillGlide(1);
         }
-        if (!wishBloomCueState.calligraphy3 && tau >= 3.74) {
+        if (!wishBloomCueState.calligraphy3 && tau >= 3.76) {
             wishBloomCueState.calligraphy3 = true;
-            playGoldenNibStroke(2);
+            playGoldenQuillGlide(2);
         }
-        if (!wishBloomCueState.calligraphy4 && tau >= 3.83) {
+        if (!wishBloomCueState.calligraphy4 && tau >= 3.86) {
             wishBloomCueState.calligraphy4 = true;
-            playGoldenNibStroke(3);
+            playGoldenQuillGlide(3);
         }
 
-        // Con dấu sáp đỏ ánh vàng đóng cốp nhẹ vào góc phải dưới tấm thiệp (sealAppear tại tau = 3.88s)
-        if (!wishBloomCueState.cardSeal && tau >= 3.88) {
+        // Con dấu mộc đỏ-vàng điểm nhẹ vào góc dưới bên phải tấm thiệp (sealAppear tại tau = 3.92s)
+        if (!wishBloomCueState.cardSeal && tau >= 3.92) {
             wishBloomCueState.cardSeal = true;
             if (canPlayAudio()) {
                 triggerSubtleHaptic('light');
-                // Tiếng đóng dấu mini gọn đanh ("cộp-tinh!") ở góc phải tấm thiệp
                 const stampOsc = ctx.createOscillator();
                 const stampEnv = ctx.createGain();
                 stampOsc.type = 'triangle';
-                stampOsc.frequency.setValueAtTime(340, now);
-                stampOsc.frequency.exponentialRampToValueAtTime(110, now + 0.055);
+                stampOsc.frequency.setValueAtTime(280, now);
+                stampOsc.frequency.exponentialRampToValueAtTime(95, now + 0.06);
                 stampEnv.gain.setValueAtTime(0.0001, now);
-                stampEnv.gain.exponentialRampToValueAtTime(0.32, now + 0.004);
-                stampEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.065);
+                stampEnv.gain.exponentialRampToValueAtTime(0.28, now + 0.004);
+                stampEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
                 stampOsc.connect(stampEnv);
-                connectWithPanAndReverb(stampEnv, 0.14, 0.22);
+                connectWithPanAndReverb(stampEnv, 0.16, 0.20);
                 stampOsc.start(now);
-                stampOsc.stop(now + 0.075);
+                stampOsc.stop(now + 0.08);
 
-                playHarmonicChime(n('A5'), now + 0.012, 0.68, 0.15, 0.22);
+                playHarmonicChime(n('A5'), now + 0.01, 0.85, 0.14, 0.20);
             }
         }
 
         // =====================================================================
-        // GIAI ĐOẠN 7: 4 CÁNH HOA TÁCH KHỎI ĐÀI, GẤP ORIGAMI 4 VẠT & KHÓA PHONG BÌ (tau = 4.15s -> 6.14s)
+        // DIỄN BIẾN 6: 4 CÁNH HOA TÁCH ĐÀI & GẤP ORIGAMI 3D THÀNH 4 VẠT PHONG BÌ (tau = 4.15s -> 6.14s)
+        // (Lưu ý: speedAt = 0.64x nên mỗi vạt FOLD_DURS = 0.74 tau diễn ra trong ~1.15s thực tế!)
         // =====================================================================
-        // 4 cánh hoa sứ giả tách khỏi đài hoa và bay ra 4 cạnh tấm thiệp (tau >= 4.15s = T_ORIGAMI_START)
+        // 6.1. Bốn cánh hoa trong cùng tách khỏi đài hoa (detachDip) và trượt ra bao quanh 4 cạnh tấm thiệp (tau >= 4.15s)
         if (!wishBloomCueState.origamiDetach && tau >= 4.15) {
             wishBloomCueState.origamiDetach = true;
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(0.42, 340, 1120, 0.30, 0, 0);
-                playHarpPluck(n('D4'), now + 0.01, 1.15, 0.14, -0.25);
-                playHarpPluck(n('A4'), now + 0.06, 1.15, 0.14, 0.25);
+                // Tiếng đài hoa nhún nhẹ khi 4 cánh tách ra (detachDip 175Hz -> 68Hz) + tiếng lụa trượt 0.68s
+                const dipOsc = ctx.createOscillator();
+                const dipEnv = ctx.createGain();
+                dipOsc.type = 'sine';
+                dipOsc.frequency.setValueAtTime(175, now);
+                dipOsc.frequency.exponentialRampToValueAtTime(68, now + 0.11);
+                dipEnv.gain.setValueAtTime(0.0001, now);
+                dipEnv.gain.exponentialRampToValueAtTime(0.26, now + 0.008);
+                dipEnv.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+                dipOsc.connect(dipEnv);
+                dipEnv.connect(sfxBus);
+                dipOsc.start(now);
+                dipOsc.stop(now + 0.14);
+
+                playSilkPaperWhoosh(0.68, 280, 840, 0.28, 0, 0.01);
+                ['D4', 'A4', 'E5'].forEach((noteName, idx) => {
+                    playHarpPluck(n(noteName), now + idx * 0.075, 1.35, 0.14, (idx - 1) * 0.28);
+                });
             }
         }
 
-        // Cánh Trái (Slot 0) dựng lên & gập vào ôm tấm thiệp (FOLD_STARTS[0] = 4.62s)
+        // 6.2. Bốn vạt cánh hoa lần lượt gấp Origami 3D (Trái 4.62s -> Phải 4.84s -> Đáy 5.12s -> Nắp Trên 5.42s)
         if (!wishBloomCueState.foldLeft && tau >= 4.62) {
             wishBloomCueState.foldLeft = true;
-            playOrigamiFlapFold(0, -0.48);
+            playOrigamiFlapFold(0, -0.45);
         }
-
-        // Cánh Phải (Slot 1) dựng lên & gập vào đan chéo (FOLD_STARTS[1] = 4.84s)
         if (!wishBloomCueState.foldRight && tau >= 4.84) {
             wishBloomCueState.foldRight = true;
-            playOrigamiFlapFold(1, 0.48);
+            playOrigamiFlapFold(1, 0.45);
         }
-
-        // Cánh Đáy (Slot 2) gập lên tạo túi phong bì (FOLD_STARTS[2] = 5.12s)
         if (!wishBloomCueState.foldBottom && tau >= 5.12) {
             wishBloomCueState.foldBottom = true;
             playOrigamiFlapFold(2, 0.0);
         }
-
-        // Nắp Hoàng Gia Phía Trên (Slot 3) gập xuống khép kín phong bì (FOLD_STARTS[3] = 5.42s)
         if (!wishBloomCueState.foldTop && tau >= 5.42) {
             wishBloomCueState.foldTop = true;
             playOrigamiFlapFold(3, 0.0);
         }
 
-        // Khoảnh khắc 4 vạt phong bì vừa khóa khít, nhún nhẹ lên đài hoa & bung phấn vàng (tau >= 6.02s)
+        // 6.3. Khoảnh khắc 4 vạt phong bì vừa khóa khít, nhún xuống đài hoa (dropSettle) & bung phấn vàng (tau >= 6.02s)
         if (!wishBloomCueState.origamiLock && tau >= 6.02) {
             wishBloomCueState.origamiLock = true;
             playOrigamiEnvelopeLockBurst();
         }
 
         // =====================================================================
-        // GIAI ĐOẠN 8: ĐÀI HOA NÂNG PHONG BÌ DÂNG TẶNG LÊN GIỮA MÀN HÌNH (tau = 6.50s -> 7.45s)
+        // DIỄN BIẾN 7: ĐÀI HOA DÂNG PHONG BÌ LÊN GIỮA SÂN KHẤU & ĐÓN ẤN SÁP VÀNG 24K (tau = 6.50s -> 7.45s)
         // =====================================================================
         if (!wishBloomCueState.lift && tau >= 6.50) {
             wishBloomCueState.lift = true;
             setEnvelopeSpatialMuffle(true, 0.9);
             if (canPlayAudio()) {
-                // Tiếng gió lụa nâng phong bì bay lên từ mặt hồ về phía người nhận
-                playSilkPaperWhoosh(0.65, 300, 1080, 0.32, 0, 0);
-                playHarpPluck(n('D4'), now + 0.02, 1.35, 0.14, -0.20);
-                playHarpPluck(n('A4'), now + 0.09, 1.35, 0.14, 0.20);
+                // Tiếng gió lụa nâng phong bì bay lên từ mặt hồ tiến về chính giữa màn hình (0.95s thực tế)
+                playSilkPaperWhoosh(0.95, 260, 880, 0.30, 0, 0);
+                ['D4', 'Fsharp4', 'A4', 'Csharp5', 'E5'].forEach((noteName, idx) => {
+                    playHarpPluck(n(noteName), now + idx * 0.085, 1.55, 0.13, (idx - 2) * 0.20);
+                });
             }
         }
 
-        // Phong bì vừa dừng êm giữa sân khấu, tạo đệm không khí trước khi Ấn Sáp Vàng 24K giáng xuống (tau >= 7.35s)
-        if (!wishBloomCueState.presentSettle && tau >= 7.35) {
+        // Phong bì dừng êm giữa màn hình, tạo đệm không khí trước khi Ấn Sáp Vàng 24K giáng xuống (tau >= 7.36s)
+        if (!wishBloomCueState.presentSettle && tau >= 7.36) {
             wishBloomCueState.presentSettle = true;
             if (canPlayAudio()) {
-                playSilkPaperWhoosh(0.24, 680, 320, 0.24, 0, 0);
+                playSilkPaperWhoosh(0.28, 620, 300, 0.22, 0, 0);
             }
         }
     }
