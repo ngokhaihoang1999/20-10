@@ -35,13 +35,13 @@
     let isEnvelopeClosedMuffled = true;
     let bgmDuckFactor = 1.0;
 
-    // Cố định bản thu âm MP3 trích xuất từ video YouTube người dùng chọn xuyên suốt toàn bộ các bước & chủ đề
-    const MAIN_BGM_SRC = 'bgm/custom-bgm.mp3?v=57.0';
-    const BASE_BGM_VOLUME = 0.62;
+    // Phát nguyên bản 100% chất lượng gốc (bit-exact HTML5 Audio, không nén lại) bản Giao hưởng Violet Evergarden
+    const MAIN_BGM_SRC = 'bgm/custom-bgm.mp3?v=61.0';
+    const BASE_BGM_VOLUME = 0.88;
     let bgmAudio = null;
     let fadeRafId = null;
 
-    // Thang âm A Major Pentatonic / Add9 đồng điệu 100% với mọi hợp âm (F#m - D - A - E) của River Flows in You
+    // Thang âm A Major Pentatonic / Add9 đồng điệu 100% với dàn nhạc giao hưởng
     const RIVER_SCALE = ['A4', 'B4', 'Csharp5', 'E5', 'Fsharp5', 'A5', 'B5', 'Csharp6'];
     const RIVER_REVEAL_CHORD = ['D4', 'Fsharp4', 'A4', 'Csharp5', 'E5', 'Fsharp5', 'A5', 'Csharp6'];
     const RIVER_WARM_PAD = ['D4', 'Fsharp4', 'A4', 'Csharp5'];
@@ -90,11 +90,11 @@
     }
 
     // =========================================================================
-    // 1. TRÌNH PHÁT NHẠC NỀN PIANO THẬT (RIVER FLOWS IN YOU — YIRUMA)
+    // 1. TRÌNH PHÁT NHẠC NỀN GIAO HƯỞNG CHẤT LƯỢNG GỐC (VIOLET EVERGARDEN)
     // =========================================================================
     function getTargetBgmVolume() {
         if (isBgmMuted || isPageHidden) return 0;
-        const envFactor = isEnvelopeClosedMuffled ? 0.80 : 1.0;
+        const envFactor = isEnvelopeClosedMuffled ? 0.92 : 1.0;
         return Math.max(0, Math.min(1, BASE_BGM_VOLUME * envFactor * bgmDuckFactor));
     }
 
