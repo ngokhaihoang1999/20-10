@@ -37,12 +37,12 @@
     ];
 
     const SAMPLE_WISHES = [
-        'Gửi chút nắng ấm tháng Mười, chúc chị em môi luôn tươi sắc thắm, lòng luôn đằm thắm bình yên và mọi ước nguyện dịu hiền đều sớm nở hoa!',
-        'Mừng ngày 20/10! Chúc một nửa thế giới mắt luôn trong, lòng luôn sáng, tháng năm nhẹ nhàng và đi tới đâu cũng ngập tràn thương mến.',
-        'Cảm ơn những đóa hoa BTLMVN vừa dịu dàng như nắng mai, vừa bản lĩnh trên dặm dài, luôn mang lại niềm vui và cảm hứng tuyệt vời!',
-        'Thương chúc bạn mỗi sớm mai thức dậy lòng nhẹ tựa mây bay, niềm vui đong đầy, công việc thuận tay và nụ cười tươi tắn suốt cả ngày!',
-        'Chúc chị em ngày 20/10 tay ôm đầy hoa, lòng ngập tràn nắng, nhan sắc thăng hoa, việc nhà việc sở đều thuận hòa viên mãn!',
-        'Mong bạn giữ mãi nét duyên đằm thắm, bước chân kiêu hãnh trên con đường mình chọn và đón nhận muôn vàn ngọt ngào trong cuộc sống.'
+        'Chiều thu gió nhẹ ngang vai, trà thơm một tách, đường dài thảnh thơi. Tháng Mười rạng rỡ môi cười, tự do tỏa sáng giữa trời thanh xuân.',
+        'Lên đồ xuống phố chiều nay, góc nào cũng đẹp, tháng ngày cũng tươi. Mắt trong lấp lánh nụ cười, ví tiền rủng rỉnh chẳng vơi chút nào.',
+        'Sương mai chạm khẽ nụ hồng, nắng thu trải nhẹ, ấm nồng ban mai. Tháng năm rạng rỡ đường dài, trẻ trung cốt cách, miệt mài vươn cao.',
+        'Ngoài kia trăm ngả bộn bề, tháng Mười giữ một lối về thảnh thơi. Trà thơm chạm khẽ môi cười, bình yên đậu xuống khoảng trời ấm êm.',
+        'Nắng thu dịu nhẹ bên thềm, gửi lời chúc nhỏ dịu êm tháng Mười. Giữ cho ánh mắt luôn tươi, vững vàng sự nghiệp, rạng ngời nét duyên.',
+        'Chẳng cần cố giống một ai, dịu dàng đúng chất, giữ hoài nét duyên. Mắt trong giữ ánh cười hiền, yêu mình trọn vẹn, bình yên ngập tràn.'
     ];
 
     function resetStep1CtaToInitial() {
