@@ -83,7 +83,8 @@ function getEffectiveLinkTitle() {
     if (trimmed) return trimmed;
     const rec = (recipientName || '').trim();
     if (rec) return `💌 ${rec} - Thiệp 3D 20/10 🌸`;
-    return 'Thiệp 20.10 gửi tặng bạn';
+    if (window.isSelfOracleMode) return '🌸 Thiệp 20.10 dành riêng cho bạn ✨';
+    return '💌 Thiệp 20.10 gửi tặng bạn 🌸';
 }
 
 let cachedTelegramFilePath = '';
@@ -322,13 +323,12 @@ async function uploadCardToTelegramBot() {
 // Không gọi thêm editMessageCaption sau khi upload để tiết kiệm 50% hạn mức ghi của Telegram Bot
 window.syncTelegramMessageCaptionIfUploaded = function () {};
 
-// Tự động lưu ngầm lên Pool 5 Kênh CHỈ KHI ở luồng Gửi Tặng (Bước 3) — Bỏ qua ở luồng "Nhận lời chúc cho bản thân" trừ khi người dùng bấm Chia sẻ Link
+// Tự động đồng bộ ngầm lên Pool 5 Kênh ngay khi mở thiệp ở Bước 3 (cho cả luồng Gửi Tặng và luồng Lời chúc cho bạn)
+// để khi người dùng bấm "Sao chép Link" trên iOS/Android là có sẵn link 0ms ngay trong cử chỉ chạm!
 window.schedulePreUploadCardToTelegram = function () {
-    if (window.isSelfOracleMode) return;
     setTimeout(() => {
         const runUpload = () => {
             if (
-                !window.isSelfOracleMode &&
                 currentUserImage &&
                 finalResultCanvas &&
                 step3 &&
@@ -342,14 +342,14 @@ window.schedulePreUploadCardToTelegram = function () {
             }
         };
         if (typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(runUpload, { timeout: 2000 });
+            window.requestIdleCallback(runUpload, { timeout: 1800 });
         } else {
             runUpload();
         }
-    }, 900);
+    }, 700);
 };
 
-// ====== 4. ĐIỀU KHIỂN MODAL ĐẶT TÊN LINK & COPY HYPERLINK ẨN URL DƯỚI TÊN THIỆP ======
+// ====== 4. ĐIỀU KHIỂN MODAL LƯU & CHIA SẺ LINK THIỆP (TƯƠNG THÍCH 100% MỌI THIẾT BỊ & ỨNG DỤNG) ======
 const shareLinkModal = document.getElementById('share-link-modal');
 const customLinkTitleInput = document.getElementById('custom-link-title-input');
 const linkTitleCharCount = document.getElementById('link-title-char-count');
@@ -357,93 +357,101 @@ const tgStatusDot = document.getElementById('tg-status-dot');
 const tgUploadStatusText = document.getElementById('tg-upload-status-text');
 const chatPreviewTitle = document.getElementById('chat-preview-title');
 const chatPreviewUrl = document.getElementById('chat-preview-url');
+const chatPreviewMotionName = document.getElementById('chat-preview-motion-name');
 
 function refreshShareModalPreviewUI() {
     const title = getEffectiveLinkTitle();
+    const isReady = Boolean(cachedTelegramFileId && !isCardCanvasDirtyForTelegram);
     const url = buildShareableCardUrl(cachedTelegramFileId || '...');
     if (chatPreviewTitle) {
         chatPreviewTitle.textContent = title;
-        if (cachedTelegramFileId) {
-            chatPreviewTitle.setAttribute('href', url);
-        } else {
-            chatPreviewTitle.setAttribute('href', '#');
-        }
+        chatPreviewTitle.setAttribute('href', isReady ? url : '#');
     }
-    if (chatPreviewUrl) chatPreviewUrl.textContent = url;
+    if (chatPreviewUrl) {
+        const slug = toSlugVietnamese(title);
+        const hostPath = (window.location.host || 'thiep20-10') + window.location.pathname;
+        chatPreviewUrl.textContent = isReady
+            ? `🔗 ${hostPath}?ten=${slug}&card=... (Chạm để chép riêng URL)`
+            : `⏳ Đang khởi tạo đường link thiệp 3D...`;
+        chatPreviewUrl.setAttribute('title', isReady ? url : '');
+    }
+    if (chatPreviewMotionName) {
+        const motionCfg = MOTION_EFFECTS_CONFIG[window.currentMotionEffect] || MOTION_EFFECTS_CONFIG.bloom;
+        chatPreviewMotionName.textContent = motionCfg.fullLabel;
+    }
 }
 
-// Hàm Sao Chép Hyperlink Ẩn URL Dưới Tên Thiệp (<a href="URL">Tên Thiệp</a>) ĐỒNG BỘ 100% trong cử chỉ chạm (User Gesture):
-// - text/html: <a href="URL">Tên Thiệp</a> (Telegram Android/iOS/Desktop tự động chuyển thành thực thể chữ gắn link xanh, ẩn 100% URL)
-// - text/plain: Tên Thiệp (KHÔNG kèm URL thô phía sau để tránh hiện chuỗi link dài)
+// Sao chép Link Thiệp đa nền tảng ĐỒNG BỘ 100% trong cử chỉ chạm (User Gesture):
+// - text/plain: "${cleanTitle}\n${url}" -> Đảm bảo dán vào Zalo, Messenger, iMessage, SMS, Ghi chú, Chrome/Safari đều có ĐẦY ĐỦ cả lời nhắn lẫn đường link bấm mở được ngay!
+// - text/html: '<a href="URL">Tên Thiệp</a>' -> Hỗ trợ ứng dụng đọc Rich HTML.
 function copyHiddenUrlHyperlinkSync(title, url) {
-    const cleanTitle = (title || 'Thiệp 20.10 gửi tặng bạn').trim();
-    const safeTitle = escapeHtmlEntities(cleanTitle);
+    const cleanTitle = (title || getEffectiveLinkTitle()).trim();
+    const plainPayload = cleanTitle ? `${cleanTitle}\n${url}` : url;
+    const safeTitle = escapeHtmlEntities(cleanTitle || url);
     const safeUrl = escapeHtmlEntities(url);
-    const htmlHyperlink = `<a href="${safeUrl}">${safeTitle}</a>`;
+    const htmlHyperlink = `<a href="${safeUrl}">${safeTitle}</a><br><a href="${safeUrl}">${safeUrl}</a>`;
     let copiedOk = false;
 
-    // Bước 1: Dùng vùng contenteditable chứa thẻ <a href="URL">Tên Thiệp</a> thật + bắt sự kiện copy đồng bộ
+    // Bước 1: Bắt sự kiện copy đồng bộ qua vùng chọn tạm (Hoạt động cả trên iOS Safari, Android WebView, Zalo/Messenger In-App Browser)
     try {
-        const holder = document.createElement('div');
-        holder.setAttribute('contenteditable', 'true');
+        const holder = document.createElement('textarea');
+        holder.value = plainPayload;
+        holder.setAttribute('readonly', '');
         holder.style.position = 'fixed';
         holder.style.left = '-9999px';
         holder.style.top = '0';
         holder.style.opacity = '0';
         holder.style.pointerEvents = 'none';
-        holder.innerHTML = htmlHyperlink;
         document.body.appendChild(holder);
 
         const onCopy = (e) => {
             if (e.clipboardData) {
-                e.clipboardData.setData('text/html', htmlHyperlink);
-                e.clipboardData.setData('text/plain', cleanTitle);
-                e.preventDefault();
-                copiedOk = true;
+                try {
+                    e.clipboardData.setData('text/plain', plainPayload);
+                    e.clipboardData.setData('text/html', htmlHyperlink);
+                    e.preventDefault();
+                    copiedOk = true;
+                } catch (_) {}
             }
         };
         document.addEventListener('copy', onCopy, true);
 
-        const range = document.createRange();
-        range.selectNodeContents(holder);
-        const sel = window.getSelection();
-        if (sel) {
-            sel.removeAllRanges();
-            sel.addRange(range);
-        }
+        holder.focus();
+        holder.select();
+        holder.setSelectionRange(0, holder.value.length);
         if (document.execCommand('copy')) {
             copiedOk = true;
         }
-        if (sel) sel.removeAllRanges();
         document.removeEventListener('copy', onCopy, true);
         document.body.removeChild(holder);
     } catch (_) {}
 
-    // Bước 2: Ghi song song qua ClipboardItem chuẩn W3C ngay trong cùng sự kiện click đồng bộ
-    if (navigator.clipboard && window.ClipboardItem) {
-        try {
-            const item = new ClipboardItem({
-                'text/html': new Blob([htmlHyperlink], { type: 'text/html' }),
-                'text/plain': new Blob([cleanTitle], { type: 'text/plain' })
-            });
-            navigator.clipboard.write([item]).catch(() => {});
-            copiedOk = true;
-        } catch (_) {}
+    // Bước 2: Ghi song song qua Clipboard API chuẩn hiện đại
+    if (navigator.clipboard) {
+        if (typeof navigator.clipboard.writeText === 'function') {
+            try {
+                navigator.clipboard.writeText(plainPayload).catch(() => {});
+                copiedOk = true;
+            } catch (_) {}
+        }
     }
 
     return copiedOk;
 }
 
-// Hàm copy URL thuần khi người dùng bấm nút phụ "🔗 Copy URL thuần"
+// Hàm copy URL thuần khi người dùng chạm vào dòng địa chỉ URL
 function copyRawUrlSync(url) {
     let ok = false;
     try {
         const ta = document.createElement('textarea');
         ta.value = url;
+        ta.setAttribute('readonly', '');
         ta.style.position = 'fixed';
         ta.style.left = '-9999px';
         document.body.appendChild(ta);
+        ta.focus();
         ta.select();
+        ta.setSelectionRange(0, ta.value.length);
         ok = document.execCommand('copy');
         document.body.removeChild(ta);
     } catch (_) {}
@@ -457,6 +465,20 @@ function copyRawUrlSync(url) {
 async function openShareLinkModal() {
     if (!shareLinkModal) return;
 
+    const headerTitleEl = document.getElementById('share-modal-header-title');
+    const titleLabelEl = document.getElementById('share-title-label-text');
+    const suggestionsEl = document.getElementById('link-title-suggestions');
+
+    if (window.isSelfOracleMode) {
+        if (headerTitleEl) headerTitleEl.textContent = '🔗 Lưu & Chia Sẻ Link Thiệp';
+        if (titleLabelEl) titleLabelEl.textContent = '🏷️ Tên gợi nhớ cho link thiệp của bạn';
+        if (suggestionsEl) suggestionsEl.style.display = 'none';
+    } else {
+        if (headerTitleEl) headerTitleEl.textContent = '🔗 Tạo Link Thiệp 3D Gửi Tặng';
+        if (titleLabelEl) titleLabelEl.textContent = '🏷️ Lời nhắn hiển thị kèm link';
+        if (suggestionsEl) suggestionsEl.style.display = 'flex';
+    }
+
     if (customLinkTitleInput && !customLinkTitleInput.value.trim()) {
         customLinkTitle = getEffectiveLinkTitle();
         customLinkTitleInput.value = customLinkTitle;
@@ -466,11 +488,11 @@ async function openShareLinkModal() {
     refreshShareModalPreviewUI();
     shareLinkModal.style.display = 'flex';
 
-    // Nếu đang ở Bước 2 (chưa bấm Tạo thiệp) mà bấm Đặt tên Link -> chỉ mở để đặt tên trước
+    // Nếu đang ở Bước 2 (chưa sang Bước 3) mà mở bảng đặt tên trước
     if (!currentUserImage || !step3.classList.contains('active')) {
         if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = '✨ Đã lưu tên Thiệp! Hãy bấm "Tạo thiệp 3D" để lấy link ẩn dưới tên thiệp.';
+            tgUploadStatusText.textContent = '✨ Đã lưu lời nhắn! Hãy bấm "Tạo thiệp 3D" để hoàn tất đường link.';
         }
         return;
     }
@@ -478,7 +500,7 @@ async function openShareLinkModal() {
     if (!isCardCanvasDirtyForTelegram && cachedTelegramFileId) {
         if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = '✅ Sẵn sàng! Bấm Sao chép để lấy Tên Thiệp đã gắn ẩn đường link.';
+            tgUploadStatusText.textContent = '✅ Link thiệp đã sẵn sàng! Bấm Sao chép hoặc chọn ứng dụng để gửi ngay.';
         }
         refreshShareModalPreviewUI();
         return;
@@ -486,21 +508,21 @@ async function openShareLinkModal() {
 
     if (tgStatusDot) tgStatusDot.className = 'status-dot';
     if (tgUploadStatusText) {
-        tgUploadStatusText.textContent = '⏳ Đang lưu ảnh gốc (100% chất lượng) & gắn ẩn URL vào Tên Thiệp...';
+        tgUploadStatusText.textContent = '⏳ Đang khởi tạo đường link thiệp 3D chất lượng gốc...';
     }
 
     try {
         await uploadCardToTelegramBot();
         if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = '✅ Đã gắn ẩn URL dưới Tên Thiệp! Bấm Sao chép rồi Dán (Paste) gửi tặng ngay.';
+            tgUploadStatusText.textContent = '✅ Link thiệp đã sẵn sàng! Bấm Sao chép hoặc chọn ứng dụng để gửi ngay.';
         }
         refreshShareModalPreviewUI();
     } catch (err) {
         console.error('Lỗi lưu ảnh lên Telegram:', err);
         if (tgStatusDot) tgStatusDot.className = 'status-dot error';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = '⚠️ Kết nối mạng chậm, bấm Sao chép để thử tạo lại link nhé.';
+            tgUploadStatusText.textContent = '⚠️ Kết nối mạng chậm, hãy bấm "Sao chép Link Thiệp" để thử lại nhé.';
         }
     }
 }
@@ -553,16 +575,16 @@ document.querySelectorAll('.link-suggest-chip').forEach(chip => {
 async function ensureShareUrlReady() {
     if (currentUserImage && (isCardCanvasDirtyForTelegram || !cachedTelegramFileId)) {
         if (tgStatusDot) tgStatusDot.className = 'status-dot';
-        if (tgUploadStatusText) tgUploadStatusText.textContent = '⏳ Đang đồng bộ ảnh gốc lên Telegram...';
+        if (tgUploadStatusText) tgUploadStatusText.textContent = '⏳ Đang đồng bộ ảnh thiệp chất lượng gốc...';
         await uploadCardToTelegramBot();
         if (tgStatusDot) tgStatusDot.className = 'status-dot ready';
-        if (tgUploadStatusText) tgUploadStatusText.textContent = '✅ Đã gắn ẩn URL dưới Tên Thiệp!';
+        if (tgUploadStatusText) tgUploadStatusText.textContent = '✅ Link thiệp đã sẵn sàng!';
         refreshShareModalPreviewUI();
     }
     return buildShareableCardUrl(cachedTelegramFileId);
 }
 
-// Cho phép bấm trực tiếp vào dòng Tên Thiệp màu xanh trong khung Xem trước để Copy Hyperlink ẩn URL
+// Chạm vào tiêu đề xanh trong khung xem trước -> Copy cả lời nhắn + link
 chatPreviewTitle?.addEventListener('click', (e) => {
     e.preventDefault();
     if (!cachedTelegramFileId) return;
@@ -570,27 +592,38 @@ chatPreviewTitle?.addEventListener('click', (e) => {
     const url = buildShareableCardUrl(cachedTelegramFileId);
     copyHiddenUrlHyperlinkSync(title, url);
     if (tgUploadStatusText) {
-        tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Hãy Dán (Paste) vào khung chat.`;
+        tgUploadStatusText.textContent = '✅ Đã sao chép Lời nhắn & Link thiệp! Hãy Dán (Paste) vào nơi bạn muốn gửi ✨';
     }
 });
 
-// Nút 1: 📋 Sao chép Link Thiệp 3D -> Copy ĐỒNG BỘ <a href="URL">Tên Thiệp</a>, ẩn hoàn toàn URL dưới chữ!
+// Chạm vào dòng URL trong khung xem trước -> Copy riêng đường dẫn URL thuần
+chatPreviewUrl?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!cachedTelegramFileId) return;
+    const url = buildShareableCardUrl(cachedTelegramFileId);
+    copyRawUrlSync(url);
+    if (tgUploadStatusText) {
+        tgUploadStatusText.textContent = '✅ Đã sao chép riêng đường dẫn URL thuần vào bộ nhớ tạm!';
+    }
+});
+
+// Nút 1 (Chính): 📋 Sao chép Link Thiệp -> Copy ĐỒNG BỘ cả Lời nhắn + Đường link (dán được trên mọi ứng dụng Zalo, Messenger, Ghi chú, Trình duyệt)
 document.getElementById('copy-rich-link-btn')?.addEventListener('click', async () => {
     const copyTextSpan = document.getElementById('copy-rich-link-text');
-    const origLabel = copyTextSpan ? copyTextSpan.textContent : 'Sao chép Link Thiệp 3D';
+    const origLabel = 'Sao chép Link Thiệp';
     const title = getEffectiveLinkTitle();
 
-    // Trường hợp 1 (99%): Đã có sẵn cachedTelegramFileId -> Copy ĐỒNG BỘ ngay trong cử chỉ chạm (0ms delay) để giữ nguyên định dạng Hyperlink ẩn URL!
+    // Trường hợp 1 (99%): Đã có sẵn cachedTelegramFileId -> Copy ĐỒNG BỘ ngay trong cử chỉ chạm (0ms delay)!
     if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
         const url = buildShareableCardUrl(cachedTelegramFileId);
         copyHiddenUrlHyperlinkSync(title, url);
         if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép Link Thiệp!';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Bạn chỉ cần Dán (Paste) vào Telegram ✨`;
+            tgUploadStatusText.textContent = '✅ Đã sao chép! Bạn chỉ cần Dán (Paste) vào Zalo, Messenger, Telegram hoặc Ghi chú ✨';
         }
         setTimeout(() => {
             if (copyTextSpan) copyTextSpan.textContent = origLabel;
-        }, 2600);
+        }, 2800);
         return;
     }
 
@@ -601,77 +634,35 @@ document.getElementById('copy-rich-link-btn')?.addEventListener('click', async (
         copyHiddenUrlHyperlinkSync(title, url);
         if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép Link Thiệp!';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Hãy Dán (Paste) vào Telegram ✨`;
+            tgUploadStatusText.textContent = '✅ Đã sao chép! Bạn chỉ cần Dán (Paste) vào Zalo, Messenger, Telegram hoặc Ghi chú ✨';
         }
         setTimeout(() => {
             if (copyTextSpan) copyTextSpan.textContent = origLabel;
-        }, 2600);
+        }, 2800);
     } catch (err) {
         if (copyTextSpan) copyTextSpan.textContent = origLabel;
-        alert('Chưa thể tạo link, vui lòng kiểm tra kết nối mạng và thử lại nhé!');
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = '⚠️ Chưa thể tạo link, vui lòng kiểm tra kết nối mạng và bấm lại nhé!';
+        }
     }
 });
 
-// Nút 2 (Phụ): 🔗 Copy URL (Dành cho trường hợp người dùng muốn lấy đường dẫn thô)
-document.getElementById('copy-md-link-btn')?.addEventListener('click', async (e) => {
+// Nút 2: 📱 Gửi Zalo / App khác (Mở bảng Chia sẻ hệ thống iOS/Android hoặc tự động Copy trên máy tính)
+document.getElementById('share-zalo-btn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
-    const orig = btn.textContent;
-    if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
-        const url = buildShareableCardUrl(cachedTelegramFileId);
-        copyRawUrlSync(url);
-        btn.textContent = '✅ Đã copy URL!';
-        setTimeout(() => { btn.textContent = orig; }, 2200);
-        return;
-    }
-    try {
-        const url = await ensureShareUrlReady();
-        copyRawUrlSync(url);
-        btn.textContent = '✅ Đã copy URL!';
-        setTimeout(() => { btn.textContent = orig; }, 2200);
-    } catch (err) {
-        alert('Vui lòng đợi ảnh lưu xong rồi thử lại nhé!');
-    }
-});
-
-// Nút 3: ✈️ Gửi Telegram -> Sao chép đồng bộ Tên Thiệp đã gắn ẩn URL (<a href="URL">Tên Thiệp</a>) để dán vào Telegram không bị lộ URL thô!
-document.getElementById('share-telegram-btn')?.addEventListener('click', async (e) => {
-    const btn = e.currentTarget;
-    const orig = btn.textContent;
+    const origText = '📱 Gửi Zalo / App khác';
     const title = getEffectiveLinkTitle();
 
+    // Luôn sao chép đồng bộ vào Clipboard ngay trong cử chỉ chạm làm lớp bảo hiểm 100%
     if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
-        const url = buildShareableCardUrl(cachedTelegramFileId);
-        copyHiddenUrlHyperlinkSync(title, url);
-        btn.textContent = '✅ Đã copy! Dán vào Chat';
-        if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = `✅ Đã copy "${title}" (ẩn URL)! Bạn chỉ cần Dán (Paste) vào cuộc trò chuyện Telegram ✨`;
-        }
-        setTimeout(() => { btn.textContent = orig; }, 2800);
-        return;
+        const syncUrl = buildShareableCardUrl(cachedTelegramFileId);
+        copyHiddenUrlHyperlinkSync(title, syncUrl);
     }
 
     try {
         const url = await ensureShareUrlReady();
         copyHiddenUrlHyperlinkSync(title, url);
-        btn.textContent = '✅ Đã copy! Dán vào Chat';
-        if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = `✅ Đã copy "${title}" (ẩn URL)! Bạn chỉ cần Dán (Paste) vào cuộc trò chuyện Telegram ✨`;
-        }
-        setTimeout(() => { btn.textContent = orig; }, 2800);
-    } catch (err) {
-        alert('Vui lòng đợi tạo link xong rồi thử lại nhé!');
-    }
-});
 
-// Nút 4: 💬 Gửi Zalo / Khác
-document.getElementById('share-zalo-btn')?.addEventListener('click', async () => {
-    const title = getEffectiveLinkTitle();
-    if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
-        const url = buildShareableCardUrl(cachedTelegramFileId);
-        copyHiddenUrlHyperlinkSync(title, url);
-    }
-    try {
-        const url = await ensureShareUrlReady();
         if (navigator.share) {
             try {
                 await navigator.share({
@@ -684,10 +675,57 @@ document.getElementById('share-zalo-btn')?.addEventListener('click', async () =>
                 if (err && err.name === 'AbortError') return;
             }
         }
-        copyHiddenUrlHyperlinkSync(title, url);
-        alert(`Đã sao chép "${title}" (đã gắn ẩn link)! Bạn chỉ cần Dán (Paste) vào khung chat để gửi nhé 🌸`);
+
+        if (btn) btn.textContent = '✅ Đã chép! Dán vào Zalo';
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = '✅ Đã sao chép Link! Hãy mở Zalo / Messenger và Dán (Paste) để gửi nhé 🌸';
+        }
+        setTimeout(() => {
+            if (btn) btn.textContent = origText;
+        }, 2800);
     } catch (err) {
-        alert('Vui lòng đợi tạo link xong rồi thử lại nhé!');
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = '⚠️ Vui lòng đợi khởi tạo link xong rồi thử lại nhé!';
+        }
+    }
+});
+
+// Nút 3: ✈️ Gửi qua Telegram (Vừa sao chép sẵn vừa mở thẳng màn hình chọn người nhận trong app Telegram)
+document.getElementById('share-telegram-btn')?.addEventListener('click', async (e) => {
+    const btn = e.currentTarget;
+    const origText = '✈️ Gửi qua Telegram';
+    const title = getEffectiveLinkTitle();
+
+    const triggerTelegramShare = (url) => {
+        copyHiddenUrlHyperlinkSync(title, url);
+        const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+        try {
+            window.open(tgShareUrl, '_blank', 'noopener,noreferrer');
+        } catch (_) {}
+        if (btn) btn.textContent = '✅ Đã mở Telegram!';
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = '✅ Đã mở Telegram & sao chép sẵn link! Chọn cuộc trò chuyện để gửi ngay ✨';
+        }
+        setTimeout(() => {
+            if (btn) btn.textContent = origText;
+        }, 2800);
+    };
+
+    if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
+        const url = buildShareableCardUrl(cachedTelegramFileId);
+        triggerTelegramShare(url);
+        return;
+    }
+
+    try {
+        if (btn) btn.textContent = '⏳ Đang chuẩn bị...';
+        const url = await ensureShareUrlReady();
+        triggerTelegramShare(url);
+    } catch (err) {
+        if (btn) btn.textContent = origText;
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = '⚠️ Vui lòng đợi khởi tạo link xong rồi thử lại nhé!';
+        }
     }
 });
 
@@ -859,6 +897,29 @@ async function preloadAndDecodeRecipientCardImage(fileId, directFilePath = '') {
 
     // Đánh dấu ảnh đã sẵn sàng 100% trên GPU -> Nghi thức Triệu Hồi 3D lập tức đưa Phong Bì & Ấn Sáp hạ xuống!
     window.isRecipientCardImageReady = true;
+
+    // Tải ngầm sẵn Blob ảnh thiệp vào bộ nhớ đệm để khi Người Nhận bấm "📥 Lưu thiệp" trên iOS/Android sẽ mở bảng lưu ảnh gốc ngay ở 0ms!
+    setTimeout(async () => {
+        if (recipientCachedBlob) return;
+        const candidates = [
+            verifiedUrl,
+            `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg&q=100`,
+            `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`
+        ];
+        for (const cUrl of candidates) {
+            try {
+                const res = await fetch(cUrl);
+                if (res.ok) {
+                    const b = await res.blob();
+                    if (b && b.size > 1000) {
+                        recipientCachedBlob = b;
+                        break;
+                    }
+                }
+            } catch (_) {}
+        }
+    }, 600);
+
     return verifiedUrl;
 }
 
@@ -874,8 +935,9 @@ function setupEnvelopeGiftStageUI({ title, subtitle, motionId, themeKey, isRealR
     });
 }
 
-// Nút "✉️ Mở thử bì" (Cho người tạo tự tay chạm vào Phong Ấn 3D để mở phong bì & trải nghiệm hiệu ứng vật lý 3D)
+// Nút "✉️ Mở thử" (Đóng modal chia sẻ nếu đang mở, rồi cho người tạo tự tay chạm vào Phong Ấn 3D để mở phong bì)
 function previewCreatorEnvelopeOpening() {
+    if (shareLinkModal) shareLinkModal.style.display = 'none';
     renderCurrentStep2CardAndPreviewEnvelope(false);
 }
 
