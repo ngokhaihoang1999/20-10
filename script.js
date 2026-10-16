@@ -4042,7 +4042,7 @@ function openTextEditModalWithSparkle(clientX, clientY) {
     }
     recipientInput.value = recipientName;
     recipientCount.textContent = `${recipientName.length}/45`;
-    const activeText = getActiveQuoteText();
+    const activeText = formatWishForInputIfLibraryPoem(getActiveQuoteText());
     customWishInput.value = activeText;
     wishCharCount.textContent = `${activeText.length}/160`;
     textEditModal.style.display = 'flex';
@@ -4424,7 +4424,7 @@ customWishInput.addEventListener('input', (e) => {
 });
 
 document.getElementById('modal-random-wish-btn').addEventListener('click', () => {
-    const suggested = getNextQuoteByTopic(currentTopic);
+    const suggested = formatWishForInputIfLibraryPoem(getNextQuoteByTopic(currentTopic));
     customWishInput.value = suggested;
     wishCharCount.textContent = `${suggested.length}/160`;
 });
@@ -5377,6 +5377,56 @@ function balanceWrapLines(ctx, text, maxWidth, initialLines) {
     return best;
 }
 
+let _libraryPoemMap = null;
+
+function normalizePoemKey(str) {
+    return String(str || '')
+        .replace(/[,.;!?]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
+
+function capitalizeVerse(str) {
+    const s = String(str || '').trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+
+function split28WordsToLucBatLines(rawPoem) {
+    const words = String(rawPoem || '').trim().split(/\s+/).filter(Boolean);
+    if (words.length !== 28) return null;
+    const l1 = capitalizeVerse(words.slice(0, 6).join(' ').replace(/[,;:]+$/, ''));
+    const b1 = capitalizeVerse(words.slice(6, 14).join(' '));
+    const l2 = capitalizeVerse(words.slice(14, 20).join(' ').replace(/[,;:]+$/, ''));
+    const b2 = capitalizeVerse(words.slice(20, 28).join(' '));
+    return [l1, b1, l2, b2];
+}
+
+function getLibraryPoemMap() {
+    if (_libraryPoemMap) return _libraryPoemMap;
+    _libraryPoemMap = new Map();
+    if (typeof wishes2010 !== 'undefined' && Array.isArray(wishes2010)) {
+        wishes2010.forEach((poem) => {
+            const lines = split28WordsToLucBatLines(poem);
+            if (lines) {
+                _libraryPoemMap.set(normalizePoemKey(poem), lines);
+            }
+        });
+    }
+    return _libraryPoemMap;
+}
+
+function getLucBatLinesIfLibraryPoem(text) {
+    if (!text) return null;
+    const map = getLibraryPoemMap();
+    return map.get(normalizePoemKey(text)) || null;
+}
+
+function formatWishForInputIfLibraryPoem(text) {
+    const lines = getLucBatLinesIfLibraryPoem(text);
+    return lines ? lines.join('\n') : String(text || '');
+}
+
 function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle) {
     const hasTopOrnament = borderStyle === 'ribbon' || borderStyle === 'hearts';
     const padTop = Math.floor(boxH * (hasTopOrnament ? 0.078 : 0.054));
@@ -5385,6 +5435,7 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
     const padX = Math.max(Math.floor(boxW * 0.026), Math.ceil(25 * scale));
     const maxWidth = boxW - padX * 2;
     const minSize = Math.max(12, Math.floor(16 * scale));
+    const lucBatLines = getLucBatLinesIfLibraryPoem(text);
 
     const evaluateAtSize = (fontSize) => {
         let recFontSize = 0;
@@ -5421,7 +5472,7 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
         }
 
         ctx.font = quoteFont(fontSize);
-        const lines = wrapLines(ctx, text, maxWidth);
+        const lines = lucBatLines ? lucBatLines.slice() : wrapLines(ctx, text, maxWidth);
         const lineHeight = Math.floor(fontSize * QUOTE_LINE_HEIGHT);
         const quoteInkH = (lines.length - 1) * lineHeight + Math.ceil(fontSize * 1.10);
         const widest = Math.max(...lines.map(l => inkWidth(ctx, l)));
@@ -5458,6 +5509,10 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
         const candidate = evaluateAtSize(fontSize);
         if (!bestAny) bestAny = candidate;
         if (candidate.fits) {
+            if (lucBatLines) {
+                bestAny = candidate;
+                break;
+            }
             if (!bestAny.fits) bestAny = candidate;
             if (!bestFourLines && candidate.lines.length <= 4) {
                 bestFourLines = candidate;
@@ -5469,13 +5524,15 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
         }
     }
 
-    // Ưu tiên bố cục 3-4 dòng trải rộng cân đối theo chiều ngang hộp chữ nếu chênh lệch cỡ chữ <= 3px so với khi bị rớt sang dòng thứ 4/5
+    // Ưu tiên bố cục 3-4 dòng trải rộng cân đối theo chiều ngang hộp chữ nếu là câu tự viết (prose)
     let layout = bestAny;
-    if (bestFourLines && bestFourLines.fontSize >= Math.max(Math.floor(45 * scale), bestAny.fontSize - Math.ceil(3 * scale))) {
-        layout = bestFourLines;
-    }
-    if (bestThreeLines && bestThreeLines.fontSize >= layout.fontSize - Math.ceil(3 * scale)) {
-        layout = bestThreeLines;
+    if (!lucBatLines) {
+        if (bestFourLines && bestFourLines.fontSize >= Math.max(Math.floor(45 * scale), bestAny.fontSize - Math.ceil(3 * scale))) {
+            layout = bestFourLines;
+        }
+        if (bestThreeLines && bestThreeLines.fontSize >= layout.fontSize - Math.ceil(3 * scale)) {
+            layout = bestThreeLines;
+        }
     }
 
     if (layout) {
@@ -5483,7 +5540,7 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
             ctx.font = recipientFont(layout.recFontSize);
             layout.titleLines = balanceWrapLines(ctx, recipientLine, maxWidth, layout.titleLines);
         }
-        if (layout.lines && layout.lines.length > 1) {
+        if (!lucBatLines && layout.lines && layout.lines.length > 1) {
             ctx.font = quoteFont(layout.fontSize);
             layout.lines = balanceWrapLines(ctx, text, maxWidth, layout.lines);
         }
