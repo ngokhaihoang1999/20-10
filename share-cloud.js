@@ -279,10 +279,10 @@ async function uploadCardToTelegramBot() {
 
         _lastUploadSawRateLimit = false;
 
-        // Xuất ở chất lượng 0.91 (~180KB-230KB): Sắc nét tương đương 0.98 nhưng nhẹ hơn 2.8 lần,
-        // giúp tăng gấp 3 lần tốc độ tải lên & khả năng chịu tải băng thông khi 1.000 người truy cập cùng lúc!
+        // Xuất ở chất lượng Studio gốc 0.98 (1024x2060 nguyên bản) và gửi qua sendDocument
+        // để Telegram giữ nguyên 100% độ phân giải & chất lượng file gốc byte-for-byte (TUYỆT ĐỐI KHÔNG bị bóp hay nén lại!)
         const blob = await new Promise((resolve) => {
-            finalResultCanvas.toBlob(resolve, 'image/jpeg', 0.91);
+            finalResultCanvas.toBlob(resolve, 'image/jpeg', 0.98);
         });
         if (!blob) throw new Error('Không thể xuất file ảnh gốc');
 
@@ -298,37 +298,36 @@ async function uploadCardToTelegramBot() {
 
         const { ep, tk } = _getCloudCfg();
 
-        // Ưu tiên 1: Gửi bằng sendPhoto (nhanh gấp 3 lần sendDocument và chịu tải cao điểm tốt hơn hẳn trên Telegram Bot API)
-        let resp = await postTelegramShardedZeroWait(`${ep}/bot${tk}/sendPhoto`, (targetCid) => {
-            const formPhoto = new FormData();
-            formPhoto.append('chat_id', targetCid);
-            formPhoto.append('photo', new File([blob], 'Thiep_20_10_3D.jpg', { type: 'image/jpeg' }));
-            formPhoto.append('caption', captionText);
-            formPhoto.append('disable_notification', 'true');
-            return formPhoto;
+        // Ưu tiên 1: Gửi qua sendDocument để bảo toàn 100% file ảnh gốc (không bị Telegram thu nhỏ hay nén lại)
+        let resp = await postTelegramShardedZeroWait(`${ep}/bot${tk}/sendDocument`, (targetCid) => {
+            const formDoc = new FormData();
+            formDoc.append('chat_id', targetCid);
+            formDoc.append('document', new File([blob], 'Thiep_20_10_3D_Original.jpg', { type: 'image/jpeg' }));
+            formDoc.append('caption', captionText);
+            formDoc.append('disable_notification', 'true');
+            return formDoc;
         });
 
         let data = resp.data;
+        let fileId = data?.result?.document?.file_id;
         let msgId = data?.result?.message_id;
-        let fileId = null;
-        const photos = data?.result?.photo;
-        if (Array.isArray(photos) && photos.length > 0) {
-            fileId = photos[photos.length - 1].file_id;
-        }
 
-        // Dự phòng: Chuyển sang sendDocument nếu sendPhoto bị từ chối vì kích thước/định dạng
+        // Dự phòng: Chỉ chuyển sang sendPhoto nếu định dạng document bị từ chối
         if (!fileId && resp.status !== 429) {
-            resp = await postTelegramShardedZeroWait(`${ep}/bot${tk}/sendDocument`, (targetCid) => {
-                const formDoc = new FormData();
-                formDoc.append('chat_id', targetCid);
-                formDoc.append('document', new File([blob], 'Thiep_20_10_3D_Original.jpg', { type: 'image/jpeg' }));
-                formDoc.append('caption', captionText);
-                formDoc.append('disable_notification', 'true');
-                return formDoc;
+            resp = await postTelegramShardedZeroWait(`${ep}/bot${tk}/sendPhoto`, (targetCid) => {
+                const formPhoto = new FormData();
+                formPhoto.append('chat_id', targetCid);
+                formPhoto.append('photo', new File([blob], 'Thiep_20_10_3D.jpg', { type: 'image/jpeg' }));
+                formPhoto.append('caption', captionText);
+                formPhoto.append('disable_notification', 'true');
+                return formPhoto;
             });
             data = resp.data;
-            fileId = data?.result?.document?.file_id;
             msgId = data?.result?.message_id;
+            const photos = data?.result?.photo;
+            if (Array.isArray(photos) && photos.length > 0) {
+                fileId = photos[photos.length - 1].file_id;
+            }
         }
 
         if (!fileId) {
@@ -889,7 +888,7 @@ async function resolveTelegramFileUrl(fileId, directFilePath = '', forceRefresh 
 // - Tuyến 3 (2500ms): Nhánh dự phòng qua corsproxy.io.
 async function raceVerifyImageCandidates(rawUrl) {
     const candidates = [
-        { url: `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg&q=95`, delayMs: 0 },
+        { url: `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg&q=100`, delayMs: 0 },
         { url: rawUrl, delayMs: 1350 },
         { url: `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`, delayMs: 2500 }
     ];
@@ -1001,11 +1000,11 @@ async function preloadAndDecodeRecipientCardImage(fileId, directFilePath = '') {
     // Đánh dấu ảnh đã sẵn sàng 100% trên GPU -> Nghi thức Triệu Hồi 3D lập tức đưa Phong Bì & Ấn Sáp hạ xuống!
     window.isRecipientCardImageReady = true;
 
-    // Tải ngầm sẵn Blob qua tuyến có CORS (wsrv.nl / corsproxy) để khi Người Nhận bấm "📥 Lưu thiệp" trên iOS/Android sẽ mở bảng lưu ảnh ngay ở 0ms!
+    // Tải ngầm sẵn Blob chất lượng gốc 100% qua tuyến có CORS (wsrv.nl q=100 / corsproxy) để khi Người Nhận bấm "📥 Lưu thiệp" trên iOS/Android sẽ mở bảng lưu ảnh ngay ở 0ms!
     setTimeout(async () => {
         if (recipientCachedBlob) return;
         const corsCandidates = [
-            `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg&q=95`,
+            `https://wsrv.nl/?url=${encodeURIComponent(rawUrl)}&output=jpg&q=100`,
             `https://corsproxy.io/?${encodeURIComponent(rawUrl)}`
         ];
         for (const cUrl of corsCandidates) {
