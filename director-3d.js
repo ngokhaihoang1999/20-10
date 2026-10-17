@@ -3464,8 +3464,8 @@ window.launchUnified3DEnvelopeDirector = function (options = {}) {
         cardSpecular.style.opacity = '0';
     }
 
-    // Đồng bộ ảnh mặt trước của tấm thiệp 3D nằm trong phong bì (Chỉ gán khi đã có ảnh thật hợp lệ; với skyOracleMode hoặc khi đang hoãn kết xuất tới sau lúc đóng sáp thì đợi tới trạng thái 'waiting')
-    if (cardImg && !isRealRecipient && !skyOracleMode && !window.hasPendingDeferredCardRender) {
+    // Đồng bộ ảnh mặt trước của tấm thiệp 3D nằm trong phong bì (Chỉ gán khi đã có ảnh thật hợp lệ; khi đang hoãn kết xuất tới sau lúc đóng sáp thì đợi tới trạng thái 'waiting')
+    if (cardImg && !isRealRecipient && !window.hasPendingDeferredCardRender) {
         const finalSrc = finalResultImg ? finalResultImg.getAttribute('src') : '';
         if (finalSrc && !finalSrc.startsWith('data:image/gif')) {
             cardImg.src = finalResultImg.src;
@@ -8072,7 +8072,33 @@ function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = false) {
         return;
     }
 
-    // Trường hợp đang ở Bước 3 (sau khi đã bấm Tạo thiệp) và bấm "✉️ Mở thử bì"
+    // Trường hợp đang ở Bước 3 của Luồng Cá Nhân (isSelfOracleMode) và bấm "✉️ Mở lại":
+    // Quay về tận khoảnh khắc xuất hiện Vì Tinh Tú trên bầu trời đêm (WishBloomCutscene + skyOracleMode: true) để thưởng thức lại trọn vẹn từ đầu!
+    if (window.isSelfOracleMode && !window.isRecipientCardLinkMode && !isFromStep2) {
+        const motionId = window.currentMotionEffect || 'bloom';
+        const cinematic = window.WishBloomCutscene || null;
+        const preludeReady = cinematic ? cinematic.beginPrelude(motionId) : Promise.resolve();
+        preludeReady.then(() => {
+            if (cinematic) cinematic.prepare(motionId);
+            window.launchUnified3DEnvelopeDirector({
+                autoOpen: false,
+                skyOracleMode: true,
+                motionId: motionId,
+                themeKey: currentColorTheme,
+                isRealRecipient: false,
+                isStep2Preview: false,
+                onComplete: () => {
+                    if (typeof triggerCelebrationBurst === 'function') {
+                        triggerCelebrationBurst();
+                    }
+                    showCardFloatingBadge('🌸 Lời chúc 20.10 dành riêng cho bạn đã mở!');
+                }
+            });
+        });
+        return;
+    }
+
+    // Trường hợp đang ở Bước 3 (luồng Gửi tặng hoặc Người nhận) và bấm "✉️ Mở thử"
     window.launchUnified3DEnvelopeDirector({
         autoOpen: false,
         motionId: window.currentMotionEffect,
