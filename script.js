@@ -5129,7 +5129,7 @@ async function handleImageInput(e) {
         if (headerTitleEl) headerTitleEl.textContent = '✨ Thiết Kế Thiệp 🌸';
         if (generateBtnEl) generateBtnEl.textContent = 'Tạo thiệp';
         window.presetSelfOracleMotion = null;
-        const recipientInpEl = document.getElementById('recipient-name-input');
+        const recipientInpEl = document.getElementById('recipient-input');
         recipientName = recipientInpEl ? recipientInpEl.value.trim() : '';
         syncFilterIntensityUI();
         // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
@@ -6388,7 +6388,13 @@ document.getElementById('download-btn').addEventListener('click', () => {
 
 // ====== VẼ THIỆP & HỘP LỜI CHÚC LÃNG MẠN TRÊN CANVAS ======
 function formatRecipientLine(rawTitle) {
-    return (rawTitle || '').trim();
+    const trimmed = (rawTitle || '').trim();
+    if (trimmed) return trimmed;
+    if (window.isSelfOracleMode) {
+        recipientName = pickNextSelfOracleTitle();
+        return recipientName;
+    }
+    return '';
 }
 
 function getActiveQuoteText() {
