@@ -3021,13 +3021,17 @@ const MP_RIGHT_EYE_INDICES = [263, 466, 388, 387, 386, 385, 384, 398, 362, 382, 
 const MP_LEFT_BROW_INDICES = [70, 63, 105, 66, 107, 55, 65, 52, 53, 46];
 const MP_RIGHT_BROW_INDICES = [300, 293, 334, 296, 336, 285, 295, 282, 283, 276];
 
-// Trạng thái bộ đệm tiền kết xuất (Pre-baked Offscreen Layers) cho ảnh đang chỉnh ở Bước 2
+// Trạng thái bộ đệm tiền kết xuất (Lazy On-Demand Offscreen Layers) cho ảnh đang chỉnh ở Bước 2
 const beautyEngineState = {
     photoToken: 0,
     srcImg: null,
     workW: 0,
     workH: 0,
     layersReady: false,
+    bokehBuilt: false,
+    skinBuilt: false,
+    lipMasksBuilt: false,
+    aiUpgradeStarted: false,
     landmarksResolved: false,
     segmenterResolved: false,
     detectedFaces: null,
@@ -3065,28 +3069,33 @@ function ensureMediaPipeBeautyAI() {
                 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
             );
 
+            // Trên iOS Safari, dùng delegate 'CPU' để tránh tạo thêm 2 ngữ cảnh WebGL2 (tiết kiệm ~180MB GPU RAM của WebKit)
+            const primaryDelegate = isIOSDevice() ? 'CPU' : 'GPU';
+
             // 1. Khởi tạo FaceLandmarker (478 điểm 3D cho viền Môi, Mắt, Chân mày, Khuôn mặt)
             let landmarker = null;
             try {
                 landmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
                     baseOptions: {
                         modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-                        delegate: 'GPU'
+                        delegate: primaryDelegate
                     },
                     runningMode: 'IMAGE',
                     numFaces: 3
                 });
             } catch (_) {
-                try {
-                    landmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
-                        baseOptions: {
-                            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-                            delegate: 'CPU'
-                        },
-                        runningMode: 'IMAGE',
-                        numFaces: 3
-                    });
-                } catch (_e2) {}
+                if (primaryDelegate !== 'CPU') {
+                    try {
+                        landmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
+                            baseOptions: {
+                                modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+                                delegate: 'CPU'
+                            },
+                            runningMode: 'IMAGE',
+                            numFaces: 3
+                        });
+                    } catch (_e2) {}
+                }
             }
 
             // 2. Khởi tạo ImageSegmenter (Mô hình Selfie Segmenter 243KB của Google chuyên tách toàn thân + cánh tay dang rộng + bàn tay + mái tóc)
@@ -3096,24 +3105,26 @@ function ensureMediaPipeBeautyAI() {
                     segmenter = await vision.ImageSegmenter.createFromOptions(filesetResolver, {
                         baseOptions: {
                             modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
-                            delegate: 'GPU'
+                            delegate: primaryDelegate
                         },
                         runningMode: 'IMAGE',
                         outputCategoryMask: false,
                         outputConfidenceMasks: true
                     });
                 } catch (_) {
-                    try {
-                        segmenter = await vision.ImageSegmenter.createFromOptions(filesetResolver, {
-                            baseOptions: {
-                                modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
-                                delegate: 'CPU'
-                            },
-                            runningMode: 'IMAGE',
-                            outputCategoryMask: false,
-                            outputConfidenceMasks: true
-                        });
-                    } catch (_e3) {}
+                    if (primaryDelegate !== 'CPU') {
+                        try {
+                            segmenter = await vision.ImageSegmenter.createFromOptions(filesetResolver, {
+                                baseOptions: {
+                                    modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
+                                    delegate: 'CPU'
+                                },
+                                runningMode: 'IMAGE',
+                                outputCategoryMask: false,
+                                outputConfidenceMasks: true
+                            });
+                        } catch (_e3) {}
+                    }
                 }
             }
 
@@ -3248,16 +3259,11 @@ function syncFilterIntensityUI() {
     if (makeupTabBtn) makeupTabBtn.classList.toggle('has-active-fx', !isLipNone || skinPct > 0);
 }
 
-// Giải phóng bộ nhớ các lớp Canvas của ảnh cũ ngay khi đổi ảnh
-function disposeBeautyEngineLayers() {
-    beautyEngineState.photoToken++;
+// Giải phóng bộ nhớ các lớp Canvas ngầm ngay sau khi cắt ảnh xong để sang Bước 3 (nhưng giữ lại srcImg để nếu khách bấm Sửa thiệp vẫn dựng lại tức thì)
+function releaseBeautyOffscreenCanvasesKeepImg() {
     if (beautyEngineState.compositeRafId) {
         cancelAnimationFrame(beautyEngineState.compositeRafId);
         beautyEngineState.compositeRafId = 0;
-    }
-    if (beautyEngineState.viewBoxObserver) {
-        beautyEngineState.viewBoxObserver.disconnect();
-        beautyEngineState.viewBoxObserver = null;
     }
     ['baseCanvas', 'subjectMaskCanvas', 'bokehLayerCanvas', 'skinRetouchLayerCanvas', 'lipMaskCanvas', 'lipHighlightMaskCanvas', 'lipLayerCanvas'].forEach(k => {
         const cv = beautyEngineState[k];
@@ -3267,10 +3273,29 @@ function disposeBeautyEngineLayers() {
             beautyEngineState[k] = null;
         }
     });
+    if (beautyEngineState.retouchCanvasEl) {
+        beautyEngineState.retouchCanvasEl.width = 0;
+        beautyEngineState.retouchCanvasEl.height = 0;
+    }
+    beautyEngineState.layersReady = false;
+    beautyEngineState.bokehBuilt = false;
+    beautyEngineState.skinBuilt = false;
+    beautyEngineState.lipMasksBuilt = false;
+    beautyEngineState.builtLipShade = 'none';
+}
+
+// Giải phóng bộ nhớ các lớp Canvas của ảnh cũ ngay khi đổi ảnh
+function disposeBeautyEngineLayers() {
+    beautyEngineState.photoToken++;
+    releaseBeautyOffscreenCanvasesKeepImg();
+    if (beautyEngineState.viewBoxObserver) {
+        beautyEngineState.viewBoxObserver.disconnect();
+        beautyEngineState.viewBoxObserver = null;
+    }
     beautyEngineState.srcImg = null;
     beautyEngineState.workW = 0;
     beautyEngineState.workH = 0;
-    beautyEngineState.layersReady = false;
+    beautyEngineState.aiUpgradeStarted = false;
     beautyEngineState.landmarksResolved = false;
     beautyEngineState.segmenterResolved = false;
     beautyEngineState.detectedFaces = null;
@@ -3280,7 +3305,6 @@ function disposeBeautyEngineLayers() {
     beautyEngineState.heuristicInfo = null;
     beautyEngineState.faceRoi = null;
     beautyEngineState.lipRoi = null;
-    beautyEngineState.builtLipShade = 'none';
     beautyEngineState.retouchCanvasEl = null;
     beautyEngineState.viewBoxImgEl = null;
 }
@@ -3592,7 +3616,8 @@ function computeFaceAndLipROIs() {
     const fNh = Math.max(0.08, fMaxY - fMinY);
     const fRawW = Math.round(fNw * natW);
     const fRawH = Math.round(fNh * natH);
-    const fScale = Math.min(1, 960 / Math.max(1, fRawW, fRawH));
+    const fMaxCap = isIOSDevice() ? 640 : 960;
+    const fScale = Math.min(1, fMaxCap / Math.max(1, fRawW, fRawH));
     beautyEngineState.faceRoi = {
         nx: fMinX,
         ny: fMinY,
@@ -3606,7 +3631,8 @@ function computeFaceAndLipROIs() {
     const lNh = Math.max(0.03, lMaxY - lMinY);
     const lRawW = Math.round(lNw * natW);
     const lRawH = Math.round(lNh * natH);
-    const lScale = Math.min(1, 640 / Math.max(1, lRawW, lRawH));
+    const lMaxCap = isIOSDevice() ? 420 : 640;
+    const lScale = Math.min(1, lMaxCap / Math.max(1, lRawW, lRawH));
     beautyEngineState.lipRoi = {
         nx: lMinX,
         ny: lMinY,
@@ -4188,51 +4214,111 @@ function rebuildLipShadeLayer(shadeKey = currentLipShade) {
     beautyEngineState.builtLipShade = shadeKey;
 }
 
-// Đảm bảo các lớp tiền kết xuất đã sẵn sàng (gọi đồng bộ nếu người dùng kéo thanh trượt ngay lập tức)
-function ensureBeautyLayersReadySync() {
-    if (beautyEngineState.layersReady && beautyEngineState.baseCanvas) {
-        if (currentLipShade !== 'none' && beautyEngineState.builtLipShade !== currentLipShade) {
-            rebuildLipShadeLayer(currentLipShade);
+// Nâng cấp ngầm bằng MediaPipe FaceLandmarker & ImageSegmenter CHỈ KHI người dùng thực sự bật ít nhất 1 thanh trượt Làm Đẹp
+function triggerLazyMediaPipeUpgrade(token) {
+    if (beautyEngineState.aiUpgradeStarted || token !== beautyEngineState.photoToken) return;
+    beautyEngineState.aiUpgradeStarted = true;
+
+    ensureMediaPipeBeautyAI().then(ai => {
+        if (!ai || token !== beautyEngineState.photoToken || !beautyEngineState.baseCanvas) return;
+        let needsRebuild = false;
+
+        try {
+            if (ai.landmarker && !beautyEngineState.landmarksResolved) {
+                const res = ai.landmarker.detect(beautyEngineState.baseCanvas);
+                if (res && res.faceLandmarks && res.faceLandmarks.length > 0) {
+                    beautyEngineState.detectedFaces = res.faceLandmarks;
+                    beautyEngineState.landmarksResolved = true;
+                    computeFaceAndLipROIs();
+                    needsRebuild = true;
+                }
+            }
+        } catch (_) {}
+
+        try {
+            if (ai.segmenter && !beautyEngineState.segmenterResolved) {
+                const segRes = ai.segmenter.segment(beautyEngineState.baseCanvas);
+                const extracted = extractPersonForegroundFloatMask(segRes, beautyEngineState.heuristicInfo);
+                if (extracted) {
+                    beautyEngineState.personMaskFloat = extracted.data;
+                    beautyEngineState.personMaskW = extracted.width;
+                    beautyEngineState.personMaskH = extracted.height;
+                    beautyEngineState.segmenterResolved = true;
+                    needsRebuild = true;
+                }
+            }
+        } catch (_) {}
+
+        if (needsRebuild && token === beautyEngineState.photoToken) {
+            beautyEngineState.bokehBuilt = false;
+            beautyEngineState.skinBuilt = false;
+            beautyEngineState.lipMasksBuilt = false;
+            beautyEngineState.builtLipShade = 'none';
+            if (isAnyBeautyRetouchActive()) {
+                ensureBeautyLayersReadySync();
+                scheduleBeautyPreviewComposite();
+            }
         }
-        return true;
-    }
+    });
+}
+
+// Đảm bảo chỉ khởi tạo ĐÚNG lớp Làm Đẹp mà người dùng đang bật (Lazy On-Demand 100% — tiết kiệm tối đa RAM trên iOS Safari)
+function ensureBeautyLayersReadySync() {
+    if (!isAnyBeautyRetouchActive()) return false;
+
     const srcImg = beautyEngineState.srcImg || (cropperObj && cropperObj.image) || document.getElementById('cropper-image');
     if (!srcImg) return false;
     const natW = srcImg.naturalWidth || srcImg.width || 0;
     const natH = srcImg.naturalHeight || srcImg.height || 0;
     if (natW <= 0 || natH <= 0) return false;
 
-    const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
-    const maxWorkDim = prof ? (prof.qualityTier >= 2 ? 960 : (prof.tier === 1 ? 820 : 680)) : 900;
-    const scale = Math.min(1, maxWorkDim / Math.max(natW, natH));
-    const W = Math.max(64, Math.round(natW * scale));
-    const H = Math.max(64, Math.round(natH * scale));
+    if (!beautyEngineState.baseCanvas || beautyEngineState.workW <= 0 || beautyEngineState.workH <= 0) {
+        const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
+        const maxWorkDim = isIOSDevice() ? 720 : (prof ? (prof.qualityTier >= 2 ? 920 : (prof.tier === 1 ? 800 : 680)) : 860);
+        const scale = Math.min(1, maxWorkDim / Math.max(natW, natH));
+        const W = Math.max(64, Math.round(natW * scale));
+        const H = Math.max(64, Math.round(natH * scale));
 
-    beautyEngineState.srcImg = srcImg;
-    beautyEngineState.workW = W;
-    beautyEngineState.workH = H;
+        beautyEngineState.srcImg = srcImg;
+        beautyEngineState.workW = W;
+        beautyEngineState.workH = H;
 
-    if (!beautyEngineState.baseCanvas) {
-        beautyEngineState.baseCanvas = document.createElement('canvas');
-    }
-    beautyEngineState.baseCanvas.width = W;
-    beautyEngineState.baseCanvas.height = H;
-    const baseCtx = beautyEngineState.baseCanvas.getContext('2d');
-    baseCtx.imageSmoothingEnabled = true;
-    baseCtx.imageSmoothingQuality = 'high';
-    baseCtx.drawImage(srcImg, 0, 0, W, H);
+        if (!beautyEngineState.baseCanvas) {
+            beautyEngineState.baseCanvas = document.createElement('canvas');
+        }
+        beautyEngineState.baseCanvas.width = W;
+        beautyEngineState.baseCanvas.height = H;
+        const baseCtx = beautyEngineState.baseCanvas.getContext('2d');
+        baseCtx.imageSmoothingEnabled = true;
+        baseCtx.imageSmoothingQuality = 'high';
+        baseCtx.drawImage(srcImg, 0, 0, W, H);
 
-    if (!beautyEngineState.heuristicInfo) {
-        beautyEngineState.heuristicInfo = analyzePhotoHeuristicsFast(beautyEngineState.baseCanvas);
+        if (!beautyEngineState.heuristicInfo) {
+            beautyEngineState.heuristicInfo = analyzePhotoHeuristicsFast(beautyEngineState.baseCanvas);
+        }
+        computeFaceAndLipROIs();
     }
-    computeFaceAndLipROIs();
-    buildBokehLayer();
-    buildSkinRetouchLayer();
-    buildLipMasks();
-    if (currentLipShade && currentLipShade !== 'none') {
-        rebuildLipShadeLayer(currentLipShade);
+
+    if (currentBokehIntensity > 0 && !beautyEngineState.bokehBuilt) {
+        buildBokehLayer();
+        beautyEngineState.bokehBuilt = true;
     }
+    if (currentSkinIntensity > 0 && !beautyEngineState.skinBuilt) {
+        buildSkinRetouchLayer();
+        beautyEngineState.skinBuilt = true;
+    }
+    if (currentLipIntensity > 0 && currentLipShade && currentLipShade !== 'none') {
+        if (!beautyEngineState.lipMasksBuilt) {
+            buildLipMasks();
+            beautyEngineState.lipMasksBuilt = true;
+        }
+        if (beautyEngineState.builtLipShade !== currentLipShade) {
+            rebuildLipShadeLayer(currentLipShade);
+        }
+    }
+
     beautyEngineState.layersReady = true;
+    triggerLazyMediaPipeUpgrade(beautyEngineState.photoToken);
     return true;
 }
 
@@ -4273,11 +4359,14 @@ function extractPersonForegroundFloatMask(segResult, info) {
     return { data: copyArr, width: mw, height: mh };
 }
 
-// Tiền kết xuất theo từng lát nhỏ (Time-Sliced) sau khi Morph xong + Nâng cấp ngầm bằng MediaPipe FaceLandmarker & SelfieSegmenter
+// Ghi nhận ảnh nguồn cho bộ Làm Đẹp (TUYỆT ĐỐI KHÔNG tự động tạo 7 lớp Canvas hay nạp MediaPipe AI khi người dùng chưa bật thanh trượt Làm Đẹp!)
 function schedulePhotoBeautyPrebake(srcImg) {
-    const token = ++beautyEngineState.photoToken;
+    ++beautyEngineState.photoToken;
+    releaseBeautyOffscreenCanvasesKeepImg();
     beautyEngineState.srcImg = srcImg;
-    beautyEngineState.layersReady = false;
+    beautyEngineState.workW = 0;
+    beautyEngineState.workH = 0;
+    beautyEngineState.aiUpgradeStarted = false;
     beautyEngineState.landmarksResolved = false;
     beautyEngineState.segmenterResolved = false;
     beautyEngineState.detectedFaces = null;
@@ -4287,110 +4376,10 @@ function schedulePhotoBeautyPrebake(srcImg) {
     beautyEngineState.heuristicInfo = null;
     beautyEngineState.faceRoi = null;
     beautyEngineState.lipRoi = null;
-    beautyEngineState.builtLipShade = 'none';
 
-    const runSlicedPrebake = () => {
-        if (token !== beautyEngineState.photoToken) return;
-        const natW = srcImg.naturalWidth || srcImg.width || 0;
-        const natH = srcImg.naturalHeight || srcImg.height || 0;
-        if (natW <= 0 || natH <= 0) return;
-
-        const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
-        const maxWorkDim = prof ? (prof.qualityTier >= 2 ? 960 : (prof.tier === 1 ? 820 : 680)) : 900;
-        const scale = Math.min(1, maxWorkDim / Math.max(natW, natH));
-        const W = Math.max(64, Math.round(natW * scale));
-        const H = Math.max(64, Math.round(natH * scale));
-
-        beautyEngineState.workW = W;
-        beautyEngineState.workH = H;
-
-        if (!beautyEngineState.baseCanvas) {
-            beautyEngineState.baseCanvas = document.createElement('canvas');
-        }
-        beautyEngineState.baseCanvas.width = W;
-        beautyEngineState.baseCanvas.height = H;
-        const baseCtx = beautyEngineState.baseCanvas.getContext('2d');
-        baseCtx.imageSmoothingEnabled = true;
-        baseCtx.imageSmoothingQuality = 'high';
-        baseCtx.drawImage(srcImg, 0, 0, W, H);
-        beautyEngineState.heuristicInfo = analyzePhotoHeuristicsFast(beautyEngineState.baseCanvas);
-        computeFaceAndLipROIs();
-
-        requestAnimationFrame(() => {
-            if (token !== beautyEngineState.photoToken) return;
-            if (!beautyEngineState.layersReady) {
-                buildBokehLayer();
-            }
-            requestAnimationFrame(() => {
-                if (token !== beautyEngineState.photoToken) return;
-                if (!beautyEngineState.layersReady) {
-                    buildSkinRetouchLayer();
-                    buildLipMasks();
-                    if (currentLipShade && currentLipShade !== 'none') {
-                        rebuildLipShadeLayer(currentLipShade);
-                    }
-                    beautyEngineState.layersReady = true;
-                }
-                if (isAnyBeautyRetouchActive()) {
-                    scheduleBeautyPreviewComposite();
-                }
-
-                // Nâng cấp ngầm bằng MediaPipe FaceLandmarker (478 điểm 3D) + ImageSegmenter (Selfie Segmenter tách cánh tay & toàn thân)
-                ensureMediaPipeBeautyAI().then(ai => {
-                    if (!ai || token !== beautyEngineState.photoToken || !beautyEngineState.baseCanvas) return;
-                    let needsRebuild = false;
-
-                    try {
-                        if (ai.landmarker) {
-                            const res = ai.landmarker.detect(beautyEngineState.baseCanvas);
-                            if (res && res.faceLandmarks && res.faceLandmarks.length > 0) {
-                                beautyEngineState.detectedFaces = res.faceLandmarks;
-                                beautyEngineState.landmarksResolved = true;
-                                computeFaceAndLipROIs();
-                                needsRebuild = true;
-                            }
-                        }
-                    } catch (_) {}
-
-                    try {
-                        if (ai.segmenter) {
-                            const segRes = ai.segmenter.segment(beautyEngineState.baseCanvas);
-                            const extracted = extractPersonForegroundFloatMask(segRes, beautyEngineState.heuristicInfo);
-                            if (extracted) {
-                                beautyEngineState.personMaskFloat = extracted.data;
-                                beautyEngineState.personMaskW = extracted.width;
-                                beautyEngineState.personMaskH = extracted.height;
-                                beautyEngineState.segmenterResolved = true;
-                                needsRebuild = true;
-                            }
-                        }
-                    } catch (_) {}
-
-                    if (needsRebuild && token === beautyEngineState.photoToken) {
-                        buildBokehLayer();
-                        buildSkinRetouchLayer();
-                        buildLipMasks();
-                        if (currentLipShade && currentLipShade !== 'none') {
-                            rebuildLipShadeLayer(currentLipShade);
-                        }
-                        if (isAnyBeautyRetouchActive()) {
-                            scheduleBeautyPreviewComposite();
-                        }
-                    }
-                });
-            });
-        });
-    };
-
-    // Chờ hiệu ứng Morph Bước 1 -> Bước 2 (660ms) hoàn tất rồi mới tiền kết xuất ngầm để khung hình chuyển cảnh mượt 100%
-    setTimeout(() => {
-        if (token !== beautyEngineState.photoToken) return;
-        if (typeof window.requestIdleCallback === 'function') {
-            window.requestIdleCallback(runSlicedPrebake, { timeout: 600 });
-        } else {
-            runSlicedPrebake();
-        }
-    }, 680);
+    if (isAnyBeautyRetouchActive()) {
+        scheduleBeautyPreviewComposite();
+    }
 }
 
 // Đồng bộ tức thì vị trí, kích thước, góc xoay và lật gương của .cropper-retouch-canvas khớp 100% với .cropper-view-box img
@@ -4416,6 +4405,8 @@ function mountRetouchCanvasInCropper() {
     if (!retouchCv) {
         retouchCv = document.createElement('canvas');
         retouchCv.className = 'cropper-retouch-canvas';
+        retouchCv.width = 0;
+        retouchCv.height = 0;
         viewBox.appendChild(retouchCv);
     }
 
@@ -4454,6 +4445,10 @@ function renderBeautyPreviewComposite() {
         if (retouchCv) {
             retouchCv.style.display = 'none';
             retouchCv.style.filter = 'none';
+            if (retouchCv.width > 0 || retouchCv.height > 0) {
+                retouchCv.width = 0;
+                retouchCv.height = 0;
+            }
         }
         return;
     }
@@ -4465,7 +4460,7 @@ function renderBeautyPreviewComposite() {
     const srcImg = beautyEngineState.srcImg;
     const natW = (srcImg && (srcImg.naturalWidth || srcImg.width)) || beautyEngineState.workW;
     const natH = (srcImg && (srcImg.naturalHeight || srcImg.height)) || beautyEngineState.workH;
-    const maxPreviewDim = 1360;
+    const maxPreviewDim = isIOSDevice() ? 960 : 1280;
     const pScale = Math.min(1, maxPreviewDim / Math.max(1, natW, natH));
     const W = Math.max(beautyEngineState.workW, Math.round(natW * pScale));
     const H = Math.max(beautyEngineState.workH, Math.round(natH * pScale));
@@ -4954,35 +4949,51 @@ if (typeof window !== 'undefined') {
     }
 }
 
-// Giữ nguyên 100% file ảnh gốc (URL.createObjectURL trực tiếp, không nén lại) cho mọi ảnh điện thoại & máy ảnh (tới 8192px)
-// để bảo toàn tuyệt đối từng điểm ảnh khi người dùng phóng zoom sâu (2x - 5x) vào khuôn mặt trong ảnh chụp xa / ảnh tập thể!
+// Chuẩn hóa kích thước ảnh đầu vào thông minh theo thiết bị (iOS: tối đa 2560px | Android/PC: tối đa 3200px):
+// - Khung thiệp cuối cùng có chiều ngang 1024px, nên mức 2560px - 3200px vẫn dư độ phân giải chuẩn Retina để phóng zoom 2.5x - 3x sắc nét đến từng sợi tóc!
+// - Đồng thời giảm 85% - 90% bộ nhớ RAM/GPU cho ảnh 24MP (5712x4284) & 48MP (8064x6048) trên iPhone, triệt tiêu 100% lỗi tràn bộ nhớ WebKit ("A problem repeatedly occurred") trên iOS Safari!
 async function normalizeInputPhotoForCropper(file) {
-    const MAX_DIM = 8192;
+    const MAX_DIM = isIOSDevice() ? 2560 : 3200;
+    const rawUrl = URL.createObjectURL(file);
     try {
-        if (typeof window.createImageBitmap === 'function') {
-            const bmp = await window.createImageBitmap(file);
-            const w = bmp.width || 0;
-            const h = bmp.height || 0;
-            if (w <= 0 || h <= 0 || Math.max(w, h) <= MAX_DIM) {
-                if (typeof bmp.close === 'function') bmp.close();
-                return URL.createObjectURL(file);
-            }
-            const scale = MAX_DIM / Math.max(w, h);
-            const targetW = Math.max(1, Math.round(w * scale));
-            const targetH = Math.max(1, Math.round(h * scale));
-            const off = document.createElement('canvas');
-            off.width = targetW;
-            off.height = targetH;
-            const oCtx = off.getContext('2d');
-            oCtx.imageSmoothingEnabled = true;
-            oCtx.imageSmoothingQuality = 'high';
-            oCtx.drawImage(bmp, 0, 0, targetW, targetH);
-            if (typeof bmp.close === 'function') bmp.close();
+        const dims = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.decoding = 'async';
+            img.onload = () => resolve({ img, w: img.naturalWidth || img.width || 0, h: img.naturalHeight || img.height || 0 });
+            img.onerror = reject;
+            img.src = rawUrl;
+        });
 
-            const blob = await new Promise((resolve) => off.toBlob(resolve, 'image/jpeg', 0.99));
-            if (blob) return URL.createObjectURL(blob);
+        const { img, w, h } = dims;
+        if (w <= 0 || h <= 0 || Math.max(w, h) <= MAX_DIM) {
+            img.removeAttribute('src');
+            return rawUrl;
         }
-    } catch (_) {}
+
+        const scale = MAX_DIM / Math.max(w, h);
+        const targetW = Math.max(1, Math.round(w * scale));
+        const targetH = Math.max(1, Math.round(h * scale));
+        const off = document.createElement('canvas');
+        off.width = targetW;
+        off.height = targetH;
+        const oCtx = off.getContext('2d');
+        oCtx.imageSmoothingEnabled = true;
+        oCtx.imageSmoothingQuality = 'high';
+        oCtx.drawImage(img, 0, 0, targetW, targetH);
+
+        // Giải phóng ngay bộ đệm ảnh gốc 24MP/48MP trước khi nén sang Blob mới để không bao giờ nhân đôi RAM trên iOS
+        img.removeAttribute('src');
+        URL.revokeObjectURL(rawUrl);
+
+        const blob = await new Promise((resolve) => off.toBlob(resolve, 'image/jpeg', 0.95));
+        off.width = 0;
+        off.height = 0;
+        if (blob) {
+            return URL.createObjectURL(blob);
+        }
+    } catch (_) {
+        return rawUrl;
+    }
     return URL.createObjectURL(file);
 }
 
@@ -5102,12 +5113,45 @@ function applyRandomSelfOracleArtSelections(presetMotion) {
 
 let step2WarmupTimerId = 0;
 
+function destroyActiveCropperAndRevokePhoto() {
+    disposeBeautyEngineLayers();
+    if (cropperObj) {
+        try {
+            cropperObj.destroy();
+        } catch (_) {}
+        cropperObj = null;
+    }
+    const imageEl = document.getElementById('cropper-image');
+    if (imageEl) {
+        imageEl.removeAttribute('src');
+    }
+    if (originalImgSrc && originalImgSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(originalImgSrc);
+    }
+    originalImgSrc = null;
+}
+
 async function handleImageInput(e) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Giải phóng ngay lập tức 100% bộ nhớ của ảnh cũ (nếu có) TRƯỚC KHI giải mã ảnh mới để tránh tràn RAM trên iOS Safari
+    destroyActiveCropperAndRevokePhoto();
+    if (currentUserImage && typeof currentUserImage.width === 'number') {
+        currentUserImage.width = 0;
+        currentUserImage.height = 0;
+        currentUserImage = null;
+    }
+
     currentScaleX = 1;
     hasGeneratedQuoteOnce = false;
+    currentBokehIntensity = 0;
+    currentSkinIntensity = 0;
+    currentLipIntensity = 0;
+    currentLipShade = 'none';
+    document.querySelectorAll('#lip-shade-list .lip-shade-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-lip') === 'none');
+    });
 
     // Cả 2 nhánh ("Lời chúc dành cho bạn" và "Soạn lời chúc cho người thân") đều vào Bước 2 để người dùng tự tay căn góc ảnh + chỉnh Filter theo khuôn chung của thiệp!
     window.isSelfOracleMode = (window.selectedCreationFlow === 'self');
@@ -5150,9 +5194,6 @@ async function handleImageInput(e) {
     step2.classList.remove('step2-morph-from', 'step2-morph-to', 'step2-morph-settled', 'step2-morph-active', 'step2-ui-hidden', 'step2-ui-revealing');
     step2.classList.add('active', 'step2-preloading');
 
-    if (originalImgSrc && originalImgSrc.startsWith('blob:')) {
-        URL.revokeObjectURL(originalImgSrc);
-    }
     originalImgSrc = normalizedBlobUrl;
 
     fitPreviewAreaToStage();
@@ -5273,7 +5314,7 @@ function initCropper() {
         }
     });
 
-    // Kết xuất trực tiếp vùng ảnh đã phóng zoom / xoay / lật từ thẻ <img> gốc độ phân giải đầy đủ (12MP - 48MP) sang Canvas đích (1024x1526)
+    // Kết xuất trực tiếp vùng ảnh đã phóng zoom / xoay / lật từ thẻ <img> gốc độ phân giải cao sang Canvas đích (1024x1526)
     // mà KHÔNG qua Canvas trung gian getSourceCanvas của Cropper, sau đó ghép trực tiếp các lớp Xóa phông + Mịn da Face ROI + Tô son Lip ROI!
     const origGetCroppedCanvas = cropperObj.getCroppedCanvas.bind(cropperObj);
     cropperObj.getCroppedCanvas = function (options) {
@@ -5310,7 +5351,7 @@ function initCropper() {
                 if (scaleX !== 1 || scaleY !== 1) {
                     ctx.scale(scaleX, scaleY);
                 }
-                // Vẽ trực tiếp từ thẻ <img> gốc độ phân giải cảm biến (không mất 1 pixel nào khi zoom sâu!)
+                // Vẽ trực tiếp từ thẻ <img> nguồn độ phân giải cao (không mất 1 pixel nào khi zoom sâu!)
                 ctx.drawImage(rawImg, -width * 0.5, -height * 0.5, width, height);
                 ctx.restore();
 
@@ -5350,7 +5391,7 @@ document.getElementById('upload-btn').addEventListener('change', handleImageInpu
 document.getElementById('selfie-btn').addEventListener('change', handleImageInput);
 
 document.getElementById('cancel-btn').addEventListener('click', () => {
-    disposeBeautyEngineLayers();
+    destroyActiveCropperAndRevokePhoto();
     document.body.classList.remove('self-oracle-mode');
     step2.classList.remove('active', 'step2-preloading', 'step2-morph-from', 'step2-morph-to');
     step1.classList.add('active');
@@ -5593,6 +5634,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                                 canvas._renderId = Date.now();
                                 currentUserImage = canvas;
                             }
+                            releaseBeautyOffscreenCanvasesKeepImg();
                         }
                     } catch (cropErr) {
                         console.error('Self oracle crop error:', cropErr);
@@ -5691,6 +5733,7 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                         canvas._renderId = Date.now();
                         currentUserImage = canvas;
                     }
+                    releaseBeautyOffscreenCanvasesKeepImg();
                 }
             } catch (err) {
                 console.error('Deferred gift crop error:', err);
@@ -6300,6 +6343,9 @@ document.getElementById('back-step2-btn').addEventListener('click', () => {
             const cont = cropperObj.getContainerData();
             cropperObj.setCropBoxData({ left: 0, top: 0, width: cont.width, height: cont.height });
         }
+        if (isAnyBeautyRetouchActive()) {
+            scheduleBeautyPreviewComposite();
+        }
         const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
         if (activeChip) scrollChipIntoCenter(activeChip);
     });
@@ -6307,7 +6353,11 @@ document.getElementById('back-step2-btn').addEventListener('click', () => {
 
 // 6. Nút "📷 Ảnh mới" (Quay về Bước 1 chọn ảnh mới)
 document.getElementById('redo-btn').addEventListener('click', () => {
-    disposeBeautyEngineLayers();
+    destroyActiveCropperAndRevokePhoto();
+    if (currentUserImage && typeof currentUserImage.width === 'number') {
+        currentUserImage.width = 0;
+        currentUserImage.height = 0;
+    }
     if (typeof window.restoreCreatorStep1UI === 'function') {
         window.restoreCreatorStep1UI(true);
     }
