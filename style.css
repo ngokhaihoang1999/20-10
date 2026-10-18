@@ -780,17 +780,72 @@ input[type="file"] {
 
 .wax-seal-Ambient-ring {
     position: absolute;
-    inset: -7px;
+    inset: -8px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 226, 138, 0.78);
-    box-shadow: 0 0 20px rgba(245, 194, 73, 0.5);
-    animation: sealPulseRing 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    border: 2.2px solid rgba(255, 232, 148, 0.92);
+    box-shadow:
+        0 0 22px rgba(248, 202, 82, 0.72),
+        inset 0 0 12px rgba(255, 236, 165, 0.45);
+    animation: sealBreathVibrateRing 2.35s cubic-bezier(0.36, 0, 0.24, 1) infinite;
+    pointer-events: none;
+    will-change: transform, opacity;
+}
+
+.wax-seal-Ambient-ring::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1.6px solid rgba(255, 238, 170, 0.78);
+    box-shadow: 0 0 16px rgba(255, 214, 98, 0.48);
+    animation: sealOuterRippleWave 2.35s cubic-bezier(0.16, 1, 0.3, 1) infinite;
     pointer-events: none;
 }
 
-@keyframes sealPulseRing {
-    0% { transform: scale(0.88); opacity: 0.9; }
-    100% { transform: scale(1.32); opacity: 0; }
+@keyframes sealBreathVibrateRing {
+    0%, 100% {
+        transform: translate3d(0, 0, 0) scale(0.94);
+        opacity: 0.68;
+    }
+    32% {
+        transform: translate3d(0, 0, 0) scale(1.12);
+        opacity: 1;
+    }
+    39% {
+        transform: translate3d(-1.8px, 1.0px, 0) scale(1.16);
+        opacity: 1;
+    }
+    46% {
+        transform: translate3d(1.8px, -1.0px, 0) scale(1.10);
+        opacity: 0.96;
+    }
+    53% {
+        transform: translate3d(-1.5px, -0.9px, 0) scale(1.16);
+        opacity: 1;
+    }
+    60% {
+        transform: translate3d(1.4px, 0.9px, 0) scale(1.11);
+        opacity: 0.96;
+    }
+    67% {
+        transform: translate3d(0, 0, 0) scale(1.13);
+        opacity: 0.92;
+    }
+}
+
+@keyframes sealOuterRippleWave {
+    0%, 26% {
+        transform: scale(0.95);
+        opacity: 0;
+    }
+    36% {
+        transform: scale(1.02);
+        opacity: 0.85;
+    }
+    88%, 100% {
+        transform: scale(1.36);
+        opacity: 0;
+    }
 }
 
 .wax-seal-svg {
@@ -798,6 +853,29 @@ input[type="file"] {
     height: 100%;
     display: block;
     overflow: visible;
+    animation: waxSealBodyHeartbeat 2.35s ease-in-out infinite;
+    will-change: transform;
+}
+
+@keyframes waxSealBodyHeartbeat {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+    }
+    34% {
+        transform: scale(1.038) rotate(0deg);
+    }
+    41% {
+        transform: scale(1.052) rotate(-1.4deg);
+    }
+    48% {
+        transform: scale(1.028) rotate(1.4deg);
+    }
+    55% {
+        transform: scale(1.048) rotate(-1.0deg);
+    }
+    64% {
+        transform: scale(1.032) rotate(0deg);
+    }
 }
 
 .wax-seal-shine {
@@ -901,12 +979,19 @@ input[type="file"] {
     animation: none;
 }
 
-/* Giữ toàn bộ tấm thiệp và các lớp con làm 1 bitmap tĩnh duy nhất trên GPU trong suốt lúc rút/cất thiệp (60fps tuyệt đối) */
+/* Giữ toàn bộ tấm thiệp bên trong phong bì làm 1 bitmap tĩnh khi phong bì đang đóng,
+   nhưng CHO PHÉP vòng hào quang dấu sáp (.wax-seal-Ambient-ring) thở & rung động liên tục để thu hút sự chú ý! */
 #step-1:not(.envelope-opened) .fan-Ambient-glow,
 #step-1:not(.envelope-opened) .fan-floating-accent,
 #step-1:not(.envelope-opened) .fan-card-shine::after,
-#step-1:not(.envelope-opened) .wax-seal-Ambient-ring,
-#step-1:not(.envelope-opened) .wax-seal-shine::after {
+#step-1.env-animating .wax-seal-Ambient-ring,
+#step-1.env-animating .wax-seal-Ambient-ring::after,
+#step-1.env-animating .wax-seal-svg,
+#step-1.env-animating .wax-seal-shine::after,
+#step-1.envelope-opened .wax-seal-Ambient-ring,
+#step-1.envelope-opened .wax-seal-Ambient-ring::after,
+#step-1.envelope-opened .wax-seal-svg,
+#step-1.envelope-opened .wax-seal-shine::after {
     animation-play-state: paused !important;
 }
 
@@ -4178,31 +4263,27 @@ body.recipient-mode .recipient-luxury-dock {
 
 .u3d-seal-pulse-ring {
     position: absolute;
-    inset: 4px;
+    inset: 2px;
     border-radius: 50%;
-    border: 2px solid rgba(255, 232, 148, 0.85);
+    border: 2.2px solid rgba(255, 232, 148, 0.92);
+    box-shadow:
+        0 0 22px rgba(248, 202, 82, 0.72),
+        inset 0 0 12px rgba(255, 236, 165, 0.45);
     pointer-events: none;
-    animation: u3dSealRingPulse 2.1s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    animation: sealBreathVibrateRing 2.35s cubic-bezier(0.36, 0, 0.24, 1) infinite;
+    will-change: transform, opacity;
 }
 
 .u3d-seal-pulse-ring.ring-2 {
-    animation-delay: 1.05s;
+    inset: -2px;
+    border: 1.6px solid rgba(255, 238, 170, 0.78);
+    box-shadow: 0 0 16px rgba(255, 214, 98, 0.48);
+    animation: sealOuterRippleWave 2.35s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
 
 .u3d-envelope-stage.is-opening .u3d-seal-pulse-ring {
     opacity: 0;
     transition: opacity 0.35s ease;
-}
-
-@keyframes u3dSealRingPulse {
-    0% {
-        transform: scale(0.88);
-        opacity: 0.92;
-    }
-    100% {
-        transform: scale(1.58);
-        opacity: 0;
-    }
 }
 
 .u3d-seal-emblem {
@@ -4212,7 +4293,7 @@ body.recipient-mode .recipient-luxury-dock {
     display: flex;
     align-items: center;
     justify-content: center;
-    animation: u3dSealBreath 2.6s ease-in-out infinite;
+    animation: waxSealBodyHeartbeat 2.35s ease-in-out infinite;
     will-change: transform;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
@@ -4237,11 +4318,6 @@ body.recipient-mode .recipient-luxury-dock {
 
 .u3d-envelope-stage.is-opening .u3d-seal-emblem {
     animation: none;
-}
-
-@keyframes u3dSealBreath {
-    0%, 100% { transform: scale(1) rotate(0deg); }
-    50% { transform: scale(1.06) rotate(2deg); }
 }
 
 /* --- TẤM THIỆP VẬT LÝ 3D 2 MẶT (TRƯỚC / SAU ÉP KIM VÀNG 24K) - THUẦN GPU TRANSFORM --- */
