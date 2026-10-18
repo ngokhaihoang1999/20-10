@@ -1751,7 +1751,7 @@ function drawPostmarkStamp(ctx, cx, cy, radius, theme) {
     ctx.font = `italic 700 ${Math.floor(radius * 0.46)}px "Playfair Display", serif`;
     ctx.fillText('20•10', 0, radius * 0.04);
     ctx.font = `600 ${Math.floor(radius * 0.2)}px "Montserrat", sans-serif`;
-    ctx.fillText('★ BTLMVN ★', 0, radius * 0.46);
+    ctx.fillText(window.isSelfOracleMode ? '★ VIETNAM ★' : '★ BTLMVN ★', 0, radius * 0.46);
     ctx.restore();
 }
 
@@ -2716,21 +2716,26 @@ function syncColorSwatchesUI(themeKey, shouldScroll = false) {
 // Vẽ nội dung Phong Ấn Bất Ngờ (khi người dùng chọn chế độ "🌸 Câu chúc ngẫu nhiên" hoặc "✨ Lời chúc dành cho bạn") - Chữ to rõ, cân đối trên cả điện thoại và máy tính
 function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     const centerX = boxX + boxW / 2;
+    const maxLineW = boxW - Math.max(Math.floor(boxW * 0.096), Math.ceil(92 * scale));
 
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    // 1. Dòng tiêu đề trên cùng lớn rõ
+    // 1. Dòng tiêu đề trên cùng lớn rõ (tự co cỡ chữ nếu dài để tuyệt đối không tràn)
     const topTitle = window.isSelfOracleMode
-        ? '✨ Dành Cho Bạn ✨'
+        ? ((recipientName || '').trim() || 'Mừng ngày Phụ nữ Việt Nam')
         : ((recipientName || '').trim() || '🌸 Câu Chúc Ngẫu Nhiên 🌸');
-    const titleFontPx = Math.floor(72 * scale);
+    let titleFontPx = Math.floor(66 * scale);
     ctx.font = recipientFont(titleFontPx);
+    while (titleFontPx > Math.floor(34 * scale) && inkWidth(ctx, topTitle) > maxLineW) {
+        titleFontPx -= 1;
+        ctx.font = recipientFont(titleFontPx);
+    }
     ctx.fillStyle = theme.recipientColor;
     ctx.shadowColor = theme.shadowRgba;
     ctx.shadowBlur = Math.floor(10 * scale);
-    ctx.fillText(topTitle, centerX, boxY + boxH * 0.22, boxW * 0.92);
+    ctx.fillText(topTitle, centerX, boxY + boxH * 0.22, maxLineW);
 
     // 2. Đường kẻ kim cương ánh vàng ở giữa
     const divY = boxY + boxH * 0.38;
@@ -2750,11 +2755,13 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     drawFourPointStarPath(ctx, centerX, divY, 9.5 * scale);
     ctx.fill();
 
-    // 3. Dòng thông điệp bí mật ở trung tâm hộp chữ: "Lời chúc bất ngờ nhân dịp 20.10 từ BTLMVN"
-    const surpriseLine = 'Lời chúc bất ngờ nhân dịp 20.10 từ BTLMVN';
-    let bodyFontPx = Math.floor(58 * scale);
+    // 3. Dòng thông điệp bí mật ở trung tâm hộp chữ (luồng cá nhân không nhắc tới BTLMVN)
+    const surpriseLine = window.isSelfOracleMode
+        ? 'Lời chúc bất ngờ nhân ngày Phụ nữ Việt Nam 20.10'
+        : 'Lời chúc bất ngờ nhân dịp 20.10 từ BTLMVN';
+    let bodyFontPx = Math.floor(56 * scale);
     ctx.font = quoteFont(bodyFontPx);
-    while (bodyFontPx > Math.floor(40 * scale) && ctx.measureText(surpriseLine).width > boxW * 0.93) {
+    while (bodyFontPx > Math.floor(32 * scale) && inkWidth(ctx, surpriseLine) > maxLineW) {
         bodyFontPx -= 1;
         ctx.font = quoteFont(bodyFontPx);
     }
@@ -2764,16 +2771,21 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     textGrad.addColorStop(1, theme.textBottom);
     ctx.fillStyle = textGrad;
 
-    ctx.fillText(surpriseLine, centerX, boxY + boxH * 0.60, boxW * 0.93);
+    ctx.fillText(surpriseLine, centerX, boxY + boxH * 0.60, maxLineW);
 
     // 4. Dòng ghi chú phía dưới to rõ, dễ đọc
     const bottomHint = window.isSelfOracleMode
-        ? '✦ Căn ảnh & chỉnh màu rồi bấm Nhận lời chúc ✦'
+        ? '✦ Căn ảnh & làm đẹp rồi bấm Nhận lời chúc ✦'
         : `✦ Chủ đề: ${TOPIC_LABELS_MAP[currentTopic] || 'Ngẫu nhiên'}  •  Chạm để tự viết ✦`;
-    ctx.font = `700 ${Math.floor(38 * scale)}px "Montserrat", sans-serif`;
+    let hintFontPx = Math.floor(36 * scale);
+    ctx.font = `700 ${hintFontPx}px "Montserrat", sans-serif`;
+    while (hintFontPx > Math.floor(22 * scale) && inkWidth(ctx, bottomHint) > maxLineW) {
+        hintFontPx -= 1;
+        ctx.font = `700 ${hintFontPx}px "Montserrat", sans-serif`;
+    }
     ctx.fillStyle = theme.borderPrimary;
     ctx.globalAlpha = 0.95;
-    ctx.fillText(bottomHint, centerX, boxY + boxH * 0.85, boxW * 0.93);
+    ctx.fillText(bottomHint, centerX, boxY + boxH * 0.85, maxLineW);
 
     ctx.restore();
 }
@@ -5009,6 +5021,44 @@ function pickNextRandomFlowerMotion() {
     return picked;
 }
 
+const SELF_ORACLE_TITLES = [
+    'Mừng ngày Phụ nữ Việt Nam',
+    'Mừng ngày Phụ nữ VN 20.10',
+    'Chúc mừng ngày Phụ nữ VN',
+    'Chúc mừng ngày Phụ nữ Việt Nam',
+    'Rạng rỡ ngày Phụ nữ Việt Nam',
+    'Tôn vinh Phụ nữ Việt Nam',
+    'Mừng ngày Phụ nữ VN',
+    'Ngọt ngào ngày Phụ nữ VN',
+    'Chúc mừng ngày 20 tháng 10',
+    'Dịu dàng sắc hương 20.10',
+    'Tháng Mười rạng rỡ sắc hương',
+    'Tôn vinh phái đẹp ngày 20.10'
+];
+
+let shuffledSelfOracleTitleDeck = [];
+let lastPickedSelfOracleTitle = '';
+
+function pickNextSelfOracleTitle() {
+    if (shuffledSelfOracleTitleDeck.length === 0) {
+        shuffledSelfOracleTitleDeck = SELF_ORACLE_TITLES.slice();
+        for (let i = shuffledSelfOracleTitleDeck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            const tmp = shuffledSelfOracleTitleDeck[i];
+            shuffledSelfOracleTitleDeck[i] = shuffledSelfOracleTitleDeck[j];
+            shuffledSelfOracleTitleDeck[j] = tmp;
+        }
+        if (shuffledSelfOracleTitleDeck[shuffledSelfOracleTitleDeck.length - 1] === lastPickedSelfOracleTitle && shuffledSelfOracleTitleDeck.length > 1) {
+            const first = shuffledSelfOracleTitleDeck[0];
+            shuffledSelfOracleTitleDeck[0] = shuffledSelfOracleTitleDeck[shuffledSelfOracleTitleDeck.length - 1];
+            shuffledSelfOracleTitleDeck[shuffledSelfOracleTitleDeck.length - 1] = first;
+        }
+    }
+    const picked = shuffledSelfOracleTitleDeck.pop();
+    lastPickedSelfOracleTitle = picked;
+    return picked;
+}
+
 // Hàm bốc thăm ngẫu nhiên Khung + Viền + Tông màu + Lời chúc + Hiệu ứng mở 3D cho luồng "Lời chúc dành cho bạn"
 // (GIỮ NGUYÊN 100% Filter màu & Mức độ Filter mà người dùng đã tự chọn!)
 function applyRandomSelfOracleArtSelections(presetMotion) {
@@ -5032,7 +5082,9 @@ function applyRandomSelfOracleArtSelections(presetMotion) {
 
     isCustomWishActive = false;
     customWishText = '';
-    recipientName = '';
+    if (!recipientName || !SELF_ORACLE_TITLES.includes(recipientName)) {
+        recipientName = pickNextSelfOracleTitle();
+    }
     currentTopic = 'all';
     currentAIQuote = getNextQuoteByTopic('all');
     hasGeneratedQuoteOnce = true;
@@ -5069,6 +5121,7 @@ async function handleImageInput(e) {
         if (generateBtnEl) generateBtnEl.textContent = 'Nhận lời chúc';
         currentWishMode = 'surprise';
         currentBorderStyle = 'sakura';
+        recipientName = pickNextSelfOracleTitle();
         window.presetSelfOracleMotion = pickNextRandomFlowerMotion();
         currentColorTheme = FLOWER_MOTION_TO_COLOR_THEME[window.presetSelfOracleMotion] || 'blush';
         syncFilterIntensityUI();
@@ -5076,6 +5129,8 @@ async function handleImageInput(e) {
         if (headerTitleEl) headerTitleEl.textContent = '✨ Thiết Kế Thiệp 🌸';
         if (generateBtnEl) generateBtnEl.textContent = 'Tạo thiệp';
         window.presetSelfOracleMotion = null;
+        const recipientInpEl = document.getElementById('recipient-name-input');
+        recipientName = recipientInpEl ? recipientInpEl.value.trim() : '';
         syncFilterIntensityUI();
         // Đồng bộ viền & màu sắc theo khung hiện tại ngay khi vào Xưởng Thiết Kế Bước 2
         const cfg = framesConfig[currentSelectedFrameId] || framesConfig[0];
@@ -7010,7 +7065,7 @@ ensureQuoteFont().then(() => {
 function inkWidth(ctx, s) {
     const m = ctx.measureText(s);
     const ink = (m.actualBoundingBoxLeft || 0) + (m.actualBoundingBoxRight || 0);
-    return Math.max(m.width, ink);
+    return Math.ceil(Math.max(m.width, ink) * 1.02);
 }
 
 function wrapLines(ctx, text, maxWidth) {
@@ -7125,10 +7180,10 @@ function formatWishForInputIfLibraryPoem(text) {
 
 function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle) {
     const hasTopOrnament = borderStyle === 'ribbon' || borderStyle === 'hearts';
-    const padTop = Math.floor(boxH * (hasTopOrnament ? 0.078 : 0.054));
-    const padBottom = Math.floor(boxH * 0.054);
+    const padTop = Math.floor(boxH * (hasTopOrnament ? 0.092 : 0.068));
+    const padBottom = Math.floor(boxH * 0.068);
     const maxH = boxH - padTop - padBottom;
-    const padX = Math.max(Math.floor(boxW * 0.026), Math.ceil(25 * scale));
+    const padX = Math.max(Math.floor(boxW * 0.048), Math.ceil(46 * scale));
     const maxWidth = boxW - padX * 2;
     const minSize = Math.max(12, Math.floor(16 * scale));
     const lucBatLines = getLucBatLinesIfLibraryPoem(text);
@@ -7143,8 +7198,12 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
         let widestTitle = 0;
 
         if (recipientLine) {
-            recFontSize = Math.min(Math.floor(76 * scale), Math.floor(fontSize * 1.16));
-            const minSingleLineTitle = Math.max(Math.floor(22 * scale), Math.floor(fontSize * 0.82));
+            const maxTitleFont = lucBatLines ? Math.floor(58 * scale) : Math.floor(76 * scale);
+            const titleScaleRatio = lucBatLines ? 1.10 : 1.16;
+            recFontSize = Math.min(maxTitleFont, Math.floor(fontSize * titleScaleRatio));
+            const minSingleLineTitle = lucBatLines
+                ? Math.floor(20 * scale)
+                : Math.max(Math.floor(22 * scale), Math.floor(fontSize * 0.82));
             ctx.font = recipientFont(recFontSize);
 
             while (recFontSize > minSingleLineTitle && inkWidth(ctx, recipientLine) > maxWidth) {
@@ -7153,7 +7212,7 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
             }
 
             if (inkWidth(ctx, recipientLine) > maxWidth) {
-                recFontSize = Math.min(Math.floor(58 * scale), Math.floor(fontSize * 1.02));
+                recFontSize = Math.min(Math.floor(54 * scale), Math.floor(fontSize * 1.0));
                 ctx.font = recipientFont(recFontSize);
                 titleLines = wrapLines(ctx, recipientLine, maxWidth);
             } else {
@@ -7161,16 +7220,17 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
             }
 
             titleLineHeight = Math.floor(recFontSize * TITLE_LINE_HEIGHT);
-            titleInkH = (titleLines.length - 1) * titleLineHeight + Math.ceil(recFontSize * 1.06);
-            dividerSpace = Math.floor(fontSize * 0.50);
+            titleInkH = (titleLines.length - 1) * titleLineHeight + Math.ceil(recFontSize * 1.08);
+            dividerSpace = Math.floor(fontSize * (lucBatLines ? 0.44 : 0.50));
             recBlockH = titleInkH + dividerSpace;
             widestTitle = Math.max(...titleLines.map(l => inkWidth(ctx, l)));
         }
 
         ctx.font = quoteFont(fontSize);
         const lines = lucBatLines ? lucBatLines.slice() : wrapLines(ctx, text, maxWidth);
-        const lineHeight = Math.floor(fontSize * QUOTE_LINE_HEIGHT);
-        const quoteInkH = (lines.length - 1) * lineHeight + Math.ceil(fontSize * 1.10);
+        const effectiveQuoteLH = (lucBatLines && recipientLine) ? 1.24 : QUOTE_LINE_HEIGHT;
+        const lineHeight = Math.floor(fontSize * effectiveQuoteLH);
+        const quoteInkH = (lines.length - 1) * lineHeight + Math.ceil(fontSize * 1.12);
         const widest = Math.max(...lines.map(l => inkWidth(ctx, l)));
         const totalTextH = recBlockH + quoteInkH;
         const fits = totalTextH <= maxH && widest <= maxWidth && widestTitle <= maxWidth;
