@@ -1837,7 +1837,7 @@ body.self-oracle-mode #step-2 #step2-control-deck {
     flex-direction: column;
     align-items: stretch;
     width: 100%;
-    padding: 8px 10px;
+    padding: 6px 8px;
 }
 
 body.self-oracle-mode #step-2 #tab-filter {
@@ -1845,11 +1845,14 @@ body.self-oracle-mode #step-2 #tab-filter {
     flex-direction: column;
     align-items: stretch;
     width: 100%;
-    gap: 8px;
+    gap: 5px;
 }
 
 body.self-oracle-mode #step-2 #tab-filter .filter-grid,
-body.self-oracle-mode #step-2 #tab-filter .filter-intensity-row {
+body.self-oracle-mode #step-2 #tab-filter .filter-intensity-row,
+body.self-oracle-mode #step-2 #tab-filter .beauty-subtab-switch,
+body.self-oracle-mode #step-2 #tab-filter .beauty-subpane,
+body.self-oracle-mode #step-2 #tab-filter .beauty-sliders-stack {
     width: 100%;
 }
 
@@ -1979,8 +1982,20 @@ body.self-oracle-mode #step-2 .step2-wish-area {
 }
 
 .cropper-view-box {
+    position: relative !important;
     outline: none !important;
     background: transparent !important;
+}
+
+.cropper-retouch-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none !important;
+    max-width: none !important;
+    max-height: none !important;
+    display: none;
+    will-change: transform, filter;
 }
 
 .cropper-line,
@@ -2929,15 +2944,87 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
     opacity: 0.9;
 }
 
-.filter-btn {
+/* Công tắc 2 ngăn trong Tab Làm Đẹp (🎨 Màu & Xóa phông | 💄 Mịn da & Tô son) */
+.beauty-subtab-switch {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 5px;
     width: 100%;
-    padding: 8px 6px;
+}
+
+.beauty-subtab-btn {
+    position: relative;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 4px;
+    border-radius: 10px;
+    border: 1.2px solid #cbe4da;
+    background: #ffffff;
+    color: #095241;
+    font-family: inherit;
+    font-size: clamp(0.6rem, 2.25vw, 0.72rem);
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.16s ease;
+}
+
+.beauty-subtab-btn.active[data-beauty-pane="beauty-pane-color"] {
+    background: linear-gradient(135deg, #0f7b5f 0%, #095241 100%);
+    border-color: #e2b049;
+    color: #fffdf5;
+    box-shadow: 0 2px 8px rgba(15, 123, 95, 0.24);
+}
+
+.beauty-subtab-btn.active[data-beauty-pane="beauty-pane-makeup"] {
+    background: linear-gradient(135deg, #d84b7e 0%, #b53464 100%);
+    border-color: #f3c6d7;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(216, 75, 126, 0.26);
+}
+
+.beauty-subtab-btn.has-active-fx::after {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ffd166;
+    box-shadow: 0 0 6px rgba(255, 209, 102, 0.9);
+    flex-shrink: 0;
+}
+
+.beauty-subpane {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.beauty-sliders-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 100%;
+}
+
+.filter-btn,
+.lip-shade-btn {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 4px;
     border: 1.2px solid #c2e2d4;
     background: #ffffff;
     color: #095241;
-    border-radius: 11px;
+    border-radius: 10px;
     font-family: inherit;
-    font-size: clamp(0.76rem, 2.85vw, 0.88rem);
+    font-size: clamp(0.62rem, 2.3vw, 0.74rem);
     font-weight: 700;
     cursor: pointer;
     white-space: nowrap;
@@ -2950,40 +3037,76 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
     border-color: transparent;
     color: #fff;
     font-weight: 700;
-    box-shadow: 0 3px 10px rgba(15, 123, 95, 0.24);
+    box-shadow: 0 2px 8px rgba(15, 123, 95, 0.24);
+}
+
+.lip-shade-btn {
+    border-color: #f2cad8;
+    color: #7a1c42;
+}
+
+.lip-shade-btn.active {
+    background: linear-gradient(135deg, #d84b7e 0%, #a82454 100%);
+    border-color: transparent;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(216, 75, 126, 0.26);
+}
+
+.lip-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    border: 1.2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    flex-shrink: 0;
 }
 
 .filter-intensity-row {
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    background: rgba(255, 255, 255, 0.94);
+    gap: 8px;
+    padding: 5px 10px;
+    background: rgba(255, 255, 255, 0.95);
     border: 1.2px solid #c2e2d4;
-    border-radius: 11px;
+    border-radius: 10px;
     transition: opacity 0.2s ease, border-color 0.2s ease;
 }
 
 .filter-intensity-row.is-disabled {
-    opacity: 0.65;
+    opacity: 0.72;
 }
 
 .filter-intensity-label {
-    font-size: clamp(0.76rem, 2.85vw, 0.88rem);
+    min-width: 82px;
+    font-size: clamp(0.62rem, 2.3vw, 0.74rem);
     font-weight: 700;
     color: #095241;
     white-space: nowrap;
 }
 
+#lip-intensity-row,
+#skin-intensity-row {
+    border-color: #f2cad8;
+}
+
+#lip-intensity-row .filter-intensity-label,
+#lip-intensity-row .filter-intensity-value,
+#skin-intensity-row .filter-intensity-label,
+#skin-intensity-row .filter-intensity-value {
+    color: #8c1d49;
+}
+
 .filter-intensity-slider {
     flex: 1;
-    min-width: 80px;
+    min-width: 70px;
     -webkit-appearance: none;
     appearance: none;
-    height: 7px;
+    height: 6px;
     border-radius: 999px;
-    background: linear-gradient(90deg, #0f7b5f 0%, #d4af37 100%);
+    background: linear-gradient(90deg, #0f7b5f 0%, #d4af37 0%, #dbece5 0%, #dbece5 100%);
     outline: none;
     cursor: pointer;
 }
@@ -2991,14 +3114,19 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 .filter-intensity-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #fffef5 0%, #f5d365 55%, #b8861b 100%);
     border: 2px solid #095241;
-    box-shadow: 0 2px 6px rgba(9, 82, 65, 0.28);
+    box-shadow: 0 2px 5px rgba(9, 82, 65, 0.28);
     cursor: pointer;
     transition: transform 0.15s ease;
+}
+
+.filter-intensity-slider.lip-slider::-webkit-slider-thumb,
+.filter-intensity-slider.skin-slider::-webkit-slider-thumb {
+    border-color: #a82454;
 }
 
 .filter-intensity-slider::-webkit-slider-thumb:hover,
@@ -3007,19 +3135,19 @@ body[data-recipient-theme="champagne"] .showcase-pill-btn {
 }
 
 .filter-intensity-slider::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 35%, #fffef5 0%, #f5d365 55%, #b8861b 100%);
     border: 2px solid #095241;
-    box-shadow: 0 2px 6px rgba(9, 82, 65, 0.28);
+    box-shadow: 0 2px 5px rgba(9, 82, 65, 0.28);
     cursor: pointer;
 }
 
 .filter-intensity-value {
-    min-width: 44px;
+    min-width: 36px;
     text-align: right;
-    font-size: clamp(0.76rem, 2.85vw, 0.88rem);
+    font-size: clamp(0.62rem, 2.3vw, 0.74rem);
     font-weight: 800;
     color: #095241;
     font-variant-numeric: tabular-nums;
@@ -4796,27 +4924,29 @@ body.recipient-mode .recipient-luxury-dock {
     }
 
     body.self-oracle-mode #step-2 #step2-control-deck {
-        padding: 10px 14px;
+        padding: 8px 12px;
     }
 
     .filter-grid {
-        gap: 6px;
+        gap: 5px;
     }
 
-    .filter-btn {
-        padding: 9px 10px;
-        font-size: clamp(0.84rem, 1.45dvh, 0.96rem);
-        border-radius: 12px;
+    .filter-btn,
+    .lip-shade-btn,
+    .beauty-subtab-btn {
+        padding: 6px 8px;
+        font-size: clamp(0.74rem, 1.28dvh, 0.85rem);
+        border-radius: 10px;
     }
 
     .filter-intensity-row {
-        padding: 9px 14px;
-        border-radius: 12px;
+        padding: 6px 12px;
+        border-radius: 10px;
     }
 
     .filter-intensity-label,
     .filter-intensity-value {
-        font-size: clamp(0.84rem, 1.45dvh, 0.96rem);
+        font-size: clamp(0.74rem, 1.28dvh, 0.85rem);
     }
 
     .deck-tabs.deck-tabs-5 {
