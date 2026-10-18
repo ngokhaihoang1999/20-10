@@ -6801,11 +6801,11 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
         drawDetailedSakuraBloom(ctx, boxX + boxW - 64 * scale, boxY + boxH - 10 * scale, 22 * scale, -0.3, theme);
         drawDetailedSakuraBloom(ctx, boxX + boxW - 12 * scale, boxY + boxH - 62 * scale, 20 * scale, 0.4, theme);
 
-        // Điểm hoa anh đào & ngọc trai hai bên hông
-        drawLustrousPearl(ctx, boxX + boxW - 20 * scale, boxY + 20 * scale, 7 * scale, theme);
-        drawLustrousPearl(ctx, boxX + 20 * scale, boxY + boxH - 20 * scale, 7 * scale, theme);
-        drawDetailedSakuraBloom(ctx, boxX + 16 * scale, midY, 19 * scale, 0.15, theme);
-        drawDetailedSakuraBloom(ctx, boxX + boxW - 16 * scale, midY, 19 * scale, -0.15, theme);
+        // Điểm hoa anh đào & ngọc trai hai bên hông (đặt ôm sát viền ngoài để nhường trọn không gian cho câu thơ lớn)
+        drawLustrousPearl(ctx, boxX + boxW - 18 * scale, boxY + 20 * scale, 7 * scale, theme);
+        drawLustrousPearl(ctx, boxX + 18 * scale, boxY + boxH - 20 * scale, 7 * scale, theme);
+        drawDetailedSakuraBloom(ctx, boxX + 6 * scale, midY, 17 * scale, 0.15, theme);
+        drawDetailedSakuraBloom(ctx, boxX + boxW - 6 * scale, midY, 17 * scale, -0.15, theme);
 
     } else if (style === 'ribbon') {
         // 🦪 Ngọc Trai & Nơ: Nơ lụa hoàng gia lớn đính ngọc trai ở đỉnh + chuỗi ngọc trai 3D viền quanh hộp
@@ -6840,43 +6840,43 @@ function drawRomanticQuoteBox(ctx, boxX, boxY, boxW, boxH, radius, scale, theme,
         drawLustrousPearl(ctx, midX - 42 * scale, boxY, 6 * scale, theme);
         drawLustrousPearl(ctx, midX + 42 * scale, boxY, 6 * scale, theme);
 
-        drawStarburstFlare(ctx, boxX + 26 * scale, boxY + 26 * scale, 22 * scale, theme);
-        drawStarburstFlare(ctx, boxX + boxW - 26 * scale, boxY + 26 * scale, 22 * scale, theme);
-        drawStarburstFlare(ctx, boxX + 26 * scale, boxY + boxH - 26 * scale, 22 * scale, theme);
-        drawStarburstFlare(ctx, boxX + boxW - 26 * scale, boxY + boxH - 26 * scale, 22 * scale, theme);
+        drawStarburstFlare(ctx, boxX + 24 * scale, boxY + 24 * scale, 21 * scale, theme);
+        drawStarburstFlare(ctx, boxX + boxW - 24 * scale, boxY + 24 * scale, 21 * scale, theme);
+        drawStarburstFlare(ctx, boxX + 24 * scale, boxY + boxH - 24 * scale, 21 * scale, theme);
+        drawStarburstFlare(ctx, boxX + boxW - 24 * scale, boxY + boxH - 24 * scale, 21 * scale, theme);
 
         ctx.fillStyle = theme.goldAccent;
-        drawFourPointStarPath(ctx, boxX + 18 * scale, midY, 14 * scale);
+        drawFourPointStarPath(ctx, boxX + 7 * scale, midY, 12 * scale);
         ctx.fill();
-        drawFourPointStarPath(ctx, boxX + boxW - 18 * scale, midY, 14 * scale);
+        drawFourPointStarPath(ctx, boxX + boxW - 7 * scale, midY, 12 * scale);
         ctx.fill();
         drawFourPointStarPath(ctx, midX, boxY + boxH, 13 * scale);
         ctx.fill();
 
     } else if (style === 'daisy') {
-        // 🌿 Nguyệt Quế & Cúc: Vòng nguyệt quế vàng, lá bạch quả Ginkgo, oải hương & Cúc Họa Mi lớn hai bên
-        drawFineBotanicalSprig(ctx, boxX + 16 * scale, midY + 75 * scale, 0.85 * scale, -Math.PI * 0.48, theme);
-        drawFineBotanicalSprig(ctx, boxX + boxW - 16 * scale, midY + 75 * scale, 0.85 * scale, -Math.PI * 0.52, theme);
+        // 🌿 Nguyệt Quế & Cúc: Vòng nguyệt quế vàng, lá bạch quả Ginkgo, oải hương & Cúc Họa Mi đính ôm sát viền hộp
+        drawFineBotanicalSprig(ctx, boxX + 8 * scale, midY + 75 * scale, 0.78 * scale, -Math.PI * 0.49, theme);
+        drawFineBotanicalSprig(ctx, boxX + boxW - 8 * scale, midY + 75 * scale, 0.78 * scale, -Math.PI * 0.51, theme);
 
-        drawGinkgoLeaf(ctx, boxX + 16 * scale, boxY + 28 * scale, 32 * scale, 0.55, theme);
-        drawGinkgoLeaf(ctx, boxX + boxW - 16 * scale, boxY + 28 * scale, 32 * scale, -0.55, theme);
+        drawGinkgoLeaf(ctx, boxX + 12 * scale, boxY + 26 * scale, 28 * scale, 0.50, theme);
+        drawGinkgoLeaf(ctx, boxX + boxW - 12 * scale, boxY + 26 * scale, 28 * scale, -0.50, theme);
 
-        drawLavenderSpike(ctx, boxX + 16 * scale, boxY + boxH - 20 * scale, 64 * scale, -0.45, theme);
-        drawLavenderSpike(ctx, boxX + boxW - 16 * scale, boxY + boxH - 20 * scale, 64 * scale, 0.45, theme);
+        drawLavenderSpike(ctx, boxX + 10 * scale, boxY + boxH - 18 * scale, 56 * scale, -0.36, theme);
+        drawLavenderSpike(ctx, boxX + boxW - 10 * scale, boxY + boxH - 18 * scale, 56 * scale, 0.36, theme);
 
-        drawRichChamomileDaisy(ctx, boxX + 16 * scale, midY, 26 * scale, theme);
-        drawRichChamomileDaisy(ctx, boxX + boxW - 16 * scale, midY, 26 * scale, theme);
+        drawRichChamomileDaisy(ctx, boxX + 6 * scale, midY, 21 * scale, theme);
+        drawRichChamomileDaisy(ctx, boxX + boxW - 6 * scale, midY, 21 * scale, theme);
 
     } else if (style === 'vintage') {
         // 🌹 Hồng Pháp: Khung góc khuyết cổ điển + Hoa Hồng Pháp Watercolor nét cọ vàng 24K cỡ lớn
-        drawFineLineRoseCorner(ctx, boxX + 8 * scale, boxY + 8 * scale, 0.92 * scale, 1, 1, theme);
-        drawFineLineRoseCorner(ctx, boxX + boxW - 8 * scale, boxY + boxH - 8 * scale, 0.92 * scale, -1, -1, theme);
+        drawFineLineRoseCorner(ctx, boxX + 8 * scale, boxY + 8 * scale, 0.90 * scale, 1, 1, theme);
+        drawFineLineRoseCorner(ctx, boxX + boxW - 8 * scale, boxY + boxH - 8 * scale, 0.90 * scale, -1, -1, theme);
 
-        drawFineBotanicalSprig(ctx, boxX + boxW - 22 * scale, boxY + 22 * scale, 0.65 * scale, 2.35, theme);
-        drawFineBotanicalSprig(ctx, boxX + 22 * scale, boxY + boxH - 22 * scale, 0.65 * scale, -0.75, theme);
+        drawFineBotanicalSprig(ctx, boxX + boxW - 20 * scale, boxY + 20 * scale, 0.62 * scale, 2.35, theme);
+        drawFineBotanicalSprig(ctx, boxX + 20 * scale, boxY + boxH - 20 * scale, 0.62 * scale, -0.75, theme);
 
-        drawLustrousPearl(ctx, boxX + 16 * scale, midY, 7 * scale, theme);
-        drawLustrousPearl(ctx, boxX + boxW - 16 * scale, midY, 7 * scale, theme);
+        drawLustrousPearl(ctx, boxX + 8 * scale, midY, 6.5 * scale, theme);
+        drawLustrousPearl(ctx, boxX + boxW - 8 * scale, midY, 6.5 * scale, theme);
     }
 
     ctx.restore();
@@ -7121,7 +7121,7 @@ ensureQuoteFont().then(() => {
 function inkWidth(ctx, s) {
     const m = ctx.measureText(s);
     const ink = (m.actualBoundingBoxLeft || 0) + (m.actualBoundingBoxRight || 0);
-    return Math.ceil(Math.max(m.width, ink) * 1.02);
+    return Math.ceil(Math.max(m.width, ink));
 }
 
 function wrapLines(ctx, text, maxWidth) {
@@ -7226,7 +7226,9 @@ function getLibraryPoemMap() {
 function getLucBatLinesIfLibraryPoem(text) {
     if (!text) return null;
     const map = getLibraryPoemMap();
-    return map.get(normalizePoemKey(text)) || null;
+    const fromMap = map.get(normalizePoemKey(text));
+    if (fromMap) return fromMap;
+    return split28WordsToLucBatLines(text);
 }
 
 function formatWishForInputIfLibraryPoem(text) {
@@ -7236,10 +7238,10 @@ function formatWishForInputIfLibraryPoem(text) {
 
 function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle) {
     const hasTopOrnament = borderStyle === 'ribbon' || borderStyle === 'hearts';
-    const padTop = Math.floor(boxH * (hasTopOrnament ? 0.092 : 0.068));
-    const padBottom = Math.floor(boxH * 0.068);
+    const padTop = Math.floor(boxH * (hasTopOrnament ? 0.080 : 0.056));
+    const padBottom = Math.floor(boxH * 0.054);
     const maxH = boxH - padTop - padBottom;
-    const padX = Math.max(Math.floor(boxW * 0.048), Math.ceil(46 * scale));
+    const padX = Math.max(Math.floor(boxW * 0.035), Math.ceil(33 * scale));
     const maxWidth = boxW - padX * 2;
     const minSize = Math.max(12, Math.floor(16 * scale));
     const lucBatLines = getLucBatLinesIfLibraryPoem(text);
@@ -7254,9 +7256,11 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
         let widestTitle = 0;
 
         if (recipientLine) {
-            const maxTitleFont = lucBatLines ? Math.floor(58 * scale) : Math.floor(76 * scale);
-            const titleScaleRatio = lucBatLines ? 1.10 : 1.16;
-            recFontSize = Math.min(maxTitleFont, Math.floor(fontSize * titleScaleRatio));
+            const maxTitleFont = lucBatLines ? Math.floor(60 * scale) : Math.floor(76 * scale);
+            const targetTitleFont = lucBatLines
+                ? Math.max(Math.floor(52 * scale), Math.floor(fontSize * 1.18))
+                : Math.floor(fontSize * 1.16);
+            recFontSize = Math.min(maxTitleFont, targetTitleFont);
             const minSingleLineTitle = lucBatLines
                 ? Math.floor(20 * scale)
                 : Math.max(Math.floor(22 * scale), Math.floor(fontSize * 0.82));
@@ -7277,19 +7281,22 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
 
             titleLineHeight = Math.floor(recFontSize * TITLE_LINE_HEIGHT);
             titleInkH = (titleLines.length - 1) * titleLineHeight + Math.ceil(recFontSize * 1.08);
-            dividerSpace = Math.floor(fontSize * (lucBatLines ? 0.44 : 0.50));
+            dividerSpace = Math.floor(fontSize * (lucBatLines ? 0.56 : 0.52));
             recBlockH = titleInkH + dividerSpace;
             widestTitle = Math.max(...titleLines.map(l => inkWidth(ctx, l)));
         }
 
         ctx.font = quoteFont(fontSize);
         const lines = lucBatLines ? lucBatLines.slice() : wrapLines(ctx, text, maxWidth);
-        const effectiveQuoteLH = (lucBatLines && recipientLine) ? 1.24 : QUOTE_LINE_HEIGHT;
+        const effectiveQuoteLH = (lucBatLines && recipientLine) ? 1.28 : QUOTE_LINE_HEIGHT;
         const lineHeight = Math.floor(fontSize * effectiveQuoteLH);
         const quoteInkH = (lines.length - 1) * lineHeight + Math.ceil(fontSize * 1.12);
         const widest = Math.max(...lines.map(l => inkWidth(ctx, l)));
         const totalTextH = recBlockH + quoteInkH;
-        const fits = totalTextH <= maxH && widest <= maxWidth && widestTitle <= maxWidth;
+        // Cho phép co ngang quang học siêu nhẹ (tối đa 6.5% qua tham số maxWidth của fillText) đối với câu Bát 8 chữ dài (41-44 ký tự)
+        // để giữ cỡ chữ toàn bài thơ luôn lớn rõ (43px - 48px), không bị 1 dòng dài kéo nhỏ cả bài thơ!
+        const allowedLineWidth = lucBatLines ? Math.floor(maxWidth * 1.065) : maxWidth;
+        const fits = totalTextH <= maxH && widest <= allowedLineWidth && widestTitle <= maxWidth;
 
         return {
             fits,
@@ -7336,6 +7343,15 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
         }
     }
 
+    // Đảm bảo bài thơ Lục Bát 4 câu luôn đạt cỡ chữ tối thiểu 43px (trên chuẩn 1024px) nếu chiều dọc còn dư chỗ
+    if (lucBatLines && bestAny && bestAny.fontSize < Math.floor(43 * scale)) {
+        const floorSize = Math.floor(43 * scale);
+        const floorCandidate = evaluateAtSize(floorSize);
+        if (floorCandidate.totalTextH <= maxH && floorCandidate.widestTitle <= maxWidth) {
+            bestAny = floorCandidate;
+        }
+    }
+
     // Ưu tiên bố cục 3-4 dòng trải rộng cân đối theo chiều ngang hộp chữ nếu là câu tự viết (prose)
     let layout = bestAny;
     if (!lucBatLines) {
@@ -7355,6 +7371,27 @@ function fitQuoteInBox(ctx, text, recipientLine, boxW, boxH, scale, borderStyle)
         if (!lucBatLines && layout.lines && layout.lines.length > 1) {
             ctx.font = quoteFont(layout.fontSize);
             layout.lines = balanceWrapLines(ctx, text, maxWidth, layout.lines);
+        }
+
+        // Tự động phân bổ khoảng thở chiều dọc (Vertical Breathing Distribution) khi hộp chữ còn dư không gian:
+        // Giúp khối Tiêu đề + Đường kẻ kim cương + 4 câu thơ trải đều đặn, đầy đặn trong khung mà không bao giờ bị co cụm ở giữa!
+        const slackH = layout.maxH - layout.totalTextH;
+        if (slackH > Math.ceil(10 * scale) && layout.lines && layout.lines.length >= 2) {
+            const usableSlack = Math.floor(slackH * 0.68);
+            const divAdd = layout.recipientLine
+                ? Math.min(Math.floor(usableSlack * 0.34), Math.floor(layout.fontSize * 0.30))
+                : 0;
+            const remSlack = Math.max(0, usableSlack - divAdd);
+            const gaps = layout.lines.length - 1;
+            const perLineAdd = Math.min(Math.floor(remSlack / gaps), Math.floor(layout.fontSize * 0.14));
+
+            layout.dividerSpace += divAdd;
+            layout.lineHeight += perLineAdd;
+            if (layout.recipientLine) {
+                layout.recBlockH = layout.titleInkH + layout.dividerSpace;
+            }
+            layout.quoteInkH = (layout.lines.length - 1) * layout.lineHeight + Math.ceil(layout.fontSize * 1.12);
+            layout.totalTextH = layout.recBlockH + layout.quoteInkH;
         }
     }
 
@@ -7390,13 +7427,13 @@ function drawQuoteContent(ctx, boxX, boxY, boxW, boxH, layout, theme, scale) {
         // Đường kẻ trang trí kim cương mảnh ngăn cách rõ ràng giữa Tiêu đề và Lời chúc
         const titleBottomY = startBlockY + layout.titleInkH;
         const divY = titleBottomY + layout.dividerSpace * 0.5;
-        const divW = Math.min(layout.maxWidth * 0.42, 240 * scale);
+        const divW = Math.min(layout.maxWidth * 0.46, 268 * scale);
         const divGrad = ctx.createLinearGradient(centerX - divW / 2, divY, centerX + divW / 2, divY);
         divGrad.addColorStop(0, 'rgba(0,0,0,0)');
         divGrad.addColorStop(0.5, theme.borderPrimary);
         divGrad.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.strokeStyle = divGrad;
-        ctx.lineWidth = Math.max(1, 1.6 * scale);
+        ctx.lineWidth = Math.max(1.2, 1.8 * scale);
         ctx.beginPath();
         ctx.moveTo(centerX - divW / 2, divY);
         ctx.lineTo(centerX + divW / 2, divY);
@@ -7405,7 +7442,7 @@ function drawQuoteContent(ctx, boxX, boxY, boxW, boxH, layout, theme, scale) {
         // Điểm nhấn thoi ánh kim ở tâm đường ngăn cách
         ctx.save();
         ctx.fillStyle = theme.goldAccent;
-        drawFourPointStarPath(ctx, centerX, divY, 5.2 * scale);
+        drawFourPointStarPath(ctx, centerX, divY, 5.8 * scale);
         ctx.fill();
         ctx.restore();
 
