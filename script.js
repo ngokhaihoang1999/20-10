@@ -3448,7 +3448,9 @@ function releaseBeautyOffscreenCanvasesKeepImg() {
         beautyEngineState.retouchCanvasEl.height = 0;
     }
     beautyEngineState.layersReady = false;
+    beautyEngineState.subjectMaskBuilt = false;
     beautyEngineState.bokehBuilt = false;
+    beautyEngineState.builtBokehBucket = 0;
     beautyEngineState.skinBuilt = false;
     beautyEngineState.lipMasksBuilt = false;
     beautyEngineState.builtLipShade = 'none';
@@ -3994,8 +3996,8 @@ function buildSubjectProtectionMask(W, H) {
                 const c11 = pmFloat[y1 * pmW + x1] || 0;
                 conf = (c00 * (1 - wx) + c10 * wx) * (1 - wy) + (c01 * (1 - wx) + c11 * wx) * wy;
 
-                if (conf > 0.12) {
-                    const na = Math.min(1, (conf - 0.12) / 0.34);
+                if (conf > 0.24) {
+                    const na = Math.min(1, (conf - 0.24) / 0.42);
                     alphaGrid[p] = (na * 255 + 0.5) | 0;
                 }
             }
@@ -4026,127 +4028,128 @@ function buildSubjectProtectionMask(W, H) {
         }
     }
 
-    // BƯỚC 2: Khóa cứng Khuôn mặt, Mái tóc & Trục Cổ - Vai - Thân chính
-    faceBoxes.forEach(fb => {
-        const hCx = fb.cx * segW;
-        const hCy = (fb.cy - fb.ry * 0.06) * segH;
-        const hRx = Math.max(6, fb.rx * (hasNeuralSeg ? 1.28 : 1.48) * segW);
-        const hRy = Math.max(8, fb.ry * (hasNeuralSeg ? 1.38 : 1.56) * segH);
+        // BƯỚC 2: Khóa cứng Khuôn mặt & Lõi Cổ - Ngực trên (làm điểm xuất phát cho sóng liên thông cánh tay)
+        faceBoxes.forEach(fb => {
+            const hCx = fb.cx * segW;
+            const hCy = (fb.cy - fb.ry * 0.04) * segH;
+            const hRx = Math.max(6, fb.rx * (hasNeuralSeg ? 1.04 : 1.16) * segW);
+            const hRy = Math.max(8, fb.ry * (hasNeuralSeg ? 1.14 : 1.26) * segH);
 
-        const y0 = Math.max(0, Math.floor(hCy - hRy));
-        const y1 = Math.min(segH - 1, Math.ceil(hCy + hRy));
-        const x0 = Math.max(0, Math.floor(hCx - hRx));
-        const x1 = Math.min(segW - 1, Math.ceil(hCx + hRx));
-        for (let y = y0; y <= y1; y++) {
-            const dy = (y - hCy) / hRy;
-            for (let x = x0; x <= x1; x++) {
-                const dx = (x - hCx) / hRx;
-                const d2 = dx * dx + dy * dy;
-                if (d2 < 1.0) {
-                    const d1 = Math.sqrt(d2);
-                    const a = d1 < 0.72 ? 255 : Math.round(((1.0 - d1) / 0.28) * 255);
-                    const p = y * segW + x;
-                    if (a > alphaGrid[p]) alphaGrid[p] = a;
+            const y0 = Math.max(0, Math.floor(hCy - hRy));
+            const y1 = Math.min(segH - 1, Math.ceil(hCy + hRy));
+            const x0 = Math.max(0, Math.floor(hCx - hRx));
+            const x1 = Math.min(segW - 1, Math.ceil(hCx + hRx));
+            for (let y = y0; y <= y1; y++) {
+                const dy = (y - hCy) / hRy;
+                for (let x = x0; x <= x1; x++) {
+                    const dx = (x - hCx) / hRx;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < 1.0) {
+                        const d1 = Math.sqrt(d2);
+                        const a = d1 < 0.74 ? 255 : Math.round(((1.0 - d1) / 0.26) * 255);
+                        const p = y * segW + x;
+                        if (a > alphaGrid[p]) alphaGrid[p] = a;
+                    }
+                }
+            }
+
+            // Khung Vai & Thân trên nối liền dưới cằm (sử dụng đúng tâm ngang hCx của khuôn mặt)
+            const bCy = (fb.cy + fb.ry * (hasNeuralSeg ? 1.45 : 1.85)) * segH;
+            const bRx = Math.max(8, fb.rx * (hasNeuralSeg ? 1.05 : 1.48) * segW);
+            const bRy = Math.max(10, fb.ry * (hasNeuralSeg ? 1.05 : 1.75) * segH);
+            const by0 = Math.max(0, Math.floor(bCy - bRy));
+            const by1 = Math.min(segH - 1, Math.ceil(bCy + bRy));
+            const bx0 = Math.max(0, Math.floor(hCx - bRx));
+            const bx1 = Math.min(segW - 1, Math.ceil(hCx + bRx));
+            for (let y = by0; y <= by1; y++) {
+                const dy = (y - bCy) / bRy;
+                for (let x = bx0; x <= bx1; x++) {
+                    const dx = (x - hCx) / bRx;
+                    const d2 = dx * dx + dy * dy;
+                    if (d2 < 1.0) {
+                        const d1 = Math.sqrt(d2);
+                        const a = d1 < 0.68 ? 250 : Math.round(((1.0 - d1) / 0.32) * 250);
+                        const p = y * segW + x;
+                        if (a > alphaGrid[p]) alphaGrid[p] = a;
+                    }
+                }
+            }
+        });
+
+        // BƯỚC 3: Lan truyền Sóng Liên Thông Geodesic (BFS Wavefront) từ Vai/Thân ra Cánh Tay & Bàn Tay dang rộng
+        // Chỉ bảo vệ các vùng da/tay LIÊN THÔNG VẬT LÝ với cơ thể, tuyệt đối không bảo vệ nhầm tường/bàn ghế/sàn nhà tách rời ở hậu cảnh!
+        const distGrid = new Int16Array(totalCells).fill(-1);
+        const queue = new Int32Array(totalCells);
+        let qHead = 0, qTail = 0;
+        const maxArmSteps = Math.round(segW * 0.44);
+
+        for (let p = 0; p < totalCells; p++) {
+            if (alphaGrid[p] >= 185) {
+                distGrid[p] = 0;
+                queue[qTail++] = p;
+            }
+        }
+
+        const dirs = [-1, 1, -segW, segW, -segW - 1, -segW + 1, segW - 1, segW + 1];
+        while (qHead < qTail) {
+            const curr = queue[qHead++];
+            const curDist = distGrid[curr];
+            if (curDist >= maxArmSteps) continue;
+            const cx = curr % segW;
+            const cy = (curr / segW) | 0;
+            if (cx <= 0 || cx >= segW - 1 || cy <= 1 || cy >= segH - 1) continue;
+
+            for (let di = 0; di < 8; di++) {
+                const np = curr + dirs[di];
+                if (distGrid[np] === -1 && armCandidate[np] === 1) {
+                    distGrid[np] = curDist + 1;
+                    const falloff = Math.max(0.78, 1 - (curDist / (maxArmSteps * 1.35)));
+                    const boostA = Math.round(252 * falloff);
+                    if (boostA > alphaGrid[np]) {
+                        alphaGrid[np] = boostA;
+                    }
+                    queue[qTail++] = np;
                 }
             }
         }
 
-        // Khung Vai & Thân trên nối liền dưới cằm (nếu chưa có Neural Segmenter thì bảo vệ toàn bộ hình nón thân người; nếu đã có Neural thì tạo lõi neo vai vững chắc)
-        const bCy = (fb.cy + fb.ry * (hasNeuralSeg ? 1.65 : 2.15)) * segH;
-        const bRx = Math.max(10, fb.rx * (hasNeuralSeg ? 1.52 : 2.28) * segW);
-        const bRy = Math.max(12, fb.ry * (hasNeuralSeg ? 1.35 : 2.65) * segH);
-        const by0 = Math.max(0, Math.floor(bCy - bRy));
-        const by1 = Math.min(segH - 1, Math.ceil(bCy + bRy));
-        const bx0 = Math.max(0, Math.floor(bCx - bRx));
-        const bx1 = Math.min(segW - 1, Math.ceil(bCx + bRx));
-        for (let y = by0; y <= by1; y++) {
-            const dy = (y - bCy) / bRy;
-            for (let x = bx0; x <= bx1; x++) {
-                const dx = (x - hCx) / bRx;
-                const d2 = dx * dx + dy * dy;
-                if (d2 < 1.0) {
-                    const d1 = Math.sqrt(d2);
-                    const a = d1 < 0.65 ? 250 : Math.round(((1.0 - d1) / 0.35) * 250);
-                    const p = y * segW + x;
-                    if (a > alphaGrid[p]) alphaGrid[p] = a;
-                }
-            }
+        // Ghi alphaGrid vào imgData và làm mềm biên bằng fastBlurAlpha thuần JS (hoạt động 100% trên cả iOS Safari!)
+        for (let p = 0; p < totalCells; p++) {
+            const idx = p << 2;
+            d[idx] = 0;
+            d[idx + 1] = 0;
+            d[idx + 2] = 0;
+            d[idx + 3] = alphaGrid[p];
         }
-    });
+        fastBlurAlpha(imgData, segW, segH, 2, 2);
 
-    // BƯỚC 3: Lan truyền Sóng Liên Thông Geodesic (BFS Wavefront) từ Vai/Thân ra Cánh Tay & Bàn Tay dang rộng
-    // Chỉ bảo vệ các vùng da/tay LIÊN THÔNG VẬT LÝ với cơ thể, tuyệt đối không bảo vệ nhầm tường/bàn ghế/sàn nhà tách rời ở hậu cảnh!
-    const distGrid = new Int16Array(totalCells).fill(-1);
-    const queue = new Int32Array(totalCells);
-    let qHead = 0, qTail = 0;
-    const maxArmSteps = Math.round(segW * 0.44);
-
-    for (let p = 0; p < totalCells; p++) {
-        if (alphaGrid[p] >= 185) {
-            distGrid[p] = 0;
-            queue[qTail++] = p;
+        // Lưu lại lưới alpha chủ thể đã làm mượt để bước Xóa phông khử triệt để quầng sáng/tối (Anti-Halo Prefill) quanh tóc & vai
+        const smoothedAlpha = new Uint8Array(totalCells);
+        for (let p = 0; p < totalCells; p++) {
+            smoothedAlpha[p] = d[(p << 2) + 3];
         }
-    }
+        beautyEngineState.subjectAlphaGrid = smoothedAlpha;
+        beautyEngineState.subjectAlphaW = segW;
+        beautyEngineState.subjectAlphaH = segH;
 
-    const dirs = [-1, 1, -segW, segW, -segW - 1, -segW + 1, segW - 1, segW + 1];
-    while (qHead < qTail) {
-        const curr = queue[qHead++];
-        const curDist = distGrid[curr];
-        if (curDist >= maxArmSteps) continue;
-        const cx = curr % segW;
-        const cy = (curr / segW) | 0;
-        if (cx <= 0 || cx >= segW - 1 || cy <= 1 || cy >= segH - 1) continue;
+        sCtx.putImageData(imgData, 0, 0);
 
-        for (let di = 0; di < 8; di++) {
-            const np = curr + dirs[di];
-            if (distGrid[np] === -1 && armCandidate[np] === 1) {
-                distGrid[np] = curDist + 1;
-                const falloff = Math.max(0.78, 1 - (curDist / (maxArmSteps * 1.35)));
-                const boostA = Math.round(252 * falloff);
-                if (boostA > alphaGrid[np]) {
-                    alphaGrid[np] = boostA;
-                }
-                queue[qTail++] = np;
-            }
-        }
-    }
+        mCtx.save();
+        mCtx.imageSmoothingEnabled = true;
+        mCtx.imageSmoothingQuality = 'high';
+        mCtx.drawImage(smallCv, 0, 0, W, H);
+        mCtx.restore();
 
-    // Ghi alphaGrid vào imgData và làm mềm biên bằng fastBlurAlpha thuần JS (hoạt động 100% trên cả iOS Safari!)
-    for (let p = 0; p < totalCells; p++) {
-        const idx = p << 2;
-        d[idx] = 0;
-        d[idx + 1] = 0;
-        d[idx + 2] = 0;
-        d[idx + 3] = alphaGrid[p];
-    }
-    fastBlurAlpha(imgData, segW, segH, 3, 2);
-
-    // Lưu lại lưới alpha chủ thể đã làm mượt để bước Xóa phông khử triệt để quầng sáng/tối (Anti-Halo Prefill) quanh tóc & vai
-    const smoothedAlpha = new Uint8Array(totalCells);
-    for (let p = 0; p < totalCells; p++) {
-        smoothedAlpha[p] = d[(p << 2) + 3];
-    }
-    beautyEngineState.subjectAlphaGrid = smoothedAlpha;
-    beautyEngineState.subjectAlphaW = segW;
-    beautyEngineState.subjectAlphaH = segH;
-
-    sCtx.putImageData(imgData, 0, 0);
-
-    mCtx.save();
-    mCtx.imageSmoothingEnabled = true;
-    mCtx.imageSmoothingQuality = 'high';
-    mCtx.drawImage(smallCv, 0, 0, W, H);
-    mCtx.restore();
-
-    smallCv.width = 0;
-    smallCv.height = 0;
-    return maskCv;
+        smallCv.width = 0;
+        smallCv.height = 0;
+        beautyEngineState.subjectMaskBuilt = true;
+        return maskCv;
 }
 
-// Dựng lớp Xóa phông ống kính khẩu lớn f/1.4:
-// Sử dụng Thuật toán Làm mờ Tách biến Thuần JS (fastBlurRGBA) + Khử quầng biên chủ thể (Anti-Halo Background Prefill)
-// đảm bảo xóa phông mượt như máy ảnh DSLR trên cả iPhone/iPad (iOS Safari), Android và PC!
-function buildBokehLayer() {
+// Dựng lớp Xóa phông ống kính khẩu lớn f/1.2 - f/1.4:
+// Sử dụng Thuật toán Làm mờ Tách biến Thuần JS (fastBlurRGBA 3-pass) + Khử quầng biên chủ thể (Anti-Halo Background Prefill)
+// đồng thời tăng bán kính mờ quang học (Circle of Confusion) theo mức kéo thanh trượt, đảm bảo xóa phông sâu như máy ảnh DSLR trên cả iOS Safari, Android và PC!
+function buildBokehLayer(radiusBucket = 5) {
     const W = beautyEngineState.workW;
     const H = beautyEngineState.workH;
     const baseCv = beautyEngineState.baseCanvas;
@@ -4161,8 +4164,10 @@ function buildBokehLayer() {
     const bCtx = bokehCv.getContext('2d');
     bCtx.clearRect(0, 0, W, H);
 
-    // 1. Dựng mặt nạ bảo vệ chủ thể + cánh tay trước để có lưới subjectAlphaGrid phục vụ khử quầng Halo
-    const subjectMaskCv = buildSubjectProtectionMask(W, H);
+    // 1. Dựng (hoặc tái sử dụng) mặt nạ bảo vệ chủ thể + cánh tay
+    const subjectMaskCv = (beautyEngineState.subjectMaskBuilt && beautyEngineState.subjectMaskCanvas && beautyEngineState.subjectMaskCanvas.width === W)
+        ? beautyEngineState.subjectMaskCanvas
+        : buildSubjectProtectionMask(W, H);
     const sGrid = beautyEngineState.subjectAlphaGrid;
     const smallW = beautyEngineState.subjectAlphaW || Math.max(128, Math.round(W * 0.28));
     const smallH = beautyEngineState.subjectAlphaH || Math.max(128, Math.round(H * 0.28));
@@ -4176,55 +4181,54 @@ function buildBokehLayer() {
     const sd = sImgData.data;
 
     // 2. KHỬ QUẦNG HALO QUANH TÓC & VAI (Anti-Halo Background Inpainting):
-    // Điền màu hậu cảnh hai bên vào vùng lõi chủ thể trước khi chạy Gaussian Blur để tóc đen / áo sáng không bị nhòe lem ra nền!
+    // Điền 85% màu hậu cảnh hai bên vào vùng lõi chủ thể trước khi chạy Gaussian Blur để tóc đen / áo sáng không bị nhòe lem ra nền!
     if (sGrid && sGrid.length === smallW * smallH) {
         for (let y = 0; y < smallH; y++) {
             const rowOff = y * smallW;
-            // Quét từ trái sang phải: giữ màu hậu cảnh gần nhất
             let bgR = sd[rowOff << 2], bgG = sd[(rowOff << 2) + 1], bgB = sd[(rowOff << 2) + 2];
             for (let x = 0; x < smallW; x++) {
                 const p = rowOff + x;
                 const idx = p << 2;
-                if (sGrid[p] < 95) {
+                if (sGrid[p] < 85) {
                     bgR = sd[idx];
                     bgG = sd[idx + 1];
                     bgB = sd[idx + 2];
-                } else if (sGrid[p] > 155) {
-                    sd[idx] = (sd[idx] + bgR) >> 1;
-                    sd[idx + 1] = (sd[idx + 1] + bgG) >> 1;
-                    sd[idx + 2] = (sd[idx + 2] + bgB) >> 1;
+                } else if (sGrid[p] > 135) {
+                    sd[idx] = (sd[idx] + bgR * 3) >> 2;
+                    sd[idx + 1] = (sd[idx + 1] + bgG * 3) >> 2;
+                    sd[idx + 2] = (sd[idx + 2] + bgB * 3) >> 2;
                 }
             }
-            // Quét từ phải sang trái để cân bằng hai sườn
             const lastIdx = (rowOff + smallW - 1) << 2;
             bgR = sd[lastIdx]; bgG = sd[lastIdx + 1]; bgB = sd[lastIdx + 2];
             for (let x = smallW - 1; x >= 0; x--) {
                 const p = rowOff + x;
                 const idx = p << 2;
-                if (sGrid[p] < 95) {
+                if (sGrid[p] < 85) {
                     bgR = sd[idx];
                     bgG = sd[idx + 1];
                     bgB = sd[idx + 2];
-                } else if (sGrid[p] > 155) {
-                    sd[idx] = (sd[idx] + bgR) >> 1;
-                    sd[idx + 1] = (sd[idx + 1] + bgG) >> 1;
-                    sd[idx + 2] = (sd[idx + 2] + bgB) >> 1;
+                } else if (sGrid[p] > 135) {
+                    sd[idx] = (sd[idx] + bgR * 3) >> 2;
+                    sd[idx + 1] = (sd[idx + 1] + bgG * 3) >> 2;
+                    sd[idx + 2] = (sd[idx + 2] + bgB * 3) >> 2;
                 }
             }
         }
     }
 
-    // 3. Làm mờ Gaussian khẩu lớn bằng fastBlurRGBA thuần JS (bán kính 8 trên lưới 0.28x ~ tương đương Blur 30px ở ảnh gốc!)
-    const blurRadius = Math.max(6, Math.min(11, Math.round(Math.min(smallW, smallH) * 0.042)));
-    fastBlurRGBA(sImgData, smallW, smallH, blurRadius, 2);
+    // 3. Làm mờ Gaussian khẩu lớn 3-pass bằng fastBlurRGBA thuần JS (bán kính lên tới 16px trên lưới 0.28x ~ tương đương Blur 58px ở ảnh gốc!)
+    const scaleFactor = Math.max(0.85, Math.min(smallW, smallH) / 160);
+    const blurRadius = Math.max(4, Math.min(18, Math.round((3 + radiusBucket * 2.1) * scaleFactor)));
+    fastBlurRGBA(sImgData, smallW, smallH, blurRadius, 3);
 
-    // Tăng nhẹ độ sâu màu hậu cảnh để chủ thể phía trước nổi khối 3D tự nhiên
+    // Tăng nhẹ độ trong và độ sâu màu hậu cảnh để chủ thể phía trước nổi khối 3D tự nhiên
     for (let i = 0; i < sd.length; i += 4) {
         const r = sd[i], g = sd[i + 1], b = sd[i + 2];
         const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-        sd[i] = Math.min(255, Math.max(0, Math.round(lum + (r - lum) * 1.12)));
-        sd[i + 1] = Math.min(255, Math.max(0, Math.round(lum + (g - lum) * 1.12)));
-        sd[i + 2] = Math.min(255, Math.max(0, Math.round(lum + (b - lum) * 1.12)));
+        sd[i] = Math.min(255, Math.max(0, Math.round(lum + (r - lum) * 1.14)));
+        sd[i + 1] = Math.min(255, Math.max(0, Math.round(lum + (g - lum) * 1.14)));
+        sd[i + 2] = Math.min(255, Math.max(0, Math.round(lum + (b - lum) * 1.14)));
     }
     sCtx.putImageData(sImgData, 0, 0);
 
@@ -4248,10 +4252,10 @@ function buildBokehLayer() {
                 const gy = Math.min(smallH - 1, Math.floor(hl.ny * smallH));
                 if (sGrid[gy * smallW + gx] > 60) continue;
             }
-            const rad = minDim * hl.radiusFactor;
+            const rad = minDim * hl.radiusFactor * (0.75 + radiusBucket * 0.08);
             const cx = hl.nx * W;
             const cy = hl.ny * H;
-            bCtx.globalAlpha = 0.32 + Math.min(0.32, (hl.score - 188) / 200);
+            bCtx.globalAlpha = 0.34 + Math.min(0.34, (hl.score - 188) / 180);
             bCtx.drawImage(bokehSprite, cx - rad, cy - rad, rad * 2, rad * 2);
         }
         bCtx.globalCompositeOperation = 'source-over';
@@ -4265,6 +4269,7 @@ function buildBokehLayer() {
         bCtx.drawImage(subjectMaskCv, 0, 0);
     }
     bCtx.restore();
+    beautyEngineState.builtBokehBucket = radiusBucket;
 }
 
 // Dựng lớp Mịn da & Sáng hồng chọn lọc trên KHUNG BAO KHUÔN MẶT ĐỘ PHÂN GIẢI GỐC (High-Res Face ROI)
@@ -4934,7 +4939,9 @@ function triggerLazyMediaPipeUpgrade(token, forceCropRecheck = false) {
         } catch (_) {}
 
         if (needsRebuild && token === beautyEngineState.photoToken) {
+            beautyEngineState.subjectMaskBuilt = false;
             beautyEngineState.bokehBuilt = false;
+            beautyEngineState.builtBokehBucket = 0;
             beautyEngineState.skinBuilt = false;
             beautyEngineState.lipMasksBuilt = false;
             beautyEngineState.builtLipShade = 'none';
@@ -4951,9 +4958,12 @@ function ensureBeautyLayersReadySync() {
     if (!isAnyBeautyRetouchActive()) return false;
     if (!ensureBeautyBaseCanvasAndHeuristics()) return false;
 
-    if (currentBokehIntensity > 0 && !beautyEngineState.bokehBuilt) {
-        buildBokehLayer();
-        beautyEngineState.bokehBuilt = true;
+    if (currentBokehIntensity > 0) {
+        const targetBucket = Math.max(1, Math.min(6, Math.ceil((currentBokehIntensity / 100) * 6)));
+        if (!beautyEngineState.bokehBuilt || beautyEngineState.builtBokehBucket !== targetBucket) {
+            buildBokehLayer(targetBucket);
+            beautyEngineState.bokehBuilt = true;
+        }
     }
     if (currentSkinIntensity > 0 && !beautyEngineState.skinBuilt) {
         buildSkinRetouchLayer();
@@ -4996,22 +5006,29 @@ function extractPersonForegroundFloatMask(segResult, info, detectedFaces) {
     const copyArr = new Float32Array(rawArr.length);
     copyArr.set(rawArr);
 
-    // Chỉ đảo ngược kênh nếu có trên 1 mask (multiclass/background-first) và xác nhận cả vùng mặt lẫn tâm ảnh đều = 0 trong khi 2 góc trên = 1
-    if (masks.length > 1) {
-        let refX = info ? info.faceCx : 0.5;
-        let refY = info ? info.faceCy : 0.36;
-        if (detectedFaces && detectedFaces.length > 0 && detectedFaces[0][1]) {
-            refX = detectedFaces[0][1].x;
-            refY = detectedFaces[0][1].y;
-        }
-        const fcx = Math.max(0, Math.min(mw - 1, Math.floor(refX * mw)));
-        const fcy = Math.max(0, Math.min(mh - 1, Math.floor(refY * mh)));
-        const centerVal = copyArr[fcy * mw + fcx] || 0;
-        const cornerVal = ((copyArr[2] || 0) + (copyArr[mw - 3] || 0)) * 0.5;
-        if (cornerVal > 0.75 && centerVal < 0.25) {
-            for (let i = 0; i < copyArr.length; i++) {
-                copyArr[i] = 1 - copyArr[i];
-            }
+    // Tự động kiểm tra chiều mặt nạ (bất kể 1 kênh hay 2 kênh): so sánh độ tự tin tại tâm khuôn mặt với 2 góc trên cùng của khung ảnh
+    let refX = info ? info.faceCx : 0.5;
+    let refY = info ? info.faceCy : 0.36;
+    if (detectedFaces && detectedFaces.length > 0 && detectedFaces[0][1]) {
+        refX = detectedFaces[0][1].x;
+        refY = detectedFaces[0][1].y;
+    }
+    const fcx = Math.max(1, Math.min(mw - 2, Math.floor(refX * mw)));
+    const fcy = Math.max(1, Math.min(mh - 2, Math.floor(refY * mh)));
+    const centerVal = (
+        (copyArr[fcy * mw + fcx] || 0) +
+        (copyArr[fcy * mw + (fcx - 1)] || 0) +
+        (copyArr[fcy * mw + (fcx + 1)] || 0)
+    ) / 3;
+    const cornerVal = (
+        (copyArr[2] || 0) +
+        (copyArr[mw - 3] || 0) +
+        (copyArr[mw + 2] || 0) +
+        (copyArr[mw * 2 - 3] || 0)
+    ) * 0.25;
+    if (cornerVal > 0.62 && centerVal < 0.38) {
+        for (let i = 0; i < copyArr.length; i++) {
+            copyArr[i] = 1 - copyArr[i];
         }
     }
 
@@ -5065,7 +5082,9 @@ function handleCropperZoomOrMoveSettled() {
         if (beautyEngineState.baseCanvas && (!beautyEngineState.detectedFaces || beautyEngineState.detectedFaces.length === 0)) {
             beautyEngineState.heuristicInfo = analyzePhotoHeuristicsFast(beautyEngineState.baseCanvas);
             computeFaceAndLipROIs();
+            beautyEngineState.subjectMaskBuilt = false;
             beautyEngineState.bokehBuilt = false;
+            beautyEngineState.builtBokehBucket = 0;
             beautyEngineState.lipMasksBuilt = false;
             beautyEngineState.builtLipShade = 'none';
         }
@@ -5186,10 +5205,10 @@ function renderBeautyPreviewComposite() {
     ctx.imageSmoothingQuality = 'high';
     ctx.globalCompositeOperation = 'source-over';
 
-    // 1. Lớp Xóa phông ống kính (Đường cong độ phủ quang học Math.pow(t, 0.56) giúp che phủ hoàn toàn nét gắt của hậu cảnh bên dưới ngay từ mức 45-70%!)
+    // 1. Lớp Xóa phông ống kính (Kết hợp bán kính mờ động 6 cấp + đường cong che phủ Math.pow(t, 0.34) giúp làm mờ hoàn toàn hậu cảnh sắc nét bên dưới!)
     if (currentBokehIntensity > 0 && beautyEngineState.bokehLayerCanvas) {
         const rawT = Math.max(0, Math.min(1, currentBokehIntensity / 100));
-        ctx.globalAlpha = Math.pow(rawT, 0.56);
+        ctx.globalAlpha = Math.min(1, Math.pow(rawT, 0.34));
         ctx.drawImage(beautyEngineState.bokehLayerCanvas, 0, 0, W, H);
     }
 
@@ -5287,7 +5306,7 @@ function compositeBeautyLayersOntoCroppedCanvas(croppedCanvas, cropperInstance) 
     // 1. Vẽ lớp Hậu cảnh Xóa phông Bokeh (Chủ thể + cánh tay có alpha = 0 nên người trên croppedCanvas giữ nguyên 100% độ nét gốc!)
     if (currentBokehIntensity > 0 && beautyEngineState.bokehLayerCanvas) {
         const rawT = Math.max(0, Math.min(1, currentBokehIntensity / 100));
-        ctx.globalAlpha = Math.pow(rawT, 0.56);
+        ctx.globalAlpha = Math.min(1, Math.pow(rawT, 0.34));
         ctx.drawImage(beautyEngineState.bokehLayerCanvas, imgX0, imgY0, width, height);
     }
 
