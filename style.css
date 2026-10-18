@@ -1694,6 +1694,13 @@ input[type="file"] {
     transition: transform 0.64s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+#step-2.step2-morph-settled #preview-area-wrap {
+    will-change: auto;
+    transform: none;
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
+}
+
 #step-2.step2-morph-to #step2-wish-area {
     position: relative;
     z-index: 24;
@@ -1745,65 +1752,75 @@ input[type="file"] {
 
 .step2-header-row {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: 1.18fr 1fr 0.95fr 1fr;
     align-items: center;
-    gap: 6px;
+    row-gap: 4px;
+    column-gap: 5px;
     width: 100%;
     flex-shrink: 0;
-    background: #f4fbf8;
+    background: linear-gradient(180deg, #f7fcf9 0%, #eef9f4 100%);
     border: 1.2px solid #cbeadd;
     border-radius: 14px;
-    padding: 6px 8px;
+    padding: 5px 7px 6px;
 }
 
 .step2-header-title {
-    font-size: clamp(0.76rem, 3vw, 0.92rem);
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    font-size: clamp(0.72rem, 2.65vw, 0.84rem);
     font-weight: 800;
     color: #095241;
     text-transform: uppercase;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.35px;
+    line-height: 1.15;
     white-space: nowrap;
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     text-align: center;
     justify-self: center;
-    padding: 0 4px;
+    padding: 1px 4px 3px;
+    border-bottom: 1px dashed rgba(143, 209, 186, 0.6);
 }
 
 .crop-outside-tools {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    justify-self: end;
-    gap: 5px;
-    flex-shrink: 0;
+    display: contents;
 }
 
 .crop-tool-btn {
+    min-width: 0;
+    width: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3.5px;
     background: #ffffff;
-    border: 1.3px solid #8fd1ba;
+    border: 1.2px solid #8fd1ba;
     color: #095241;
     font-family: inherit;
-    font-size: clamp(0.74rem, 2.7vw, 0.86rem);
+    font-size: clamp(0.68rem, 2.45vw, 0.80rem);
     font-weight: 700;
-    padding: 6px 10px;
-    border-radius: 10px;
+    padding: 5px 4px;
+    border-radius: 9px;
     cursor: pointer;
     transition: all 0.15s ease;
     white-space: nowrap;
-    line-height: 1.2;
+    line-height: 1.15;
+    text-align: center;
 }
 
 .crop-back-btn {
-    justify-self: start;
     border-color: #f0b8cc;
     color: #9c2756;
     background: #fff8fa;
 }
 
 .crop-tool-btn:active {
-    transform: scale(0.93);
+    transform: scale(0.94);
     background: #0f7b5f;
     color: #fff;
 }
@@ -2039,7 +2056,7 @@ body.self-oracle-mode #step-2 .step2-wish-area {
 .result-topbar {
     flex-shrink: 0;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
     width: 100%;
     gap: 6px;
@@ -2103,10 +2120,11 @@ body[data-recipient-theme="champagne"] .result-topbar {
     color: #fff6d1;
     text-shadow: 0 1px 8px rgba(0, 0, 0, 0.42);
     text-transform: uppercase;
-    letter-spacing: 0.15px;
+    letter-spacing: 0.2px;
     white-space: nowrap;
     min-width: 0;
     text-align: center;
+    justify-self: center;
 }
 
 @media (max-width: 365px) {
@@ -2115,19 +2133,26 @@ body[data-recipient-theme="champagne"] .result-topbar {
     #step-3 .result-card-container {
         padding: 7px 8px;
     }
-    .step2-header-row,
+    .step2-header-row {
+        padding: 4px 5px 5px;
+        row-gap: 3px;
+        column-gap: 4px;
+    }
     .result-topbar {
         padding: 4px 6px;
         gap: 4px;
     }
-    .crop-tool-btn,
+    .crop-tool-btn {
+        padding: 4px 3px;
+        font-size: 0.64rem;
+    }
     .topbar-btn {
         padding: 5px 8px;
         font-size: 0.63rem;
     }
     .step2-header-title {
-        font-size: 0.63rem;
-        letter-spacing: 0.1px;
+        font-size: 0.66rem;
+        letter-spacing: 0.2px;
     }
     .result-title {
         font-size: 0.66rem;
@@ -4898,17 +4923,21 @@ body.recipient-mode .recipient-luxury-dock {
     }
 
     .step2-header-row {
-        padding: 8px 12px;
+        padding: 7px 10px 8px;
+        row-gap: 5px;
+        column-gap: 7px;
         border-radius: 16px;
     }
 
     .crop-tool-btn {
-        padding: 8px 14px;
-        font-size: clamp(0.84rem, 1.45dvh, 0.96rem);
+        padding: 7px 8px;
+        font-size: clamp(0.78rem, 1.38dvh, 0.90rem);
+        border-radius: 11px;
     }
 
     .step2-header-title {
-        font-size: clamp(0.9rem, 1.58dvh, 1.04rem);
+        font-size: clamp(0.84rem, 1.48dvh, 0.96rem);
+        padding-bottom: 4px;
     }
 
     .card-nav-arrow {
