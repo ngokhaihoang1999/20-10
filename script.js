@@ -3017,9 +3017,16 @@ const beautyEngineState = {
     workH: 0,
     layersReady: false,
     landmarksResolved: false,
+    segmenterResolved: false,
     detectedFaces: null,
+    personMaskFloat: null,
+    personMaskW: 0,
+    personMaskH: 0,
     heuristicInfo: null,
+    faceRoi: null,
+    lipRoi: null,
     baseCanvas: null,
+    subjectMaskCanvas: null,
     bokehLayerCanvas: null,
     skinRetouchLayerCanvas: null,
     lipMaskCanvas: null,
@@ -3032,19 +3039,21 @@ const beautyEngineState = {
     compositeRafId: 0
 };
 
-let _mpFaceLandmarkerPromise = null;
-let _mpFaceLandmarkerInstance = null;
+let _mpBeautyAIPromise = null;
+let _mpBeautyAIInstances = null;
 
-function ensureMediaPipeFaceLandmarker() {
-    if (_mpFaceLandmarkerInstance) return Promise.resolve(_mpFaceLandmarkerInstance);
-    if (_mpFaceLandmarkerPromise) return _mpFaceLandmarkerPromise;
+function ensureMediaPipeBeautyAI() {
+    if (_mpBeautyAIInstances) return Promise.resolve(_mpBeautyAIInstances);
+    if (_mpBeautyAIPromise) return _mpBeautyAIPromise;
 
-    _mpFaceLandmarkerPromise = (async () => {
+    _mpBeautyAIPromise = (async () => {
         try {
             const vision = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs');
             const filesetResolver = await vision.FilesetResolver.forVisionTasks(
                 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm'
             );
+
+            // 1. Khởi tạo FaceLandmarker (478 điểm 3D cho viền Môi, Mắt, Chân mày, Khuôn mặt)
             let landmarker = null;
             try {
                 landmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
@@ -3056,23 +3065,58 @@ function ensureMediaPipeFaceLandmarker() {
                     numFaces: 3
                 });
             } catch (_) {
-                landmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
-                    baseOptions: {
-                        modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-                        delegate: 'CPU'
-                    },
-                    runningMode: 'IMAGE',
-                    numFaces: 3
-                });
+                try {
+                    landmarker = await vision.FaceLandmarker.createFromOptions(filesetResolver, {
+                        baseOptions: {
+                            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+                            delegate: 'CPU'
+                        },
+                        runningMode: 'IMAGE',
+                        numFaces: 3
+                    });
+                } catch (_e2) {}
             }
-            _mpFaceLandmarkerInstance = landmarker;
-            return landmarker;
+
+            // 2. Khởi tạo ImageSegmenter (Mô hình Selfie Segmenter 243KB của Google chuyên tách toàn thân + cánh tay dang rộng + bàn tay + mái tóc)
+            let segmenter = null;
+            if (vision.ImageSegmenter) {
+                try {
+                    segmenter = await vision.ImageSegmenter.createFromOptions(filesetResolver, {
+                        baseOptions: {
+                            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
+                            delegate: 'GPU'
+                        },
+                        runningMode: 'IMAGE',
+                        outputCategoryMask: false,
+                        outputConfidenceMasks: true
+                    });
+                } catch (_) {
+                    try {
+                        segmenter = await vision.ImageSegmenter.createFromOptions(filesetResolver, {
+                            baseOptions: {
+                                modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite',
+                                delegate: 'CPU'
+                            },
+                            runningMode: 'IMAGE',
+                            outputCategoryMask: false,
+                            outputConfidenceMasks: true
+                        });
+                    } catch (_e3) {}
+                }
+            }
+
+            if (!landmarker && !segmenter) {
+                _mpBeautyAIPromise = null;
+                return null;
+            }
+            _mpBeautyAIInstances = { landmarker, segmenter };
+            return _mpBeautyAIInstances;
         } catch (err) {
-            _mpFaceLandmarkerPromise = null;
+            _mpBeautyAIPromise = null;
             return null;
         }
     })();
-    return _mpFaceLandmarkerPromise;
+    return _mpBeautyAIPromise;
 }
 
 // Sprite đĩa Bokeh quang học khẩu lớn f/1.4 (tâm dịu + viền ánh sáng quang học tinh tế)
@@ -3203,7 +3247,7 @@ function disposeBeautyEngineLayers() {
         beautyEngineState.viewBoxObserver.disconnect();
         beautyEngineState.viewBoxObserver = null;
     }
-    ['baseCanvas', 'bokehLayerCanvas', 'skinRetouchLayerCanvas', 'lipMaskCanvas', 'lipHighlightMaskCanvas', 'lipLayerCanvas'].forEach(k => {
+    ['baseCanvas', 'subjectMaskCanvas', 'bokehLayerCanvas', 'skinRetouchLayerCanvas', 'lipMaskCanvas', 'lipHighlightMaskCanvas', 'lipLayerCanvas'].forEach(k => {
         const cv = beautyEngineState[k];
         if (cv) {
             cv.width = 0;
@@ -3216,14 +3260,20 @@ function disposeBeautyEngineLayers() {
     beautyEngineState.workH = 0;
     beautyEngineState.layersReady = false;
     beautyEngineState.landmarksResolved = false;
+    beautyEngineState.segmenterResolved = false;
     beautyEngineState.detectedFaces = null;
+    beautyEngineState.personMaskFloat = null;
+    beautyEngineState.personMaskW = 0;
+    beautyEngineState.personMaskH = 0;
     beautyEngineState.heuristicInfo = null;
+    beautyEngineState.faceRoi = null;
+    beautyEngineState.lipRoi = null;
     beautyEngineState.builtLipShade = 'none';
     beautyEngineState.retouchCanvasEl = null;
     beautyEngineState.viewBoxImgEl = null;
 }
 
-// Phân tích cực nhanh (<2.5ms trên lưới 180px) để xác định tâm chủ thể, vùng da, vùng môi & điểm sáng hậu cảnh
+// Phân tích cực nhanh (<2.5ms trên lưới 180px) để xác định tâm chủ thể, sắc độ da thích ứng, màu trang phục thân người, cánh tay dang rộng & điểm sáng hậu cảnh
 function analyzePhotoHeuristicsFast(baseCanvas) {
     const sw = 180;
     const sh = Math.max(60, Math.round((baseCanvas.height / Math.max(1, baseCanvas.width)) * sw));
@@ -3236,28 +3286,31 @@ function analyzePhotoHeuristicsFast(baseCanvas) {
     const d = imgData.data;
 
     let skinSumX = 0, skinSumY = 0, skinWeightSum = 0;
+    let skinCrSum = 0, skinCbSum = 0;
     let minSkinX = sw, maxSkinX = 0, minSkinY = sh, maxSkinY = 0;
 
-    // 1. Tìm vùng da người (YCbCr + RGB redness) ưu tiên vùng trung tâm ảnh
-    for (let y = Math.floor(sh * 0.06); y < Math.floor(sh * 0.88); y += 2) {
+    // 1. Tìm vùng da người (YCbCr + RGB redness) ưu tiên vùng trung tâm ảnh để định vị khuôn mặt chính
+    for (let y = Math.floor(sh * 0.05); y < Math.floor(sh * 0.88); y += 2) {
         const ny = y / sh;
-        const centerBiasY = 1 - Math.abs(ny - 0.38) * 0.9;
-        for (let x = Math.floor(sw * 0.08); x < Math.floor(sw * 0.92); x += 2) {
+        const centerBiasY = 1 - Math.abs(ny - 0.38) * 0.88;
+        for (let x = Math.floor(sw * 0.06); x < Math.floor(sw * 0.94); x += 2) {
             const nx = x / sw;
-            const centerBiasX = 1 - Math.abs(nx - 0.5) * 1.1;
+            const centerBiasX = 1 - Math.abs(nx - 0.5) * 1.05;
             if (centerBiasX <= 0.1 || centerBiasY <= 0.1) continue;
 
             const idx = (y * sw + x) * 4;
             const r = d[idx], g = d[idx + 1], b = d[idx + 2];
             const maxC = Math.max(r, g, b);
             const minC = Math.min(r, g, b);
-            if (r > 85 && g > 38 && b > 20 && r > g && r > b && (maxC - minC) > 12) {
+            if (r > 80 && g > 36 && b > 18 && r > g && r > b && (maxC - minC) > 11) {
                 const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
                 const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
-                if (cr >= 132 && cr <= 178 && cb >= 76 && cb <= 131) {
+                if (cr >= 131 && cr <= 180 && cb >= 75 && cb <= 132) {
                     const w = centerBiasX * centerBiasY;
                     skinSumX += x * w;
                     skinSumY += y * w;
+                    skinCrSum += cr * w;
+                    skinCbSum += cb * w;
                     skinWeightSum += w;
                     if (x < minSkinX) minSkinX = x;
                     if (x > maxSkinX) maxSkinX = x;
@@ -3270,19 +3323,106 @@ function analyzePhotoHeuristicsFast(baseCanvas) {
 
     let faceCx = 0.5;
     let faceCy = 0.35;
-    let faceRx = 0.22;
-    let faceRy = 0.19;
+    let faceRx = 0.20;
+    let faceRy = 0.18;
+    let meanSkinCr = 151;
+    let meanSkinCb = 104;
 
-    if (skinWeightSum > 18) {
-        faceCx = Math.max(0.24, Math.min(0.76, (skinSumX / skinWeightSum) / sw));
-        faceCy = Math.max(0.18, Math.min(0.62, (skinSumY / skinWeightSum) / sh));
+    if (skinWeightSum > 14) {
+        faceCx = Math.max(0.20, Math.min(0.80, (skinSumX / skinWeightSum) / sw));
+        faceCy = Math.max(0.15, Math.min(0.65, (skinSumY / skinWeightSum) / sh));
+        meanSkinCr = skinCrSum / skinWeightSum;
+        meanSkinCb = skinCbSum / skinWeightSum;
         const spanW = (maxSkinX - minSkinX) / sw;
         const spanH = (maxSkinY - minSkinY) / sh;
-        faceRx = Math.max(0.14, Math.min(0.32, spanW * 0.38));
-        faceRy = Math.max(0.14, Math.min(0.28, spanH * 0.34));
+        faceRx = Math.max(0.12, Math.min(0.28, spanW * 0.36));
+        faceRy = Math.max(0.12, Math.min(0.26, spanH * 0.32));
     }
 
-    // 2. Tìm vùng môi tự nhiên dự phòng (trong nửa dưới khuôn mặt)
+    // 2. Lấy mẫu màu trang phục thân người (Torso Clothing Color) ngay dưới cổ để nhận diện tay áo dài dang rộng
+    let clothR = 128, clothG = 128, clothB = 128, clothCr = 128, clothCb = 128, clothValid = false;
+    const torsoY0 = Math.max(0, Math.min(sh - 1, Math.floor((faceCy + faceRy * 1.35) * sh)));
+    const torsoY1 = Math.max(torsoY0 + 1, Math.min(sh, Math.ceil((faceCy + faceRy * 2.55) * sh)));
+    const torsoX0 = Math.max(0, Math.floor((faceCx - faceRx * 0.85) * sw));
+    const torsoX1 = Math.min(sw, Math.ceil((faceCx + faceRx * 0.85) * sw));
+    let cSumR = 0, cSumG = 0, cSumB = 0, cCount = 0;
+    for (let y = torsoY0; y < torsoY1; y += 2) {
+        for (let x = torsoX0; x < torsoX1; x += 2) {
+            const idx = (y * sw + x) * 4;
+            cSumR += d[idx];
+            cSumG += d[idx + 1];
+            cSumB += d[idx + 2];
+            cCount++;
+        }
+    }
+    if (cCount > 6) {
+        clothR = cSumR / cCount;
+        clothG = cSumG / cCount;
+        clothB = cSumB / cCount;
+        clothCb = 128 - 0.168736 * clothR - 0.331264 * clothG + 0.5 * clothB;
+        clothCr = 128 + 0.5 * clothR - 0.418688 * clothG - 0.081312 * clothB;
+        clothValid = true;
+    }
+
+    // 3. Quét các cụm da ở vùng biên trái/phải (cánh tay, cổ tay, bàn tay giơ cao hoặc dang rộng ra ngoài thân người)
+    // để dựng Cầu nối Giải phẫu Vai -> Cánh tay -> Bàn tay (Anatomical Arm Bridge)
+    const armClusters = [];
+    const sectorBuckets = Array.from({ length: 12 }, () => ({ sumX: 0, sumY: 0, count: 0, maxDist: 0 }));
+    const shLeftX = faceCx - faceRx * 1.15;
+    const shRightX = faceCx + faceRx * 1.15;
+    const shY = faceCy + faceRy * 1.25;
+
+    for (let y = Math.floor(sh * 0.05); y < Math.floor(sh * 0.96); y += 2) {
+        const ny = y / sh;
+        for (let x = 2; x < sw - 2; x += 2) {
+            const nx = x / sw;
+            // Chỉ xét các điểm nằm ngoài trục mặt/thân chính
+            if (Math.abs(nx - faceCx) < faceRx * 1.18 && ny > faceCy - faceRy * 1.1) continue;
+
+            const idx = (y * sw + x) * 4;
+            const r = d[idx], g = d[idx + 1], b = d[idx + 2];
+            const maxC = Math.max(r, g, b);
+            const minC = Math.min(r, g, b);
+            if (r > 72 && g > 34 && b > 16 && r > g && r > b && (maxC - minC) > 10) {
+                const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+                const distAdapt = Math.hypot(cr - meanSkinCr, cb - meanSkinCb);
+                if ((cr >= 130 && cr <= 182 && cb >= 74 && cb <= 134) && distAdapt < 24) {
+                    const isLeft = nx < faceCx;
+                    const refX = isLeft ? shLeftX : shRightX;
+                    const dx = nx - refX;
+                    const dy = ny - shY;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > faceRx * 0.35 && dist < faceRx * 4.8) {
+                        const angle = Math.atan2(dy, dx); // [-PI, PI]
+                        const bIdx = Math.max(0, Math.min(11, Math.floor(((angle + Math.PI) / (Math.PI * 2)) * 12)));
+                        const bucket = sectorBuckets[bIdx];
+                        bucket.sumX += nx;
+                        bucket.sumY += ny;
+                        bucket.count++;
+                        if (dist > bucket.maxDist) bucket.maxDist = dist;
+                    }
+                }
+            }
+        }
+    }
+
+    for (let i = 0; i < sectorBuckets.length; i++) {
+        const b = sectorBuckets[i];
+        if (b.count >= 3) {
+            const hx = b.sumX / b.count;
+            const hy = b.sumY / b.count;
+            const isLeft = hx < faceCx;
+            armClusters.push({
+                sx: isLeft ? shLeftX : shRightX,
+                sy: shY,
+                hx,
+                hy
+            });
+        }
+    }
+
+    // 4. Tìm vùng môi tự nhiên dự phòng (trong nửa dưới khuôn mặt)
     let lipCx = faceCx;
     let lipCy = Math.min(0.82, faceCy + faceRy * 0.46);
     let lipRx = faceRx * 0.36;
@@ -3314,14 +3454,13 @@ function analyzePhotoHeuristicsFast(baseCanvas) {
         lipCy = (lipSumY / lipWTotal) / sh;
     }
 
-    // 3. Tìm tối đa 26 điểm sáng nổi bật ở hậu cảnh để tạo hiệu ứng Bokeh khẩu lớn f/1.4
+    // 5. Tìm tối đa 26 điểm sáng nổi bật ở hậu cảnh để tạo hiệu ứng Bokeh khẩu lớn f/1.4
     const highlights = [];
     const step = 6;
     for (let y = step; y < sh - step; y += step) {
         const ny = y / sh;
         for (let x = step; x < sw - step; x += step) {
             const nx = x / sw;
-            // Bỏ qua vùng lõi chủ thể ở giữa
             const dxFace = (nx - faceCx) / (faceRx * 1.5);
             const dyFace = (ny - faceCy) / (faceRy * 1.5);
             const dxBody = (nx - faceCx) / (faceRx * 2.1);
@@ -3359,6 +3498,15 @@ function analyzePhotoHeuristicsFast(baseCanvas) {
         faceCy,
         faceRx,
         faceRy,
+        meanSkinCr,
+        meanSkinCb,
+        clothR,
+        clothG,
+        clothB,
+        clothCr,
+        clothCb,
+        clothValid,
+        armClusters,
         lipCx,
         lipCy,
         lipRx,
@@ -3367,20 +3515,299 @@ function analyzePhotoHeuristicsFast(baseCanvas) {
     };
 }
 
-function traceLandmarkPolygon(ctx, landmarks, indices, W, H) {
+// Tính toán Khung Bao Khuôn Mặt (Face ROI) & Khung Bao Đôi Môi (Lip ROI) ở ĐỘ PHÂN GIẢI GỐC 1:1
+// giúp dù người dùng phóng zoom 3x - 5x vào khuôn mặt nhỏ trong ảnh tập thể thì Da và Môi vẫn sắc nét 100%!
+function computeFaceAndLipROIs() {
+    const srcImg = beautyEngineState.srcImg;
+    if (!srcImg) return;
+    const natW = srcImg.naturalWidth || srcImg.width || beautyEngineState.workW || 1024;
+    const natH = srcImg.naturalHeight || srcImg.height || beautyEngineState.workH || 1526;
+    const faces = beautyEngineState.detectedFaces;
+    const info = beautyEngineState.heuristicInfo;
+
+    let fMinX = 1, fMaxX = 0, fMinY = 1, fMaxY = 0;
+    let lMinX = 1, lMaxX = 0, lMinY = 1, lMaxY = 0;
+
+    if (faces && faces.length > 0) {
+        faces.forEach(landmarks => {
+            MP_FACE_OVAL_INDICES.forEach(idx => {
+                const pt = landmarks[idx];
+                if (!pt) return;
+                if (pt.x < fMinX) fMinX = pt.x;
+                if (pt.x > fMaxX) fMaxX = pt.x;
+                if (pt.y < fMinY) fMinY = pt.y;
+                if (pt.y > fMaxY) fMaxY = pt.y;
+            });
+            MP_OUTER_LIP_INDICES.forEach(idx => {
+                const pt = landmarks[idx];
+                if (!pt) return;
+                if (pt.x < lMinX) lMinX = pt.x;
+                if (pt.x > lMaxX) lMaxX = pt.x;
+                if (pt.y < lMinY) lMinY = pt.y;
+                if (pt.y > lMaxY) lMaxY = pt.y;
+            });
+        });
+        const fPadX = Math.max(0.06, (fMaxX - fMinX) * 0.45);
+        const fPadTop = Math.max(0.06, (fMaxY - fMinY) * 0.45);
+        const fPadBot = Math.max(0.08, (fMaxY - fMinY) * 0.85); // Bao gồm cả vùng cổ dưới cằm
+        fMinX = Math.max(0, fMinX - fPadX);
+        fMaxX = Math.min(1, fMaxX + fPadX);
+        fMinY = Math.max(0, fMinY - fPadTop);
+        fMaxY = Math.min(1, fMaxY + fPadBot);
+
+        const lPadX = Math.max(0.018, (lMaxX - lMinX) * 0.38);
+        const lPadY = Math.max(0.018, (lMaxY - lMinY) * 0.52);
+        lMinX = Math.max(0, lMinX - lPadX);
+        lMaxX = Math.min(1, lMaxX + lPadX);
+        lMinY = Math.max(0, lMinY - lPadY);
+        lMaxY = Math.min(1, lMaxY + lPadY);
+    } else if (info) {
+        fMinX = Math.max(0, info.faceCx - info.faceRx * 1.65);
+        fMaxX = Math.min(1, info.faceCx + info.faceRx * 1.65);
+        fMinY = Math.max(0, info.faceCy - info.faceRy * 1.55);
+        fMaxY = Math.min(1, info.faceCy + info.faceRy * 2.15);
+
+        lMinX = Math.max(0, info.lipCx - info.lipRx * 1.65);
+        lMaxX = Math.min(1, info.lipCx + info.lipRx * 1.65);
+        lMinY = Math.max(0, info.lipCy - info.lipRy * 1.85);
+        lMaxY = Math.min(1, info.lipCy + info.lipRy * 1.85);
+    } else {
+        fMinX = 0.15; fMaxX = 0.85; fMinY = 0.10; fMaxY = 0.80;
+        lMinX = 0.32; lMaxX = 0.68; lMinY = 0.36; lMaxY = 0.62;
+    }
+
+    const fNw = Math.max(0.08, fMaxX - fMinX);
+    const fNh = Math.max(0.08, fMaxY - fMinY);
+    const fRawW = Math.round(fNw * natW);
+    const fRawH = Math.round(fNh * natH);
+    const fScale = Math.min(1, 960 / Math.max(1, fRawW, fRawH));
+    beautyEngineState.faceRoi = {
+        nx: fMinX,
+        ny: fMinY,
+        nw: fNw,
+        nh: fNh,
+        w: Math.max(64, Math.round(fRawW * fScale)),
+        h: Math.max(64, Math.round(fRawH * fScale))
+    };
+
+    const lNw = Math.max(0.04, lMaxX - lMinX);
+    const lNh = Math.max(0.03, lMaxY - lMinY);
+    const lRawW = Math.round(lNw * natW);
+    const lRawH = Math.round(lNh * natH);
+    const lScale = Math.min(1, 640 / Math.max(1, lRawW, lRawH));
+    beautyEngineState.lipRoi = {
+        nx: lMinX,
+        ny: lMinY,
+        nw: lNw,
+        nh: lNh,
+        w: Math.max(48, Math.round(lRawW * lScale)),
+        h: Math.max(32, Math.round(lRawH * lScale))
+    };
+}
+
+function traceLandmarkPolygon(ctx, landmarks, indices, W, H, roi = null) {
     if (!landmarks || !indices || indices.length === 0) return;
+    const rx = roi ? roi.nx : 0;
+    const ry = roi ? roi.ny : 0;
+    const rw = roi ? roi.nw : 1;
+    const rh = roi ? roi.nh : 1;
     for (let i = 0; i < indices.length; i++) {
         const pt = landmarks[indices[i]];
         if (!pt) continue;
-        const x = pt.x * W;
-        const y = pt.y * H;
+        const x = ((pt.x - rx) / rw) * W;
+        const y = ((pt.y - ry) / rh) * H;
         if (i === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
     }
     ctx.closePath();
 }
 
-// Dựng lớp Xóa phông ống kính khẩu lớn f/1.4 (Giữ chủ thể sắc nét, hậu cảnh mờ kem + đốm sáng Bokeh quang học)
+// Dựng Mặt nạ Bảo vệ Chủ thể Toàn thân + Cánh tay dang rộng + Bàn tay + Tóc (Subject Protection Mask)
+// Kết hợp 3 lớp: (1) AI Selfie Segmenter toàn thân + (2) Nhận diện da & tay áo thích ứng trên toàn chiều ngang ảnh + (3) Cầu nối giải phẫu Vai - Cánh tay
+function buildSubjectProtectionMask(W, H) {
+    const baseCv = beautyEngineState.baseCanvas;
+    if (!baseCv || W <= 0 || H <= 0) return null;
+
+    if (!beautyEngineState.subjectMaskCanvas) {
+        beautyEngineState.subjectMaskCanvas = document.createElement('canvas');
+    }
+    const maskCv = beautyEngineState.subjectMaskCanvas;
+    maskCv.width = W;
+    maskCv.height = H;
+    const mCtx = maskCv.getContext('2d');
+    mCtx.clearRect(0, 0, W, H);
+
+    const info = beautyEngineState.heuristicInfo;
+    const faces = beautyEngineState.detectedFaces;
+
+    // LỚP 1: Quét lưới nhanh (160x240) kết hợp AI Selfie Segmenter (nếu đã sẵn sàng) + Bảo vệ toàn bộ vùng Da (cánh tay trần, bàn tay, ngón tay dang rộng) & Tay áo
+    const segW = Math.min(220, Math.max(120, Math.round(W * 0.28)));
+    const segH = Math.min(300, Math.max(120, Math.round(H * 0.28)));
+    const smallCv = document.createElement('canvas');
+    smallCv.width = segW;
+    smallCv.height = segH;
+    const sCtx = smallCv.getContext('2d', { willReadFrequently: true });
+    sCtx.drawImage(baseCv, 0, 0, segW, segH);
+    const imgData = sCtx.getImageData(0, 0, segW, segH);
+    const d = imgData.data;
+
+    const pmFloat = beautyEngineState.personMaskFloat;
+    const pmW = beautyEngineState.personMaskW;
+    const pmH = beautyEngineState.personMaskH;
+    const hasNeuralSeg = Boolean(pmFloat && pmW > 0 && pmH > 0);
+
+    const meanCr = info ? info.meanSkinCr : 151;
+    const meanCb = info ? info.meanSkinCb : 104;
+    const clothValid = info ? info.clothValid : false;
+    const clothCr = info ? info.clothCr : 128;
+    const clothCb = info ? info.clothCb : 128;
+    const clothR = info ? info.clothR : 128;
+    const clothG = info ? info.clothG : 128;
+    const clothB = info ? info.clothB : 128;
+    const faceCy = info ? info.faceCy : 0.35;
+    const faceRy = info ? info.faceRy : 0.18;
+
+    for (let y = 0; y < segH; y++) {
+        const ny = y / segH;
+        for (let x = 0; x < segW; x++) {
+            const nx = x / segW;
+            const idx = (y * segW + x) * 4;
+            const r = d[idx], g = d[idx + 1], b = d[idx + 2];
+
+            let alpha = 0;
+
+            // 1A. Điểm tin cậy từ mạng nơ-ron MediaPipe Selfie Segmenter (nhận diện chính xác cả người, tóc, quần áo và cánh tay dang rộng)
+            if (hasNeuralSeg) {
+                const sx = Math.min(pmW - 1, Math.floor(nx * pmW));
+                const sy = Math.min(pmH - 1, Math.floor(ny * pmH));
+                const conf = pmFloat[sy * pmW + sx] || 0;
+                // Ngưỡng bảo vệ nhạy (bắt đầu từ 0.15) để giữ trọn vẹn cánh tay, cổ tay và ngón tay đưa ra xa ở mép ảnh
+                if (conf > 0.15) {
+                    const neuralA = Math.min(1, (conf - 0.15) / 0.33);
+                    alpha = Math.max(alpha, Math.round(neuralA * 255));
+                }
+            }
+
+            // 1B. Bảo vệ tuyệt đối mọi điểm ảnh mang sắc độ Da người (Cánh tay, Bàn tay, Ngón tay dang rộng ra biên trái/phải)
+            const maxC = Math.max(r, g, b);
+            const minC = Math.min(r, g, b);
+            if (r > 70 && g > 32 && b > 15 && r > g && r > b && (maxC - minC) > 10 && ny >= faceCy - faceRy * 1.6) {
+                const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+                if (cr >= 130 && cr <= 182 && cb >= 74 && cb <= 134) {
+                    const distSkin = Math.hypot(cr - meanCr, cb - meanCb);
+                    if (distSkin < 22) {
+                        const skinA = Math.min(1, 1 - Math.max(0, distSkin - 11) / 11);
+                        alpha = Math.max(alpha, Math.round(skinA * 255));
+                    }
+                }
+            }
+
+            // 1C. Bảo vệ vùng Tay áo / Trang phục đồng màu với thân áo kéo dài sang hai bên
+            if (clothValid && ny >= faceCy + faceRy * 0.45 && alpha < 240) {
+                const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+                const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+                const chromaDist = Math.hypot(cr - clothCr, cb - clothCb);
+                const rgbDist = (Math.abs(r - clothR) + Math.abs(g - clothG) + Math.abs(b - clothB)) / 3;
+                if (chromaDist < 12 && rgbDist < 34) {
+                    const clothA = Math.min(1, (1 - chromaDist / 12) * (1 - rgbDist / 34));
+                    alpha = Math.max(alpha, Math.round(clothA * 235));
+                }
+            }
+
+            d[idx] = 0;
+            d[idx + 1] = 0;
+            d[idx + 2] = 0;
+            d[idx + 3] = alpha;
+        }
+    }
+    sCtx.putImageData(imgData, 0, 0);
+
+    // Phóng mượt mặt nạ phân đoạn kết hợp làm mịn biên quang học
+    mCtx.save();
+    mCtx.imageSmoothingEnabled = true;
+    mCtx.imageSmoothingQuality = 'high';
+    mCtx.filter = `blur(${Math.max(3.5, Math.min(W, H) * 0.0065).toFixed(1)}px)`;
+    mCtx.drawImage(smallCv, 0, 0, W, H);
+
+    // LỚP 2: Vẽ Cầu nối Giải phẫu Vai -> Cánh tay -> Bàn tay (Anatomical Arm Bridge)
+    // Đảm bảo nếu người dùng mặc áo dài tay / tay áo hoa văn và dang rộng cánh tay, toàn bộ ống tay nối từ vai ra bàn tay không bao giờ bị xóa phông!
+    if (info && info.armClusters && info.armClusters.length > 0) {
+        mCtx.lineCap = 'round';
+        mCtx.lineJoin = 'round';
+        mCtx.strokeStyle = 'rgba(0, 0, 0, 0.96)';
+        const armWidth = Math.max(W * 0.09, info.faceRx * W * 0.92);
+        mCtx.lineWidth = armWidth;
+        info.armClusters.forEach(cl => {
+            mCtx.beginPath();
+            mCtx.moveTo(cl.sx * W, cl.sy * H);
+            // Điểm uốn khuỷu tay nhẹ tự nhiên
+            const midX = (cl.sx + cl.hx) * 0.5 * W;
+            const midY = ((cl.sy + cl.hy) * 0.5 + 0.03) * H;
+            mCtx.quadraticCurveTo(midX, midY, cl.hx * W, cl.hy * H);
+            mCtx.stroke();
+        });
+    }
+
+    // LỚP 3: Khung lõi Đầu, Mái tóc, Cổ & Bờ vai (Chỉ dựng khung lõi đầy đặn khi chưa có Neural Segmenter, hoặc khóa cứng vùng mặt & tóc 100%)
+    const drawSubjectCore = (cx, cy, rx, ry, fullBodyFallback) => {
+        const headGrad = mCtx.createRadialGradient(cx, cy - ry * 0.08, Math.min(rx, ry) * 0.78, cx, cy - ry * 0.08, Math.max(rx, ry) * (fullBodyFallback ? 1.68 : 1.32));
+        headGrad.addColorStop(0, 'rgba(0,0,0,1)');
+        headGrad.addColorStop(0.65, 'rgba(0,0,0,0.98)');
+        headGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        mCtx.fillStyle = headGrad;
+        mCtx.beginPath();
+        mCtx.arc(cx, cy - ry * 0.08, Math.max(rx, ry) * (fullBodyFallback ? 1.68 : 1.32), 0, Math.PI * 2);
+        mCtx.fill();
+
+        if (fullBodyFallback) {
+            const bodyCy = cy + ry * 2.15;
+            const bodyRx = rx * 2.35;
+            const bodyRy = ry * 2.75;
+            mCtx.save();
+            mCtx.translate(cx, bodyCy);
+            mCtx.scale(1, bodyRy / Math.max(1, bodyRx));
+            const bodyGrad = mCtx.createRadialGradient(0, 0, bodyRx * 0.52, 0, 0, bodyRx * 1.18);
+            bodyGrad.addColorStop(0, 'rgba(0,0,0,1)');
+            bodyGrad.addColorStop(0.66, 'rgba(0,0,0,0.95)');
+            bodyGrad.addColorStop(0.88, 'rgba(0,0,0,0.42)');
+            bodyGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            mCtx.fillStyle = bodyGrad;
+            mCtx.beginPath();
+            mCtx.arc(0, 0, bodyRx * 1.18, 0, Math.PI * 2);
+            mCtx.fill();
+            mCtx.restore();
+        }
+    };
+
+    if (faces && faces.length > 0) {
+        faces.forEach(landmarks => {
+            let minX = 1, maxX = 0, minY = 1, maxY = 0;
+            MP_FACE_OVAL_INDICES.forEach(idx => {
+                const pt = landmarks[idx];
+                if (!pt) return;
+                if (pt.x < minX) minX = pt.x;
+                if (pt.x > maxX) maxX = pt.x;
+                if (pt.y < minY) minY = pt.y;
+                if (pt.y > maxY) maxY = pt.y;
+            });
+            const cx = ((minX + maxX) * 0.5) * W;
+            const cy = ((minY + maxY) * 0.5) * H;
+            const rx = Math.max(W * 0.10, ((maxX - minX) * 0.5) * W);
+            const ry = Math.max(H * 0.10, ((maxY - minY) * 0.5) * H);
+            drawSubjectCore(cx, cy, rx, ry, !hasNeuralSeg);
+        });
+    } else if (info) {
+        drawSubjectCore(info.faceCx * W, info.faceCy * H, info.faceRx * W, info.faceRy * H, !hasNeuralSeg);
+    }
+
+    mCtx.restore();
+    smallCv.width = 0;
+    smallCv.height = 0;
+    return maskCv;
+}
+
+// Dựng lớp Xóa phông ống kính khẩu lớn f/1.4 (Chủ thể + cánh tay có alpha = 0 trong suốt tuyệt đối để nhìn xuyên thẳng xuống ảnh gốc 100% độ nét!)
 function buildBokehLayer() {
     const W = beautyEngineState.workW;
     const H = beautyEngineState.workH;
@@ -3396,7 +3823,7 @@ function buildBokehLayer() {
     const bCtx = bokehCv.getContext('2d');
     bCtx.clearRect(0, 0, W, H);
 
-    // 1. Tạo ảnh nền mờ ống kính tiêu cự lớn thông qua hạ mẫu 1/3.5 + Gaussian blur mượt
+    // 1. Tạo ảnh nền mờ ống kính tiêu cự lớn thông qua hạ mẫu + Gaussian blur mượt
     const smallW = Math.max(64, Math.round(W * 0.28));
     const smallH = Math.max(64, Math.round(H * 0.28));
     const smallCv = document.createElement('canvas');
@@ -3434,79 +3861,29 @@ function buildBokehLayer() {
         bCtx.globalAlpha = 1;
     }
 
-    // 3. Tạo mặt nạ Chủ thể Chân dung (Subject Depth Mask) với biên chuyển tiếp mềm mại để giữ chủ thể nét căng 100%
-    const maskCv = document.createElement('canvas');
-    maskCv.width = W;
-    maskCv.height = H;
-    const mCtx = maskCv.getContext('2d');
-
-    const faces = beautyEngineState.detectedFaces;
-    const drawSubjectSilhouette = (cx, cy, rx, ry) => {
-        // Bầu đầu & mái tóc (mở rộng quanh gương mặt)
-        const headGrad = mCtx.createRadialGradient(cx, cy - ry * 0.08, Math.min(rx, ry) * 0.72, cx, cy - ry * 0.08, Math.max(rx, ry) * 1.68);
-        headGrad.addColorStop(0, 'rgba(0,0,0,1)');
-        headGrad.addColorStop(0.55, 'rgba(0,0,0,0.96)');
-        headGrad.addColorStop(0.82, 'rgba(0,0,0,0.42)');
-        headGrad.addColorStop(1, 'rgba(0,0,0,0)');
-        mCtx.fillStyle = headGrad;
-        mCtx.beginPath();
-        mCtx.arc(cx, cy - ry * 0.08, Math.max(rx, ry) * 1.68, 0, Math.PI * 2);
-        mCtx.fill();
-
-        // Phần cổ, bờ vai & thân người nối tiếp xuống đáy ảnh
-        const bodyCy = cy + ry * 2.15;
-        const bodyRx = rx * 2.25;
-        const bodyRy = ry * 2.65;
-        mCtx.save();
-        mCtx.translate(cx, bodyCy);
-        mCtx.scale(1, bodyRy / Math.max(1, bodyRx));
-        const bodyGrad = mCtx.createRadialGradient(0, 0, bodyRx * 0.48, 0, 0, bodyRx * 1.15);
-        bodyGrad.addColorStop(0, 'rgba(0,0,0,1)');
-        bodyGrad.addColorStop(0.62, 'rgba(0,0,0,0.94)');
-        bodyGrad.addColorStop(0.86, 'rgba(0,0,0,0.38)');
-        bodyGrad.addColorStop(1, 'rgba(0,0,0,0)');
-        mCtx.fillStyle = bodyGrad;
-        mCtx.beginPath();
-        mCtx.arc(0, 0, bodyRx * 1.15, 0, Math.PI * 2);
-        mCtx.fill();
-        mCtx.restore();
-    };
-
-    if (faces && faces.length > 0) {
-        faces.forEach(landmarks => {
-            let minX = 1, maxX = 0, minY = 1, maxY = 0;
-            MP_FACE_OVAL_INDICES.forEach(idx => {
-                const pt = landmarks[idx];
-                if (!pt) return;
-                if (pt.x < minX) minX = pt.x;
-                if (pt.x > maxX) maxX = pt.x;
-                if (pt.y < minY) minY = pt.y;
-                if (pt.y > maxY) maxY = pt.y;
-            });
-            const cx = ((minX + maxX) * 0.5) * W;
-            const cy = ((minY + maxY) * 0.5) * H;
-            const rx = Math.max(W * 0.11, ((maxX - minX) * 0.5) * W);
-            const ry = Math.max(H * 0.11, ((maxY - minY) * 0.5) * H);
-            drawSubjectSilhouette(cx, cy, rx, ry);
-        });
-    } else if (info) {
-        drawSubjectSilhouette(info.faceCx * W, info.faceCy * H, info.faceRx * W, info.faceRy * H);
+    // 3. Khoét trong suốt (destination-out) toàn bộ Chủ thể + Cánh tay dang rộng + Bàn tay + Tóc
+    // để ảnh gốc độ phân giải 100% bên dưới hiển thị sắc nét tuyệt đối không mất 1 pixel nào!
+    const subjectMaskCv = buildSubjectProtectionMask(W, H);
+    if (subjectMaskCv) {
+        bCtx.globalCompositeOperation = 'destination-out';
+        bCtx.drawImage(subjectMaskCv, 0, 0);
     }
-
-    // Cắt bỏ vùng chủ thể khỏi lớp nền Bokeh để chủ thể giữ nguyên 100% độ nét gốc
-    bCtx.globalCompositeOperation = 'destination-out';
-    bCtx.drawImage(maskCv, 0, 0);
     bCtx.restore();
-    maskCv.width = 0;
-    maskCv.height = 0;
 }
 
-// Dựng lớp Mịn da & Sáng hồng chọn lọc (Chỉ làm mịn vùng da, giữ nguyên độ sắc nét của mắt, lông mày, môi & tóc)
+// Dựng lớp Mịn da & Sáng hồng chọn lọc trên KHUNG BAO KHUÔN MẶT ĐỘ PHÂN GIẢI GỐC (High-Res Face ROI)
+// Không hạ độ phân giải toàn ảnh, giữ nguyên 100% độ sắc nét của mắt, lông mi, chân mày, sống mũi, môi & tóc ngay cả khi zoom 4x!
 function buildSkinRetouchLayer() {
-    const W = beautyEngineState.workW;
-    const H = beautyEngineState.workH;
-    const baseCv = beautyEngineState.baseCanvas;
-    if (!baseCv || W <= 0 || H <= 0) return;
+    const srcImg = beautyEngineState.srcImg;
+    if (!srcImg) return;
+    if (!beautyEngineState.faceRoi) computeFaceAndLipROIs();
+    const roi = beautyEngineState.faceRoi;
+    if (!roi || roi.w <= 0 || roi.h <= 0) return;
+
+    const natW = srcImg.naturalWidth || srcImg.width || beautyEngineState.workW;
+    const natH = srcImg.naturalHeight || srcImg.height || beautyEngineState.workH;
+    const W = roi.w;
+    const H = roi.h;
 
     if (!beautyEngineState.skinRetouchLayerCanvas) {
         beautyEngineState.skinRetouchLayerCanvas = document.createElement('canvas');
@@ -3517,39 +3894,42 @@ function buildSkinRetouchLayer() {
     const sCtx = skinCv.getContext('2d');
     sCtx.clearRect(0, 0, W, H);
 
-    // 1. Tạo lớp bề mặt da mịn hồng hào (Surface-smoothed & rosy porcelain layer)
-    const smoothW = Math.max(64, Math.round(W * 0.36));
-    const smoothH = Math.max(64, Math.round(H * 0.36));
-    const tmpCv = document.createElement('canvas');
-    tmpCv.width = smoothW;
-    tmpCv.height = smoothH;
-    const tCtx = tmpCv.getContext('2d');
-    tCtx.imageSmoothingEnabled = true;
-    tCtx.imageSmoothingQuality = 'high';
-    tCtx.filter = 'blur(2.4px) brightness(1.06) contrast(0.97) saturate(1.05)';
-    tCtx.drawImage(baseCv, 0, 0, smoothW, smoothH);
-    tCtx.filter = 'none';
+    // 1. Trích xuất trực tiếp vùng Khuôn mặt từ ảnh gốc độ phân giải đầy đủ (natW x natH)
+    const sx = Math.max(0, Math.round(roi.nx * natW));
+    const sy = Math.max(0, Math.round(roi.ny * natH));
+    const sw = Math.min(natW - sx, Math.round(roi.nw * natW));
+    const sh = Math.min(natH - sy, Math.round(roi.nh * natH));
+    if (sw <= 4 || sh <= 4) return;
 
     sCtx.save();
     sCtx.imageSmoothingEnabled = true;
     sCtx.imageSmoothingQuality = 'high';
-    sCtx.drawImage(tmpCv, 0, 0, W, H);
+    // Làm mịn lỗ chân lông siêu vi ở đúng độ phân giải HD của khuôn mặt (không thu nhỏ 0.36x gây bệt mờ như trước)
+    const poreBlurPx = Math.max(1.4, Math.min(2.8, Math.min(W, H) * 0.0038));
+    sCtx.filter = `blur(${poreBlurPx.toFixed(1)}px) brightness(1.045) contrast(0.98) saturate(1.04)`;
+    sCtx.drawImage(srcImg, sx, sy, sw, sh, 0, 0, W, H);
+    sCtx.filter = 'none';
 
     // Phủ một lớp phấn hồng đào mỏng nhẹ (Rosy Porcelain Glow)
     sCtx.globalCompositeOperation = 'soft-light';
-    sCtx.fillStyle = 'rgba(255, 212, 224, 0.28)';
+    sCtx.fillStyle = 'rgba(255, 214, 226, 0.25)';
     sCtx.fillRect(0, 0, W, H);
     sCtx.globalCompositeOperation = 'source-over';
 
-    // 2. Tạo mặt nạ da chọn lọc kết hợp bảo toàn chi tiết biên (Edge-Preserving Skin Mask)
-    const maskW = Math.max(80, Math.round(W * 0.42));
-    const maskH = Math.max(80, Math.round(H * 0.42));
+    // 2. Tạo mặt nạ da chọn lọc bảo toàn chi tiết biên cao tần (Edge-Preserving Skin Mask)
+    const maskW = Math.max(80, Math.min(240, Math.round(W * 0.45)));
+    const maskH = Math.max(80, Math.min(240, Math.round(H * 0.45)));
+    const tmpCv = document.createElement('canvas');
     tmpCv.width = maskW;
     tmpCv.height = maskH;
-    tCtx.clearRect(0, 0, maskW, maskH);
-    tCtx.drawImage(baseCv, 0, 0, maskW, maskH);
+    const tCtx = tmpCv.getContext('2d', { willReadFrequently: true });
+    tCtx.drawImage(srcImg, sx, sy, sw, sh, 0, 0, maskW, maskH);
     const imgData = tCtx.getImageData(0, 0, maskW, maskH);
     const d = imgData.data;
+
+    const info = beautyEngineState.heuristicInfo;
+    const meanCr = info ? info.meanSkinCr : 151;
+    const meanCb = info ? info.meanSkinCb : 104;
 
     for (let y = 1; y < maskH - 1; y++) {
         for (let x = 1; x < maskW - 1; x++) {
@@ -3561,15 +3941,15 @@ function buildSkinRetouchLayer() {
                 const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
                 const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
                 if (cr >= 130 && cr <= 180 && cb >= 74 && cb <= 133) {
-                    const distCr = Math.abs(cr - 151) / 26;
-                    const distCb = Math.abs(cb - 104) / 28;
+                    const distCr = Math.abs(cr - meanCr) / 24;
+                    const distCb = Math.abs(cb - meanCb) / 26;
                     const chromaScore = Math.max(0, 1 - Math.max(distCr, distCb));
 
-                    // Giữ nguyên độ sắc nét của lông mi, chân mày, tóc (nơi có độ tương phản cục bộ cao)
+                    // Bảo toàn tuyệt đối độ sắc nét của lông mi, chân mày, sống mũi, viền hàm, tóc
                     const idxR = idx + 4;
                     const idxD = idx + maskW * 4;
                     const edgeDiff = (Math.abs(r - d[idxR]) + Math.abs(g - d[idxR + 1]) + Math.abs(r - d[idxD]) + Math.abs(g - d[idxD + 1])) * 0.25;
-                    const edgeKeep = Math.max(0, Math.min(1, 1 - (edgeDiff - 10) / 28));
+                    const edgeKeep = Math.max(0, Math.min(1, 1 - (edgeDiff - 7) / 20));
                     alpha = Math.round(chromaScore * edgeKeep * 255);
                 }
             }
@@ -3581,12 +3961,12 @@ function buildSkinRetouchLayer() {
     }
     tCtx.putImageData(imgData, 0, 0);
 
-    // Làm mềm biên mặt nạ da và khoét bỏ vùng Mắt, Chân mày, Môi để luôn sắc nét 100%
+    // Làm mềm biên mặt nạ da và khoét bỏ 100% vùng Mắt, Chân mày, Môi trên hệ tọa độ Face ROI
     const fullMaskCv = document.createElement('canvas');
     fullMaskCv.width = W;
     fullMaskCv.height = H;
     const fmCtx = fullMaskCv.getContext('2d');
-    fmCtx.filter = 'blur(4px)';
+    fmCtx.filter = 'blur(3.5px)';
     fmCtx.drawImage(tmpCv, 0, 0, W, H);
     fmCtx.filter = 'none';
 
@@ -3598,11 +3978,11 @@ function buildSkinRetouchLayer() {
         fmCtx.fillStyle = '#000';
         faces.forEach(landmarks => {
             fmCtx.beginPath();
-            traceLandmarkPolygon(fmCtx, landmarks, MP_LEFT_EYE_INDICES, W, H);
-            traceLandmarkPolygon(fmCtx, landmarks, MP_RIGHT_EYE_INDICES, W, H);
-            traceLandmarkPolygon(fmCtx, landmarks, MP_LEFT_BROW_INDICES, W, H);
-            traceLandmarkPolygon(fmCtx, landmarks, MP_RIGHT_BROW_INDICES, W, H);
-            traceLandmarkPolygon(fmCtx, landmarks, MP_OUTER_LIP_INDICES, W, H);
+            traceLandmarkPolygon(fmCtx, landmarks, MP_LEFT_EYE_INDICES, W, H, roi);
+            traceLandmarkPolygon(fmCtx, landmarks, MP_RIGHT_EYE_INDICES, W, H, roi);
+            traceLandmarkPolygon(fmCtx, landmarks, MP_LEFT_BROW_INDICES, W, H, roi);
+            traceLandmarkPolygon(fmCtx, landmarks, MP_RIGHT_BROW_INDICES, W, H, roi);
+            traceLandmarkPolygon(fmCtx, landmarks, MP_OUTER_LIP_INDICES, W, H, roi);
             fmCtx.fill();
         });
         fmCtx.restore();
@@ -3618,12 +3998,16 @@ function buildSkinRetouchLayer() {
     fullMaskCv.height = 0;
 }
 
-// Dựng mặt nạ Môi (Lip Alpha Mask) chuẩn xác (loại trừ khe miệng/răng bằng quy tắc evenodd)
+// Dựng mặt nạ Môi (Lip Alpha Mask) trên KHUNG BAO ĐÔI MÔI ĐỘ PHÂN GIẢI GỐC 1:1 (Lip ROI)
 function buildLipMasks() {
-    const W = beautyEngineState.workW;
-    const H = beautyEngineState.workH;
-    const baseCv = beautyEngineState.baseCanvas;
-    if (!baseCv || W <= 0 || H <= 0) return;
+    const srcImg = beautyEngineState.srcImg;
+    if (!srcImg) return;
+    if (!beautyEngineState.lipRoi) computeFaceAndLipROIs();
+    const roi = beautyEngineState.lipRoi;
+    if (!roi || roi.w <= 0 || roi.h <= 0) return;
+
+    const W = roi.w;
+    const H = roi.h;
 
     if (!beautyEngineState.lipMaskCanvas) {
         beautyEngineState.lipMaskCanvas = document.createElement('canvas');
@@ -3644,7 +4028,7 @@ function buildLipMasks() {
     gCtx.clearRect(0, 0, W, H);
 
     const faces = beautyEngineState.detectedFaces;
-    const featherPx = Math.max(1.6, Math.min(4.2, Math.min(W, H) * 0.0032));
+    const featherPx = Math.max(1.5, Math.min(4.5, Math.min(W, H) * 0.022));
 
     if (faces && faces.length > 0) {
         mCtx.save();
@@ -3652,55 +4036,54 @@ function buildLipMasks() {
         mCtx.fillStyle = '#ffffff';
         faces.forEach(landmarks => {
             mCtx.beginPath();
-            traceLandmarkPolygon(mCtx, landmarks, MP_OUTER_LIP_INDICES, W, H);
-            traceLandmarkPolygon(mCtx, landmarks, MP_INNER_LIP_INDICES, W, H);
+            traceLandmarkPolygon(mCtx, landmarks, MP_OUTER_LIP_INDICES, W, H, roi);
+            traceLandmarkPolygon(mCtx, landmarks, MP_INNER_LIP_INDICES, W, H, roi);
             mCtx.fill('evenodd');
         });
         mCtx.restore();
 
         // Lớp ánh bóng satin nhẹ ở lòng môi dưới
         gCtx.save();
-        gCtx.filter = `blur(${(featherPx * 1.8).toFixed(1)}px)`;
+        gCtx.filter = `blur(${(featherPx * 1.6).toFixed(1)}px)`;
         gCtx.fillStyle = 'rgba(255, 245, 248, 0.55)';
         faces.forEach(landmarks => {
             gCtx.beginPath();
-            traceLandmarkPolygon(gCtx, landmarks, MP_LOWER_LIP_GLOSS_INDICES, W, H);
+            traceLandmarkPolygon(gCtx, landmarks, MP_LOWER_LIP_GLOSS_INDICES, W, H, roi);
             gCtx.fill();
         });
         gCtx.restore();
     } else if (beautyEngineState.heuristicInfo) {
-        // Mặt nạ môi dự phòng theo sắc độ đỏ tự nhiên trong vùng miệng khi chưa tải xong AI Landmarks
-        const info = beautyEngineState.heuristicInfo;
-        const cx = info.lipCx * W;
-        const cy = info.lipCy * H;
-        const rx = Math.max(14, info.lipRx * W);
-        const ry = Math.max(7, info.lipRy * H);
+        const natW = srcImg.naturalWidth || srcImg.width || beautyEngineState.workW;
+        const natH = srcImg.naturalHeight || srcImg.height || beautyEngineState.workH;
+        const sx = Math.max(0, Math.round(roi.nx * natW));
+        const sy = Math.max(0, Math.round(roi.ny * natH));
+        const sw = Math.min(natW - sx, Math.round(roi.nw * natW));
+        const sh = Math.min(natH - sy, Math.round(roi.nh * natH));
 
-        const x0 = Math.max(0, Math.floor(cx - rx * 1.35));
-        const y0 = Math.max(0, Math.floor(cy - ry * 1.45));
-        const bw = Math.min(W - x0, Math.ceil(rx * 2.7));
-        const bh = Math.min(H - y0, Math.ceil(ry * 2.9));
-
-        if (bw > 4 && bh > 4) {
+        if (sw > 4 && sh > 4) {
             const subCv = document.createElement('canvas');
-            subCv.width = bw;
-            subCv.height = bh;
+            subCv.width = W;
+            subCv.height = H;
             const subCtx = subCv.getContext('2d', { willReadFrequently: true });
-            subCtx.drawImage(baseCv, x0, y0, bw, bh, 0, 0, bw, bh);
-            const imgD = subCtx.getImageData(0, 0, bw, bh);
+            subCtx.drawImage(srcImg, sx, sy, sw, sh, 0, 0, W, H);
+            const imgD = subCtx.getImageData(0, 0, W, H);
             const d = imgD.data;
 
-            for (let y = 0; y < bh; y++) {
-                const dy = ((y0 + y) - cy) / ry;
-                for (let x = 0; x < bw; x++) {
-                    const dx = ((x0 + x) - cx) / rx;
+            const cx = W * 0.5;
+            const cy = H * 0.5;
+            const rx = W * 0.38;
+            const ry = H * 0.34;
+
+            for (let y = 0; y < H; y++) {
+                const dy = (y - cy) / ry;
+                for (let x = 0; x < W; x++) {
+                    const dx = (x - cx) / rx;
                     const radial = 1 - Math.sqrt(dx * dx + dy * dy);
-                    const idx = (y * bw + x) * 4;
+                    const idx = (y * W + x) * 4;
                     let a = 0;
                     if (radial > 0) {
                         const r = d[idx], g = d[idx + 1], b = d[idx + 2];
                         const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-                        // Loại trừ răng trắng (lum cao, độ bão hòa thấp) và vùng tối trong khoang miệng
                         const redness = r - g * 0.72 - b * 0.28;
                         if (lum > 45 && lum < 215 && redness > 26) {
                             const redFactor = Math.min(1, (redness - 24) / 34);
@@ -3716,7 +4099,7 @@ function buildLipMasks() {
             subCtx.putImageData(imgD, 0, 0);
             mCtx.save();
             mCtx.filter = `blur(${featherPx.toFixed(1)}px)`;
-            mCtx.drawImage(subCv, x0, y0);
+            mCtx.drawImage(subCv, 0, 0);
             mCtx.restore();
             subCv.width = 0;
             subCv.height = 0;
@@ -3725,19 +4108,28 @@ function buildLipMasks() {
     beautyEngineState.builtLipShade = 'none';
 }
 
-// Kết xuất lớp màu son theo mã màu đã chọn (Multiply + Soft-Light + Satin Gloss) giữ nguyên vân môi tự nhiên (<0.6ms)
+// Kết xuất lớp màu son theo mã màu đã chọn trực tiếp từ vùng Môi độ phân giải gốc 1:1 (Lip ROI) (<0.4ms)
 function rebuildLipShadeLayer(shadeKey = currentLipShade) {
-    const W = beautyEngineState.workW;
-    const H = beautyEngineState.workH;
-    const baseCv = beautyEngineState.baseCanvas;
+    const srcImg = beautyEngineState.srcImg;
+    const roi = beautyEngineState.lipRoi;
     const maskCv = beautyEngineState.lipMaskCanvas;
-    if (!baseCv || !maskCv || W <= 0 || H <= 0) return;
+    if (!srcImg || !roi || !maskCv || roi.w <= 0 || roi.h <= 0) return;
 
     const cfg = LIP_SHADES_CONFIG[shadeKey] || LIP_SHADES_CONFIG.none;
     if (!cfg.rgb || shadeKey === 'none') {
         beautyEngineState.builtLipShade = 'none';
         return;
     }
+
+    const W = roi.w;
+    const H = roi.h;
+    const natW = srcImg.naturalWidth || srcImg.width || beautyEngineState.workW;
+    const natH = srcImg.naturalHeight || srcImg.height || beautyEngineState.workH;
+    const sx = Math.max(0, Math.round(roi.nx * natW));
+    const sy = Math.max(0, Math.round(roi.ny * natH));
+    const sw = Math.min(natW - sx, Math.round(roi.nw * natW));
+    const sh = Math.min(natH - sy, Math.round(roi.nh * natH));
+    if (sw <= 2 || sh <= 2) return;
 
     if (!beautyEngineState.lipLayerCanvas) {
         beautyEngineState.lipLayerCanvas = document.createElement('canvas');
@@ -3751,7 +4143,10 @@ function rebuildLipShadeLayer(shadeKey = currentLipShade) {
     lCtx.clearRect(0, 0, W, H);
 
     lCtx.save();
-    lCtx.drawImage(baseCv, 0, 0);
+    lCtx.imageSmoothingEnabled = true;
+    lCtx.imageSmoothingQuality = 'high';
+    // Lấy mẫu vân môi trực tiếp từ ảnh gốc độ phân giải 1:1 để khi zoom cận cảnh môi vẫn nét căng
+    lCtx.drawImage(srcImg, sx, sy, sw, sh, 0, 0, W, H);
 
     // Lớp 1: Multiply giúp màu son thấm sâu vào sắc môi thật và giữ nguyên nếp vân môi
     lCtx.globalCompositeOperation = 'multiply';
@@ -3769,13 +4164,13 @@ function rebuildLipShadeLayer(shadeKey = currentLipShade) {
     if (beautyEngineState.lipHighlightMaskCanvas) {
         lCtx.globalCompositeOperation = 'screen';
         lCtx.globalAlpha = 0.24;
-        lCtx.drawImage(beautyEngineState.lipHighlightMaskCanvas, 0, 0);
+        lCtx.drawImage(beautyEngineState.lipHighlightMaskCanvas, 0, 0, W, H);
     }
 
     // Cắt chính xác theo mặt nạ môi đã làm mềm biên
     lCtx.globalCompositeOperation = 'destination-in';
     lCtx.globalAlpha = 1;
-    lCtx.drawImage(maskCv, 0, 0);
+    lCtx.drawImage(maskCv, 0, 0, W, H);
     lCtx.restore();
 
     beautyEngineState.builtLipShade = shadeKey;
@@ -3796,7 +4191,7 @@ function ensureBeautyLayersReadySync() {
     if (natW <= 0 || natH <= 0) return false;
 
     const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
-    const maxWorkDim = prof ? (prof.qualityTier >= 2 ? 860 : (prof.tier === 1 ? 720 : 600)) : 800;
+    const maxWorkDim = prof ? (prof.qualityTier >= 2 ? 960 : (prof.tier === 1 ? 820 : 680)) : 900;
     const scale = Math.min(1, maxWorkDim / Math.max(natW, natH));
     const W = Math.max(64, Math.round(natW * scale));
     const H = Math.max(64, Math.round(natH * scale));
@@ -3818,6 +4213,7 @@ function ensureBeautyLayersReadySync() {
     if (!beautyEngineState.heuristicInfo) {
         beautyEngineState.heuristicInfo = analyzePhotoHeuristicsFast(beautyEngineState.baseCanvas);
     }
+    computeFaceAndLipROIs();
     buildBokehLayer();
     buildSkinRetouchLayer();
     buildLipMasks();
@@ -3828,14 +4224,57 @@ function ensureBeautyLayersReadySync() {
     return true;
 }
 
-// Tiền kết xuất theo từng lát nhỏ (Time-Sliced) sau khi Morph xong + Nâng cấp ngầm bằng MediaPipe FaceLandmarker 478 điểm
+// Trích xuất mặt nạ người toàn thân (bao gồm cả cánh tay dang rộng) từ kết quả MediaPipe ImageSegmenter
+function extractPersonForegroundFloatMask(segResult, info) {
+    if (!segResult || !segResult.confidenceMasks || segResult.confidenceMasks.length === 0) return null;
+    const masks = segResult.confidenceMasks;
+    let chosenIdx = masks.length > 1 ? 1 : 0;
+    const m0 = masks[chosenIdx];
+    if (!m0 || typeof m0.getAsFloat32Array !== 'function') {
+        masks.forEach(m => { try { if (m && typeof m.close === 'function') m.close(); } catch (_) {} });
+        return null;
+    }
+
+    const mw = m0.width || 0;
+    const mh = m0.height || 0;
+    if (mw <= 0 || mh <= 0) {
+        masks.forEach(m => { try { if (m && typeof m.close === 'function') m.close(); } catch (_) {} });
+        return null;
+    }
+
+    const rawArr = m0.getAsFloat32Array();
+    const copyArr = new Float32Array(rawArr.length);
+    copyArr.set(rawArr);
+
+    // Kiểm tra tự động xem kênh mask đang là Chủ thể (1.0 ở giữa mặt) hay Nền (1.0 ở 2 góc trên) để không bao giờ bị ngược mask
+    const fcx = Math.max(0, Math.min(mw - 1, Math.floor((info ? info.faceCx : 0.5) * mw)));
+    const fcy = Math.max(0, Math.min(mh - 1, Math.floor((info ? info.faceCy : 0.38) * mh)));
+    const centerVal = copyArr[fcy * mw + fcx] || 0;
+    const cornerVal = ((copyArr[2] || 0) + (copyArr[mw - 3] || 0)) * 0.5;
+    if (cornerVal > centerVal + 0.25) {
+        for (let i = 0; i < copyArr.length; i++) {
+            copyArr[i] = 1 - copyArr[i];
+        }
+    }
+
+    masks.forEach(m => { try { if (m && typeof m.close === 'function') m.close(); } catch (_) {} });
+    return { data: copyArr, width: mw, height: mh };
+}
+
+// Tiền kết xuất theo từng lát nhỏ (Time-Sliced) sau khi Morph xong + Nâng cấp ngầm bằng MediaPipe FaceLandmarker & SelfieSegmenter
 function schedulePhotoBeautyPrebake(srcImg) {
     const token = ++beautyEngineState.photoToken;
     beautyEngineState.srcImg = srcImg;
     beautyEngineState.layersReady = false;
     beautyEngineState.landmarksResolved = false;
+    beautyEngineState.segmenterResolved = false;
     beautyEngineState.detectedFaces = null;
+    beautyEngineState.personMaskFloat = null;
+    beautyEngineState.personMaskW = 0;
+    beautyEngineState.personMaskH = 0;
     beautyEngineState.heuristicInfo = null;
+    beautyEngineState.faceRoi = null;
+    beautyEngineState.lipRoi = null;
     beautyEngineState.builtLipShade = 'none';
 
     const runSlicedPrebake = () => {
@@ -3845,7 +4284,7 @@ function schedulePhotoBeautyPrebake(srcImg) {
         if (natW <= 0 || natH <= 0) return;
 
         const prof = window.DevicePerfGovernor ? window.DevicePerfGovernor.getProfile() : null;
-        const maxWorkDim = prof ? (prof.qualityTier >= 2 ? 860 : (prof.tier === 1 ? 720 : 600)) : 800;
+        const maxWorkDim = prof ? (prof.qualityTier >= 2 ? 960 : (prof.tier === 1 ? 820 : 680)) : 900;
         const scale = Math.min(1, maxWorkDim / Math.max(natW, natH));
         const W = Math.max(64, Math.round(natW * scale));
         const H = Math.max(64, Math.round(natH * scale));
@@ -3863,6 +4302,7 @@ function schedulePhotoBeautyPrebake(srcImg) {
         baseCtx.imageSmoothingQuality = 'high';
         baseCtx.drawImage(srcImg, 0, 0, W, H);
         beautyEngineState.heuristicInfo = analyzePhotoHeuristicsFast(beautyEngineState.baseCanvas);
+        computeFaceAndLipROIs();
 
         requestAnimationFrame(() => {
             if (token !== beautyEngineState.photoToken) return;
@@ -3883,25 +4323,48 @@ function schedulePhotoBeautyPrebake(srcImg) {
                     scheduleBeautyPreviewComposite();
                 }
 
-                // Nâng cấp ngầm bằng MediaPipe FaceLandmarker (478 điểm 3D) để viền môi & mắt đạt độ chuẩn xác tuyệt đối
-                ensureMediaPipeFaceLandmarker().then(landmarker => {
-                    if (!landmarker || token !== beautyEngineState.photoToken || !beautyEngineState.baseCanvas) return;
+                // Nâng cấp ngầm bằng MediaPipe FaceLandmarker (478 điểm 3D) + ImageSegmenter (Selfie Segmenter tách cánh tay & toàn thân)
+                ensureMediaPipeBeautyAI().then(ai => {
+                    if (!ai || token !== beautyEngineState.photoToken || !beautyEngineState.baseCanvas) return;
+                    let needsRebuild = false;
+
                     try {
-                        const res = landmarker.detect(beautyEngineState.baseCanvas);
-                        if (res && res.faceLandmarks && res.faceLandmarks.length > 0) {
-                            beautyEngineState.detectedFaces = res.faceLandmarks;
-                            beautyEngineState.landmarksResolved = true;
-                            buildBokehLayer();
-                            buildSkinRetouchLayer();
-                            buildLipMasks();
-                            if (currentLipShade && currentLipShade !== 'none') {
-                                rebuildLipShadeLayer(currentLipShade);
-                            }
-                            if (isAnyBeautyRetouchActive()) {
-                                scheduleBeautyPreviewComposite();
+                        if (ai.landmarker) {
+                            const res = ai.landmarker.detect(beautyEngineState.baseCanvas);
+                            if (res && res.faceLandmarks && res.faceLandmarks.length > 0) {
+                                beautyEngineState.detectedFaces = res.faceLandmarks;
+                                beautyEngineState.landmarksResolved = true;
+                                computeFaceAndLipROIs();
+                                needsRebuild = true;
                             }
                         }
                     } catch (_) {}
+
+                    try {
+                        if (ai.segmenter) {
+                            const segRes = ai.segmenter.segment(beautyEngineState.baseCanvas);
+                            const extracted = extractPersonForegroundFloatMask(segRes, beautyEngineState.heuristicInfo);
+                            if (extracted) {
+                                beautyEngineState.personMaskFloat = extracted.data;
+                                beautyEngineState.personMaskW = extracted.width;
+                                beautyEngineState.personMaskH = extracted.height;
+                                beautyEngineState.segmenterResolved = true;
+                                needsRebuild = true;
+                            }
+                        }
+                    } catch (_) {}
+
+                    if (needsRebuild && token === beautyEngineState.photoToken) {
+                        buildBokehLayer();
+                        buildSkinRetouchLayer();
+                        buildLipMasks();
+                        if (currentLipShade && currentLipShade !== 'none') {
+                            rebuildLipShadeLayer(currentLipShade);
+                        }
+                        if (isAnyBeautyRetouchActive()) {
+                            scheduleBeautyPreviewComposite();
+                        }
+                    }
                 });
             });
         });
@@ -3960,35 +4423,41 @@ function mountRetouchCanvasInCropper() {
     });
 }
 
-// Kết hợp 4 lớp (Ảnh gốc + Xóa phông Bokeh + Mịn sáng da + Tô son + Filter màu) trong 1 nhịp RAF (<1.2ms GPU)
+// KIẾN TRÚC TRANSPARENT DELTA OVERLAY:
+// Tuyệt đối KHÔNG ẩn thẻ <img> gốc (viewImg luôn giữ opacity = 1) và KHÔNG vẽ baseCanvas độ phân giải thấp đè lên ảnh!
+// Lớp retouchCv chỉ vẽ phần hiệu ứng trong suốt (Hậu cảnh Bokeh + Mịn da nhẹ + Môi ROI độ phân giải cao) nằm trên viewImg,
+// giúp toàn bộ mắt, tóc, quần áo, cánh tay và chi tiết ảnh gốc giữ nguyên 100% độ phân giải gốc dù người dùng phóng zoom 3x - 5x!
 function renderBeautyPreviewComposite() {
     beautyEngineState.compositeRafId = 0;
     const effectiveCss = getEffectiveFilterCss();
     const viewImg = beautyEngineState.viewBoxImgEl || document.querySelector('.cropper-view-box img');
     const retouchCv = beautyEngineState.retouchCanvasEl;
 
+    if (viewImg) {
+        viewImg.style.opacity = '1';
+        viewImg.style.filter = effectiveCss;
+    }
+
     if (!isAnyBeautyRetouchActive()) {
         if (retouchCv) {
             retouchCv.style.display = 'none';
             retouchCv.style.filter = 'none';
         }
-        if (viewImg) {
-            viewImg.style.opacity = '1';
-            viewImg.style.filter = effectiveCss;
-        }
         return;
     }
 
     if (!ensureBeautyLayersReadySync() || !retouchCv || !beautyEngineState.baseCanvas) {
-        if (viewImg) {
-            viewImg.style.opacity = '1';
-            viewImg.style.filter = effectiveCss;
-        }
         return;
     }
 
-    const W = beautyEngineState.workW;
-    const H = beautyEngineState.workH;
+    const srcImg = beautyEngineState.srcImg;
+    const natW = (srcImg && (srcImg.naturalWidth || srcImg.width)) || beautyEngineState.workW;
+    const natH = (srcImg && (srcImg.naturalHeight || srcImg.height)) || beautyEngineState.workH;
+    const maxPreviewDim = 1360;
+    const pScale = Math.min(1, maxPreviewDim / Math.max(1, natW, natH));
+    const W = Math.max(beautyEngineState.workW, Math.round(natW * pScale));
+    const H = Math.max(beautyEngineState.workH, Math.round(natH * pScale));
+
     if (retouchCv.width !== W || retouchCv.height !== H) {
         retouchCv.width = W;
         retouchCv.height = H;
@@ -3996,27 +4465,44 @@ function renderBeautyPreviewComposite() {
 
     const ctx = retouchCv.getContext('2d');
     ctx.clearRect(0, 0, W, H);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
     ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1;
-    ctx.drawImage(beautyEngineState.baseCanvas, 0, 0, W, H);
 
+    // 1. Lớp Xóa phông ống kính (Chủ thể + cánh tay có alpha = 0 trong suốt hoàn toàn nên không chạm vào độ nét của người!)
     if (currentBokehIntensity > 0 && beautyEngineState.bokehLayerCanvas) {
         ctx.globalAlpha = Math.max(0, Math.min(1, currentBokehIntensity / 100));
         ctx.drawImage(beautyEngineState.bokehLayerCanvas, 0, 0, W, H);
     }
 
-    if (currentSkinIntensity > 0 && beautyEngineState.skinRetouchLayerCanvas) {
-        ctx.globalAlpha = Math.max(0, Math.min(1, (currentSkinIntensity / 100) * 0.92));
-        ctx.drawImage(beautyEngineState.skinRetouchLayerCanvas, 0, 0, W, H);
+    // 2. Lớp Mịn sáng da (Vẽ đúng vào khung bao Face ROI độ phân giải cao, giữ nguyên lỗ chân lông tự nhiên & chi tiết sắc nét)
+    if (currentSkinIntensity > 0 && beautyEngineState.skinRetouchLayerCanvas && beautyEngineState.faceRoi) {
+        const fRoi = beautyEngineState.faceRoi;
+        ctx.globalAlpha = Math.max(0, Math.min(1, (currentSkinIntensity / 100) * 0.56));
+        ctx.drawImage(
+            beautyEngineState.skinRetouchLayerCanvas,
+            fRoi.nx * W,
+            fRoi.ny * H,
+            fRoi.nw * W,
+            fRoi.nh * H
+        );
     }
 
-    if (currentLipIntensity > 0 && currentLipShade && currentLipShade !== 'none') {
+    // 3. Lớp Tô son môi (Vẽ đúng vào khung bao Lip ROI độ phân giải gốc 1:1)
+    if (currentLipIntensity > 0 && currentLipShade && currentLipShade !== 'none' && beautyEngineState.lipRoi) {
         if (beautyEngineState.builtLipShade !== currentLipShade) {
             rebuildLipShadeLayer(currentLipShade);
         }
         if (beautyEngineState.lipLayerCanvas) {
+            const lRoi = beautyEngineState.lipRoi;
             ctx.globalAlpha = Math.max(0, Math.min(1, (currentLipIntensity / 100) * 0.90));
-            ctx.drawImage(beautyEngineState.lipLayerCanvas, 0, 0, W, H);
+            ctx.drawImage(
+                beautyEngineState.lipLayerCanvas,
+                lRoi.nx * W,
+                lRoi.ny * H,
+                lRoi.nw * W,
+                lRoi.nh * H
+            );
         }
     }
 
@@ -4024,10 +4510,6 @@ function renderBeautyPreviewComposite() {
     syncRetouchCanvasTransform();
     retouchCv.style.filter = effectiveCss;
     retouchCv.style.display = 'block';
-    if (viewImg) {
-        viewImg.style.opacity = '0.001';
-        viewImg.style.filter = 'none';
-    }
 }
 
 function scheduleBeautyPreviewComposite() {
@@ -4041,41 +4523,86 @@ function applyFilterToPreview() {
     scheduleBeautyPreviewComposite();
 }
 
-// Dựng Canvas nguồn độ phân giải đầy đủ đã áp Xóa phông + Mịn da + Tô son để Cropper cắt ảnh sắc nét cho cả 2 luồng
-function buildFullResRetouchedSourceCanvas(rawImg, targetW, targetH) {
-    if (!ensureBeautyLayersReadySync()) return null;
-    const c = document.createElement('canvas');
-    c.width = targetW;
-    c.height = targetH;
-    const ctx = c.getContext('2d');
+// Áp trực tiếp các lớp Làm đẹp (Xóa phông + Mịn da Face ROI + Tô son Lip ROI) lên Canvas ĐÃ CẮT ở độ phân giải đích (1024x1526)
+// theo đúng ma trận phóng zoom / xoay / lật của Cropper mà KHÔNG cần tạo Canvas trung gian toàn ảnh, bảo toàn 100% độ nét gốc khi zoom sâu!
+function compositeBeautyLayersOntoCroppedCanvas(croppedCanvas, cropperInstance) {
+    if (!croppedCanvas || !cropperInstance || !isAnyBeautyRetouchActive()) return croppedCanvas;
+    if (!ensureBeautyLayersReadySync()) return croppedCanvas;
+
+    const imageData = cropperInstance.imageData;
+    const canvasData = cropperInstance.canvasData;
+    const cropBoxData = cropperInstance.cropBoxData;
+    if (!imageData || !canvasData || !cropBoxData || !cropBoxData.width || !cropBoxData.height) {
+        return croppedCanvas;
+    }
+
+    const outW = croppedCanvas.width;
+    const outH = croppedCanvas.height;
+    const width = imageData.width;
+    const height = imageData.height;
+    const left = cropBoxData.left - canvasData.left - imageData.left;
+    const top = cropBoxData.top - canvasData.top - imageData.top;
+    const rotate = imageData.rotate || 0;
+    const scaleX = imageData.scaleX || 1;
+    const scaleY = imageData.scaleY || 1;
+
+    const ctx = croppedCanvas.getContext('2d');
+    ctx.save();
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
 
-    ctx.globalAlpha = 1;
-    ctx.drawImage(rawImg, 0, 0, targetW, targetH);
+    // Biến đổi hệ tọa độ khớp chính xác 100% với khung nhìn .cropper-view-box đã phóng zoom / xoay / lật
+    ctx.scale(outW / cropBoxData.width, outH / cropBoxData.height);
+    ctx.translate(-left + width * 0.5, -top + height * 0.5);
+    if (rotate) {
+        ctx.rotate((rotate * Math.PI) / 180);
+    }
+    if (scaleX !== 1 || scaleY !== 1) {
+        ctx.scale(scaleX, scaleY);
+    }
 
+    const imgX0 = -width * 0.5;
+    const imgY0 = -height * 0.5;
+
+    // 1. Vẽ lớp Hậu cảnh Xóa phông Bokeh (Chủ thể + cánh tay có alpha = 0 nên người trên croppedCanvas giữ nguyên 100% độ nét gốc!)
     if (currentBokehIntensity > 0 && beautyEngineState.bokehLayerCanvas) {
         ctx.globalAlpha = Math.max(0, Math.min(1, currentBokehIntensity / 100));
-        ctx.drawImage(beautyEngineState.bokehLayerCanvas, 0, 0, targetW, targetH);
+        ctx.drawImage(beautyEngineState.bokehLayerCanvas, imgX0, imgY0, width, height);
     }
 
-    if (currentSkinIntensity > 0 && beautyEngineState.skinRetouchLayerCanvas) {
-        ctx.globalAlpha = Math.max(0, Math.min(1, (currentSkinIntensity / 100) * 0.92));
-        ctx.drawImage(beautyEngineState.skinRetouchLayerCanvas, 0, 0, targetW, targetH);
+    // 2. Vẽ lớp Mịn sáng da trên vùng Face ROI độ phân giải cao
+    if (currentSkinIntensity > 0 && beautyEngineState.skinRetouchLayerCanvas && beautyEngineState.faceRoi) {
+        const fRoi = beautyEngineState.faceRoi;
+        ctx.globalAlpha = Math.max(0, Math.min(1, (currentSkinIntensity / 100) * 0.56));
+        ctx.drawImage(
+            beautyEngineState.skinRetouchLayerCanvas,
+            imgX0 + fRoi.nx * width,
+            imgY0 + fRoi.ny * height,
+            fRoi.nw * width,
+            fRoi.nh * height
+        );
     }
 
-    if (currentLipIntensity > 0 && currentLipShade && currentLipShade !== 'none') {
+    // 3. Vẽ lớp Tô son môi trên vùng Lip ROI độ phân giải gốc 1:1
+    if (currentLipIntensity > 0 && currentLipShade && currentLipShade !== 'none' && beautyEngineState.lipRoi) {
         if (beautyEngineState.builtLipShade !== currentLipShade) {
             rebuildLipShadeLayer(currentLipShade);
         }
         if (beautyEngineState.lipLayerCanvas) {
+            const lRoi = beautyEngineState.lipRoi;
             ctx.globalAlpha = Math.max(0, Math.min(1, (currentLipIntensity / 100) * 0.90));
-            ctx.drawImage(beautyEngineState.lipLayerCanvas, 0, 0, targetW, targetH);
+            ctx.drawImage(
+                beautyEngineState.lipLayerCanvas,
+                imgX0 + lRoi.nx * width,
+                imgY0 + lRoi.ny * height,
+                lRoi.nw * width,
+                lRoi.nh * height
+            );
         }
     }
 
-    ctx.globalAlpha = 1;
-    return c;
+    ctx.restore();
+    return croppedCanvas;
 }
 
 // Chuyển đổi giữa 2 ngăn trong Tab Làm Đẹp: (1) 🎨 Màu & Xóa phông | (2) 💄 Mịn da & Tô son
@@ -4415,10 +4942,10 @@ if (typeof window !== 'undefined') {
     }
 }
 
-// Giữ nguyên 100% file ảnh gốc (không nén lại) cho mọi ảnh <= 3072px để bảo toàn tuyệt đối độ nét khi người dùng zoom/cắt trong khung 1024x1526;
-// Chỉ thu gọn nhẹ nhàng về 3072px (với chất lượng 0.98) đối với ảnh cảm biến 24MP-50MP quá lớn để tránh tràn VRAM.
+// Giữ nguyên 100% file ảnh gốc (URL.createObjectURL trực tiếp, không nén lại) cho mọi ảnh điện thoại & máy ảnh (tới 8192px)
+// để bảo toàn tuyệt đối từng điểm ảnh khi người dùng phóng zoom sâu (2x - 5x) vào khuôn mặt trong ảnh chụp xa / ảnh tập thể!
 async function normalizeInputPhotoForCropper(file) {
-    const MAX_DIM = 3072;
+    const MAX_DIM = 8192;
     try {
         if (typeof window.createImageBitmap === 'function') {
             const bmp = await window.createImageBitmap(file);
@@ -4440,7 +4967,7 @@ async function normalizeInputPhotoForCropper(file) {
             oCtx.drawImage(bmp, 0, 0, targetW, targetH);
             if (typeof bmp.close === 'function') bmp.close();
 
-            const blob = await new Promise((resolve) => off.toBlob(resolve, 'image/jpeg', 0.98));
+            const blob = await new Promise((resolve) => off.toBlob(resolve, 'image/jpeg', 0.99));
             if (blob) return URL.createObjectURL(blob);
         }
     } catch (_) {}
@@ -4561,12 +5088,11 @@ async function handleImageInput(e) {
         }
     }
 
-    // Thu gọn ảnh 12MP-50MP về <=1280px trước khi khởi tạo Cropper & Morph để chuyển cảnh mượt 60fps tuyệt đối
     window.isStep2Morphing = true;
     const normalizedBlobUrl = await normalizeInputPhotoForCropper(file);
 
     // Giữ Bước 1 hiển thị ổn định trong lúc Bước 2 dựng ngầm Cropper + giải mã Texture GPU phía dưới (không bao giờ chớp màn hình)
-    step2.classList.remove('step2-morph-from', 'step2-morph-to', 'step2-morph-active', 'step2-ui-hidden', 'step2-ui-revealing');
+    step2.classList.remove('step2-morph-from', 'step2-morph-to', 'step2-morph-settled', 'step2-morph-active', 'step2-ui-hidden', 'step2-ui-revealing');
     step2.classList.add('active', 'step2-preloading');
 
     if (originalImgSrc && originalImgSrc.startsWith('blob:')) {
@@ -4578,10 +5104,10 @@ async function handleImageInput(e) {
     renderStep2WishPreview();
     initCropper();
 
-    // Hoãn toàn bộ tác vụ đọc kích thước cuộn ngang (initScrollHints, scrollChipIntoCenter) và tiền kết xuất Step 3 sang SAU KHI hiệu ứng Morph hoàn tất (660ms),
-    // tuyệt đối không để smooth-scroll hay forced layout chạy chồng lên khung hình Morph!
+    // Hoãn toàn bộ tác vụ đọc kích thước cuộn ngang (initScrollHints, scrollChipIntoCenter) và mở khóa độ phân giải GPU Rasterization sang SAU KHI hiệu ứng Morph hoàn tất (660ms)!
     window.onStep2MorphComplete = () => {
         window.onStep2MorphComplete = null;
+        step2.classList.add('step2-morph-settled');
         if (!window.isSelfOracleMode) {
             initScrollHints();
             const activeChip = document.querySelector('#step3-concept-chips .concept-chip.active, #step3-classic-frame-chips .concept-chip.active');
@@ -4592,6 +5118,7 @@ async function handleImageInput(e) {
     if (step2WarmupTimerId) clearTimeout(step2WarmupTimerId);
     step2WarmupTimerId = setTimeout(() => {
         step2WarmupTimerId = 0;
+        step2.classList.add('step2-morph-settled');
         const warmStep3Assets = () => {
             try {
                 if (window.isSelfOracleMode && window.WishBloomCutscene && window.presetSelfOracleMotion) {
@@ -4672,6 +5199,7 @@ function initCropper() {
                     window.isStep2Morphing = false;
                     step1.classList.remove('active');
                     step2.classList.remove('step2-preloading');
+                    step2.classList.add('step2-morph-settled');
                 }
             };
 
@@ -4690,34 +5218,61 @@ function initCropper() {
         }
     });
 
-    // Bọc getCroppedCanvas để khi xuất ảnh chất lượng cao 1024x1526 ở cả 2 luồng ("Lời chúc dành cho bạn" & "Soạn lời chúc cho người thân")
-    // hoặc khi Xem thử 3D, các lớp Xóa phông + Mịn sáng da + Tô son môi tự động được kết xuất chuẩn xác theo đúng góc cắt/xoay/lật!
+    // Kết xuất trực tiếp vùng ảnh đã phóng zoom / xoay / lật từ thẻ <img> gốc độ phân giải đầy đủ (12MP - 48MP) sang Canvas đích (1024x1526)
+    // mà KHÔNG qua Canvas trung gian getSourceCanvas của Cropper, sau đó ghép trực tiếp các lớp Xóa phông + Mịn da Face ROI + Tô son Lip ROI!
     const origGetCroppedCanvas = cropperObj.getCroppedCanvas.bind(cropperObj);
     cropperObj.getCroppedCanvas = function (options) {
-        if (!isAnyBeautyRetouchActive()) {
-            return origGetCroppedCanvas(options);
-        }
-        const savedImg = this.image;
-        let tempRetouchedSource = null;
         try {
-            const natW = (this.imageData && this.imageData.naturalWidth) || (savedImg && (savedImg.naturalWidth || savedImg.width)) || 1024;
-            const natH = (this.imageData && this.imageData.naturalHeight) || (savedImg && (savedImg.naturalHeight || savedImg.height)) || 1526;
-            tempRetouchedSource = buildFullResRetouchedSourceCanvas(savedImg || imageEl, natW, natH);
-            if (tempRetouchedSource) {
-                this.image = tempRetouchedSource;
+            const imageData = this.imageData;
+            const canvasData = this.canvasData;
+            const cropBoxData = this.cropBoxData;
+            const rawImg = this.image || imageEl;
+
+            if (this.ready && this.cropped && imageData && canvasData && cropBoxData && cropBoxData.width > 0 && cropBoxData.height > 0 && rawImg) {
+                const outW = Math.round((options && options.width) || 1024);
+                const outH = Math.round((options && options.height) || 1526);
+                const outCv = document.createElement('canvas');
+                outCv.width = outW;
+                outCv.height = outH;
+                const ctx = outCv.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+
+                const width = imageData.width;
+                const height = imageData.height;
+                const left = cropBoxData.left - canvasData.left - imageData.left;
+                const top = cropBoxData.top - canvasData.top - imageData.top;
+                const rotate = imageData.rotate || 0;
+                const scaleX = imageData.scaleX || 1;
+                const scaleY = imageData.scaleY || 1;
+
+                ctx.save();
+                ctx.scale(outW / cropBoxData.width, outH / cropBoxData.height);
+                ctx.translate(-left + width * 0.5, -top + height * 0.5);
+                if (rotate) {
+                    ctx.rotate((rotate * Math.PI) / 180);
+                }
+                if (scaleX !== 1 || scaleY !== 1) {
+                    ctx.scale(scaleX, scaleY);
+                }
+                // Vẽ trực tiếp từ thẻ <img> gốc độ phân giải cảm biến (không mất 1 pixel nào khi zoom sâu!)
+                ctx.drawImage(rawImg, -width * 0.5, -height * 0.5, width, height);
+                ctx.restore();
+
+                if (isAnyBeautyRetouchActive()) {
+                    compositeBeautyLayersOntoCroppedCanvas(outCv, this);
+                }
+                return outCv;
             }
-            return origGetCroppedCanvas(options);
         } catch (err) {
-            console.warn('Beauty retouch getCroppedCanvas fallback:', err);
-            this.image = savedImg;
-            return origGetCroppedCanvas(options);
-        } finally {
-            this.image = savedImg;
-            if (tempRetouchedSource) {
-                tempRetouchedSource.width = 0;
-                tempRetouchedSource.height = 0;
-            }
+            console.warn('Direct high-res getCroppedCanvas fallback:', err);
         }
+
+        const fallbackCv = origGetCroppedCanvas(options);
+        if (fallbackCv && isAnyBeautyRetouchActive()) {
+            compositeBeautyLayersOntoCroppedCanvas(fallbackCv, this);
+        }
+        return fallbackCv;
     };
 }
 
