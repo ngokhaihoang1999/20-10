@@ -263,6 +263,156 @@ async function resolveTelegramFilePathOnce(fileId) {
     }
 }
 
+// ====== ĐỊNH DANH THIẾT BỊ BỀN VỮNG (PERSISTENT DEVICE ID + HARDWARE FINGERPRINT) & BỘ ĐẾM 2 LUỒNG ======
+const _DEVICE_ID_KEY = 'w2010_device_id_v1';
+const _DEVICE_STATS_KEY = 'w2010_device_stats_v1';
+let _cachedHwHash = '';
+let _lastCountedCardSig = '';
+let _lastDeviceSnapshot = null;
+
+function _fnv1aHex(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+    }
+    return (h >>> 0).toString(16).toUpperCase().padStart(8, '0');
+}
+
+function _getCookieVal(name) {
+    try {
+        const m = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+        return m ? decodeURIComponent(m[1]) : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function _setCookieVal(name, val) {
+    try {
+        document.cookie = `${name}=${encodeURIComponent(val)}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch (_) {}
+}
+
+function _computeHardwareHash() {
+    if (_cachedHwHash) return _cachedHwHash;
+    try {
+        const scr = typeof window.screen !== 'undefined' ? window.screen : {};
+        const w = Math.min(scr.width || 0, scr.height || 0);
+        const h = Math.max(scr.width || 0, scr.height || 0);
+        const dpr = Number(window.devicePixelRatio || 1).toFixed(2);
+        const cores = navigator.hardwareConcurrency || 0;
+        const mem = navigator.deviceMemory || 0;
+        const tz = (typeof Intl !== 'undefined' && Intl.DateTimeFormat)
+            ? (Intl.DateTimeFormat().resolvedOptions().timeZone || '')
+            : '';
+        let gpu = '';
+        try {
+            const cv = document.createElement('canvas');
+            const gl = cv.getContext('webgl') || cv.getContext('experimental-webgl');
+            if (gl) {
+                const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+                gpu = dbg ? (gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : (gl.getParameter(gl.RENDERER) || '');
+            }
+        } catch (_) {}
+        const rawTraits = `${w}x${h}@${dpr}|c:${cores}|m:${mem}|g:${gpu}|tz:${tz}`;
+        _cachedHwHash = _fnv1aHex(rawTraits).slice(0, 6);
+    } catch (_) {
+        _cachedHwHash = '000000';
+    }
+    return _cachedHwHash;
+}
+
+function _detectPlatformSummary() {
+    const ua = navigator.userAgent || '';
+    let os = 'Web';
+    if (/iPhone/i.test(ua)) os = 'iPhone iOS';
+    else if (/iPad/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) os = 'iPadOS';
+    else if (/Android/i.test(ua)) os = 'Android';
+    else if (/Windows/i.test(ua)) os = 'Windows PC';
+    else if (/Macintosh|Mac OS X/i.test(ua)) os = 'Mac';
+
+    let app = 'Browser';
+    if (/Zalo/i.test(ua)) app = 'Zalo';
+    else if (/FBAN|FBAV|Messenger/i.test(ua)) app = 'Messenger/FB';
+    else if (/Telegram/i.test(ua)) app = 'Telegram';
+    else if (/TikTok|Bytedance/i.test(ua)) app = 'TikTok';
+    else if (/CriOS|Chrome/i.test(ua) && !/Edg/i.test(ua)) app = 'Chrome';
+    else if (/Safari/i.test(ua) && !/Chrome|CriOS/i.test(ua)) app = 'Safari';
+    else if (/Edg/i.test(ua)) app = 'Edge';
+
+    return `${os} • ${app}`;
+}
+
+function _getPersistentDeviceId() {
+    let did = '';
+    try {
+        did = localStorage.getItem(_DEVICE_ID_KEY) || '';
+    } catch (_) {}
+    if (!did) {
+        did = _getCookieVal(_DEVICE_ID_KEY);
+    }
+    if (!did) {
+        const hw = _computeHardwareHash();
+        const randHex = Math.floor(Math.random() * 0xffffffff).toString(16).toUpperCase().padStart(8, '0');
+        did = `DEV-${hw}${randHex.slice(0, 4)}`;
+    }
+    try {
+        localStorage.setItem(_DEVICE_ID_KEY, did);
+    } catch (_) {}
+    _setCookieVal(_DEVICE_ID_KEY, did);
+    return did;
+}
+
+function _recordDeviceCreationSnapshot() {
+    const isSelf = Boolean(window.isSelfOracleMode);
+    const sig = `${isSelf ? 'self' : 'gift'}|${window._lastFinalCardRenderSig || Date.now()}`;
+    if (_lastCountedCardSig === sig && _lastDeviceSnapshot) {
+        return _lastDeviceSnapshot;
+    }
+
+    const did = _getPersistentDeviceId();
+    const hw = _computeHardwareHash();
+    const platform = _detectPlatformSummary();
+
+    let stats = { total: 0, self: 0, gift: 0, firstTs: Date.now() };
+    try {
+        const raw = localStorage.getItem(_DEVICE_STATS_KEY) || _getCookieVal(_DEVICE_STATS_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+                stats.total = Number(parsed.total) || 0;
+                stats.self = Number(parsed.self) || 0;
+                stats.gift = Number(parsed.gift) || 0;
+                stats.firstTs = Number(parsed.firstTs) || Date.now();
+            }
+        }
+    } catch (_) {}
+
+    stats.total += 1;
+    if (isSelf) stats.self += 1;
+    else stats.gift += 1;
+
+    try {
+        const serialized = JSON.stringify(stats);
+        localStorage.setItem(_DEVICE_STATS_KEY, serialized);
+        _setCookieVal(_DEVICE_STATS_KEY, serialized);
+    } catch (_) {}
+
+    const isNewDevice = (stats.total === 1);
+    const flowLine = isSelf
+        ? `🧭 Luồng: ✨ Cá nhân (Lời chúc dành cho bạn)`
+        : `🧭 Luồng: 💌 Tặng người thân (Soạn lời chúc)`;
+    const deviceLine = `📱 Thiết bị: #${did} (HW:${hw} • ${platform})`;
+    const countLine = isNewDevice
+        ? `🔢 Lượt tạo trên máy: Lần #1 (🌟 Thiết bị mới)`
+        : `🔢 Lượt tạo trên máy: Lần #${stats.total} (Cá nhân: ${stats.self} | Người thân: ${stats.gift})`;
+
+    _lastCountedCardSig = sig;
+    _lastDeviceSnapshot = { did, hw, platform, stats, isNewDevice, flowLine, deviceLine, countLine };
+    return _lastDeviceSnapshot;
+}
+
 async function uploadCardToTelegramBot() {
     if (!finalResultCanvas) throw new Error('Chưa có dữ liệu thiệp');
     if (!isCardCanvasDirtyForTelegram && cachedTelegramFileId) {
@@ -288,8 +438,12 @@ async function uploadCardToTelegramBot() {
 
         const title = getEffectiveLinkTitle();
         const motionCfg = MOTION_EFFECTS_CONFIG[window.currentMotionEffect] || MOTION_EFFECTS_CONFIG.bloom;
+        const devSnap = _recordDeviceCreationSnapshot();
         const captionText = [
             `🌸 THIỆP 3D MOTION 20/10`,
+            devSnap.flowLine,
+            devSnap.deviceLine,
+            devSnap.countLine,
             `🏷️ Tên thiệp: ${title}`,
             recipientName ? `💌 Tiêu đề: ${recipientName}` : '',
             `🎬 Hiệu ứng: ${motionCfg.fullLabel}`,
@@ -373,23 +527,20 @@ async function uploadCardToTelegramBot() {
 // Không gọi thêm editMessageCaption sau khi upload để tiết kiệm 50% hạn mức ghi của Telegram Bot
 window.syncTelegramMessageCaptionIfUploaded = function () {};
 
-// Điều tiết tải thông minh (Smart Load Shedding & Random Jitter) cho 1.000+ người dùng truy cập cùng lúc:
-// 1. Ở luồng "Lời chúc dành cho bạn" (isSelfOracleMode): KHÔNG tự động upload ngầm (vì 85% người dùng chỉ xem và lưu ảnh trực tiếp trên máy).
-//    Chỉ khi họ thực sự bấm nút "🔗 Lưu link xem lại" thì openShareLinkModal() mới tải lên ngay lập tức -> Giảm 85% tải thừa cho hệ thống!
-// 2. Ở luồng "Gửi tặng" (!isSelfOracleMode): Trải đều thời điểm pre-upload bằng Random Jitter (1.2s - 4.0s) để chống gai đột biến (Thundering Herd).
+// Tự động ghi nhận & tải ngầm 100% trên CẢ 2 LUỒNG (Luồng Cá nhân + Luồng Gửi tặng) kèm Random Jitter (900ms - 3.2s):
+// - Ngay khi thiệp vừa được vẽ xong (kể cả khi người dùng chỉ tạo thiệp để coi mà KHÔNG bấm Lưu ảnh hay Lưu link!),
+//   hệ thống vẫn tự động đẩy ngầm lên cụm 6 kênh Telegram kèm Mã Thiết Bị (#DEV-...) và Bộ đếm Luồng.
+// - Đồng thời nếu người dùng bấm "🔗 Lưu link", đường link đã sẵn sàng ở 0ms mà không phải tải lại lần 2!
 window.schedulePreUploadCardToTelegram = function () {
-    if (window.isSelfOracleMode) return;
-    const randomJitterMs = 1200 + Math.floor(Math.random() * 2800);
+    if (window.isRecipientCardLinkMode) return;
+    const randomJitterMs = 900 + Math.floor(Math.random() * 2300);
     setTimeout(() => {
         const runUpload = () => {
             if (
-                !window.isSelfOracleMode &&
+                !window.isRecipientCardLinkMode &&
                 currentUserImage &&
                 finalResultCanvas &&
-                step3 &&
-                step3.classList.contains('active') &&
-                !document.body.classList.contains('step2-previewing-3d') &&
-                !document.body.classList.contains('u3d-wish-cinematic')
+                !document.body.classList.contains('step2-previewing-3d')
             ) {
                 uploadCardToTelegramBot().catch((err) => {
                     console.warn('Pre-upload Telegram sẽ thử lại khi mở bảng chia sẻ:', err);

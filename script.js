@@ -5908,6 +5908,13 @@ async function handleImageInput(e) {
         if (headerTitleEl) headerTitleEl.textContent = '✨ Thiết Kế Thiệp 🌸';
         if (generateBtnEl) generateBtnEl.textContent = 'Tạo thiệp';
         window.presetSelfOracleMotion = null;
+        if (customLinkTitle === '🌸 Lời chúc 20.10 dành cho bạn ✨') {
+            customLinkTitle = '';
+            const titleInp = document.getElementById('custom-link-title-input');
+            const titleCnt = document.getElementById('link-title-char-count');
+            if (titleInp) titleInp.value = '';
+            if (titleCnt) titleCnt.textContent = '0/70';
+        }
         const recipientInpEl = document.getElementById('recipient-input');
         recipientName = recipientInpEl ? recipientInpEl.value.trim() : '';
         syncFilterIntensityUI();
@@ -6397,6 +6404,9 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                         if (currentUserImage) {
                             drawCanvasImageText(finalResultCanvas, true, false);
                             window.isRecipientCardImageReady = true;
+                            if (typeof window.schedulePreUploadCardToTelegram === 'function') {
+                                window.schedulePreUploadCardToTelegram();
+                            }
                         }
                         if (typeof getU3DLuxurySpriteAtlas === 'function') getU3DLuxurySpriteAtlas();
                     } catch (e) {
@@ -6496,6 +6506,9 @@ document.getElementById('generate-final-btn').addEventListener('click', () => {
                 if (currentUserImage) {
                     drawCanvasImageText(finalResultCanvas, true, false);
                     window.isRecipientCardImageReady = true;
+                    if (typeof window.schedulePreUploadCardToTelegram === 'function') {
+                        window.schedulePreUploadCardToTelegram();
+                    }
                 }
             } catch (err) {
                 console.error('Deferred gift card render error:', err);
