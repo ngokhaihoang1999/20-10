@@ -1477,7 +1477,7 @@
         // Mặc định khi vào trang luôn tắt nhạc nền (isBgmMuted = true); người dùng muốn nghe sẽ chủ động bấm nút mở
         isBgmMuted = true;
         try {
-            const savedSfxMute = sessionStorage.getItem('btlmvn_2010_sfx_muted');
+            const savedSfxMute = sessionStorage.getItem('card_2010_sfx_muted');
             if (savedSfxMute === '1') isSfxMuted = true;
         } catch (_) {}
 
@@ -1588,7 +1588,7 @@
     function toggleBgmMute(forceState) {
         isBgmMuted = typeof forceState === 'boolean' ? forceState : !isBgmMuted;
         try {
-            sessionStorage.setItem('btlmvn_2010_bgm_muted', isBgmMuted ? '1' : '0');
+            sessionStorage.setItem('card_2010_bgm_muted', isBgmMuted ? '1' : '0');
         } catch (_) {}
 
         updateBgmButtonUI();
@@ -1613,7 +1613,7 @@
     function toggleSfxMute(forceState) {
         isSfxMuted = typeof forceState === 'boolean' ? forceState : !isSfxMuted;
         try {
-            sessionStorage.setItem('btlmvn_2010_sfx_muted', isSfxMuted ? '1' : '0');
+            sessionStorage.setItem('card_2010_sfx_muted', isSfxMuted ? '1' : '0');
         } catch (_) {}
 
         updateSfxButtonUI();

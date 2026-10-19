@@ -1751,7 +1751,7 @@ function drawPostmarkStamp(ctx, cx, cy, radius, theme) {
     ctx.font = `italic 700 ${Math.floor(radius * 0.46)}px "Playfair Display", serif`;
     ctx.fillText('20•10', 0, radius * 0.04);
     ctx.font = `600 ${Math.floor(radius * 0.2)}px "Montserrat", sans-serif`;
-    ctx.fillText(window.isSelfOracleMode ? '★ VIETNAM ★' : '★ BTLMVN ★', 0, radius * 0.46);
+    ctx.fillText('★ VIETNAM ★', 0, radius * 0.46);
     ctx.restore();
 }
 
@@ -2755,10 +2755,8 @@ function drawMysterySurpriseContent(ctx, boxX, boxY, boxW, boxH, theme, scale) {
     drawFourPointStarPath(ctx, centerX, divY, 9.5 * scale);
     ctx.fill();
 
-    // 3. Dòng thông điệp bí mật ở trung tâm hộp chữ (luồng cá nhân không nhắc tới BTLMVN)
-    const surpriseLine = window.isSelfOracleMode
-        ? 'Lời chúc bất ngờ nhân ngày Phụ nữ Việt Nam 20.10'
-        : 'Lời chúc bất ngờ nhân dịp 20.10 từ BTLMVN';
+    // 3. Dòng thông điệp bí mật ở trung tâm hộp chữ
+    const surpriseLine = 'Lời chúc bất ngờ nhân ngày Phụ nữ Việt Nam 20.10';
     let bodyFontPx = Math.floor(56 * scale);
     ctx.font = quoteFont(bodyFontPx);
     while (bodyFontPx > Math.floor(32 * scale) && inkWidth(ctx, surpriseLine) > maxLineW) {

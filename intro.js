@@ -28,9 +28,9 @@
 
     // Bộ tiêu đề & lời chúc 20/10 giàu cảm xúc cho các tấm thiệp mẫu
     const SAMPLE_RECIPIENTS = [
-        'Thương gửi chị em BTLMVN 🌸',
+        'Thương gửi một nửa thế giới 🌸',
         'Gửi những đóa hoa rạng rỡ 20/10',
-        'Thân gửi phái đẹp BTLMVN ✨',
+        'Rạng rỡ sắc hương tháng Mười ✨',
         'Mừng ngày Phụ nữ Việt Nam 20/10',
         'Gửi người phụ nữ tuyệt vời nhất 🌷',
         'Chúc mừng tháng 10 yêu thương 💖'
