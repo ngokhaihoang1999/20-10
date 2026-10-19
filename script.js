@@ -1751,7 +1751,7 @@ function drawPostmarkStamp(ctx, cx, cy, radius, theme) {
     ctx.font = `italic 700 ${Math.floor(radius * 0.46)}px "Playfair Display", serif`;
     ctx.fillText('20•10', 0, radius * 0.04);
     ctx.font = `600 ${Math.floor(radius * 0.2)}px "Montserrat", sans-serif`;
-    ctx.fillText('★ VIETNAM ★', 0, radius * 0.46);
+    ctx.fillText('★ VIỆT NAM ★', 0, radius * 0.46);
     ctx.restore();
 }
 
