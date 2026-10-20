@@ -87,9 +87,51 @@ function escapeHtmlEntities(str) {
         .replace(/'/g, '&#39;');
 }
 
+const _PRESET_LINK_TITLES = [
+    '💌 Thiệp 20.10 gửi tặng bạn 🌸',
+    '🌸 Thiệp 20.10 dành riêng cho bạn ✨',
+    '🌸 Lời chúc 20.10 dành cho bạn ✨',
+    '🌸 Tặng người phụ nữ tuyệt vời nhất 20.10',
+    '💝 Gửi ngàn yêu thương ngày 20/10',
+    '✨ Món quà 3D bất ngờ dành riêng cho bạn'
+];
+
 function encodeCardPayload(obj) {
     try {
-        const json = JSON.stringify(obj);
+        let fComp = String(obj.f || 'local');
+        if (fComp.startsWith('BQACAgUAAxkDAAI')) {
+            fComp = '~1' + fComp.slice(15);
+        } else if (fComp.startsWith('AgACAgUAAxkDAAI')) {
+            fComp = '~2' + fComp.slice(15);
+        }
+
+        const mIdx = Math.max(0, _VALID_MOTION_IDS.indexOf(obj.m));
+        const tIdx = Math.max(0, _VALID_THEME_KEYS.indexOf(obj.t));
+        const rStr = sanitizeSafeText(obj.r || '', 45);
+        const lStr = sanitizeSafeText(obj.l || '', 70);
+
+        let lCode = lStr;
+        if (rStr && lStr === `💌 ${rStr} - Thiệp 3D 20/10 🌸`) {
+            lCode = 6;
+        } else {
+            const pIdx = _PRESET_LINK_TITLES.indexOf(lStr);
+            if (pIdx >= 0) lCode = pIdx;
+        }
+
+        let pComp = '';
+        if (obj.p && isValidTelegramFilePath(obj.p)) {
+            const docMatch = obj.p.match(/^documents\/file_([0-9]+)\.jpg$/i);
+            const phoMatch = obj.p.match(/^photos\/file_([0-9]+)\.jpg$/i);
+            if (docMatch) pComp = '#d' + docMatch[1];
+            else if (phoMatch) pComp = '#p' + phoMatch[1];
+            else pComp = obj.p;
+        }
+
+        const arr = [fComp, mIdx, tIdx, lCode];
+        if (rStr || pComp) arr.push(rStr);
+        if (pComp) arr.push(pComp);
+
+        const json = JSON.stringify(arr);
         const bytes = new TextEncoder().encode(json);
         let binary = '';
         for (let i = 0; i < bytes.length; i++) {
@@ -115,9 +157,48 @@ function decodeCardPayload(b64url) {
         }
         const json = new TextDecoder().decode(bytes);
         const parsed = JSON.parse(json);
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-        // Tạo đối tượng sạch không kế thừa prototype để chống Prototype Pollution
+        if (!parsed || typeof parsed !== 'object') return null;
+
         const safeMeta = Object.create(null);
+
+        // Định dạng nén mới (Mảng siêu gọn cho ?c=...)
+        if (Array.isArray(parsed)) {
+            let fRaw = typeof parsed[0] === 'string' ? parsed[0].trim() : '';
+            if (fRaw.startsWith('~1')) fRaw = 'BQACAgUAAxkDAAI' + fRaw.slice(2);
+            else if (fRaw.startsWith('~2')) fRaw = 'AgACAgUAAxkDAAI' + fRaw.slice(2);
+            safeMeta.f = fRaw;
+
+            safeMeta.m = _VALID_MOTION_IDS[Number(parsed[1])] || 'bloom';
+            safeMeta.t = _VALID_THEME_KEYS[Number(parsed[2])] || 'emerald';
+
+            const rClean = typeof parsed[4] === 'string' ? sanitizeSafeText(parsed[4], 45) : '';
+            safeMeta.r = rClean;
+
+            const lRaw = parsed[3];
+            if (typeof lRaw === 'number') {
+                if (lRaw === 6 && rClean) {
+                    safeMeta.l = `💌 ${rClean} - Thiệp 3D 20/10 🌸`;
+                } else {
+                    safeMeta.l = _PRESET_LINK_TITLES[lRaw] || _PRESET_LINK_TITLES[0];
+                }
+            } else if (typeof lRaw === 'string') {
+                safeMeta.l = sanitizeSafeText(lRaw, 70) || _PRESET_LINK_TITLES[0];
+            } else {
+                safeMeta.l = _PRESET_LINK_TITLES[0];
+            }
+
+            const pRaw = typeof parsed[5] === 'string' ? parsed[5].trim() : '';
+            if (pRaw.startsWith('#d') && /^[0-9]+$/.test(pRaw.slice(2))) {
+                safeMeta.p = `documents/file_${pRaw.slice(2)}.jpg`;
+            } else if (pRaw.startsWith('#p') && /^[0-9]+$/.test(pRaw.slice(2))) {
+                safeMeta.p = `photos/file_${pRaw.slice(2)}.jpg`;
+            } else if (isValidTelegramFilePath(pRaw)) {
+                safeMeta.p = pRaw;
+            }
+            return safeMeta;
+        }
+
+        // Tương thích ngược 100% với các đường link ?card=... cũ
         if (typeof parsed.f === 'string') safeMeta.f = parsed.f.trim();
         if (typeof parsed.p === 'string') safeMeta.p = parsed.p.trim();
         if (typeof parsed.m === 'string') safeMeta.m = parsed.m.trim();
@@ -146,7 +227,6 @@ let telegramUploadQueueChain = Promise.resolve();
 function buildShareableCardUrl(fileId, filePathOverride) {
     const baseUrl = window.location.origin + window.location.pathname;
     const title = getEffectiveLinkTitle();
-    const slug = toSlugVietnamese(title);
     const safeMotion = _VALID_MOTION_IDS.includes(window.currentMotionEffect) ? window.currentMotionEffect : 'bloom';
     const safeTheme = _VALID_THEME_KEYS.includes(currentColorTheme) ? currentColorTheme : 'emerald';
     const payloadObj = {
@@ -161,7 +241,97 @@ function buildShareableCardUrl(fileId, filePathOverride) {
         payloadObj.p = effPath;
     }
     const payload = encodeCardPayload(payloadObj);
-    return `${baseUrl}?ten=${encodeURIComponent(slug)}&card=${payload}&np=1`;
+    return `${baseUrl}?c=${payload}`;
+}
+
+// ====== HỆ THỐNG TỰ ĐỘNG RÚT GỌN LINK 1 DÒNG (SHORTLINK ~20 KÝ TỰ) CHO ZALO / MESSENGER ======
+const _SHORT_URL_STORAGE_KEY = 'w2010_short_urls_v1';
+const _shortUrlCache = Object.create(null);
+const _inFlightShortenMap = Object.create(null);
+let _shortenDebounceTimer = 0;
+
+try {
+    const rawShort = sessionStorage.getItem(_SHORT_URL_STORAGE_KEY);
+    if (rawShort) {
+        const parsedShort = JSON.parse(rawShort);
+        if (parsedShort && typeof parsedShort === 'object') {
+            for (const [k, v] of Object.entries(parsedShort)) {
+                if (typeof v === 'string' && v.startsWith('https://')) {
+                    _shortUrlCache[k] = v;
+                }
+            }
+        }
+    }
+} catch (_) {}
+
+function _saveShortUrlCache() {
+    try {
+        sessionStorage.setItem(_SHORT_URL_STORAGE_KEY, JSON.stringify(_shortUrlCache));
+    } catch (_) {}
+}
+
+function getCachedShortUrl(longUrl) {
+    return (longUrl && _shortUrlCache[longUrl]) ? _shortUrlCache[longUrl] : '';
+}
+
+async function resolveShortShareUrl(longUrl) {
+    if (!longUrl || !longUrl.startsWith('http')) return longUrl;
+    if (_shortUrlCache[longUrl]) return _shortUrlCache[longUrl];
+    if (_inFlightShortenMap[longUrl]) return _inFlightShortenMap[longUrl];
+
+    const task = (async () => {
+        const fetchWithTimeout = async (apiUrl, validator) => {
+            const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 2200);
+            try {
+                const res = await _nativeFetch(apiUrl, ctrl ? { signal: ctrl.signal } : {});
+                if (!res.ok) throw new Error('status');
+                const txt = (await res.text()).trim();
+                if (!validator.test(txt)) throw new Error('invalid');
+                return txt;
+            } finally {
+                clearTimeout(timer);
+            }
+        };
+
+        try {
+            // Đua song song 2 cổng rút gọn tốc độ cao có sẵn CORS * (da.gd & clck.ru) -> Chỉ mất ~300-600ms
+            const shortUrl = await Promise.any([
+                fetchWithTimeout(`https://da.gd/s?url=${encodeURIComponent(longUrl)}`, /^https:\/\/da\.gd\/[A-Za-z0-9_-]{3,16}$/),
+                fetchWithTimeout(`https://clck.ru/--?url=${encodeURIComponent(longUrl)}`, /^https:\/\/clck\.ru\/[A-Za-z0-9_-]{3,16}$/)
+            ]);
+            _shortUrlCache[longUrl] = shortUrl;
+            _saveShortUrlCache();
+            return shortUrl;
+        } catch (_) {
+            return longUrl;
+        }
+    })();
+
+    _inFlightShortenMap[longUrl] = task;
+    try {
+        return await task;
+    } finally {
+        delete _inFlightShortenMap[longUrl];
+    }
+}
+
+function schedulePreShortenCurrentShareUrl(delayMs = 80) {
+    if (!cachedTelegramFileId || isCardCanvasDirtyForTelegram) return;
+    clearTimeout(_shortenDebounceTimer);
+    _shortenDebounceTimer = setTimeout(() => {
+        if (!cachedTelegramFileId || isCardCanvasDirtyForTelegram) return;
+        const longUrl = buildShareableCardUrl(cachedTelegramFileId);
+        if (_shortUrlCache[longUrl]) {
+            refreshShareModalPreviewUI();
+            return;
+        }
+        resolveShortShareUrl(longUrl).then((shortUrl) => {
+            if (shortUrl && shortUrl !== longUrl) {
+                refreshShareModalPreviewUI();
+            }
+        });
+    }, delayMs);
 }
 
 let _lastUploadSawRateLimit = false;
@@ -623,6 +793,7 @@ async function uploadCardToTelegramBot() {
         cachedTelegramFilePath = '';
         isCardCanvasDirtyForTelegram = false;
         refreshShareModalPreviewUI();
+        schedulePreShortenCurrentShareUrl(40);
 
         // Chỉ gọi thêm getFile để lấy sẵn file_path khi hệ thống KHÔNG bị áp lực 429 (tiết kiệm 50% request lúc cao điểm!)
         if (!_lastUploadSawRateLimit) {
@@ -632,6 +803,7 @@ async function uploadCardToTelegramBot() {
                     if (fp && cachedTelegramFileId === fileId) {
                         cachedTelegramFilePath = fp;
                         refreshShareModalPreviewUI();
+                        schedulePreShortenCurrentShareUrl(60);
                     }
                 });
             }, 800 + Math.random() * 1200);
@@ -699,17 +871,25 @@ function refreshShareModalPreviewUI() {
     const title = getEffectiveLinkTitle();
     const isReady = Boolean(cachedTelegramFileId && !isCardCanvasDirtyForTelegram);
     const url = buildShareableCardUrl(cachedTelegramFileId || '...');
+    const shortUrl = isReady ? getCachedShortUrl(url) : '';
+    const displayUrl = shortUrl || url;
     if (chatPreviewTitle) {
         chatPreviewTitle.textContent = title;
-        chatPreviewTitle.setAttribute('href', isReady ? url : '#');
+        chatPreviewTitle.setAttribute('href', isReady ? displayUrl : '#');
     }
     if (chatPreviewUrl) {
-        const slug = toSlugVietnamese(title);
-        const hostPath = (window.location.host || 'thiep20-10') + window.location.pathname;
-        chatPreviewUrl.textContent = isReady
-            ? `🔗 ${hostPath}?ten=${slug}&card=... (Chạm để chép riêng URL)`
-            : `⏳ Đang khởi tạo đường link thiệp 3D...`;
-        chatPreviewUrl.setAttribute('title', isReady ? url : '');
+        if (!isReady) {
+            chatPreviewUrl.textContent = `⏳ Đang khởi tạo đường link thiệp 3D...`;
+            chatPreviewUrl.setAttribute('title', '');
+        } else if (shortUrl) {
+            chatPreviewUrl.textContent = `🔗 ${shortUrl} (Link rút gọn 1 dòng • Chạm để chép)`;
+            chatPreviewUrl.setAttribute('title', shortUrl);
+        } else {
+            const hostPath = (window.location.host || 'thiep20-10') + window.location.pathname;
+            chatPreviewUrl.textContent = `🔗 ${hostPath}?c=... (Đang rút gọn link • Chạm để chép)`;
+            chatPreviewUrl.setAttribute('title', url);
+            schedulePreShortenCurrentShareUrl(180);
+        }
     }
     if (chatPreviewMotionName) {
         const motionCfg = MOTION_EFFECTS_CONFIG[window.currentMotionEffect] || MOTION_EFFECTS_CONFIG.bloom;
@@ -938,14 +1118,30 @@ chatPreviewTitle?.addEventListener('click', (e) => {
     }
 });
 
-// Chạm vào dòng URL trong khung xem trước -> Copy riêng đường dẫn URL thuần
-chatPreviewUrl?.addEventListener('click', (e) => {
+// Chạm vào dòng URL trong khung xem trước -> Copy riêng đường dẫn URL rút gọn 1 dòng (hoặc URL gốc)
+chatPreviewUrl?.addEventListener('click', async (e) => {
     e.stopPropagation();
     if (!cachedTelegramFileId) return;
-    const url = buildShareableCardUrl(cachedTelegramFileId);
-    copyRawUrlSync(url);
+    const longUrl = buildShareableCardUrl(cachedTelegramFileId);
+    const cachedShort = getCachedShortUrl(longUrl);
+    if (cachedShort) {
+        copyRawUrlSync(cachedShort);
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = `✅ Đã sao chép link rút gọn (${cachedShort}) vào bộ nhớ tạm!`;
+        }
+        return;
+    }
+    copyRawUrlSync(longUrl);
     if (tgUploadStatusText) {
-        tgUploadStatusText.textContent = '✅ Đã sao chép riêng đường dẫn URL thuần vào bộ nhớ tạm!';
+        tgUploadStatusText.textContent = '✅ Đã sao chép riêng đường dẫn URL vào bộ nhớ tạm!';
+    }
+    const resolvedShort = await resolveShortShareUrl(longUrl);
+    if (resolvedShort && resolvedShort !== longUrl) {
+        copyRawUrlSync(resolvedShort);
+        refreshShareModalPreviewUI();
+        if (tgUploadStatusText) {
+            tgUploadStatusText.textContent = `✅ Đã sao chép link rút gọn 1 dòng (${resolvedShort})!`;
+        }
     }
 });
 
@@ -997,37 +1193,47 @@ document.getElementById('copy-rich-link-btn')?.addEventListener('click', async (
     }
 });
 
-// Nút 2: 📱 Gửi Zalo / App khác (Mở bảng Chia sẻ hệ thống iOS/Android hoặc tự động Copy kèm URL cho Zalo)
+// Nút 2: 📱 Gửi Zalo / App khác (Tự động rút gọn link còn 1 dòng ngắn ~20 ký tự + Mở bảng Chia sẻ hệ thống hoặc Copy cho Zalo)
 document.getElementById('share-zalo-btn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const origText = '📱 Gửi Zalo / App khác';
     const title = getEffectiveLinkTitle();
 
     try {
-        const url = await ensureShareUrlReady();
+        if (btn) btn.textContent = '⏳ Đang rút gọn link...';
+        const longUrl = await ensureShareUrlReady();
+        const shortUrl = await resolveShortShareUrl(longUrl);
+        refreshShareModalPreviewUI();
+
+        // Sao chép sẵn lời nhắn + link rút gọn 1 dòng vào bộ nhớ tạm trước khi mở Share Sheet để dự phòng trên mọi máy
+        copyRawUrlSync(`${title}\n${shortUrl}`);
 
         if (navigator.share) {
             try {
+                if (btn) btn.textContent = origText;
                 await navigator.share({
                     title: title,
                     text: title,
-                    url: url
+                    url: shortUrl
                 });
                 return;
             } catch (err) {
-                if (err && err.name === 'AbortError') return;
+                if (err && err.name === 'AbortError') {
+                    if (btn) btn.textContent = origText;
+                    return;
+                }
             }
         }
 
-        copyRawUrlSync(`${title}\n${url}`);
-        if (btn) btn.textContent = '✅ Đã chép! Dán vào Zalo';
+        if (btn) btn.textContent = '✅ Đã chép Link gọn! Dán vào Zalo';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = '✅ Đã sao chép Lời nhắn & Link! Hãy mở Zalo / Messenger và Dán (Paste) để gửi nhé 🌸';
+            tgUploadStatusText.textContent = `✅ Đã chép Lời nhắn & Link rút gọn 1 dòng (${shortUrl})! Hãy Dán (Paste) vào Zalo / Messenger nhé 🌸`;
         }
         setTimeout(() => {
             if (btn) btn.textContent = origText;
         }, 2800);
     } catch (err) {
+        if (btn) btn.textContent = origText;
         if (tgUploadStatusText) {
             tgUploadStatusText.textContent = '⚠️ Vui lòng đợi khởi tạo link xong rồi thử lại nhé!';
         }
@@ -1473,18 +1679,18 @@ window.handleRecipientDownloadCard = async function () {
     showSaveFallbackModal();
 };
 
-// ====== 6. TỰ ĐỘNG KHỞI CHẠY CHẾ ĐỘ NGƯỜI NHẬN KHI MỞ ĐƯỜNG LINK ?card=... ======
+// ====== 6. TỰ ĐỘNG KHỞI CHẠY CHẾ ĐỘ NGƯỜI NHẬN KHI MỞ ĐƯỜNG LINK ?c=... HOẶC ?card=... ======
 async function checkAndInitRecipientLinkOnLoad() {
     const params = new URLSearchParams(window.location.search);
-    const rawCard = params.get('card');
+    const rawCard = params.get('c') || params.get('card');
     if (!rawCard || rawCard.length > 1024) {
-        document.title = 'Thiệp 20/10 - Tôn vinh phụ nữ Việt Nam';
+        document.title = '💌 Thiệp 3D 20/10 Gửi Tặng Bạn 🌸';
         return;
     }
 
     const meta = decodeCardPayload(rawCard);
     if (!meta || !meta.f || !isValidTelegramFileId(meta.f)) {
-        document.title = 'Thiệp 20/10 - Tôn vinh phụ nữ Việt Nam';
+        document.title = '💌 Thiệp 3D 20/10 Gửi Tặng Bạn 🌸';
         return;
     }
 
@@ -1548,6 +1754,3 @@ if (document.readyState === 'loading') {
 }
 
 })();
-
-
-
