@@ -2012,7 +2012,7 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.shadowBlur = 10 * scale;
 
         ctx.font = `600 ${Math.floor(17 * scale)}px "Montserrat", sans-serif`;
-        ctx.fillText('B T L M V N   •   S P E C I A L   E D I T I O N   2 0 . 1 0', targetW / 2, 78 * scale);
+        ctx.fillText('V I Ệ T   N A M   •   S P E C I A L   E D I T I O N   2 0 . 1 0', targetW / 2, 78 * scale);
 
         ctx.font = `italic 700 ${Math.floor(74 * scale)}px "Cormorant Garamond", serif`;
         ctx.fillText('L A   B E A U T É', targetW / 2, 146 * scale);
@@ -2057,7 +2057,7 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
 
         ctx.fillStyle = theme.recipientColor;
         ctx.font = `600 ${Math.floor(16 * scale)}px "Montserrat", sans-serif`;
-        ctx.fillText('—   W O M E N   O F   B T L M V N   •   2 0 . 1 0   —', targetW / 2, 126 * scale);
+        ctx.fillText('—   W O M E N   O F   V I Ệ T   N A M   •   2 0 . 1 0   —', targetW / 2, 126 * scale);
 
         ctx.fillStyle = theme.textMid;
         ctx.font = `italic 500 ${Math.floor(22 * scale)}px "Playfair Display", serif`;
@@ -2155,7 +2155,7 @@ function renderConceptOverlayToCtx(ctx, concept, targetW, originH, theme, isStep
         ctx.textAlign = 'center';
         ctx.fillStyle = theme.textTop;
         ctx.font = `700 ${Math.floor(20 * scale)}px "Playfair Display", serif`;
-        ctx.fillText('B T L M V N   A T E L I E R', targetW / 2, tagY + 30 * scale);
+        ctx.fillText('V I Ệ T   N A M   A T E L I E R', targetW / 2, tagY + 30 * scale);
         ctx.fillStyle = theme.recipientColor;
         ctx.font = `600 ${Math.floor(13 * scale)}px "Montserrat", sans-serif`;
         ctx.fillText('HAUTE COUTURE  •  20.10 EDITION', targetW / 2, tagY + 54 * scale);
