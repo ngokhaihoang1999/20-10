@@ -221,27 +221,201 @@ function getEffectiveLinkTitle() {
 }
 
 let cachedTelegramFilePath = '';
+let cachedTelegramShardIdx = -1;
+let _lastUploadedTitle = '';
+let _lastUploadedRecName = '';
 let recipientRawTelegramUrl = '';
 let telegramUploadQueueChain = Promise.resolve();
+
+function _encodeShortCustomText(lStr, rStr) {
+    try {
+        const json = JSON.stringify([lStr || '', rStr || '']);
+        const bytes = new TextEncoder().encode(json);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    } catch (_) {
+        return '';
+    }
+}
+
+function _decodeShortCustomText(b64url) {
+    try {
+        let b64 = String(b64url || '').replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        const bin = atob(b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        const arr = JSON.parse(new TextDecoder().decode(bytes));
+        if (Array.isArray(arr)) {
+            return {
+                l: sanitizeSafeText(arr[0] || '', 70),
+                r: sanitizeSafeText(arr[1] || '', 45)
+            };
+        }
+    } catch (_) {}
+    return { l: '', r: '' };
+}
+
+let _captionSyncTimer = null;
+function syncCaptionToTelegramShard(shardIdx, msgId, title, recName, motionId, themeKey) {
+    if (shardIdx < 0 || !msgId || msgId <= 0) return;
+    const safeTitle = sanitizeSafeText(title || '', 70) || _PRESET_LINK_TITLES[0];
+    const safeRec = sanitizeSafeText(recName || '', 45);
+    if (safeTitle === _lastUploadedTitle && safeRec === _lastUploadedRecName) return;
+
+    _lastUploadedTitle = safeTitle;
+    _lastUploadedRecName = safeRec;
+
+    const cacheKey = `tg_smsg_v1_${shardIdx}_${msgId}`;
+    if (cachedTelegramFileId && isValidTelegramFileId(cachedTelegramFileId)) {
+        const resolvedObj = { fileId: cachedTelegramFileId, title: safeTitle, recName: safeRec };
+        for (const store of [window.sessionStorage, window.localStorage]) {
+            try {
+                store && store.setItem(cacheKey, JSON.stringify(resolvedObj));
+            } catch (_) {}
+        }
+    }
+
+    if (_captionSyncTimer) clearTimeout(_captionSyncTimer);
+    _captionSyncTimer = setTimeout(async () => {
+        const { ep, tk, allCids } = _getCloudCfg();
+        if (shardIdx >= allCids.length) return;
+        const chatId = allCids[shardIdx];
+        const caption = `🌸 Thiệp 3D 20/10\n🏷️ Tên thiệp: ${safeTitle}\n💌 Tiêu đề: ${safeRec || '(Mặc định)'}\n✨ Hiệu ứng: ${motionId || 'bloom'} | 🎨 Vỏ: ${themeKey || 'emerald'}`;
+        const apiTarget = `${ep}/bot${tk}/editMessageCaption`;
+        const bodyJson = JSON.stringify({
+            chat_id: chatId,
+            message_id: Number(msgId),
+            caption
+        });
+        for (const url of [apiTarget, `https://corsproxy.io/?${encodeURIComponent(apiTarget)}`]) {
+            try {
+                const res = await _nativeFetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: bodyJson
+                });
+                if (res.ok) break;
+            } catch (_) {}
+        }
+    }, 120);
+}
 
 function buildShareableCardUrl(fileId, filePathOverride) {
     const baseUrl = window.location.origin + window.location.pathname;
     const title = getEffectiveLinkTitle();
     const safeMotion = _VALID_MOTION_IDS.includes(window.currentMotionEffect) ? window.currentMotionEffect : 'bloom';
     const safeTheme = _VALID_THEME_KEYS.includes(currentColorTheme) ? currentColorTheme : 'emerald';
+    const rStr = sanitizeSafeText(recipientName || '', 45);
+    const effPath = filePathOverride !== undefined ? filePathOverride : cachedTelegramFilePath;
+
+    // Ưu tiên tuyệt đối Mã Ngắn 8 ký tự (?s=0010.c.4w) dựa trên Shard + Message ID + File Number
+    if (
+        cachedTelegramShardIdx >= 0 &&
+        cachedTelegramShardIdx <= 5 &&
+        cachedTelegramMsgId &&
+        Number(cachedTelegramMsgId) > 0 &&
+        (!fileId || fileId === cachedTelegramFileId)
+    ) {
+        const mIdx = Math.max(0, _VALID_MOTION_IDS.indexOf(safeMotion));
+        const tIdx = Math.max(0, _VALID_THEME_KEYS.indexOf(safeTheme));
+        let pIdx = 0;
+
+        const presetMatchIdx = _PRESET_LINK_TITLES.indexOf(title);
+        if (!rStr && presetMatchIdx >= 0) {
+            pIdx = presetMatchIdx;
+        } else {
+            pIdx = 7;
+            syncCaptionToTelegramShard(cachedTelegramShardIdx, cachedTelegramMsgId, title, rStr, safeMotion, safeTheme);
+        }
+
+        let fpToken = '';
+        if (effPath && isValidTelegramFilePath(effPath)) {
+            const docM = effPath.match(/^documents\/file_([0-9]+)\.jpg$/i);
+            const phoM = effPath.match(/^photos\/file_([0-9]+)\.jpg$/i);
+            if (docM) fpToken = parseInt(docM[1], 10).toString(36);
+            else if (phoM) fpToken = 'p' + parseInt(phoM[1], 10).toString(36);
+        }
+
+        const msgToken = Number(cachedTelegramMsgId).toString(36);
+        let sToken = `${cachedTelegramShardIdx}${mIdx}${tIdx}${pIdx}.${msgToken}`;
+        if (fpToken) {
+            sToken += `.${fpToken}`;
+        }
+        return `${baseUrl}?s=${sToken}`;
+    }
+
     const payloadObj = {
         f: fileId || 'local',
         m: safeMotion,
         t: safeTheme,
         l: title,
-        r: sanitizeSafeText(recipientName || '', 45)
+        r: rStr
     };
-    const effPath = filePathOverride !== undefined ? filePathOverride : cachedTelegramFilePath;
     if (effPath && isValidTelegramFilePath(effPath)) {
         payloadObj.p = effPath;
     }
     const payload = encodeCardPayload(payloadObj);
     return `${baseUrl}?c=${payload}`;
+}
+
+function decodeShortCardToken(sRaw) {
+    try {
+        const clean = String(sRaw || '').trim();
+        if (!clean || clean.length > 512 || !/^[A-Za-z0-9_.-]+$/.test(clean)) return null;
+        const parts = clean.split('.');
+        if (parts.length < 2) return null;
+        const hdr = parts[0];
+        if (!/^[0-5][0-5][0-5][0-8]$/.test(hdr)) return null;
+
+        const shardIdx = Number(hdr[0]);
+        const mIdx = Number(hdr[1]);
+        const tIdx = Number(hdr[2]);
+        const pIdx = Number(hdr[3]);
+
+        const msgId = parseInt(parts[1], 36);
+        if (!Number.isFinite(msgId) || msgId <= 0 || msgId > 100000000) return null;
+
+        let directPath = '';
+        const fpPart = parts[2] || '';
+        if (fpPart && fpPart !== '0') {
+            if (fpPart.startsWith('p') && /^[0-9a-z]+$/i.test(fpPart.slice(1))) {
+                const n = parseInt(fpPart.slice(1), 36);
+                if (n > 0) directPath = `photos/file_${n}.jpg`;
+            } else if (/^[0-9a-z]+$/i.test(fpPart)) {
+                const n = parseInt(fpPart, 36);
+                if (n > 0) directPath = `documents/file_${n}.jpg`;
+            }
+        }
+
+        let lStr = _PRESET_LINK_TITLES[0];
+        let rStr = '';
+        let needsCaptionSync = false;
+
+        if (pIdx >= 0 && pIdx <= 5) {
+            lStr = _PRESET_LINK_TITLES[pIdx];
+        } else if (pIdx === 6 || pIdx === 7) {
+            needsCaptionSync = true;
+        } else if (pIdx === 8 && parts[3]) {
+            const dec = _decodeShortCustomText(parts[3]);
+            if (dec.l) lStr = dec.l;
+            if (dec.r) rStr = dec.r;
+        }
+
+        const safeMeta = Object.create(null);
+        safeMeta.sIdx = shardIdx;
+        safeMeta.msgId = msgId;
+        safeMeta.m = _VALID_MOTION_IDS[mIdx] || 'bloom';
+        safeMeta.t = _VALID_THEME_KEYS[tIdx] || 'emerald';
+        safeMeta.l = lStr;
+        safeMeta.r = rStr;
+        safeMeta.p = directPath;
+        safeMeta.needsCaptionSync = needsCaptionSync;
+        return safeMeta;
+    } catch (_) {
+        return null;
+    }
 }
 
 function getCachedShortUrl(longUrl) {
@@ -400,6 +574,12 @@ async function resolveTelegramFilePathOnce(fileId) {
         if (fp && isValidTelegramFilePath(fp)) {
             const fullUrl = `${ep}/file/bot${tk}/${fp}`;
             _cacheResolvedTelegramUrl(fileId, fullUrl);
+            // Làm ấm trước bộ nhớ đệm Cloudflare Edge CDN (wsrv.nl) ngay khi vừa tạo thiệp để Người Nhận mở link ở 0ms!
+            try {
+                const warmImg = new Image();
+                warmImg.decoding = 'async';
+                warmImg.src = `https://wsrv.nl/?url=${encodeURIComponent(fullUrl)}&output=jpg&q=100`;
+            } catch (_) {}
             return fp;
         }
         return '';
@@ -707,28 +887,27 @@ async function uploadCardToTelegramBot() {
             throw new Error(data?.description || 'Không nhận được file_id từ Telegram');
         }
 
+        const { allCids } = _getCloudCfg();
         _lastUploadedBlobSize = blob.size;
         cachedTelegramFileId = fileId;
         cachedTelegramMsgId = msgId || null;
+        cachedTelegramShardIdx = resp.cid ? allCids.indexOf(resp.cid) : -1;
+        _lastUploadedTitle = title;
+        _lastUploadedRecName = safeRecName;
         cachedTelegramFilePath = '';
         isCardCanvasDirtyForTelegram = false;
-        refreshShareModalPreviewUI();
-        schedulePreShortenCurrentShareUrl(40);
 
-        // Chỉ gọi thêm getFile để lấy sẵn file_path khi hệ thống KHÔNG bị áp lực 429 (tiết kiệm 50% request lúc cao điểm!)
+        // Lấy luôn file_path ngay trong luồng tải ngầm (chỉ mất ~150ms khi không bị 429) để mã ngắn ?s=... luôn có sẵn số file_path!
         if (!_lastUploadSawRateLimit) {
-            setTimeout(() => {
-                if (cachedTelegramFileId !== fileId) return;
-                resolveTelegramFilePathOnce(fileId).then((fp) => {
-                    if (fp && cachedTelegramFileId === fileId) {
-                        cachedTelegramFilePath = fp;
-                        refreshShareModalPreviewUI();
-                        schedulePreShortenCurrentShareUrl(60);
-                    }
-                });
-            }, 800 + Math.random() * 1200);
+            try {
+                const fp = await resolveTelegramFilePathOnce(fileId);
+                if (fp && cachedTelegramFileId === fileId) {
+                    cachedTelegramFilePath = fp;
+                }
+            } catch (_) {}
         }
 
+        refreshShareModalPreviewUI();
         return fileId;
     };
 
@@ -811,11 +990,14 @@ function refreshShareModalPreviewUI() {
 }
 window.refreshShareModalPreviewUI = refreshShareModalPreviewUI;
 
-// Hàm Sao Chép Hyperlink Ẩn URL Dưới Tên Thiệp (<a href="URL">Tên Thiệp</a>) ĐỒNG BỘ 100% trong cử chỉ chạm (User Gesture):
-// - text/html: <a href="URL">Tên Thiệp</a> (Telegram Android/iOS/Desktop tự động chuyển thành thực thể chữ gắn link xanh, ẩn 100% URL)
-// - text/plain: Tên Thiệp (KHÔNG kèm URL thô phía sau để tránh hiện chuỗi link dài khi dán vào Telegram)
-function copyHiddenUrlHyperlinkSync(title, url) {
+// Hàm Sao Chép Hyperlink Thông Minh ĐỒNG BỘ 100% trong cử chỉ chạm (User Gesture):
+// - text/html: <a href="URL">Tên Thiệp</a> (Telegram Android/iOS/Desktop tự động đọc kênh HTML và chuyển thành chữ gắn link xanh, ẩn 100% URL!)
+// - text/plain:
+//   + Khi bấm "📋 Sao chép Link Thiệp" (includePlainUrl = true): kèm URL ngắn ?s=... ở dòng dưới để nếu dán vào Zalo / Messenger (vốn chỉ đọc text/plain) thì vẫn có link mở thiệp + hiện thẻ ảnh Phong bì Hoa!
+//   + Khi bấm "✈️ Gửi qua Telegram" (includePlainUrl = false): chỉ để Tên Thiệp thuần túy chuyên biệt cho Telegram.
+function copyHiddenUrlHyperlinkSync(title, url, includePlainUrl = false) {
     const cleanTitle = (title || getEffectiveLinkTitle()).trim();
+    const plainPayload = includePlainUrl ? `${cleanTitle}\n${url}` : cleanTitle;
     const safeTitle = escapeHtmlEntities(cleanTitle || url);
     const safeUrl = escapeHtmlEntities(url);
     const htmlHyperlink = `<a href="${safeUrl}">${safeTitle}</a>`;
@@ -837,7 +1019,7 @@ function copyHiddenUrlHyperlinkSync(title, url) {
             if (e.clipboardData) {
                 try {
                     e.clipboardData.setData('text/html', htmlHyperlink);
-                    e.clipboardData.setData('text/plain', cleanTitle);
+                    e.clipboardData.setData('text/plain', plainPayload);
                     e.preventDefault();
                     copiedOk = true;
                 } catch (_) {}
@@ -860,12 +1042,12 @@ function copyHiddenUrlHyperlinkSync(title, url) {
         document.body.removeChild(holder);
     } catch (_) {}
 
-    // Bước 2: Ghi song song qua ClipboardItem chuẩn W3C ngay trong cùng sự kiện click đồng bộ (Giữ nguyên MIME text/html để ẩn link dưới Tên Thiệp!)
+    // Bước 2: Ghi song song qua ClipboardItem chuẩn W3C ngay trong cùng sự kiện click đồng bộ
     if (navigator.clipboard && window.ClipboardItem) {
         try {
             const item = new ClipboardItem({
-                'text/html': new Blob([htmlHyperlink], { type: 'text/html' }),
-                'text/plain': new Blob([cleanTitle], { type: 'text/plain' })
+                'text/html': new _NativeBlob([htmlHyperlink], { type: 'text/html' }),
+                'text/plain': new _NativeBlob([plainPayload], { type: 'text/plain' })
             });
             navigator.clipboard.write([item]).catch(() => {});
             copiedOk = true;
@@ -1058,19 +1240,19 @@ chatPreviewUrl?.addEventListener('click', async (e) => {
     }
 });
 
-// Nút 1 (Chính): 📋 Sao chép Link Thiệp -> Copy ĐỒNG BỘ <a href="URL">Tên Thiệp</a> (ẩn hoàn toàn URL dưới Tên Thiệp!)
+// Nút 1 (Chính): 📋 Sao chép Link Thiệp -> Hỗ trợ ĐỒNG THỜI cả Telegram (ẩn link dưới Tên Thiệp qua text/html) VÀ Zalo/Messenger (kèm link ngắn ?s=... qua text/plain)!
 document.getElementById('copy-rich-link-btn')?.addEventListener('click', async () => {
     const copyTextSpan = document.getElementById('copy-rich-link-text');
     const origLabel = 'Sao chép Link Thiệp';
     const title = getEffectiveLinkTitle();
 
-    // Trường hợp 1 (99%): Đã có sẵn cachedTelegramFileId -> Copy ĐỒNG BỘ ngay trong cử chỉ chạm (0ms delay) để giữ nguyên định dạng Hyperlink ẩn URL!
+    // Trường hợp 1 (99%): Đã có sẵn cachedTelegramFileId -> Copy ĐỒNG BỘ ngay trong cử chỉ chạm (0ms delay)!
     if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
         const url = buildShareableCardUrl(cachedTelegramFileId);
-        copyHiddenUrlHyperlinkSync(title, url);
-        if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép (Ẩn link)!';
+        copyHiddenUrlHyperlinkSync(title, url, true);
+        if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép Link!';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Bạn chỉ cần Dán (Paste) vào Telegram ✨`;
+            tgUploadStatusText.textContent = `✅ Đã sao chép "${title}"! Bạn có thể Dán (Paste) ngay vào Zalo hoặc Telegram ✨`;
         }
         setTimeout(() => {
             if (copyTextSpan) copyTextSpan.textContent = origLabel;
@@ -1082,12 +1264,12 @@ document.getElementById('copy-rich-link-btn')?.addEventListener('click', async (
     try {
         if (copyTextSpan) copyTextSpan.textContent = '⏳ Đang chuẩn bị link...';
         const url = await ensureShareUrlReady();
-        const syncOk = copyHiddenUrlHyperlinkSync(title, url);
+        const syncOk = copyHiddenUrlHyperlinkSync(title, url, true);
 
         if (syncOk) {
-            if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép (Ẩn link)!';
+            if (copyTextSpan) copyTextSpan.textContent = '✅ Đã sao chép Link!';
             if (tgUploadStatusText) {
-                tgUploadStatusText.textContent = `✅ Đã sao chép "${title}" (đã gắn ẩn URL)! Bạn chỉ cần Dán (Paste) vào Telegram ✨`;
+                tgUploadStatusText.textContent = `✅ Đã sao chép "${title}"! Bạn có thể Dán (Paste) ngay vào Zalo hoặc Telegram ✨`;
             }
             setTimeout(() => {
                 if (copyTextSpan) copyTextSpan.textContent = origLabel;
@@ -1095,7 +1277,7 @@ document.getElementById('copy-rich-link-btn')?.addEventListener('click', async (
         } else {
             if (copyTextSpan) copyTextSpan.textContent = '👉 Link đã xong! Chạm để Sao chép';
             if (tgUploadStatusText) {
-                tgUploadStatusText.textContent = '✅ Link đã tạo xong! Hãy chạm lại nút bên dưới để sao chép Tên Thiệp ẩn link nhé ✨';
+                tgUploadStatusText.textContent = '✅ Link đã tạo xong! Hãy chạm lại nút bên dưới để sao chép nhé ✨';
             }
         }
     } catch (err) {
@@ -1212,14 +1394,108 @@ function _readCachedTelegramUrl(fileId) {
     return '';
 }
 
+const _inFlightShardMsgMap = Object.create(null);
+
+// Truy xuất vĩnh viễn file_id và caption từ (shardIdx, msgId) cho mã rút gọn siêu ngắn ?s=...
+async function resolveTelegramMessageByShardAndId(shardIdx, msgId) {
+    const { ep, tk, allCids } = _getCloudCfg();
+    if (shardIdx < 0 || shardIdx >= allCids.length || !msgId || msgId <= 0) return null;
+    const cacheKey = `tg_smsg_v1_${shardIdx}_${msgId}`;
+    for (const store of [window.sessionStorage, window.localStorage]) {
+        try {
+            const cachedRaw = store && store.getItem(cacheKey);
+            if (cachedRaw) {
+                const parsed = JSON.parse(cachedRaw);
+                if (parsed && parsed.fileId && isValidTelegramFileId(parsed.fileId)) {
+                    return parsed;
+                }
+            }
+        } catch (_) {}
+    }
+
+    if (_inFlightShardMsgMap[cacheKey]) {
+        return _inFlightShardMsgMap[cacheKey];
+    }
+
+    const task = (async () => {
+        const chatId = allCids[shardIdx];
+        const apiTarget = `${ep}/bot${tk}/editMessageReplyMarkup`;
+        const uniqueCb = 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+        const bodyJson = JSON.stringify({
+            chat_id: chatId,
+            message_id: msgId,
+            reply_markup: {
+                inline_keyboard: [[{ text: '🌸 20/10', callback_data: uniqueCb }]]
+            }
+        });
+
+        const endpoints = [
+            apiTarget,
+            `https://corsproxy.io/?${encodeURIComponent(apiTarget)}`
+        ];
+
+        for (const url of endpoints) {
+            try {
+                const res = await _nativeFetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: bodyJson
+                });
+                if (!res.ok) continue;
+                const data = await res.json();
+                const msg = data?.result;
+                if (!msg) continue;
+
+                let fileId = msg.document?.file_id || '';
+                if (!fileId && Array.isArray(msg.photo) && msg.photo.length > 0) {
+                    fileId = msg.photo[msg.photo.length - 1].file_id || '';
+                }
+                if (!fileId || !isValidTelegramFileId(fileId)) continue;
+
+                const caption = String(msg.caption || '');
+                let title = '';
+                let recName = '';
+                const titleMatch = caption.match(/🏷️\s*Tên thiệp:\s*(.+)/);
+                if (titleMatch && titleMatch[1]) {
+                    title = sanitizeSafeText(titleMatch[1].trim(), 70);
+                }
+                const recMatch = caption.match(/💌\s*Tiêu đề:\s*(.+)/);
+                if (recMatch && recMatch[1]) {
+                    const rawRec = recMatch[1].trim();
+                    if (rawRec && rawRec !== '(Mặc định)') {
+                        recName = sanitizeSafeText(rawRec, 45);
+                    }
+                }
+
+                const resolvedObj = { fileId, title, recName };
+                for (const store of [window.sessionStorage, window.localStorage]) {
+                    try {
+                        store && store.setItem(cacheKey, JSON.stringify(resolvedObj));
+                    } catch (_) {}
+                }
+                return resolvedObj;
+            } catch (_) {}
+        }
+        return null;
+    })();
+
+    _inFlightShardMsgMap[cacheKey] = task;
+    try {
+        return await task;
+    } finally {
+        delete _inFlightShardMsgMap[cacheKey];
+    }
+}
+
 async function resolveTelegramFileUrl(fileId, directFilePath = '', forceRefresh = false) {
-    if (!fileId || fileId === 'local' || !isValidTelegramFileId(fileId)) return '';
     const { ep, tk } = _getCloudCfg();
 
     // 1. Nếu trong Link đã nhúng sẵn file_path (meta.p) ĐÃ QUA KIỂM ĐỊNH CHỐNG PATH TRAVERSAL, trả về ngay lập tức trong 0ms!
     if (directFilePath && !forceRefresh && isValidTelegramFilePath(directFilePath)) {
         return `${ep}/file/bot${tk}/${directFilePath}`;
     }
+
+    if (!fileId || fileId === 'local' || !isValidTelegramFileId(fileId)) return '';
 
     // 2. Kiểm tra bộ nhớ đệm có kiểm soát TTL 45 phút
     if (!forceRefresh) {
@@ -1335,8 +1611,22 @@ async function raceVerifyImageCandidates(rawUrl) {
 }
 
 // Tải và giải mã hoàn chỉnh (GPU Decode 100%) bức ảnh thiệp trước khi cho phép Phong Bì & Ấn Sáp xuất hiện
-async function preloadAndDecodeRecipientCardImage(fileId, directFilePath = '') {
+async function preloadAndDecodeRecipientCardImage(fileId, directFilePath = '', shardIdx = -1, msgId = 0) {
+    if (!fileId && !directFilePath && shardIdx >= 0 && msgId > 0) {
+        const msgInfo = await resolveTelegramMessageByShardAndId(shardIdx, msgId);
+        if (msgInfo && msgInfo.fileId) {
+            fileId = msgInfo.fileId;
+        }
+    }
+
     let rawUrl = await resolveTelegramFileUrl(fileId, directFilePath, false);
+    if (!rawUrl && shardIdx >= 0 && msgId > 0) {
+        const msgInfo = await resolveTelegramMessageByShardAndId(shardIdx, msgId);
+        if (msgInfo && msgInfo.fileId) {
+            fileId = msgInfo.fileId;
+            rawUrl = await resolveTelegramFileUrl(fileId, '', true);
+        }
+    }
     if (!rawUrl) throw new Error('URL ảnh rỗng');
 
     let verifiedUrl = '';
@@ -1344,6 +1634,12 @@ async function preloadAndDecodeRecipientCardImage(fileId, directFilePath = '') {
         verifiedUrl = await raceVerifyImageCandidates(rawUrl);
     } catch (_) {
         // Nếu đường dẫn trực tiếp (meta.p) hoặc bộ nhớ đệm đã hết hạn sau 1 giờ, tự động làm mới từ file_id vĩnh viễn
+        if (!fileId && shardIdx >= 0 && msgId > 0) {
+            const msgInfo = await resolveTelegramMessageByShardAndId(shardIdx, msgId);
+            if (msgInfo && msgInfo.fileId) {
+                fileId = msgInfo.fileId;
+            }
+        }
         rawUrl = await resolveTelegramFileUrl(fileId, '', true);
         verifiedUrl = await raceVerifyImageCandidates(rawUrl);
     }
@@ -1583,17 +1879,23 @@ window.handleRecipientDownloadCard = async function () {
     showSaveFallbackModal();
 };
 
-// ====== 6. TỰ ĐỘNG KHỞI CHẠY CHẾ ĐỘ NGƯỜI NHẬN KHI MỞ ĐƯỜNG LINK ?c=... HOẶC ?card=... ======
+// ====== 6. TỰ ĐỘNG KHỞI CHẠY CHẾ ĐỘ NGƯỜI NHẬN KHI MỞ ĐƯỜNG LINK ?s=... HOẶC ?c=... / ?card=... ======
 async function checkAndInitRecipientLinkOnLoad() {
     const params = new URLSearchParams(window.location.search);
+    const rawShort = params.get('s');
     const rawCard = params.get('c') || params.get('card');
-    if (!rawCard || rawCard.length > 1024) {
-        document.title = '💌 Thiệp 3D 20/10 Gửi Tặng Bạn 🌸';
-        return;
+
+    let meta = null;
+    if (rawShort && rawShort.length <= 64) {
+        meta = decodeShortCardToken(rawShort);
+    } else if (rawCard && rawCard.length <= 1024) {
+        meta = decodeCardPayload(rawCard);
+        if (meta && (!meta.f || !isValidTelegramFileId(meta.f))) {
+            meta = null;
+        }
     }
 
-    const meta = decodeCardPayload(rawCard);
-    if (!meta || !meta.f || !isValidTelegramFileId(meta.f)) {
+    if (!meta) {
         document.title = '💌 Thiệp 3D 20/10 Gửi Tặng Bạn 🌸';
         return;
     }
@@ -1635,15 +1937,38 @@ async function checkAndInitRecipientLinkOnLoad() {
         autoOpen: false
     });
 
+    // Nếu là mã rút gọn ?s=... có tùy biến tên thiệp / lời đề tặng, đồng bộ ngầm từ đám mây mà không chặn luồng tải ảnh 0ms
+    if (meta.needsCaptionSync && meta.sIdx >= 0 && meta.msgId > 0) {
+        resolveTelegramMessageByShardAndId(meta.sIdx, meta.msgId).then((msgInfo) => {
+            if (!msgInfo) return;
+            if (msgInfo.fileId && !meta.f) meta.f = msgInfo.fileId;
+            if (msgInfo.title) {
+                meta.l = msgInfo.title;
+                customLinkTitle = msgInfo.title;
+                document.title = msgInfo.title;
+                const titleEl = document.getElementById('recipient-envelope-title');
+                if (titleEl) titleEl.textContent = msgInfo.title;
+            }
+            if (msgInfo.recName) {
+                meta.r = msgInfo.recName;
+                recipientName = msgInfo.recName;
+                const subEl = document.getElementById('recipient-envelope-subtitle');
+                if (subEl) subEl.textContent = `💌 ${msgInfo.recName}`;
+            }
+        }).catch(() => {});
+    }
+
     // Tải & giải mã hoàn chỉnh (img.decode()) ảnh chất lượng gốc từ đám mây trước khi triệu hồi Phong Bì & Ấn Sáp
+    const sIdx = typeof meta.sIdx === 'number' ? meta.sIdx : -1;
+    const msgId = typeof meta.msgId === 'number' ? meta.msgId : 0;
     try {
-        await preloadAndDecodeRecipientCardImage(meta.f, safeFilePath);
+        await preloadAndDecodeRecipientCardImage(meta.f || '', safeFilePath, sIdx, msgId);
     } catch (err) {
         console.error('Không thể tải ảnh thiệp:', err);
-        // Thử lại lần 2 sau 1.0s (bỏ qua đường dẫn tĩnh để lấy mới từ file_id nếu mạng chập chờn)
+        // Thử lại lần 2 sau 1.0s (bỏ qua đường dẫn tĩnh để lấy mới từ file_id hoặc (shardIdx, msgId) nếu mạng chập chờn)
         setTimeout(async () => {
             try {
-                await preloadAndDecodeRecipientCardImage(meta.f, '');
+                await preloadAndDecodeRecipientCardImage(meta.f || '', '', sIdx, msgId);
             } catch (retryErr) {
                 console.error('Thử tải lại ảnh thiệp thất bại:', retryErr);
             }
