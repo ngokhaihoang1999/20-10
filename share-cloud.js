@@ -244,95 +244,15 @@ function buildShareableCardUrl(fileId, filePathOverride) {
     return `${baseUrl}?c=${payload}`;
 }
 
-// ====== HỆ THỐNG TỰ ĐỘNG RÚT GỌN LINK 1 DÒNG (SHORTLINK ~20 KÝ TỰ) CHO ZALO / MESSENGER ======
-const _SHORT_URL_STORAGE_KEY = 'w2010_short_urls_v1';
-const _shortUrlCache = Object.create(null);
-const _inFlightShortenMap = Object.create(null);
-let _shortenDebounceTimer = 0;
-
-try {
-    const rawShort = sessionStorage.getItem(_SHORT_URL_STORAGE_KEY);
-    if (rawShort) {
-        const parsedShort = JSON.parse(rawShort);
-        if (parsedShort && typeof parsedShort === 'object') {
-            for (const [k, v] of Object.entries(parsedShort)) {
-                if (typeof v === 'string' && v.startsWith('https://')) {
-                    _shortUrlCache[k] = v;
-                }
-            }
-        }
-    }
-} catch (_) {}
-
-function _saveShortUrlCache() {
-    try {
-        sessionStorage.setItem(_SHORT_URL_STORAGE_KEY, JSON.stringify(_shortUrlCache));
-    } catch (_) {}
-}
-
 function getCachedShortUrl(longUrl) {
-    return (longUrl && _shortUrlCache[longUrl]) ? _shortUrlCache[longUrl] : '';
+    return '';
 }
 
 async function resolveShortShareUrl(longUrl) {
-    if (!longUrl || !longUrl.startsWith('http')) return longUrl;
-    if (_shortUrlCache[longUrl]) return _shortUrlCache[longUrl];
-    if (_inFlightShortenMap[longUrl]) return _inFlightShortenMap[longUrl];
-
-    const task = (async () => {
-        const fetchWithTimeout = async (apiUrl, validator) => {
-            const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-            const timer = setTimeout(() => { if (ctrl) ctrl.abort(); }, 2200);
-            try {
-                const res = await _nativeFetch(apiUrl, ctrl ? { signal: ctrl.signal } : {});
-                if (!res.ok) throw new Error('status');
-                const txt = (await res.text()).trim();
-                if (!validator.test(txt)) throw new Error('invalid');
-                return txt;
-            } finally {
-                clearTimeout(timer);
-            }
-        };
-
-        try {
-            // Đua song song 2 cổng rút gọn tốc độ cao có sẵn CORS * (da.gd & clck.ru) -> Chỉ mất ~300-600ms
-            const shortUrl = await Promise.any([
-                fetchWithTimeout(`https://da.gd/s?url=${encodeURIComponent(longUrl)}`, /^https:\/\/da\.gd\/[A-Za-z0-9_-]{3,16}$/),
-                fetchWithTimeout(`https://clck.ru/--?url=${encodeURIComponent(longUrl)}`, /^https:\/\/clck\.ru\/[A-Za-z0-9_-]{3,16}$/)
-            ]);
-            _shortUrlCache[longUrl] = shortUrl;
-            _saveShortUrlCache();
-            return shortUrl;
-        } catch (_) {
-            return longUrl;
-        }
-    })();
-
-    _inFlightShortenMap[longUrl] = task;
-    try {
-        return await task;
-    } finally {
-        delete _inFlightShortenMap[longUrl];
-    }
+    return longUrl;
 }
 
-function schedulePreShortenCurrentShareUrl(delayMs = 80) {
-    if (!cachedTelegramFileId || isCardCanvasDirtyForTelegram) return;
-    clearTimeout(_shortenDebounceTimer);
-    _shortenDebounceTimer = setTimeout(() => {
-        if (!cachedTelegramFileId || isCardCanvasDirtyForTelegram) return;
-        const longUrl = buildShareableCardUrl(cachedTelegramFileId);
-        if (_shortUrlCache[longUrl]) {
-            refreshShareModalPreviewUI();
-            return;
-        }
-        resolveShortShareUrl(longUrl).then((shortUrl) => {
-            if (shortUrl && shortUrl !== longUrl) {
-                refreshShareModalPreviewUI();
-            }
-        });
-    }, delayMs);
-}
+function schedulePreShortenCurrentShareUrl() {}
 
 let _lastUploadSawRateLimit = false;
 const _SHARD_COOLDOWN_STORAGE_KEY = 'tg_shard_cooldowns_v1';
@@ -871,24 +791,17 @@ function refreshShareModalPreviewUI() {
     const title = getEffectiveLinkTitle();
     const isReady = Boolean(cachedTelegramFileId && !isCardCanvasDirtyForTelegram);
     const url = buildShareableCardUrl(cachedTelegramFileId || '...');
-    const shortUrl = isReady ? getCachedShortUrl(url) : '';
-    const displayUrl = shortUrl || url;
     if (chatPreviewTitle) {
         chatPreviewTitle.textContent = title;
-        chatPreviewTitle.setAttribute('href', isReady ? displayUrl : '#');
+        chatPreviewTitle.setAttribute('href', isReady ? url : '#');
     }
     if (chatPreviewUrl) {
         if (!isReady) {
             chatPreviewUrl.textContent = `⏳ Đang khởi tạo đường link thiệp 3D...`;
             chatPreviewUrl.setAttribute('title', '');
-        } else if (shortUrl) {
-            chatPreviewUrl.textContent = `🔗 ${shortUrl} (Link rút gọn 1 dòng • Chạm để chép)`;
-            chatPreviewUrl.setAttribute('title', shortUrl);
         } else {
-            const hostPath = (window.location.host || 'thiep20-10') + window.location.pathname;
-            chatPreviewUrl.textContent = `🔗 ${hostPath}?c=... (Đang rút gọn link • Chạm để chép)`;
+            chatPreviewUrl.textContent = `🔗 Link thiệp 3D đã sẵn sàng (Chạm để chép riêng URL)`;
             chatPreviewUrl.setAttribute('title', url);
-            schedulePreShortenCurrentShareUrl(180);
         }
     }
     if (chatPreviewMotionName) {
@@ -1193,41 +1106,32 @@ document.getElementById('copy-rich-link-btn')?.addEventListener('click', async (
     }
 });
 
-// Nút 2: 📱 Gửi Zalo / App khác (Tự động rút gọn link còn 1 dòng ngắn ~20 ký tự + Mở bảng Chia sẻ hệ thống hoặc Copy cho Zalo)
+// Nút 2: 📱 Gửi Zalo / App khác (Mở bảng Chia sẻ hệ thống iOS/Android hoặc tự động Copy kèm URL cho Zalo)
 document.getElementById('share-zalo-btn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const origText = '📱 Gửi Zalo / App khác';
     const title = getEffectiveLinkTitle();
 
     try {
-        if (btn) btn.textContent = '⏳ Đang rút gọn link...';
-        const longUrl = await ensureShareUrlReady();
-        const shortUrl = await resolveShortShareUrl(longUrl);
-        refreshShareModalPreviewUI();
-
-        // Sao chép sẵn lời nhắn + link rút gọn 1 dòng vào bộ nhớ tạm trước khi mở Share Sheet để dự phòng trên mọi máy
-        copyRawUrlSync(`${title}\n${shortUrl}`);
+        const url = await ensureShareUrlReady();
+        copyRawUrlSync(`${title}\n${url}`);
 
         if (navigator.share) {
             try {
-                if (btn) btn.textContent = origText;
                 await navigator.share({
                     title: title,
                     text: title,
-                    url: shortUrl
+                    url: url
                 });
                 return;
             } catch (err) {
-                if (err && err.name === 'AbortError') {
-                    if (btn) btn.textContent = origText;
-                    return;
-                }
+                if (err && err.name === 'AbortError') return;
             }
         }
 
-        if (btn) btn.textContent = '✅ Đã chép Link gọn! Dán vào Zalo';
+        if (btn) btn.textContent = '✅ Đã chép! Dán vào Zalo';
         if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = `✅ Đã chép Lời nhắn & Link rút gọn 1 dòng (${shortUrl})! Hãy Dán (Paste) vào Zalo / Messenger nhé 🌸`;
+            tgUploadStatusText.textContent = '✅ Đã sao chép Lời nhắn & Link! Hãy mở Zalo / Messenger và Dán (Paste) để gửi nhé 🌸';
         }
         setTimeout(() => {
             if (btn) btn.textContent = origText;
