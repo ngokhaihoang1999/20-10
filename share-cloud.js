@@ -1,4 +1,13 @@
-// Giải mã khóa lưu trữ đám mây đa luồng tại thời điểm chạy (Băm đa tầng + Salt chống quét tĩnh)
+(function () {
+'use strict';
+
+// Khóa cứng các hàm nguyên bản của trình duyệt ngay lúc khởi tạo để chống Monkey-Patching từ DevTools Console
+const _nativeFetch = window.fetch.bind(window);
+const _NativeFormData = window.FormData;
+const _NativeFile = window.File;
+const _NativeBlob = window.Blob;
+
+// Giải mã khóa lưu trữ đám mây đa luồng tại thời điểm chạy (Băm đa tầng + Salt chống quét tĩnh + Đóng gói kín trong IIFE Closure)
 const _VK = [43, 99, 77, 26, 20, 10, 88, 17, 61, 33, 109];
 const _vDec = (arr) => arr.map((v, i) => String.fromCharCode(v ^ _VK[i % _VK.length] ^ ((i * 13) & 0x7f))).join('');
 const _SHARD_CIDS_ENC = [
@@ -27,6 +36,35 @@ const _getCloudCfg = () => {
     };
 };
 
+// ====== LỚP BẢO MẬT DỮ LIỆU ĐẦU VÀO (CHỐNG XSS, CHỐNG PHISHING URL INJECTION, CHỐNG SSRF / PATH TRAVERSAL) ======
+const _VALID_MOTION_IDS = ['bloom', 'butterflies', 'ribbon', 'galaxy', 'sakura', 'hearts'];
+const _VALID_THEME_KEYS = ['emerald', 'blush', 'champagne', 'rosegold', 'lavender', 'ruby'];
+
+function sanitizeSafeText(str, maxLen = 70) {
+    if (typeof str !== 'string') return '';
+    return str
+        // Loại bỏ ký tự điều khiển & ký tự đảo chiều văn bản Unicode (Bidi Override spoofing)
+        .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g, '')
+        // Loại bỏ dấu ngoặc nhọn HTML/SVG
+        .replace(/[<>]/g, '')
+        // Chặn chèn đường link lạ / mã độc giả mạo vào tiêu đề thiệp
+        .replace(/\b(?:https?|ftp|javascript|data|vbscript):\/\/[^\s]+/gi, '')
+        .replace(/\b(?:javascript|data|vbscript):[^\s]+/gi, '')
+        .replace(/\bwww\.[^\s]+/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, maxLen);
+}
+
+function isValidTelegramFileId(id) {
+    return typeof id === 'string' && /^[A-Za-z0-9_-]{16,180}$/.test(id);
+}
+
+function isValidTelegramFilePath(p) {
+    if (typeof p !== 'string' || p.length > 160) return false;
+    if (p.includes('..') || p.includes('//') || p.includes('\\') || p.includes('?') || p.includes('#')) return false;
+    return /^(documents|photos)\/[A-Za-z0-9_.-]+\.(jpg|jpeg|png|webp)$/i.test(p);
+}
 
 // ====== 3. LƯU TRỮ ẢNH GỐC CHẤT LƯỢNG 100% LÊN POOL 5 KÊNH TELEGRAM & TẠO ĐƯỜNG LINK ======
 function toSlugVietnamese(str) {
@@ -45,7 +83,8 @@ function escapeHtmlEntities(str) {
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function encodeCardPayload(obj) {
@@ -64,7 +103,10 @@ function encodeCardPayload(obj) {
 
 function decodeCardPayload(b64url) {
     try {
-        let b64 = String(b64url || '').replace(/-/g, '+').replace(/_/g, '/');
+        const raw = String(b64url || '').trim();
+        // Giới hạn độ dài & chỉ cho phép bảng mã Base64URL chuẩn để chống tràn bộ nhớ hoặc chèn mã
+        if (!raw || raw.length > 1024 || !/^[A-Za-z0-9_-]+={0,2}$/.test(raw)) return null;
+        let b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
         while (b64.length % 4) b64 += '=';
         const binary = atob(b64);
         const bytes = new Uint8Array(binary.length);
@@ -72,16 +114,26 @@ function decodeCardPayload(b64url) {
             bytes[i] = binary.charCodeAt(i);
         }
         const json = new TextDecoder().decode(bytes);
-        return JSON.parse(json);
+        const parsed = JSON.parse(json);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+        // Tạo đối tượng sạch không kế thừa prototype để chống Prototype Pollution
+        const safeMeta = Object.create(null);
+        if (typeof parsed.f === 'string') safeMeta.f = parsed.f.trim();
+        if (typeof parsed.p === 'string') safeMeta.p = parsed.p.trim();
+        if (typeof parsed.m === 'string') safeMeta.m = parsed.m.trim();
+        if (typeof parsed.t === 'string') safeMeta.t = parsed.t.trim();
+        if (typeof parsed.l === 'string') safeMeta.l = sanitizeSafeText(parsed.l, 70);
+        if (typeof parsed.r === 'string') safeMeta.r = sanitizeSafeText(parsed.r, 45);
+        return safeMeta;
     } catch (e) {
         return null;
     }
 }
 
 function getEffectiveLinkTitle() {
-    const trimmed = (customLinkTitle || '').trim();
+    const trimmed = sanitizeSafeText(customLinkTitle || '', 70);
     if (trimmed) return trimmed;
-    const rec = (recipientName || '').trim();
+    const rec = sanitizeSafeText(recipientName || '', 45);
     if (rec) return `💌 ${rec} - Thiệp 3D 20/10 🌸`;
     if (window.isSelfOracleMode) return '🌸 Thiệp 20.10 dành riêng cho bạn ✨';
     return '💌 Thiệp 20.10 gửi tặng bạn 🌸';
@@ -95,15 +147,17 @@ function buildShareableCardUrl(fileId, filePathOverride) {
     const baseUrl = window.location.origin + window.location.pathname;
     const title = getEffectiveLinkTitle();
     const slug = toSlugVietnamese(title);
+    const safeMotion = _VALID_MOTION_IDS.includes(window.currentMotionEffect) ? window.currentMotionEffect : 'bloom';
+    const safeTheme = _VALID_THEME_KEYS.includes(currentColorTheme) ? currentColorTheme : 'emerald';
     const payloadObj = {
         f: fileId || 'local',
-        m: window.currentMotionEffect || 'bloom',
-        t: currentColorTheme || 'emerald',
+        m: safeMotion,
+        t: safeTheme,
         l: title,
-        r: (recipientName || '').trim()
+        r: sanitizeSafeText(recipientName || '', 45)
     };
     const effPath = filePathOverride !== undefined ? filePathOverride : cachedTelegramFilePath;
-    if (effPath) {
+    if (effPath && isValidTelegramFilePath(effPath)) {
         payloadObj.p = effPath;
     }
     const payload = encodeCardPayload(payloadObj);
@@ -201,7 +255,7 @@ async function postTelegramShardedZeroWait(url, buildFormDataForCid) {
             }
 
             try {
-                const res = await fetch(url, {
+                const res = await _nativeFetch(url, {
                     method: 'POST',
                     body: buildFormDataForCid(targetCid)
                 });
@@ -246,18 +300,19 @@ async function postTelegramShardedZeroWait(url, buildFormDataForCid) {
 
 // Lấy sẵn file_path sau khi upload để nhúng vào Link (chỉ gọi khi hệ thống rảnh, không gọi khi đang có 429 để tiết kiệm 50% hạn mức Bot!)
 async function resolveTelegramFilePathOnce(fileId) {
-    if (!fileId || fileId === 'local') return '';
+    if (!fileId || fileId === 'local' || !isValidTelegramFileId(fileId)) return '';
     try {
         const { ep, tk } = _getCloudCfg();
-        const res = await fetch(`${ep}/bot${tk}/getFile?file_id=${encodeURIComponent(fileId)}`);
+        const res = await _nativeFetch(`${ep}/bot${tk}/getFile?file_id=${encodeURIComponent(fileId)}`);
         if (!res.ok) return '';
         const data = await res.json();
         const fp = data?.result?.file_path || '';
-        if (fp) {
+        if (fp && isValidTelegramFilePath(fp)) {
             const fullUrl = `${ep}/file/bot${tk}/${fp}`;
             _cacheResolvedTelegramUrl(fileId, fullUrl);
+            return fp;
         }
-        return fp;
+        return '';
     } catch (_) {
         return '';
     }
@@ -413,6 +468,53 @@ function _recordDeviceCreationSnapshot() {
     return _lastDeviceSnapshot;
 }
 
+// ====== BỘ CHỐNG SPAM / FLOOD TỪ DEVTOOLS & XÁC THỰC TOÀN VẸN KHUNG CANVAS STUDIO ======
+const _UPLOAD_GUARD_KEY = 'w2010_up_guard_v1';
+const _UPLOAD_WINDOW_MS = 10 * 60 * 1000; // Cửa sổ trượt 10 phút
+const _MAX_UPLOADS_PER_WINDOW = 18;       // Tối đa 18 thiệp mới / 10 phút trên 1 thiết bị (dư dả 100% cho người dùng thật, chặn đứng vòng lặp flood)
+const _MIN_UPLOAD_INTERVAL_MS = 5000;     // Giãn cách tối thiểu 5 giây giữa 2 lần đẩy ảnh mới
+let _memUploadTimestamps = [];
+let _lastUploadedBlobSize = 0;
+
+function _checkAndRecordUploadQuota() {
+    const now = Date.now();
+    let list = _memUploadTimestamps;
+    try {
+        const raw = localStorage.getItem(_UPLOAD_GUARD_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                list = parsed.map(Number).filter((ts) => ts > 0 && (now - ts) < _UPLOAD_WINDOW_MS);
+            }
+        }
+    } catch (_) {}
+
+    list = list.filter((ts) => (now - ts) < _UPLOAD_WINDOW_MS);
+    if (list.length > 0 && (now - list[list.length - 1]) < _MIN_UPLOAD_INTERVAL_MS) {
+        return false;
+    }
+    if (list.length >= _MAX_UPLOADS_PER_WINDOW) {
+        return false;
+    }
+
+    list.push(now);
+    _memUploadTimestamps = list;
+    try {
+        localStorage.setItem(_UPLOAD_GUARD_KEY, JSON.stringify(list));
+    } catch (_) {}
+    return true;
+}
+
+function _isValidStudioCardCanvas() {
+    if (!finalResultCanvas || !(finalResultCanvas instanceof HTMLCanvasElement)) return false;
+    // Khung xuất bản thiệp gốc luôn cố định chuẩn Studio 1024x2060
+    if (finalResultCanvas.width !== 1024 || finalResultCanvas.height !== 2060) return false;
+    if (!currentUserImage) return false;
+    const imgW = currentUserImage.naturalWidth || currentUserImage.width || 0;
+    const imgH = currentUserImage.naturalHeight || currentUserImage.height || 0;
+    return imgW >= 32 && imgH >= 32;
+}
+
 async function uploadCardToTelegramBot() {
     if (!finalResultCanvas) throw new Error('Chưa có dữ liệu thiệp');
     if (!isCardCanvasDirtyForTelegram && cachedTelegramFileId) {
@@ -427,6 +529,21 @@ async function uploadCardToTelegramBot() {
             return cachedTelegramFileId;
         }
 
+        // 1. Xác thực toàn vẹn Canvas Studio (chặn script bên ngoài truyền canvas rỗng hoặc giả mạo)
+        if (!_isValidStudioCardCanvas()) {
+            if (cachedTelegramFileId) return cachedTelegramFileId;
+            throw new Error('Khung ảnh thiệp chưa hợp lệ');
+        }
+
+        // 2. Chống vòng lặp spam từ Console: nếu vượt ngưỡng tần suất nhưng đã có sẵn file_id trước đó, trả về mượt mà không báo lỗi!
+        if (!_checkAndRecordUploadQuota()) {
+            if (cachedTelegramFileId) {
+                isCardCanvasDirtyForTelegram = false;
+                return cachedTelegramFileId;
+            }
+            await new Promise((r) => setTimeout(r, _MIN_UPLOAD_INTERVAL_MS));
+        }
+
         _lastUploadSawRateLimit = false;
 
         // Xuất ở chất lượng Studio gốc 0.98 (1024x2060 nguyên bản) và gửi qua sendDocument
@@ -434,10 +551,22 @@ async function uploadCardToTelegramBot() {
         const blob = await new Promise((resolve) => {
             finalResultCanvas.toBlob(resolve, 'image/jpeg', 0.98);
         });
-        if (!blob) throw new Error('Không thể xuất file ảnh gốc');
+        if (!blob || blob.size < 15000 || blob.size > 7500000) {
+            if (cachedTelegramFileId) return cachedTelegramFileId;
+            throw new Error('Không thể xuất file ảnh gốc hợp lệ');
+        }
+
+        // Chống đẩy trùng cùng 1 bức ảnh (nếu kích thước byte và chữ ký render không đổi)
+        if (cachedTelegramFileId && blob.size === _lastUploadedBlobSize) {
+            isCardCanvasDirtyForTelegram = false;
+            return cachedTelegramFileId;
+        }
 
         const title = getEffectiveLinkTitle();
-        const motionCfg = MOTION_EFFECTS_CONFIG[window.currentMotionEffect] || MOTION_EFFECTS_CONFIG.bloom;
+        const safeMotionKey = _VALID_MOTION_IDS.includes(window.currentMotionEffect) ? window.currentMotionEffect : 'bloom';
+        const safeThemeKey = _VALID_THEME_KEYS.includes(currentColorTheme) ? currentColorTheme : 'emerald';
+        const motionCfg = MOTION_EFFECTS_CONFIG[safeMotionKey] || MOTION_EFFECTS_CONFIG.bloom;
+        const safeRecName = sanitizeSafeText(recipientName || '', 45);
         const devSnap = _recordDeviceCreationSnapshot();
         const captionText = [
             `🌸 THIỆP 3D MOTION 20/10`,
@@ -445,18 +574,18 @@ async function uploadCardToTelegramBot() {
             devSnap.deviceLine,
             devSnap.countLine,
             `🏷️ Tên thiệp: ${title}`,
-            recipientName ? `💌 Tiêu đề: ${recipientName}` : '',
+            safeRecName ? `💌 Tiêu đề: ${safeRecName}` : '',
             `🎬 Hiệu ứng: ${motionCfg.fullLabel}`,
-            `🎨 Tông màu: ${currentColorTheme}`
-        ].filter(Boolean).join('\n');
+            `🎨 Tông màu: ${safeThemeKey}`
+        ].filter(Boolean).join('\n').slice(0, 1000);
 
         const { ep, tk } = _getCloudCfg();
 
         // Ưu tiên 1: Gửi qua sendDocument để bảo toàn 100% file ảnh gốc (không bị Telegram thu nhỏ hay nén lại)
         let resp = await postTelegramShardedZeroWait(`${ep}/bot${tk}/sendDocument`, (targetCid) => {
-            const formDoc = new FormData();
+            const formDoc = new _NativeFormData();
             formDoc.append('chat_id', targetCid);
-            formDoc.append('document', new File([blob], 'Thiep_20_10_3D_Original.jpg', { type: 'image/jpeg' }));
+            formDoc.append('document', new _NativeFile([blob], 'Thiep_20_10_3D_Original.jpg', { type: 'image/jpeg' }));
             formDoc.append('caption', captionText);
             formDoc.append('disable_notification', 'true');
             return formDoc;
@@ -469,9 +598,9 @@ async function uploadCardToTelegramBot() {
         // Dự phòng: Chỉ chuyển sang sendPhoto nếu định dạng document bị từ chối
         if (!fileId && resp.status !== 429) {
             resp = await postTelegramShardedZeroWait(`${ep}/bot${tk}/sendPhoto`, (targetCid) => {
-                const formPhoto = new FormData();
+                const formPhoto = new _NativeFormData();
                 formPhoto.append('chat_id', targetCid);
-                formPhoto.append('photo', new File([blob], 'Thiep_20_10_3D.jpg', { type: 'image/jpeg' }));
+                formPhoto.append('photo', new _NativeFile([blob], 'Thiep_20_10_3D.jpg', { type: 'image/jpeg' }));
                 formPhoto.append('caption', captionText);
                 formPhoto.append('disable_notification', 'true');
                 return formPhoto;
@@ -488,6 +617,7 @@ async function uploadCardToTelegramBot() {
             throw new Error(data?.description || 'Không nhận được file_id từ Telegram');
         }
 
+        _lastUploadedBlobSize = blob.size;
         cachedTelegramFileId = fileId;
         cachedTelegramMsgId = msgId || null;
         cachedTelegramFilePath = '';
@@ -586,6 +716,7 @@ function refreshShareModalPreviewUI() {
         chatPreviewMotionName.textContent = motionCfg.fullLabel;
     }
 }
+window.refreshShareModalPreviewUI = refreshShareModalPreviewUI;
 
 // Hàm Sao Chép Hyperlink Ẩn URL Dưới Tên Thiệp (<a href="URL">Tên Thiệp</a>) ĐỒNG BỘ 100% trong cử chỉ chạm (User Gesture):
 // - text/html: <a href="URL">Tên Thiệp</a> (Telegram Android/iOS/Desktop tự động chuyển thành thực thể chữ gắn link xanh, ẩn 100% URL)
@@ -972,11 +1103,11 @@ function _readCachedTelegramUrl(fileId) {
 }
 
 async function resolveTelegramFileUrl(fileId, directFilePath = '', forceRefresh = false) {
-    if (!fileId || fileId === 'local') return '';
+    if (!fileId || fileId === 'local' || !isValidTelegramFileId(fileId)) return '';
     const { ep, tk } = _getCloudCfg();
 
-    // 1. Nếu trong Link đã nhúng sẵn file_path (meta.p), trả về ngay lập tức trong 0ms (KHÔNG tốn bất kỳ request getFile nào!)
-    if (directFilePath && !forceRefresh) {
+    // 1. Nếu trong Link đã nhúng sẵn file_path (meta.p) ĐÃ QUA KIỂM ĐỊNH CHỐNG PATH TRAVERSAL, trả về ngay lập tức trong 0ms!
+    if (directFilePath && !forceRefresh && isValidTelegramFilePath(directFilePath)) {
         return `${ep}/file/bot${tk}/${directFilePath}`;
     }
 
@@ -1002,17 +1133,17 @@ async function resolveTelegramFileUrl(fileId, directFilePath = '', forceRefresh 
         let filePath = '';
         for (const url of endpoints) {
             try {
-                const res = await fetch(url);
+                const res = await _nativeFetch(url);
                 if (!res.ok) continue;
                 const data = await res.json();
-                if (data?.result?.file_path) {
+                if (data?.result?.file_path && isValidTelegramFilePath(data.result.file_path)) {
                     filePath = data.result.file_path;
                     break;
                 }
             } catch (_) {}
         }
 
-        if (!filePath) throw new Error('Không tìm thấy file_path từ Telegram');
+        if (!filePath) throw new Error('Không tìm thấy file_path hợp lệ từ Telegram');
 
         const fullUrl = `${ep}/file/bot${tk}/${filePath}`;
         _cacheResolvedTelegramUrl(fileId, fullUrl);
@@ -1186,6 +1317,7 @@ function previewCreatorEnvelopeOpening() {
     if (shareLinkModal) shareLinkModal.style.display = 'none';
     renderCurrentStep2CardAndPreviewEnvelope(false);
 }
+window.previewCreatorEnvelopeOpening = previewCreatorEnvelopeOpening;
 
 document.getElementById('step3-preview-envelope-btn')?.addEventListener('click', previewCreatorEnvelopeOpening);
 document.getElementById('test-recipient-view-btn')?.addEventListener('click', previewCreatorEnvelopeOpening);
@@ -1345,28 +1477,36 @@ window.handleRecipientDownloadCard = async function () {
 async function checkAndInitRecipientLinkOnLoad() {
     const params = new URLSearchParams(window.location.search);
     const rawCard = params.get('card');
-    if (!rawCard) {
+    if (!rawCard || rawCard.length > 1024) {
         document.title = 'Thiệp 20/10 - Tôn vinh phụ nữ Việt Nam';
         return;
     }
 
     const meta = decodeCardPayload(rawCard);
-    if (!meta || !meta.f) {
+    if (!meta || !meta.f || !isValidTelegramFileId(meta.f)) {
         document.title = 'Thiệp 20/10 - Tôn vinh phụ nữ Việt Nam';
         return;
     }
 
+    const safeLinkTitle = sanitizeSafeText(meta.l || '', 70) || '💌 Bạn nhận được một tấm thiệp 3D 20/10 đặc biệt 🌸';
+    const safeRecTitle = sanitizeSafeText(meta.r || '', 45);
+    const safeMotionId = _VALID_MOTION_IDS.includes(meta.m) ? meta.m : 'bloom';
+    const safeThemeKey = _VALID_THEME_KEYS.includes(meta.t) ? meta.t : 'emerald';
+    const safeFilePath = (meta.p && isValidTelegramFilePath(meta.p)) ? meta.p : '';
+
+    meta.l = safeLinkTitle;
+    meta.r = safeRecTitle;
+    meta.m = safeMotionId;
+    meta.t = safeThemeKey;
+    meta.p = safeFilePath;
+
     recipientCardMeta = meta;
-    const linkTitle = meta.l || '💌 Bạn nhận được một tấm thiệp 3D 20/10 đặc biệt 🌸';
-    const recTitle = meta.r || '';
-    const motionId = meta.m || 'bloom';
-    const themeKey = meta.t || 'emerald';
+    customLinkTitle = safeLinkTitle;
+    recipientName = safeRecTitle;
+    window.currentMotionEffect = safeMotionId;
+    currentColorTheme = safeThemeKey;
 
-    customLinkTitle = linkTitle;
-    recipientName = recTitle;
-    currentColorTheme = themeKey;
-
-    document.title = linkTitle;
+    document.title = safeLinkTitle;
 
     // Đặt ảnh placeholder trong suốt 1x1 an toàn tuyệt đối (không bao giờ hiện icon crash/broken image)
     // và khóa trạng thái sẵn sàng cho đến khi ảnh tải + decode xong 100%
@@ -1377,17 +1517,17 @@ async function checkAndInitRecipientLinkOnLoad() {
 
     // Khởi chạy Sân Khấu 3D ở pha 'summoning' (Nghi thức Vũ Đạo Ánh Sáng 3D thuần túy, không chữ Loading, ẩn phong bì & ấn sáp)
     setupEnvelopeGiftStageUI({
-        title: linkTitle,
-        subtitle: recTitle ? `💌 ${recTitle}` : 'Một món quà 3D đặc biệt đang chờ bạn mở phong bì ✨',
-        motionId: motionId,
-        themeKey: themeKey,
+        title: safeLinkTitle,
+        subtitle: safeRecTitle ? `💌 ${safeRecTitle}` : 'Một món quà 3D đặc biệt đang chờ bạn mở phong bì ✨',
+        motionId: safeMotionId,
+        themeKey: safeThemeKey,
         isRealRecipient: true,
         autoOpen: false
     });
 
     // Tải & giải mã hoàn chỉnh (img.decode()) ảnh chất lượng gốc từ đám mây trước khi triệu hồi Phong Bì & Ấn Sáp
     try {
-        await preloadAndDecodeRecipientCardImage(meta.f, meta.p || '');
+        await preloadAndDecodeRecipientCardImage(meta.f, safeFilePath);
     } catch (err) {
         console.error('Không thể tải ảnh thiệp:', err);
         // Thử lại lần 2 sau 1.0s (bỏ qua đường dẫn tĩnh để lấy mới từ file_id nếu mạng chập chờn)
@@ -1406,5 +1546,8 @@ if (document.readyState === 'loading') {
 } else {
     checkAndInitRecipientLinkOnLoad();
 }
+
+})();
+
 
 

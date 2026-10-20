@@ -5700,6 +5700,12 @@ async function normalizeInputPhotoForCropper(file) {
         });
 
         const { img, w, h } = dims;
+        // Chặn ảnh giải nén quá khổ (Decompression Bomb > 16384px) gây treo trình duyệt
+        if (w > 16384 || h > 16384) {
+            img.removeAttribute('src');
+            URL.revokeObjectURL(rawUrl);
+            throw new Error('IMAGE_DIMENSIONS_TOO_LARGE');
+        }
         if (w <= 0 || h <= 0 || Math.max(w, h) <= MAX_DIM) {
             img.removeAttribute('src');
             return rawUrl;
@@ -5726,7 +5732,10 @@ async function normalizeInputPhotoForCropper(file) {
         if (blob) {
             return URL.createObjectURL(blob);
         }
-    } catch (_) {
+    } catch (err) {
+        if (err && err.message === 'IMAGE_DIMENSIONS_TOO_LARGE') {
+            return null;
+        }
         return rawUrl;
     }
     return URL.createObjectURL(file);
@@ -5870,6 +5879,21 @@ async function handleImageInput(e) {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Kiểm tra định dạng & dung lượng file đầu vào (chống file giả mạo hoặc quá tải > 35MB gây treo tab)
+    const MAX_FILE_BYTES = 35 * 1024 * 1024;
+    const isValidMime = typeof file.type === 'string' && file.type.startsWith('image/');
+    const isValidExt = /\.(jpe?g|png|webp|heic|heif|avif|bmp|gif)$/i.test(file.name || '');
+    if (!isValidMime && !isValidExt) {
+        alert('Bạn vui lòng chọn đúng định dạng file hình ảnh (JPG, PNG, HEIC, WEBP...) nhé 🌸');
+        e.target.value = '';
+        return;
+    }
+    if (file.size > MAX_FILE_BYTES) {
+        alert('Ảnh có dung lượng quá lớn (trên 35MB), bạn vui lòng chọn một bức ảnh khác nhẹ hơn nhé 🌸');
+        e.target.value = '';
+        return;
+    }
+
     // Giải phóng ngay lập tức 100% bộ nhớ của ảnh cũ (nếu có) TRƯỚC KHI giải mã ảnh mới để tránh tràn RAM trên iOS Safari
     destroyActiveCropperAndRevokePhoto();
     if (currentUserImage && typeof currentUserImage.width === 'number') {
@@ -5931,6 +5955,12 @@ async function handleImageInput(e) {
 
     window.isStep2Morphing = true;
     const normalizedBlobUrl = await normalizeInputPhotoForCropper(file);
+    if (!normalizedBlobUrl) {
+        window.isStep2Morphing = false;
+        alert('Kích thước điểm ảnh quá lớn (trên 16.384px), bạn vui lòng chọn một bức ảnh tiêu chuẩn nhé 🌸');
+        e.target.value = '';
+        return;
+    }
 
     // Giữ Bước 1 hiển thị ổn định trong lúc Bước 2 dựng ngầm Cropper + giải mã Texture GPU phía dưới (không bao giờ chớp màn hình)
     step2.classList.remove('step2-morph-from', 'step2-morph-to', 'step2-morph-settled', 'step2-morph-active', 'step2-ui-hidden', 'step2-ui-revealing');
@@ -6993,9 +7023,21 @@ document.getElementById('modal-clear-wish-btn').addEventListener('click', () => 
     customWishInput.focus();
 });
 
+function sanitizeCardUserText(str, maxLen) {
+    return String(str || '')
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g, '')
+        .replace(/[<>]/g, '')
+        .replace(/\b(?:https?|ftp|javascript|data|vbscript):\/\/[^\s]+/gi, '')
+        .replace(/\b(?:javascript|data|vbscript):[^\s]+/gi, '')
+        .trim()
+        .slice(0, maxLen);
+}
+
 document.getElementById('apply-text-modal-btn').addEventListener('click', () => {
-    recipientName = recipientInput.value.trim();
-    const typedWish = customWishInput.value.trim();
+    recipientName = sanitizeCardUserText(recipientInput.value, 45);
+    recipientInput.value = recipientName;
+    const typedWish = sanitizeCardUserText(customWishInput.value, 160);
+    customWishInput.value = typedWish;
     if (typedWish) {
         customWishText = typedWish;
         isCustomWishActive = true;
