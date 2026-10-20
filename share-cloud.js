@@ -958,6 +958,7 @@ window.schedulePreUploadCardToTelegram = function () {
 
 // ====== 4. ĐIỀU KHIỂN MODAL LƯU & CHIA SẺ LINK THIỆP (TƯƠNG THÍCH 100% MỌI THIẾT BỊ & ỨNG DỤNG) ======
 const shareLinkModal = document.getElementById('share-link-modal');
+window.shareLinkModal = shareLinkModal;
 const customLinkTitleInput = document.getElementById('custom-link-title-input');
 const linkTitleCharCount = document.getElementById('link-title-char-count');
 const tgStatusDot = document.getElementById('tg-status-dot');

@@ -8007,7 +8007,8 @@ window.finishStep2MotionPreview = function () {
 
 // Helper kết xuất nhanh thiệp hiện tại ở Bước 2 để XEM THỬ hiệu ứng mở 3D (KHÔNG lưu Telegram, ấn vào sáp để mở, xem xong trả về màn hình Edit Bước 2)
 function renderCurrentStep2CardAndPreviewEnvelope(autoOpen = false) {
-    if (shareLinkModal) shareLinkModal.style.display = 'none';
+    const shareModalEl = document.getElementById('share-link-modal');
+    if (shareModalEl) shareModalEl.style.display = 'none';
     const isFromStep2 = (step2 && step2.classList.contains('active')) || document.body.classList.contains('step2-previewing-3d');
 
     if (isFromStep2 && cropperObj) {
