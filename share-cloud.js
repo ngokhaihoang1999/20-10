@@ -1326,7 +1326,15 @@ document.getElementById('share-zalo-btn')?.addEventListener('click', async (e) =
     }
 });
 
-// Nút 3: ✈️ Gửi qua Telegram -> Sao chép ĐỒNG BỘ Tên Thiệp đã gắn ẩn URL (<a href="URL">Tên Thiệp</a>) để dán vào Telegram không bị lộ URL thô!
+function openTelegramShareSheet(url, title) {
+    const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+    const win = window.open(tgShareUrl, '_blank', 'noopener,noreferrer');
+    if (!win) {
+        window.location.href = tgShareUrl;
+    }
+}
+
+// Nút 3: ✈️ Gửi qua Telegram -> Mở ngay màn hình Chia sẻ của Telegram (kèm sao chép sẵn tên thiệp ẩn link)
 document.getElementById('share-telegram-btn')?.addEventListener('click', async (e) => {
     const btn = e.currentTarget;
     const origText = '✈️ Gửi qua Telegram';
@@ -1335,27 +1343,16 @@ document.getElementById('share-telegram-btn')?.addEventListener('click', async (
     if (cachedTelegramFileId && !isCardCanvasDirtyForTelegram) {
         const url = buildShareableCardUrl(cachedTelegramFileId);
         copyHiddenUrlHyperlinkSync(title, url);
-        if (btn) btn.textContent = '✅ Đã Copy! Dán vào Telegram';
-        if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = `✅ Đã copy "${title}" (ẩn URL)! Bạn chỉ cần Dán (Paste) vào cuộc trò chuyện Telegram ✨`;
-        }
-        setTimeout(() => {
-            if (btn) btn.textContent = origText;
-        }, 2800);
+        openTelegramShareSheet(url, title);
         return;
     }
 
     try {
-        if (btn) btn.textContent = '⏳ Đang chuẩn bị...';
+        if (btn) btn.textContent = '⏳ Đang mở Telegram...';
         const url = await ensureShareUrlReady();
         copyHiddenUrlHyperlinkSync(title, url);
-        if (btn) btn.textContent = '✅ Đã Copy! Dán vào Telegram';
-        if (tgUploadStatusText) {
-            tgUploadStatusText.textContent = `✅ Đã copy "${title}" (ẩn URL)! Bạn chỉ cần Dán (Paste) vào cuộc trò chuyện Telegram ✨`;
-        }
-        setTimeout(() => {
-            if (btn) btn.textContent = origText;
-        }, 2800);
+        if (btn) btn.textContent = origText;
+        openTelegramShareSheet(url, title);
     } catch (err) {
         if (btn) btn.textContent = origText;
         if (tgUploadStatusText) {
